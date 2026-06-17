@@ -27,10 +27,17 @@ class TeacherOut(BaseModel):
     question_count: int = 0
 
 
+class StudentCreate(BaseModel):
+    email: EmailStr
+    password: str
+    full_name: str
+
+
 class UserAdminUpdate(BaseModel):
     full_name: str | None = None
     is_active: bool | None = None
     password: str | None = None
+    is_premium: bool | None = None
 
 
 class StudentOut(BaseModel):
@@ -40,6 +47,7 @@ class StudentOut(BaseModel):
     email: EmailStr
     full_name: str
     is_active: bool
+    is_premium: bool = False
     created_at: datetime
     submission_count: int = 0
 

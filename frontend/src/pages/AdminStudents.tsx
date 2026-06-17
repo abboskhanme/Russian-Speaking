@@ -3,7 +3,18 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "../lib/api";
 import { useI18n } from "../lib/i18n";
 import type { AdminStudent } from "../lib/types";
-import { Avatar, Button, Card, EmptyState, Icon, Loading, PageHead } from "../components/govori";
+import {
+  Avatar,
+  Button,
+  Card,
+  EmptyState,
+  Field,
+  Icon,
+  Loading,
+  PageHead,
+  Pill,
+  inp,
+} from "../components/govori";
 import { useConfirm } from "../components/ConfirmDialog";
 
 export function AdminStudents() {
@@ -12,20 +23,52 @@ export function AdminStudents() {
   const qc = useQueryClient();
   const [q, setQ] = useState("");
 
+  // Create-student form
+  const [open, setOpen] = useState(false);
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState<string | null>(null);
+
   const { data, isLoading } = useQuery({
     queryKey: ["admin-students"],
     queryFn: async () => (await api.get<AdminStudent[]>("/admin/students")).data,
   });
 
+  const invalidate = () => qc.invalidateQueries({ queryKey: ["admin-students"] });
+
+  const create = useMutation({
+    mutationFn: async () =>
+      (await api.post("/admin/students", { full_name: name, email, password })).data,
+    onSuccess: () => {
+      invalidate();
+      setOpen(false);
+      setName("");
+      setEmail("");
+      setPassword("");
+      setError(null);
+    },
+    onError: (e: unknown) => {
+      const detail = (e as { response?: { data?: { detail?: string } } })?.response?.data?.detail;
+      setError(detail || t("genericError"));
+    },
+  });
+
   const toggle = useMutation({
     mutationFn: async (s: AdminStudent) =>
       (await api.patch(`/admin/students/${s.id}`, { is_active: !s.is_active })).data,
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["admin-students"] }),
+    onSuccess: invalidate,
+  });
+
+  const premium = useMutation({
+    mutationFn: async (s: AdminStudent) =>
+      (await api.patch(`/admin/students/${s.id}`, { is_premium: !s.is_premium })).data,
+    onSuccess: invalidate,
   });
 
   const remove = useMutation({
     mutationFn: async (id: string) => api.delete(`/admin/students/${id}`),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["admin-students"] }),
+    onSuccess: invalidate,
   });
 
   const list = useMemo(() => {
@@ -37,11 +80,61 @@ export function AdminStudents() {
     );
   }, [data, q]);
 
-  const cols = "2.2fr 1fr 1fr 1.4fr";
+  const cols = "2.2fr 1fr 1.1fr 1.6fr";
 
   return (
     <div className="focus-wrap">
-      <PageHead title={t("studentsTitle")} sub={t("studentsHint")} />
+      <PageHead
+        title={t("studentsTitle")}
+        sub={t("studentsHint")}
+        action={
+          <Button icon="plus" onClick={() => setOpen((o) => !o)}>
+            {t("addStudent")}
+          </Button>
+        }
+      />
+
+      {open && (
+        <Card style={{ marginBottom: 18 }}>
+          <form
+            className="col gap-3"
+            onSubmit={(e) => {
+              e.preventDefault();
+              create.mutate();
+            }}
+          >
+            <Field label={t("fullName")}>
+              <input style={inp} required value={name} onChange={(e) => setName(e.target.value)} />
+            </Field>
+            <Field label={t("email")}>
+              <input
+                style={inp}
+                type="email"
+                required
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="student@example.com"
+              />
+            </Field>
+            <Field label={t("password")}>
+              <input
+                style={inp}
+                type="password"
+                required
+                minLength={6}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+              />
+            </Field>
+            {error && (
+              <p style={{ fontSize: 14, fontWeight: 700, color: "var(--danger)", margin: 0 }}>{error}</p>
+            )}
+            <Button type="submit" full disabled={create.isPending}>
+              {create.isPending ? t("saving") : t("addStudent")}
+            </Button>
+          </form>
+        </Card>
+      )}
 
       <div
         className="row gap-2"
@@ -122,26 +215,42 @@ export function AdminStudents() {
                 {s.submission_count} {t("submissionsCount")}
               </span>
               <span className="t-hide-sm">
-                <span
-                  className="row gap-2"
-                  style={{
-                    fontSize: 13,
-                    fontWeight: 600,
-                    color: s.is_active ? "var(--success)" : "var(--faint)",
-                  }}
-                >
+                <span className="row gap-2 wrap">
                   <span
+                    className="row gap-2"
                     style={{
-                      width: 8,
-                      height: 8,
-                      borderRadius: "50%",
-                      background: s.is_active ? "var(--success)" : "var(--faint)",
+                      fontSize: 13,
+                      fontWeight: 600,
+                      color: s.is_active ? "var(--success)" : "var(--faint)",
                     }}
-                  />
-                  {s.is_active ? t("active") : t("inactive")}
+                  >
+                    <span
+                      style={{
+                        width: 8,
+                        height: 8,
+                        borderRadius: "50%",
+                        background: s.is_active ? "var(--success)" : "var(--faint)",
+                      }}
+                    />
+                    {s.is_active ? t("active") : t("inactive")}
+                  </span>
+                  {s.is_premium && (
+                    <Pill hue={70} size="sm" icon="sparkles">
+                      {t("premium")}
+                    </Pill>
+                  )}
                 </span>
               </span>
-              <div className="row gap-2" style={{ justifyContent: "flex-end" }}>
+              <div className="row gap-2 wrap" style={{ justifyContent: "flex-end" }}>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  icon="sparkles"
+                  style={{ color: s.is_premium ? "var(--muted)" : "oklch(0.55 0.14 70)" }}
+                  onClick={() => premium.mutate(s)}
+                >
+                  {s.is_premium ? t("revokePremium") : t("grantPremium")}
+                </Button>
                 <Button
                   size="sm"
                   variant="ghost"

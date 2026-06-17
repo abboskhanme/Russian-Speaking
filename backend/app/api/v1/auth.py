@@ -62,13 +62,16 @@ def register(payload: UserRegister, db: Session = Depends(get_db)) -> User:
     existing = db.scalar(select(User).where(User.email == payload.email))
     if existing:
         raise HTTPException(status.HTTP_409_CONFLICT, "Email already registered")
-    # Public sign-up always creates a student. Teachers are created by an admin;
-    # the admin account is provisioned out-of-band (seed script).
+    # Students are active immediately. A teacher sign-up creates a teacher account
+    # that is INACTIVE (pending) until an admin approves it. Admin can't be
+    # self-registered.
+    is_teacher = payload.role == UserRole.teacher
     user = User(
         email=payload.email,
         password_hash=hash_password(payload.password),
         full_name=payload.full_name,
-        role=UserRole.student,
+        role=UserRole.teacher if is_teacher else UserRole.student,
+        is_active=not is_teacher,  # teachers wait for admin approval
     )
     db.add(user)
     db.commit()
@@ -92,6 +95,11 @@ def login(
     ):
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Incorrect email or password")
     if not user.is_active:
+        if user.role == UserRole.teacher:
+            raise HTTPException(
+                status.HTTP_403_FORBIDDEN,
+                "Your teacher account is awaiting admin approval.",
+            )
         raise HTTPException(status.HTTP_403_FORBIDDEN, "Account is blocked")
     sub = str(user.id)
     return TokenPair(

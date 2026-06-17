@@ -447,11 +447,14 @@ function TasksSection({
                 style={inp}
               >
                 <option value="">—</option>
-                {questions?.map((q) => (
-                  <option key={q.id} value={q.id}>
-                    {q.title}
-                  </option>
-                ))}
+                {/* Only ASSIGNED-type, published tasks can be assigned to a group. */}
+                {questions
+                  ?.filter((q) => !q.is_public && q.is_published)
+                  .map((q) => (
+                    <option key={q.id} value={q.id}>
+                      {q.title}
+                    </option>
+                  ))}
               </select>
             </Field>
             <Field label={t("dueDate")}>

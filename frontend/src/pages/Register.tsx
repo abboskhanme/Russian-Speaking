@@ -63,6 +63,7 @@ export function Register() {
   const [role, setRole] = useState<Role>("student");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [pending, setPending] = useState(false);
 
   if (user) return <Navigate to="/" replace />;
 
@@ -71,8 +72,9 @@ export function Register() {
     setBusy(true);
     setError(null);
     try {
-      await register(email, password, fullName, role);
-      nav("/");
+      const res = await register(email, password, fullName, role);
+      if (res.pending) setPending(true); // teacher awaiting admin approval
+      else nav("/");
     } catch {
       setError(t("registerError"));
     } finally {
@@ -188,6 +190,41 @@ export function Register() {
             </>
           )}
 
+          {pending ? (
+            <div
+              className="col gap-3"
+              style={{
+                textAlign: "center",
+                padding: "24px 18px",
+                background: "var(--primary-tint)",
+                borderRadius: "var(--r-md)",
+              }}
+            >
+              <div style={{ display: "flex", justifyContent: "center" }}>
+                <div
+                  style={{
+                    width: 52,
+                    height: 52,
+                    borderRadius: "50%",
+                    background: "oklch(0.7 0.16 152)",
+                    color: "#fff",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                  }}
+                >
+                  <Icon name="check" size={26} sw={3} />
+                </div>
+              </div>
+              <h3 style={{ fontSize: 19 }}>{t("teacherPendingTitle")}</h3>
+              <p style={{ fontSize: 14, color: "var(--muted)", lineHeight: 1.6, margin: 0 }}>
+                {t("teacherPendingMsg")}
+              </p>
+              <Button full onClick={() => nav("/login")}>
+                {t("signIn")}
+              </Button>
+            </div>
+          ) : (
           <form onSubmit={submit}>
             <div className="col gap-3" style={{ marginBottom: 18 }}>
               <AuthInput icon="user" placeholder={t("fullName")} value={fullName} onChange={setFullName} required />
@@ -246,6 +283,7 @@ export function Register() {
               {busy ? t("loading") : t("signUp")}
             </Button>
           </form>
+          )}
 
           <p style={{ textAlign: "center", fontSize: 13.5, color: "var(--muted)", marginTop: 16 }}>
             {t("haveAccount")}{" "}

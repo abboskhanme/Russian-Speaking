@@ -179,13 +179,18 @@ def main() -> None:
             a_created = now - timedelta(days=7)
             for k, q in enumerate(random.sample(questions, min(2, len(questions)))):
                 due = now + timedelta(days=3 + k)
+                assigns_by_sid: dict = {}
                 for sid in member_ids:
-                    db.add(Assignment(teacher_id=teacher.id, student_id=sid, question_id=q.id,
-                                      group_id=g.id, due_at=due, created_at=a_created))
+                    a = Assignment(teacher_id=teacher.id, student_id=sid, question_id=q.id,
+                                   group_id=g.id, due_at=due, created_at=a_created)
+                    db.add(a)
+                    assigns_by_sid[sid] = a
+                db.flush()  # assign ids
                 # ~60% complete it (a submission after the assignment date)
                 for sid in member_ids[: max(1, int(len(member_ids) * 0.6))]:
                     cr = a_created + timedelta(days=1, hours=random.randint(0, 20))
                     sub = Submission(student_id=sid, question_id=q.id,
+                                     assignment_id=assigns_by_sid[sid].id,
                                      audio_key=f"demo/{sid}/{q.id}-task.webm",
                                      audio_duration_sec=60.0, status=SubmissionStatus.done,
                                      created_at=cr, completed_at=cr)
@@ -195,6 +200,9 @@ def main() -> None:
                                       language="ru", stt_model="demo"))
                     ev, _ = _eval(sub.id)
                     db.add(ev)
+                    # XP so the class/group leaderboard (assigned tasks only) is alive
+                    db.add(XpEvent(student_id=sid, submission_id=sub.id, amount=20,
+                                   reason="submission", created_at=cr))
             db.commit()
 
         print(f"Demo seeded: {len(students)} students, {len(groups)} groups, assignments + graded submissions.")

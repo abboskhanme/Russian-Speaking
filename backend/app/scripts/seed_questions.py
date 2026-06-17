@@ -139,6 +139,7 @@ def main() -> None:
                         topic=topic_name,
                         answer_time_limit_sec=120,
                         is_published=True,
+                        is_public=True,  # seeded questions are open practice
                     )
                 )
                 created += 1

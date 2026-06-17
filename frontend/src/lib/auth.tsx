@@ -11,7 +11,7 @@ interface AuthCtx {
     password: string,
     full_name: string,
     role: "teacher" | "student",
-  ) => Promise<void>;
+  ) => Promise<{ pending: boolean }>;
   loginWithGoogle: (credential: string) => Promise<void>;
   refreshUser: () => Promise<void>;
   logout: () => void;
@@ -50,8 +50,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     full_name: string,
     role: "teacher" | "student",
   ) {
-    await api.post("/auth/register", { email, password, full_name, role });
+    const { data } = await api.post<User>("/auth/register", { email, password, full_name, role });
+    // Teachers are created inactive (pending admin approval) — don't log in.
+    if (!data.is_active) return { pending: true };
     await login(email, password);
+    return { pending: false };
   }
 
   async function loginWithGoogle(credential: string) {

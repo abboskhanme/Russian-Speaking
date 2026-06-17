@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session, selectinload
 from datetime import datetime, timezone
 
 from app.api.deps import get_current_user, require_teacher_or_admin
+from app.api.v1.questions import active_assignment
 from app.core.ratelimit import rate_limit
 from app.core.config import settings
 from app.db.session import get_db
@@ -94,23 +95,38 @@ def create_submission(
     if q is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Question not found")
 
-    # Freemium gate: students get a limited number of free attempts.
-    if student.role == UserRole.student and not student.is_premium:
-        used = db.scalar(
-            select(func.count(Submission.id)).where(
-                Submission.student_id == student.id,
-                Submission.reference_text.is_(None),  # shadowing is free practice
-            )
-        ) or 0
-        if used >= settings.FREE_ATTEMPT_LIMIT:
+    assignment = None
+    if q.is_public:
+        # Open task → freemium gate. Only open-pool answers consume free attempts;
+        # assigned-task answers never count against the limit.
+        if student.role == UserRole.student and not student.is_premium:
+            used = db.scalar(
+                select(func.count(Submission.id))
+                .join(Question, Submission.question_id == Question.id)
+                .where(
+                    Submission.student_id == student.id,
+                    Submission.reference_text.is_(None),  # shadowing is free practice
+                    Question.is_public.is_(True),
+                )
+            ) or 0
+            if used >= settings.FREE_ATTEMPT_LIMIT:
+                raise HTTPException(
+                    status.HTTP_402_PAYMENT_REQUIRED,
+                    "Free trial limit reached. Upgrade to premium to continue.",
+                )
+    else:
+        # Assigned task → must have a still-open assignment; no freemium gate.
+        assignment = active_assignment(db, student.id, q.id)
+        if assignment is None:
             raise HTTPException(
-                status.HTTP_402_PAYMENT_REQUIRED,
-                "Free trial limit reached. Upgrade to premium to continue.",
+                status.HTTP_403_FORBIDDEN,
+                "This task isn't assigned to you, or its deadline has passed.",
             )
 
     sub = Submission(
         student_id=student.id,
         question_id=payload.question_id,
+        assignment_id=assignment.id if assignment else None,
         audio_key=payload.audio_key,
         audio_duration_sec=payload.audio_duration_sec,
     )

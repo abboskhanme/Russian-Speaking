@@ -28,6 +28,13 @@ class Question(Base, TimestampMixin):
     prep_time_sec: Mapped[int] = mapped_column(Integer, default=30, nullable=False)
     answer_time_limit_sec: Mapped[int] = mapped_column(Integer, default=120, nullable=False)
     is_published: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    # Task type:
+    #   True  → OPEN task: in the public pool for every student, always available.
+    #   False → ASSIGNED task: never public; reachable only via an active
+    #           assignment (group/student) within its due window.
+    is_public: Mapped[bool] = mapped_column(
+        Boolean, default=False, server_default="false", nullable=False, index=True
+    )
     # Soft delete: keeps student submissions/history intact when a teacher
     # removes a question.
     is_deleted: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)

@@ -35,10 +35,14 @@ def leaderboard(
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> list[LeaderboardEntry]:
-    """Ranked by weekly XP then all-time XP. Global by default; pass `group_id`
-    to rank only that group's members (the student must belong to it)."""
-    # Scope filter: restrict to one group's members when requested.
-    scope = [User.role == UserRole.student]
+    """Ranked by weekly XP then all-time XP.
+
+    Global (no group_id): every student, ranked by ALL their XP (open tasks,
+    assigned tasks and practice mixed). Group/class (group_id): only that group's
+    members, ranked by XP earned on this group's ASSIGNED (internal) tasks only."""
+    week_ago = datetime.now(timezone.utc) - timedelta(days=7)
+
+    # ── Group/class leaderboard: scored from this group's ASSIGNED tasks only ──
     if group_id is not None:
         if user.role == UserRole.student:
             is_member = db.scalar(
@@ -48,10 +52,44 @@ def leaderboard(
             )
             if not is_member:
                 raise HTTPException(status.HTTP_403_FORBIDDEN, "Not a member of this group")
-        member_ids = select(GroupMember.student_id).where(GroupMember.group_id == group_id)
-        scope.append(User.id.in_(member_ids))
+        members = list(
+            db.scalars(
+                select(User)
+                .join(GroupMember, GroupMember.student_id == User.id)
+                .where(GroupMember.group_id == group_id, User.role == UserRole.student)
+            ).all()
+        )
+        # XP from submissions linked to an assignment belonging to THIS group.
+        rows = db.execute(
+            select(XpEvent.student_id, XpEvent.amount, XpEvent.created_at)
+            .join(Submission, XpEvent.submission_id == Submission.id)
+            .join(Assignment, Submission.assignment_id == Assignment.id)
+            .where(Assignment.group_id == group_id)
+        ).all()
+        total: dict = {}
+        weekly: dict = {}
+        for sid, amt, created in rows:
+            total[sid] = total.get(sid, 0) + (amt or 0)
+            if created and created >= week_ago:
+                weekly[sid] = weekly.get(sid, 0) + (amt or 0)
+        ranked = sorted(
+            members, key=lambda s: (weekly.get(s.id, 0), total.get(s.id, 0)), reverse=True
+        )
+        return [
+            LeaderboardEntry(
+                rank=i,
+                id=s.id,
+                full_name=s.full_name,
+                xp=total.get(s.id, 0),
+                weekly_xp=weekly.get(s.id, 0),
+                current_streak=s.current_streak or 0,
+                is_me=(s.id == user.id),
+            )
+            for i, s in enumerate(ranked[:50], start=1)
+        ]
 
-    week_ago = datetime.now(timezone.utc) - timedelta(days=7)
+    # ── Global leaderboard: all students, all XP ──
+    scope = [User.role == UserRole.student]
     # Rank in SQL (weekly XP, then all-time XP) so we never load every student.
     weekly_sq = (
         select(XpEvent.student_id, func.sum(XpEvent.amount).label("weekly_xp"))
@@ -225,6 +263,13 @@ def create_assignments(
     q = db.get(Question, payload.question_id)
     if q is None or q.teacher_id != teacher.id:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Question not found")
+    # Only ASSIGNED-type tasks may be assigned. Open tasks already live in the
+    # public pool and count toward the general (not group) rating.
+    if q.is_public:
+        raise HTTPException(
+            status.HTTP_400_BAD_REQUEST,
+            "Open tasks can't be assigned to a group. Create an assigned-type task.",
+        )
 
     # Resolve the target students: explicit ids ∪ a whole group's members.
     target_ids = set(payload.student_ids)

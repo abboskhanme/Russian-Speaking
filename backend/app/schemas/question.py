@@ -15,6 +15,8 @@ class QuestionCreate(BaseModel):
     prep_time_sec: int = 30
     answer_time_limit_sec: int = 120
     is_published: bool = False
+    # True → open task (public pool); False → assigned task (group/student only).
+    is_public: bool = False
     model_answer_text: str | None = Field(default=None, max_length=10000)
 
 
@@ -26,6 +28,7 @@ class QuestionUpdate(BaseModel):
     prep_time_sec: int | None = None
     answer_time_limit_sec: int | None = None
     is_published: bool | None = None
+    is_public: bool | None = None
     model_answer_text: str | None = Field(default=None, max_length=10000)
 
 
@@ -45,6 +48,7 @@ class QuestionOut(BaseModel):
     prep_time_sec: int
     answer_time_limit_sec: int
     is_published: bool
+    is_public: bool = False
     model_answer_text: str | None = None
     created_at: datetime
 

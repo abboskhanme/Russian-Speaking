@@ -1,4 +1,5 @@
 import uuid
+from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import select
@@ -7,7 +8,7 @@ from sqlalchemy.orm import Session
 from app.api.deps import get_current_user, require_teacher
 from app.core.ratelimit import rate_limit
 from app.db.session import get_db
-from app.models import Question, QuestionType, User, UserRole
+from app.models import Assignment, Question, QuestionType, User, UserRole
 from app.schemas.question import (
     MediaUploadRequest,
     MediaUploadURL,
@@ -18,6 +19,22 @@ from app.schemas.question import (
 from app.services import llm, storage
 
 router = APIRouter(prefix="/questions", tags=["questions"])
+
+
+def active_assignment(db: Session, student_id: uuid.UUID, question_id: uuid.UUID) -> Assignment | None:
+    """The student's still-open assignment for this question, or None.
+
+    "Open" = no due date, or a due date still in the future. Used to gate access
+    to ASSIGNED (non-public) tasks.
+    """
+    now = datetime.now(timezone.utc)
+    return db.scalar(
+        select(Assignment).where(
+            Assignment.student_id == student_id,
+            Assignment.question_id == question_id,
+            (Assignment.due_at.is_(None)) | (Assignment.due_at >= now),
+        )
+    )
 
 
 def _to_out(q: Question) -> QuestionOut:
@@ -84,10 +101,11 @@ def list_questions(
     db: Session = Depends(get_db),
 ) -> list[QuestionOut]:
     stmt = select(Question).where(Question.is_deleted.is_(False))
-    # Students see all published questions (any teacher). Teachers see only
-    # their own. Admin sees everything.
+    # Students browse only OPEN published questions (any teacher). Assigned
+    # tasks never appear here — they're reached via assignments. Teachers see
+    # only their own. Admin sees everything.
     if user.role == UserRole.student:
-        stmt = stmt.where(Question.is_published.is_(True))
+        stmt = stmt.where(Question.is_published.is_(True), Question.is_public.is_(True))
     elif user.role == UserRole.teacher:
         stmt = stmt.where(Question.teacher_id == user.id)
         if published_only:
@@ -118,7 +136,7 @@ def list_topics(
         .distinct()
     )
     if user.role.value == "student":
-        stmt = stmt.where(Question.is_published.is_(True))
+        stmt = stmt.where(Question.is_published.is_(True), Question.is_public.is_(True))
     return sorted({t for t in db.scalars(stmt).all() if t})
 
 
@@ -131,8 +149,12 @@ def get_question(
     q = db.get(Question, question_id)
     if q is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Question not found")
-    if user.role == UserRole.student and not q.is_published:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, "Question not found")
+    if user.role == UserRole.student:
+        if not q.is_published:
+            raise HTTPException(status.HTTP_404_NOT_FOUND, "Question not found")
+        # Assigned task: only reachable with a still-open assignment.
+        if not q.is_public and active_assignment(db, user.id, q.id) is None:
+            raise HTTPException(status.HTTP_404_NOT_FOUND, "Question not found")
     if user.role == UserRole.teacher and q.teacher_id != user.id:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Question not found")
     out = _to_out(q)

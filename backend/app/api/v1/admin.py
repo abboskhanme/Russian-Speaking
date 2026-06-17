@@ -10,6 +10,7 @@ from app.db.session import get_db
 from app.models import Question, Submission, SubmissionStatus, User, UserRole
 from app.schemas.admin import (
     AdminStats,
+    StudentCreate,
     StudentOut,
     TeacherCreate,
     TeacherOut,
@@ -141,6 +142,26 @@ def list_students(
     return [_student_out(s, counts.get(s.id, 0)) for s in students]
 
 
+@router.post("/students", response_model=StudentOut, status_code=status.HTTP_201_CREATED)
+def create_student(
+    payload: StudentCreate,
+    _: User = Depends(require_admin),
+    db: Session = Depends(get_db),
+) -> StudentOut:
+    if db.scalar(select(User).where(User.email == payload.email)):
+        raise HTTPException(status.HTTP_409_CONFLICT, "Email already registered")
+    student = User(
+        email=payload.email,
+        password_hash=hash_password(payload.password),
+        full_name=payload.full_name,
+        role=UserRole.student,
+    )
+    db.add(student)
+    db.commit()
+    db.refresh(student)
+    return _student_out(student, 0)
+
+
 @router.patch("/students/{student_id}", response_model=StudentOut)
 def update_student(
     student_id: uuid.UUID,
@@ -155,6 +176,8 @@ def update_student(
         student.full_name = payload.full_name
     if payload.is_active is not None:
         student.is_active = payload.is_active
+    if payload.is_premium is not None:
+        student.is_premium = payload.is_premium
     if payload.password:
         student.password_hash = hash_password(payload.password)
     db.commit()

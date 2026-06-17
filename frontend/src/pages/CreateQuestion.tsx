@@ -41,6 +41,8 @@ export function CreateQuestion() {
   const previewRef = useRef<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [publish, setPublish] = useState(true);
+  // Task type: true = open (public pool), false = assigned (group/student only).
+  const [isPublic, setIsPublic] = useState(true);
   const [existingMedia, setExistingMedia] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -76,6 +78,7 @@ export function CreateQuestion() {
     setAnswerLimit(editing.answer_time_limit_sec);
     setModelAnswer(editing.model_answer_text ?? "");
     setPublish(editing.is_published);
+    setIsPublic(editing.is_public);
     setExistingMedia(editing.media_url);
   }, [editing?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -127,6 +130,7 @@ export function CreateQuestion() {
           answer_time_limit_sec: answerLimit,
           model_answer_text: modelAnswer || null,
           is_published: publish,
+          is_public: isPublic,
         });
         await uploadMedia(id!); // only if a new file was chosen
       } else {
@@ -139,6 +143,7 @@ export function CreateQuestion() {
           answer_time_limit_sec: answerLimit,
           model_answer_text: modelAnswer || null,
           is_published: publish,
+          is_public: isPublic,
         });
         await uploadMedia(q.id);
       }
@@ -425,6 +430,36 @@ export function CreateQuestion() {
                   </button>
                 </>
               )}
+            </Field>
+
+            <Field label={t("taskTypeLabel")}>
+              <div className="row gap-2 wrap">
+                {[
+                  { val: true, label: t("taskTypeOpen"), hint: t("taskTypeOpenHint") },
+                  { val: false, label: t("taskTypeAssigned"), hint: t("taskTypeAssignedHint") },
+                ].map((o) => {
+                  const active = isPublic === o.val;
+                  return (
+                    <button
+                      key={String(o.val)}
+                      type="button"
+                      onClick={() => setIsPublic(o.val)}
+                      style={{
+                        flex: "1 1 200px",
+                        textAlign: "left",
+                        padding: "12px 14px",
+                        borderRadius: "var(--r-sm)",
+                        border: `2px solid ${active ? "var(--primary)" : "var(--line-2)"}`,
+                        background: active ? "var(--primary-tint)" : "var(--surface)",
+                        cursor: "pointer",
+                      }}
+                    >
+                      <div style={{ fontWeight: 800, fontSize: 14.5, color: "var(--ink)" }}>{o.label}</div>
+                      <div style={{ fontSize: 12.5, color: "var(--muted)", marginTop: 2 }}>{o.hint}</div>
+                    </button>
+                  );
+                })}
+              </div>
             </Field>
 
             <label

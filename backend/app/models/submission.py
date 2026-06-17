@@ -19,6 +19,12 @@ class Submission(Base, TimestampMixin):
     question_id: Mapped[uuid.UUID | None] = mapped_column(
         ForeignKey("questions.id", ondelete="CASCADE"), index=True, nullable=True
     )
+    # Set when this answer was made against a teacher assignment (an ASSIGNED
+    # task). Drives the group/class leaderboard (internal tasks only). Null for
+    # open-pool practice and shadowing.
+    assignment_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("assignments.id", ondelete="SET NULL"), index=True, nullable=True
+    )
     # Target sentence for shadowing (scripted assessment). Null for free answers.
     reference_text: Mapped[str | None] = mapped_column(Text, nullable=True)
     # S3 key of the recorded audio answer

@@ -30,6 +30,7 @@ export function TeacherQuestions() {
   const qc = useQueryClient();
   const ask = useConfirm();
   const [search, setSearch] = useState("");
+  const [typeFilter, setTypeFilter] = useState<"all" | "open" | "assigned">("all");
 
   const { data, isLoading } = useQuery({
     queryKey: ["questions", "mine"],
@@ -53,15 +54,21 @@ export function TeacherQuestions() {
   });
 
   const rows = useMemo(() => {
+    let arr = data ?? [];
+    if (typeFilter !== "all") {
+      arr = arr.filter((q) => (typeFilter === "open" ? q.is_public : !q.is_public));
+    }
     const s = search.trim().toLowerCase();
-    if (!s) return data ?? [];
-    return (data ?? []).filter(
-      (q) =>
-        q.title.toLowerCase().includes(s) ||
-        q.prompt_text.toLowerCase().includes(s) ||
-        (q.topic ?? "").toLowerCase().includes(s),
-    );
-  }, [data, search]);
+    if (s) {
+      arr = arr.filter(
+        (q) =>
+          q.title.toLowerCase().includes(s) ||
+          q.prompt_text.toLowerCase().includes(s) ||
+          (q.topic ?? "").toLowerCase().includes(s),
+      );
+    }
+    return arr;
+  }, [data, search, typeFilter]);
 
   const typeLabel: Record<QuestionType, string> = {
     text: t("typeText"),
@@ -108,6 +115,36 @@ export function TeacherQuestions() {
         />
       </div>
 
+      {/* Task-type filter */}
+      <div className="row gap-2 wrap" style={{ marginBottom: 18 }}>
+        {([
+          ["all", t("allFilter")],
+          ["open", t("taskOpenShort")],
+          ["assigned", t("taskAssignedShort")],
+        ] as const).map(([val, label]) => {
+          const active = typeFilter === val;
+          return (
+            <button
+              key={val}
+              type="button"
+              onClick={() => setTypeFilter(val)}
+              style={{
+                padding: "7px 14px",
+                borderRadius: "var(--r-pill)",
+                border: `1.5px solid ${active ? "var(--primary)" : "var(--line-2)"}`,
+                background: active ? "var(--primary-tint)" : "var(--surface)",
+                color: active ? "var(--primary-press)" : "var(--ink-soft)",
+                fontWeight: 700,
+                fontSize: 13.5,
+                cursor: "pointer",
+              }}
+            >
+              {label}
+            </button>
+          );
+        })}
+      </div>
+
       {isLoading ? (
         <Loading />
       ) : !rows.length ? (
@@ -147,6 +184,9 @@ export function TeacherQuestions() {
                     <div className="row gap-2 wrap">
                       <Pill hue={meta.hue} size="sm">
                         {typeLabel[q.type]}
+                      </Pill>
+                      <Pill hue={q.is_public ? 200 : 305} size="sm" icon={q.is_public ? "globe" : "lock"}>
+                        {q.is_public ? t("taskOpenShort") : t("taskAssignedShort")}
                       </Pill>
                       {q.level && (
                         <Pill hue={47} size="sm">

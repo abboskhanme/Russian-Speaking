@@ -92,6 +92,7 @@ export interface AdminStudent {
   email: string;
   full_name: string;
   is_active: boolean;
+  is_premium: boolean;
   created_at: string;
   submission_count: number;
 }
@@ -110,6 +111,7 @@ export interface Question {
   prep_time_sec: number;
   answer_time_limit_sec: number;
   is_published: boolean;
+  is_public: boolean;
   model_answer_text: string | null;
   created_at: string;
 }

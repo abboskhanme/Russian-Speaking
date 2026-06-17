@@ -197,6 +197,8 @@ def group_overview(
                 )
             ).all()
         )
+    # Submissions tied to THIS group's assignments — the basis for class ratings.
+    group_assignment_ids = {a.id for a in assigns}
     task_map: dict[uuid.UUID, dict] = {}
     for a in assigns:
         info = task_map.setdefault(
@@ -252,7 +254,9 @@ def group_overview(
     for sid in member_ids:
         u = users.get(sid)
         slist = by_student.get(sid, [])
-        bands = [b for b in (_eff_band(s) for s in slist) if b is not None]
+        # Class rating: only this group's assigned-task submissions count.
+        graded = [s for s in slist if s.assignment_id in group_assignment_ids]
+        bands = [b for b in (_eff_band(s) for s in graded) if b is not None]
         all_bands += bands
         last = max((s.created_at for s in slist), default=None)
         members.append(
