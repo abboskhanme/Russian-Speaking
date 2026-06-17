@@ -116,8 +116,9 @@ def create_submission(
                 )
     else:
         # Assigned task → must have a still-open assignment; no freemium gate.
+        # Admin (super-user) may answer any task even without an assignment.
         assignment = active_assignment(db, student.id, q.id)
-        if assignment is None:
+        if assignment is None and student.role != UserRole.admin:
             raise HTTPException(
                 status.HTTP_403_FORBIDDEN,
                 "This task isn't assigned to you, or its deadline has passed.",

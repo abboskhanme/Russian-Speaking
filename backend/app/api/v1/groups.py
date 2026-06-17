@@ -109,9 +109,10 @@ def list_groups(
     teacher: User = Depends(require_teacher),
     db: Session = Depends(get_db),
 ) -> list[GroupOut]:
-    gs = db.scalars(
-        select(Group).where(Group.teacher_id == teacher.id).order_by(Group.created_at.desc())
-    ).all()
+    stmt = select(Group).order_by(Group.created_at.desc())
+    if teacher.role != UserRole.admin:  # admin sees every teacher's groups
+        stmt = stmt.where(Group.teacher_id == teacher.id)
+    gs = db.scalars(stmt).all()
     return [_group_out(db, g) for g in gs]
 
 
@@ -150,7 +151,7 @@ def group_detail(
     db: Session = Depends(get_db),
 ) -> GroupDetailOut:
     g = db.get(Group, group_id)
-    if g is None or g.teacher_id != teacher.id:
+    if g is None or (teacher.role != UserRole.admin and g.teacher_id != teacher.id):
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Group not found")
     return _group_detail(db, g)
 
@@ -163,7 +164,7 @@ def group_overview(
 ) -> GroupOverview:
     """Per-group statistics: member progress + who did / didn't do each task."""
     g = db.get(Group, group_id)
-    if g is None or g.teacher_id != teacher.id:
+    if g is None or (teacher.role != UserRole.admin and g.teacher_id != teacher.id):
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Group not found")
 
     member_ids = list(
@@ -291,7 +292,7 @@ def add_members(
     db: Session = Depends(get_db),
 ) -> GroupDetailOut:
     g = db.get(Group, group_id)
-    if g is None or g.teacher_id != teacher.id:
+    if g is None or (teacher.role != UserRole.admin and g.teacher_id != teacher.id):
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Group not found")
     valid_ids = set(
         db.scalars(
@@ -321,7 +322,7 @@ def remove_member(
     db: Session = Depends(get_db),
 ) -> None:
     g = db.get(Group, group_id)
-    if g is None or g.teacher_id != teacher.id:
+    if g is None or (teacher.role != UserRole.admin and g.teacher_id != teacher.id):
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Group not found")
     m = db.scalar(
         select(GroupMember).where(
@@ -340,7 +341,7 @@ def regenerate_code(
     db: Session = Depends(get_db),
 ) -> GroupOut:
     g = db.get(Group, group_id)
-    if g is None or g.teacher_id != teacher.id:
+    if g is None or (teacher.role != UserRole.admin and g.teacher_id != teacher.id):
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Group not found")
     g.join_code = _gen_code(db)
     db.commit()
@@ -356,7 +357,7 @@ def update_group(
     db: Session = Depends(get_db),
 ) -> GroupOut:
     g = db.get(Group, group_id)
-    if g is None or g.teacher_id != teacher.id:
+    if g is None or (teacher.role != UserRole.admin and g.teacher_id != teacher.id):
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Group not found")
     name = payload.name.strip()
     if name:
@@ -373,7 +374,7 @@ def delete_group(
     db: Session = Depends(get_db),
 ) -> None:
     g = db.get(Group, group_id)
-    if g is None or g.teacher_id != teacher.id:
+    if g is None or (teacher.role != UserRole.admin and g.teacher_id != teacher.id):
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Group not found")
     db.delete(g)
     db.commit()
@@ -381,7 +382,7 @@ def delete_group(
 
 def _owned_group(db: Session, group_id: uuid.UUID, teacher: User) -> Group:
     g = db.get(Group, group_id)
-    if g is None or g.teacher_id != teacher.id:
+    if g is None or (teacher.role != UserRole.admin and g.teacher_id != teacher.id):
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Group not found")
     return g
 

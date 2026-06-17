@@ -266,7 +266,10 @@ input, textarea, select { font-family: inherit; }
 .truncate { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 /* Page + grid utilities */
-.page { padding: 24px 30px 36px; width: 100%; }
+/* App shell uses the DYNAMIC viewport height so the bottom never hides behind
+   mobile browser UI / system bars. Falls back to 100vh on older browsers. */
+.app-shell { height: 100vh; height: 100dvh; }
+.page { padding: 24px 30px calc(36px + env(safe-area-inset-bottom, 0px)); width: 100%; }
 .g2 { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 18px; }
 .g3 { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 18px; }
 .g4 { display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap: 16px; }
@@ -327,7 +330,7 @@ input, textarea, select { font-family: inherit; }
 
 /* ---- Mobile ---- */
 @media (max-width: 720px) {
-  .page { padding: 16px 16px 88px; }
+  .page { padding: 16px 16px calc(88px + env(safe-area-inset-bottom, 0px)); }
   .mobile-only { display: flex; }
   .hide-sm { display: none !important; }
   .g2, .g3 { grid-template-columns: 1fr; }

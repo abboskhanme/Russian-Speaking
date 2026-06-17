@@ -123,7 +123,7 @@ const uz: Dict = {
   failed: "Javobni qayta ishlab bo'lmadi",
 
   // teacher
-  myTests: "Mening testlarim",
+  myTests: "Mening topshiriqlarim",
   createTest: "Yaratish",
   newTest: "Yangi topshiriq",
   editTest: "Testni tahrirlash",
@@ -152,7 +152,7 @@ const uz: Dict = {
   unpublish: "Nashrdan olish",
   draft: "Qoralama",
   published: "Nashr qilingan",
-  noTests: "Testlar hali yo'q.",
+  noTests: "Topshiriqlar hali yo'q.",
   deleteConfirm: "Topshiriqni o'chirilsinmi?",
   mediaImage: "Rasm",
   mediaVideo: "Video",
@@ -198,7 +198,7 @@ const uz: Dict = {
   noStudents: "O'quvchilar yo'q.",
   submissionsCount: "javob",
   deleteStudentConfirm: "O'quvchini o'chirilsinmi? Uning javoblari ham o'chadi.",
-  tabAllTests: "Testlar",
+  tabAllTests: "Topshiriqlar",
   allTestsTitle: "Barcha testlar",
   colName: "Nomi",
   colType: "Turi",
@@ -422,7 +422,7 @@ const uz: Dict = {
   improvedSentence: "Yaxshilangan variant",
 
   // groups
-  navTests: "Testlar",
+  navTests: "Topshiriqlar",
   navGroups: "Guruhlar",
   groupsHint: "Sinflar yarating va o'quvchilarni qo'shing.",
   newGroup: "Yangi guruh",
@@ -1137,7 +1137,7 @@ const en: Dict = {
   noStudents: "No students yet.",
   submissionsCount: "answers",
   deleteStudentConfirm: "Delete this student? Their answers will also be deleted.",
-  tabAllTests: "Tests",
+  tabAllTests: "Tasks",
   allTestsTitle: "All tests",
   colName: "Name",
   colType: "Type",
@@ -1360,7 +1360,7 @@ const en: Dict = {
   improvedSentence: "Improved version",
 
   // groups
-  navTests: "Tests",
+  navTests: "Tasks",
   navGroups: "Groups",
   groupsHint: "Create classes and add students.",
   newGroup: "New group",

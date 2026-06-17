@@ -34,9 +34,16 @@ def get_current_user(
 
 
 def require_teacher(user: User = Depends(get_current_user)) -> User:
-    if user.role != UserRole.teacher:
+    # Admin is a super-user: it passes every teacher gate. Ownership checks let
+    # admin act on ALL teachers' content (see `is_owner_or_admin`).
+    if user.role not in (UserRole.teacher, UserRole.admin):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Teacher role required")
     return user
+
+
+def is_owner_or_admin(user: User, owner_id) -> bool:
+    """True if the user owns the resource, or is an admin (super-user)."""
+    return user.role == UserRole.admin or owner_id == user.id
 
 
 def require_admin(user: User = Depends(get_current_user)) -> User:

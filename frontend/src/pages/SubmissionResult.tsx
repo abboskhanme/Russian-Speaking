@@ -1046,7 +1046,10 @@ export function SubmissionResult() {
 
       {/* Actions */}
       {isStudent ? (
-        <div className="row gap-3 between" style={{ position: "sticky", bottom: 16, paddingTop: 4 }}>
+        <div
+          className="row gap-3 between"
+          style={{ position: "sticky", bottom: "calc(16px + env(safe-area-inset-bottom, 0px))", paddingTop: 4 }}
+        >
           {sub.question_id ? (
             <Button variant="ghost" icon="refresh" onClick={() => nav(`/questions/${sub.question_id}/answer`)}>
               {t("tryAgain")}

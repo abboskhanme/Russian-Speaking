@@ -57,6 +57,7 @@ interface NavItem {
   icon: IconName;
   label: string;
   badge?: number;
+  heading?: boolean; // non-clickable section header (super-admin combined nav)
 }
 
 function useNavItems(): NavItem[] {
@@ -64,11 +65,24 @@ function useNavItems(): NavItem[] {
   const { t } = useI18n();
   if (!user) return [];
   if (user.role === "admin")
+    // Super-admin: combined menu — admin tools + everything a teacher and a
+    // student can do.
     return [
+      { to: "", icon: "home", label: t("adminRole"), heading: true },
       { to: "/admin", icon: "home", label: t("navOverview") },
       { to: "/admin/teachers", icon: "grad", label: t("tabTeachers") },
       { to: "/admin/students", icon: "users", label: t("tabStudents") },
       { to: "/admin/tests", icon: "layers", label: t("tabAllTests") },
+      { to: "", icon: "message", label: t("teacher"), heading: true },
+      { to: "/teacher/questions", icon: "message", label: t("navTests") },
+      { to: "/teacher/groups", icon: "users", label: t("navGroups") },
+      { to: "/teacher/submissions", icon: "headphones", label: t("navAnswers") },
+      { to: "/teacher/gradebook", icon: "grad", label: t("navGradebook") },
+      { to: "", icon: "mic", label: t("student"), heading: true },
+      { to: "/questions", icon: "mic", label: t("navPractice") },
+      { to: "/shadowing", icon: "headphones", label: t("navShadow") },
+      { to: "/leaderboard", icon: "trophy", label: t("navRating") },
+      { to: "/progress", icon: "chart", label: t("navProgress") },
     ];
   if (user.role === "teacher")
     return [
@@ -164,8 +178,23 @@ function Sidebar({ mobileOpen, setMobileOpen }: { mobileOpen: boolean; setMobile
         <NavLink to="/" onClick={() => setMobileOpen(false)} style={{ padding: "4px 8px 22px", textDecoration: "none" }}>
           <Logo />
         </NavLink>
-        <nav className="col gap-1" style={{ flex: 1 }}>
-          {items.map((it) => (
+        <nav className="col gap-1" style={{ flex: 1, overflowY: "auto", minHeight: 0 }}>
+          {items.map((it) =>
+            it.heading ? (
+              <div
+                key={`h-${it.label}`}
+                style={{
+                  fontSize: 11,
+                  fontWeight: 800,
+                  color: "var(--faint)",
+                  textTransform: "uppercase",
+                  letterSpacing: "0.06em",
+                  padding: "14px 14px 4px",
+                }}
+              >
+                {it.label}
+              </div>
+            ) : (
             <NavLink
               key={it.to}
               to={it.to}
@@ -440,7 +469,7 @@ export default function App() {
 
   if (loading) {
     return (
-      <div style={{ height: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "var(--bg)" }}>
+      <div className="app-shell" style={{ display: "flex", alignItems: "center", justifyContent: "center", background: "var(--bg)" }}>
         <Loading />
       </div>
     );
@@ -458,7 +487,7 @@ export default function App() {
   }
 
   return (
-    <div style={{ display: "flex", height: "100vh", background: "var(--bg)" }}>
+    <div className="app-shell" style={{ display: "flex", background: "var(--bg)" }}>
       <LanguageSync />
       <Sidebar mobileOpen={mobileOpen} setMobileOpen={setMobileOpen} />
       <div className="col" style={{ flex: 1, minWidth: 0 }}>

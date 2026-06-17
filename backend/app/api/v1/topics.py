@@ -34,7 +34,7 @@ def _to_out(topic: Topic) -> TopicOut:
 
 def _owned_topic(topic_id: uuid.UUID, teacher: User, db: Session) -> Topic:
     topic = db.get(Topic, topic_id)
-    if topic is None or topic.teacher_id != teacher.id:
+    if topic is None or (teacher.role != UserRole.admin and topic.teacher_id != teacher.id):
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Topic not found")
     return topic
 

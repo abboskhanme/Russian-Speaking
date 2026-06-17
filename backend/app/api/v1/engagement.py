@@ -261,7 +261,7 @@ def create_assignments(
     db: Session = Depends(get_db),
 ) -> list[AssignmentOut]:
     q = db.get(Question, payload.question_id)
-    if q is None or q.teacher_id != teacher.id:
+    if q is None or (teacher.role != UserRole.admin and q.teacher_id != teacher.id):
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Question not found")
     # Only ASSIGNED-type tasks may be assigned. Open tasks already live in the
     # public pool and count toward the general (not group) rating.
@@ -316,9 +316,10 @@ def list_assignments_teacher(
     teacher: User = Depends(require_teacher),
     db: Session = Depends(get_db),
 ) -> list[AssignmentOut]:
-    items = db.scalars(
-        select(Assignment).where(Assignment.teacher_id == teacher.id).order_by(Assignment.created_at.desc())
-    ).all()
+    stmt = select(Assignment).order_by(Assignment.created_at.desc())
+    if teacher.role != UserRole.admin:  # admin sees every teacher's assignments
+        stmt = stmt.where(Assignment.teacher_id == teacher.id)
+    items = db.scalars(stmt).all()
     return _assignments_out(db, list(items))
 
 
@@ -340,7 +341,7 @@ def delete_assignment(
     db: Session = Depends(get_db),
 ) -> None:
     a = db.get(Assignment, assignment_id)
-    if a is None or a.teacher_id != teacher.id:
+    if a is None or (teacher.role != UserRole.admin and a.teacher_id != teacher.id):
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Assignment not found")
     db.delete(a)
     db.commit()

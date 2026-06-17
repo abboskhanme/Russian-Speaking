@@ -66,7 +66,7 @@ def media_upload_url(
     db: Session = Depends(get_db),
 ) -> MediaUploadURL:
     q = db.get(Question, question_id)
-    if q is None or q.teacher_id != teacher.id:
+    if q is None or (teacher.role != UserRole.admin and q.teacher_id != teacher.id):
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Question not found")
     if q.type == QuestionType.text:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "Text questions have no media")
@@ -175,7 +175,7 @@ def generate_model_answer(
 ) -> QuestionOut:
     """Generate an exemplar answer with Gemini and save it on the question."""
     q = db.get(Question, question_id)
-    if q is None or q.teacher_id != teacher.id:
+    if q is None or (teacher.role != UserRole.admin and q.teacher_id != teacher.id):
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Question not found")
     text = llm.generate_model_answer(
         question_prompt=q.prompt_text,
@@ -197,7 +197,7 @@ def update_question(
     db: Session = Depends(get_db),
 ) -> QuestionOut:
     q = db.get(Question, question_id)
-    if q is None or q.teacher_id != teacher.id:
+    if q is None or (teacher.role != UserRole.admin and q.teacher_id != teacher.id):
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Question not found")
     for field, value in payload.model_dump(exclude_unset=True).items():
         setattr(q, field, value)
@@ -215,7 +215,7 @@ def duplicate_question(
     """Clone a question as a fresh draft (unpublished). Media is shared by key —
     copies point at the same object; deleting one never affects the other's row."""
     src = db.get(Question, question_id)
-    if src is None or src.teacher_id != teacher.id or src.is_deleted:
+    if src is None or (teacher.role != UserRole.admin and src.teacher_id != teacher.id) or src.is_deleted:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Question not found")
     copy = Question(
         teacher_id=teacher.id,
@@ -243,7 +243,7 @@ def delete_question(
     db: Session = Depends(get_db),
 ) -> None:
     q = db.get(Question, question_id)
-    if q is None or q.teacher_id != teacher.id or q.is_deleted:
+    if q is None or (teacher.role != UserRole.admin and q.teacher_id != teacher.id) or q.is_deleted:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Question not found")
     # Soft delete: unpublish + hide, but keep submissions/evaluations history.
     q.is_deleted = True
