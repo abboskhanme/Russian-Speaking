@@ -10,6 +10,9 @@ const META: Record<string, { icon: IconName; hue: number }> = {
   assignment_new: { icon: "book", hue: 305 },
   assignment_done: { icon: "check", hue: 152 },
   result_ready: { icon: "award", hue: 80 },
+  group_joined: { icon: "users", hue: 248 },
+  group_added: { icon: "users", hue: 305 },
+  premium: { icon: "sparkles", hue: 70 },
 };
 function meta(type: string): { icon: IconName; hue: number } {
   return META[type] ?? { icon: "bell", hue: 47 };

@@ -23,6 +23,7 @@ from app.schemas.group import (
     TaskDueUpdate,
     TaskStudent,
 )
+from app.services import notifications
 
 
 def _eff_band(s: Submission) -> float | None:
@@ -140,6 +141,16 @@ def join_group(
     )
     if not exists:
         db.add(GroupMember(group_id=g.id, student_id=user.id))
+        # Tell the group's teacher a new student joined.
+        notifications.notify(
+            db,
+            user_id=g.teacher_id,
+            type="group_joined",
+            title="Yangi o'quvchi",
+            body=f"{user.full_name} «{g.name}» guruhiga qo'shildi.",
+            link=f"/teacher/groups/{g.id}",
+            commit=False,
+        )
         db.commit()
     return _group_out(db, g)
 
@@ -310,6 +321,16 @@ def add_members(
     )
     for sid in valid_ids - existing:
         db.add(GroupMember(group_id=g.id, student_id=sid))
+        # Tell the student they were added to a class.
+        notifications.notify(
+            db,
+            user_id=sid,
+            type="group_added",
+            title="Guruhga qo'shildingiz",
+            body=f"Siz «{g.name}» guruhiga qo'shildingiz.",
+            link="/assignments",
+            commit=False,
+        )
     db.commit()
     return _group_detail(db, g)
 
