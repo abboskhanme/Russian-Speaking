@@ -376,7 +376,7 @@ export function CreateQuestion() {
 
             <Field label={t("topic")}>
               {addingTopic ? (
-                <div className="row gap-2">
+                <div className="row gap-2 wrap">
                   <input
                     autoFocus
                     value={newTopic}

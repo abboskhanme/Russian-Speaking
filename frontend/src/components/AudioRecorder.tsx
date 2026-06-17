@@ -255,11 +255,11 @@ export function AudioRecorder({ maxSeconds, onComplete }: Props) {
         </span>
       </div>
 
-      <div className="flex gap-3">
-        <Button variant="outline" className="flex-1" onClick={reset}>
+      <div className="flex flex-wrap gap-3">
+        <Button variant="outline" className="flex-1 min-w-[150px]" onClick={reset}>
           🗑 {t("deleteRecording")}
         </Button>
-        <Button variant="primary" className="flex-[1.4]" onClick={send}>
+        <Button variant="primary" className="flex-[1.4] min-w-[170px]" onClick={send}>
           {t("sendAnswer")} ➤
         </Button>
       </div>

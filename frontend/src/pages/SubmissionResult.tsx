@@ -478,7 +478,7 @@ export function SubmissionResult() {
         <Card pad={0} style={{ overflow: "hidden", marginBottom: 18 }}>
           <div
             style={{
-              padding: "28px 30px",
+              padding: "clamp(18px, 4vw, 28px) clamp(16px, 4vw, 30px)",
               background: `linear-gradient(135deg, oklch(0.96 0.045 ${hue}), var(--surface))`,
             }}
           >
@@ -585,7 +585,7 @@ export function SubmissionResult() {
           {criteria.length > 0 && (
             <div
               className="g4"
-              style={{ padding: "18px 30px", borderTop: "1px solid var(--line)", gap: "18px 26px" }}
+              style={{ padding: "16px clamp(16px, 4vw, 30px)", borderTop: "1px solid var(--line)", gap: "18px 26px" }}
             >
               {criteria.map((c) => {
                 const ch = bandColor(c.value!);

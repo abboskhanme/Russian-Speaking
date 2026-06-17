@@ -170,8 +170,8 @@ export function StudentHome() {
         <div style={{ display: "flex", flexWrap: "wrap" }}>
           <div
             style={{
-              flex: "1 1 460px",
-              padding: "30px 32px",
+              flex: "1 1 300px",
+              padding: "clamp(22px, 4vw, 30px) clamp(18px, 4vw, 32px)",
               background: "linear-gradient(135deg, oklch(0.75 0.15 56), oklch(0.64 0.19 38))",
               color: "#fff",
               position: "relative",

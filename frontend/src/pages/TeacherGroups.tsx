@@ -60,7 +60,7 @@ export function TeacherGroups() {
         sub={t("groupsHint")}
         action={
           <form
-            className="row gap-2"
+            className="row gap-2 wrap"
             onSubmit={(e) => {
               e.preventDefault();
               if (name.trim() && !create.isPending) create.mutate();
@@ -70,7 +70,7 @@ export function TeacherGroups() {
               placeholder={t("groupNamePh")}
               value={name}
               onChange={(e) => setName(e.target.value)}
-              style={{ ...inp, width: 220 }}
+              style={{ ...inp, width: 220, minWidth: 0, maxWidth: "100%" }}
             />
             <Button
               type="submit"

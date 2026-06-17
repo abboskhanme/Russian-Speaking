@@ -39,12 +39,14 @@ export function GoogleSignIn() {
           }
         },
       });
+      // Fit the button to its container (GSI needs a number, ~200–400px).
+      const cw = ref.current.parentElement?.offsetWidth || 300;
       id.renderButton(ref.current, {
         theme: "outline",
         size: "large",
         text: "continue_with",
         shape: "pill",
-        width: 300,
+        width: Math.min(380, Math.max(220, cw)),
       });
     }
 
