@@ -2,7 +2,7 @@ import secrets
 import uuid
 from collections import defaultdict
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
@@ -107,12 +107,15 @@ def create_group(
 
 @router.get("", response_model=list[GroupOut])
 def list_groups(
+    teacher_id: uuid.UUID | None = Query(default=None),
     teacher: User = Depends(require_teacher),
     db: Session = Depends(get_db),
 ) -> list[GroupOut]:
     stmt = select(Group).order_by(Group.created_at.desc())
-    if teacher.role != UserRole.admin:  # admin sees every teacher's groups
+    if teacher.role != UserRole.admin:
         stmt = stmt.where(Group.teacher_id == teacher.id)
+    elif teacher_id is not None:  # admin drilling into one teacher
+        stmt = stmt.where(Group.teacher_id == teacher_id)
     gs = db.scalars(stmt).all()
     return [_group_out(db, g) for g in gs]
 
@@ -305,10 +308,23 @@ def add_members(
     g = db.get(Group, group_id)
     if g is None or (teacher.role != UserRole.admin and g.teacher_id != teacher.id):
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Group not found")
+    # Resolve target students from ids ∪ emails (emails let teachers/admin pull
+    # in independent, self-registered users who never used a join code).
+    wanted_ids = set(payload.student_ids)
+    if payload.emails:
+        norm = [e.strip().lower() for e in payload.emails if e.strip()]
+        if norm:
+            wanted_ids.update(
+                db.scalars(
+                    select(User.id).where(
+                        func.lower(User.email).in_(norm), User.role == UserRole.student
+                    )
+                ).all()
+            )
     valid_ids = set(
         db.scalars(
             select(User.id).where(
-                User.id.in_(payload.student_ids), User.role == UserRole.student
+                User.id.in_(wanted_ids), User.role == UserRole.student
             )
         ).all()
     )

@@ -97,19 +97,22 @@ def list_questions(
     level: str | None = None,
     topic: str | None = None,
     published_only: bool = Query(default=False),
+    teacher_id: uuid.UUID | None = Query(default=None),
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> list[QuestionOut]:
     stmt = select(Question).where(Question.is_deleted.is_(False))
     # Students browse only OPEN published questions (any teacher). Assigned
     # tasks never appear here — they're reached via assignments. Teachers see
-    # only their own. Admin sees everything.
+    # only their own. Admin sees everything (or one teacher's via teacher_id).
     if user.role == UserRole.student:
         stmt = stmt.where(Question.is_published.is_(True), Question.is_public.is_(True))
     elif user.role == UserRole.teacher:
         stmt = stmt.where(Question.teacher_id == user.id)
         if published_only:
             stmt = stmt.where(Question.is_published.is_(True))
+    elif teacher_id is not None:  # admin drilling into one teacher
+        stmt = stmt.where(Question.teacher_id == teacher_id)
     if type is not None:
         stmt = stmt.where(Question.type == type)
     if level:

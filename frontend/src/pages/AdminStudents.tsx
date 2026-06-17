@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "../lib/api";
 import { useI18n } from "../lib/i18n";
@@ -19,6 +20,7 @@ import { useConfirm } from "../components/ConfirmDialog";
 
 export function AdminStudents() {
   const { t } = useI18n();
+  const nav = useNavigate();
   const ask = useConfirm();
   const qc = useQueryClient();
   const [q, setQ] = useState("");
@@ -200,7 +202,12 @@ export function AdminStudents() {
                 alignItems: "center",
               }}
             >
-              <div className="row gap-3" style={{ minWidth: 0 }}>
+              <div
+                className="row gap-3 tap"
+                style={{ minWidth: 0, cursor: "pointer" }}
+                onClick={() => nav(`/admin/students/${s.id}`)}
+                title={t("manage")}
+              >
                 <Avatar name={s.full_name} size={38} />
                 <div className="col" style={{ minWidth: 0 }}>
                   <span style={{ fontWeight: 700, fontSize: 14.5 }} className="truncate">

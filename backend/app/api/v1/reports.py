@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session
 
 from app.api.deps import require_teacher_or_admin
 from app.db.session import get_db
-from app.models import GroupMember, Question, Submission, User, UserRole
+from app.models import Group, GroupMember, Question, Submission, User, UserRole
 from app.schemas.report import Analytics, CriterionAvg, GradebookRow
 
 router = APIRouter(prefix="/reports", tags=["reports"])
@@ -28,8 +28,17 @@ def _relevant_submissions(
 ) -> list[Submission]:
     stmt = select(Submission)
     if user.role == UserRole.teacher:
-        stmt = stmt.join(Question, Submission.question_id == Question.id).where(
-            Question.teacher_id == user.id
+        # Only the teacher's own questions AND only their own students (group
+        # members) — never a student who doesn't belong to this teacher.
+        roster = (
+            select(GroupMember.student_id)
+            .join(Group, GroupMember.group_id == Group.id)
+            .where(Group.teacher_id == user.id)
+        )
+        stmt = (
+            stmt.join(Question, Submission.question_id == Question.id)
+            .where(Question.teacher_id == user.id)
+            .where(Submission.student_id.in_(roster))
         )
     if group_id is not None:
         member_ids = list(

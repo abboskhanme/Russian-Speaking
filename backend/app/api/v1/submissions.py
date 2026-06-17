@@ -11,7 +11,7 @@ from app.api.v1.questions import active_assignment
 from app.core.ratelimit import rate_limit
 from app.core.config import settings
 from app.db.session import get_db
-from app.models import Question, Submission, User, UserRole
+from app.models import Group, GroupMember, Question, Submission, User, UserRole
 from app.schemas.gamification import ExplainOut
 from app.schemas.submission import (
     AudioUploadURL,
@@ -191,9 +191,17 @@ def list_submissions(
         # Students see only their own answers.
         stmt = stmt.where(Submission.student_id == user.id)
     elif user.role == UserRole.teacher:
-        # Teachers see answers submitted to their own questions.
-        stmt = stmt.join(Question, Submission.question_id == Question.id).where(
-            Question.teacher_id == user.id
+        # Teachers see answers to their own questions AND only from their own
+        # students (group members) — never a non-roster student.
+        roster = (
+            select(GroupMember.student_id)
+            .join(Group, GroupMember.group_id == Group.id)
+            .where(Group.teacher_id == user.id)
+        )
+        stmt = (
+            stmt.join(Question, Submission.question_id == Question.id)
+            .where(Question.teacher_id == user.id)
+            .where(Submission.student_id.in_(roster))
         )
     # admin: all submissions
     if question_id is not None:
@@ -212,6 +220,20 @@ def list_submissions(
     return [_to_out(s) for s in db.scalars(stmt).all()]
 
 
+def _teacher_denied(db: Session, teacher_id, sub: Submission) -> bool:
+    """A teacher may view a submission only if it answers their own question AND
+    the student is in their roster (a member of one of their groups)."""
+    q = sub.question
+    if q is None or q.teacher_id != teacher_id:
+        return True
+    in_roster = db.scalar(
+        select(GroupMember.id)
+        .join(Group, GroupMember.group_id == Group.id)
+        .where(Group.teacher_id == teacher_id, GroupMember.student_id == sub.student_id)
+    )
+    return in_roster is None
+
+
 @router.get("/{submission_id}", response_model=SubmissionOut)
 def get_submission(
     submission_id: uuid.UUID,
@@ -221,10 +243,10 @@ def get_submission(
     sub = db.get(Submission, submission_id)
     if sub is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Submission not found")
-    # Students read only their own; teachers only answers to their questions.
+    # Students read only their own; teachers only their own students' answers.
     if user.role == UserRole.student and sub.student_id != user.id:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Submission not found")
-    if user.role == UserRole.teacher and sub.question.teacher_id != user.id:
+    if user.role == UserRole.teacher and _teacher_denied(db, user.id, sub):
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Submission not found")
     return _to_out(sub)
 
@@ -241,7 +263,7 @@ def explain_submission(
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Submission not found")
     if user.role == UserRole.student and sub.student_id != user.id:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Submission not found")
-    if user.role == UserRole.teacher and sub.question.teacher_id != user.id:
+    if user.role == UserRole.teacher and _teacher_denied(db, user.id, sub):
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Submission not found")
 
     ev = sub.evaluation
@@ -273,7 +295,7 @@ def teacher_feedback(
     sub = db.get(Submission, submission_id)
     if sub is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Submission not found")
-    if teacher.role == UserRole.teacher and sub.question.teacher_id != teacher.id:
+    if teacher.role == UserRole.teacher and _teacher_denied(db, teacher.id, sub):
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Submission not found")
     sub.teacher_comment = (payload.comment or "").strip() or None
     sub.teacher_band = payload.band

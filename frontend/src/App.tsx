@@ -32,7 +32,9 @@ import { CreateQuestion } from "./pages/CreateQuestion";
 import { PremiumInfo } from "./pages/PremiumInfo";
 import { AdminDashboard } from "./pages/AdminDashboard";
 import { AdminTeachers } from "./pages/AdminTeachers";
+import { AdminTeacherDetail } from "./pages/AdminTeacherDetail";
 import { AdminStudents } from "./pages/AdminStudents";
+import { AdminStudentDetail } from "./pages/AdminStudentDetail";
 import { AdminTests } from "./pages/AdminTests";
 import { Settings } from "./pages/Settings";
 import {
@@ -65,24 +67,17 @@ function useNavItems(): NavItem[] {
   const { t } = useI18n();
   if (!user) return [];
   if (user.role === "admin")
-    // Super-admin: combined menu — admin tools + everything a teacher and a
-    // student can do.
+    // Super-admin: ONE clean oversight menu over everything — not a stack of
+    // per-role menus. These pages already show ALL teachers'/students' data for
+    // an admin (backend grants universal access).
     return [
-      { to: "", icon: "home", label: t("adminRole"), heading: true },
       { to: "/admin", icon: "home", label: t("navOverview") },
       { to: "/admin/teachers", icon: "grad", label: t("tabTeachers") },
       { to: "/admin/students", icon: "users", label: t("tabStudents") },
-      { to: "/admin/tests", icon: "layers", label: t("tabAllTests") },
-      { to: "", icon: "message", label: t("teacher"), heading: true },
       { to: "/teacher/questions", icon: "message", label: t("navTests") },
-      { to: "/teacher/groups", icon: "users", label: t("navGroups") },
+      { to: "/teacher/groups", icon: "layers", label: t("navGroups") },
       { to: "/teacher/submissions", icon: "headphones", label: t("navAnswers") },
-      { to: "/teacher/gradebook", icon: "grad", label: t("navGradebook") },
-      { to: "", icon: "mic", label: t("student"), heading: true },
-      { to: "/questions", icon: "mic", label: t("navPractice") },
-      { to: "/shadowing", icon: "headphones", label: t("navShadow") },
-      { to: "/leaderboard", icon: "trophy", label: t("navRating") },
-      { to: "/progress", icon: "chart", label: t("navProgress") },
+      { to: "/teacher/gradebook", icon: "chart", label: t("navGradebook") },
     ];
   if (user.role === "teacher")
     return [
@@ -454,7 +449,9 @@ function AppRoutes() {
       <Route path="/teacher/topics" element={<TeacherTopics />} />
       <Route path="/admin" element={<AdminDashboard />} />
       <Route path="/admin/teachers" element={<AdminTeachers />} />
+      <Route path="/admin/teachers/:id" element={<AdminTeacherDetail />} />
       <Route path="/admin/students" element={<AdminStudents />} />
+      <Route path="/admin/students/:id" element={<AdminStudentDetail />} />
       <Route path="/admin/tests" element={<AdminTests />} />
       <Route path="/settings" element={<Settings />} />
       <Route path="*" element={<NotFound />} />

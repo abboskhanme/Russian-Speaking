@@ -52,6 +52,37 @@ class StudentOut(BaseModel):
     submission_count: int = 0
 
 
+class StudentGroupOut(BaseModel):
+    id: uuid.UUID
+    name: str
+    teacher_name: str | None = None
+
+
+class StudentSubmissionOut(BaseModel):
+    id: uuid.UUID
+    question_title: str | None = None
+    topic: str | None = None
+    band: float | None = None  # 0–100, teacher override or AI overall
+    status: str
+    created_at: datetime
+
+
+class AdminStudentDetail(BaseModel):
+    id: uuid.UUID
+    full_name: str
+    email: EmailStr
+    is_active: bool
+    is_premium: bool = False
+    xp: int = 0
+    current_streak: int = 0
+    longest_streak: int = 0
+    attempts: int = 0
+    avg_band: float | None = None
+    best_band: float | None = None
+    groups: list[StudentGroupOut] = []
+    submissions: list[StudentSubmissionOut] = []
+
+
 class AdminStats(BaseModel):
     teachers: int = 0
     students: int = 0

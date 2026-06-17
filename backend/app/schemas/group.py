@@ -40,7 +40,10 @@ class GroupDetailOut(GroupOut):
 
 
 class AddMembers(BaseModel):
-    student_ids: list[uuid.UUID]
+    student_ids: list[uuid.UUID] = []
+    # Add students by exact email too — works for independent (self-registered)
+    # users who never entered a join code.
+    emails: list[str] = []
 
 
 class JoinGroup(BaseModel):

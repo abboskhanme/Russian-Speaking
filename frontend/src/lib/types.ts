@@ -78,6 +78,34 @@ export interface Topic {
   images: TopicImage[];
 }
 
+export interface StudentGroupBrief {
+  id: string;
+  name: string;
+  teacher_name: string | null;
+}
+export interface StudentSubmissionBrief {
+  id: string;
+  question_title: string | null;
+  topic: string | null;
+  band: number | null;
+  status: string;
+  created_at: string;
+}
+export interface AdminStudentDetail {
+  id: string;
+  full_name: string;
+  email: string;
+  is_active: boolean;
+  is_premium: boolean;
+  xp: number;
+  current_streak: number;
+  longest_streak: number;
+  attempts: number;
+  avg_band: number | null;
+  best_band: number | null;
+  groups: StudentGroupBrief[];
+  submissions: StudentSubmissionBrief[];
+}
 export interface AdminTeacher {
   id: string;
   email: string;

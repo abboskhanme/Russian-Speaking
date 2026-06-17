@@ -209,6 +209,7 @@ function StudentsSection({
   const confirm = useConfirm();
   const [picking, setPicking] = useState(false);
   const [picked, setPicked] = useState<Set<string>>(new Set());
+  const [email, setEmail] = useState("");
 
   const { data: allStudents } = useQuery({
     queryKey: ["manage-students"],
@@ -222,6 +223,15 @@ function StudentsSection({
     onSuccess: () => {
       setPicked(new Set());
       setPicking(false);
+      onChange();
+    },
+  });
+  // Add an independent / self-registered student by exact email.
+  const addByEmail = useMutation({
+    mutationFn: async (em: string) =>
+      api.post(`/groups/${groupId}/members`, { emails: [em] }),
+    onSuccess: () => {
+      setEmail("");
       onChange();
     },
   });
@@ -259,6 +269,26 @@ function StudentsSection({
 
       {picking && (
         <Card>
+          {/* Add by email — works for independent students (no join code used) */}
+          <form
+            className="row gap-2 wrap"
+            style={{ marginBottom: 12 }}
+            onSubmit={(e) => {
+              e.preventDefault();
+              if (email.trim()) addByEmail.mutate(email.trim());
+            }}
+          >
+            <input
+              style={{ ...inp, flex: 1, minWidth: 0 }}
+              type="email"
+              placeholder={t("addByEmailPh")}
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+            />
+            <Button type="submit" icon="plus" disabled={!email.trim() || addByEmail.isPending}>
+              {t("addByEmailBtn")}
+            </Button>
+          </form>
           {!candidates.length ? (
             <p
               style={{

@@ -33,15 +33,18 @@ def list_students(
     search: str | None = Query(default=None, max_length=100),
     limit: int = Query(default=100, ge=1, le=500),
     offset: int = Query(default=0, ge=0),
+    teacher_id: uuid.UUID | None = Query(default=None),
     caller: User = Depends(require_teacher_or_admin),
     db: Session = Depends(get_db),
 ) -> list[StudentManageOut]:
     """Students for premium management. A teacher sees ONLY their own students
-    (members of their groups); admin sees everyone. Students in no group are
-    independent app users and belong to no teacher."""
+    (members of their groups); admin sees everyone, or one teacher's roster when
+    `teacher_id` is passed. Students in no group are independent app users."""
     stmt = select(User).where(User.role == UserRole.student)
     if caller.role != UserRole.admin:
         stmt = stmt.where(User.id.in_(_roster_ids(caller.id)))
+    elif teacher_id is not None:  # admin drilling into one teacher's roster
+        stmt = stmt.where(User.id.in_(_roster_ids(teacher_id)))
     if search:
         like = f"%{search.strip()}%"
         stmt = stmt.where(User.full_name.ilike(like) | User.email.ilike(like))
