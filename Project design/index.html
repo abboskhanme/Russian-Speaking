@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Govori — Rus tili speaking platformasi</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Nunito:ital,wght@0,400;0,500;0,600;0,700;0,800;0,900;1,600&family=Spline+Sans+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="app.css" />
+  <style>
+    /* ---- Full-width page (brief rule: never centered max-width) ---- */
+    .page { padding: 24px 30px 36px; width: 100%; }
+
+    /* ---- Responsive grid utilities ---- */
+    .g2 { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 18px; }
+    .g3 { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 18px; }
+    .g4 { display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap: 16px; }
+    .g5 { display: grid; grid-template-columns: repeat(5, minmax(0,1fr)); gap: 14px; }
+    .split { display: grid; grid-template-columns: minmax(0,1.7fr) minmax(310px, 1fr); gap: 20px; align-items: start; }
+    .split-even { display: grid; grid-template-columns: minmax(0,1fr) minmax(0,1fr); gap: 20px; align-items: start; }
+    .focus-wrap { width: 100%; }
+
+    .mobile-only { display: none; }
+    .hide-sm { } /* visible by default */
+    .tap:active { transform: scale(0.96); }
+
+    /* ---- Bottom nav (student, mobile) ---- */
+    .bottom-nav { display: none; }
+
+    /* ---- Tablet ---- */
+    @media (max-width: 1080px) {
+      .split, .split-even { grid-template-columns: 1fr; }
+      .g4 { grid-template-columns: repeat(2, minmax(0,1fr)); }
+      .g5 { grid-template-columns: repeat(3, minmax(0,1fr)); }
+      .g3 { grid-template-columns: repeat(2, minmax(0,1fr)); }
+    }
+
+    /* ---- Mobile ---- */
+    @media (max-width: 720px) {
+      .page { padding: 16px 16px 28px; }
+      .mobile-only { display: flex; }
+      .hide-sm { display: none !important; }
+      .g2, .g3 { grid-template-columns: 1fr; }
+      .g4 { grid-template-columns: repeat(2, minmax(0,1fr)); }
+      .g5 { grid-template-columns: repeat(2, minmax(0,1fr)); }
+      .sidebar {
+        position: fixed; top: 0; left: 0; height: 100vh;
+        transform: translateX(-100%); transition: transform .26s cubic-bezier(.2,.7,.3,1);
+        box-shadow: var(--sh-lg);
+      }
+      .sidebar.open { transform: translateX(0); }
+      .bottom-nav {
+        display: flex; height: 62px; flex-shrink: 0; align-items: stretch;
+        background: var(--surface); border-top: 1px solid var(--line);
+        padding-bottom: env(safe-area-inset-bottom, 0);
+      }
+      .t-row { grid-template-columns: 1fr auto !important; gap: 8px !important; }
+      .t-head { display: none !important; }
+      .t-row > .t-hide-sm { display: none !important; }
+      .auth-brand { display: none !important; }
+    }
+    @media (min-width: 721px) { .auth-brand-mobile { display: none; } }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+
+  <script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+
+  <script type="text/babel" src="data.jsx"></script>
+  <script type="text/babel" src="data2.jsx"></script>
+  <script type="text/babel" src="ui.jsx"></script>
+  <script type="text/babel" src="ui2.jsx"></script>
+  <script type="text/babel" src="shell.jsx"></script>
+  <script type="text/babel" src="auth.jsx"></script>
+  <script type="text/babel" src="practice.jsx"></script>
+  <script type="text/babel" src="student.jsx"></script>
+  <script type="text/babel" src="teacher.jsx"></script>
+  <script type="text/babel" src="admin.jsx"></script>
+  <script type="text/babel" src="extra.jsx"></script>
+  <script type="text/babel" src="app.jsx"></script>
+</body>
+</html>

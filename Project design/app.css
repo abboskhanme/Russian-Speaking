@@ -1,0 +1,154 @@
+/* ============================================================
+   GOVORI (RusSpeak) — Design system v2
+   "Cozy, cute-but-not-childish" · Nunito · full-width · mobile-first
+   ============================================================ */
+
+:root {
+  /* Surfaces — warm cream */
+  --bg:        oklch(0.971 0.013 76);
+  --bg-2:      oklch(0.951 0.019 70);
+  --surface:   oklch(0.997 0.004 85);
+  --surface-2: oklch(0.979 0.010 80);
+  --surface-3: oklch(0.963 0.015 76);
+
+  /* Ink */
+  --ink:       oklch(0.285 0.026 55);
+  --ink-soft:  oklch(0.455 0.022 60);
+  --muted:     oklch(0.605 0.020 65);
+  --faint:     oklch(0.745 0.016 70);
+  --line:      oklch(0.908 0.013 75);
+  --line-2:    oklch(0.862 0.018 72);
+
+  /* Brand — warm orange */
+  --primary:        oklch(0.685 0.190 47);
+  --primary-press:  oklch(0.610 0.185 44);
+  --primary-tint:   oklch(0.932 0.052 62);
+  --primary-tint-2: oklch(0.895 0.080 60);
+
+  /* Functional */
+  --amber:        oklch(0.820 0.140 80);
+  --amber-tint:   oklch(0.945 0.058 86);
+  --success:      oklch(0.690 0.135 152);
+  --success-tint: oklch(0.935 0.050 152);
+  --warn:         oklch(0.790 0.135 75);
+  --warn-tint:    oklch(0.948 0.055 80);
+  --danger:       oklch(0.640 0.150 18);
+  --danger-tint:  oklch(0.945 0.045 22);
+  --info:         oklch(0.640 0.110 248);
+  --info-tint:    oklch(0.935 0.040 248);
+  --grape:        oklch(0.580 0.140 305);
+  --grape-tint:   oklch(0.930 0.045 305);
+
+  /* Pronunciation scale (per-word) */
+  --pron-good: oklch(0.690 0.135 152);
+  --pron-good-bg: oklch(0.930 0.060 152);
+  --pron-mid:  oklch(0.760 0.130 75);
+  --pron-mid-bg: oklch(0.945 0.070 82);
+  --pron-low:  oklch(0.660 0.150 8);
+  --pron-low-bg: oklch(0.935 0.055 12);
+
+  /* Radii — cozy, consistent */
+  --r-xs: 10px;
+  --r-sm: 14px;
+  --r-md: 18px;
+  --r-lg: 24px;
+  --r-xl: 32px;
+  --r-pill: 999px;
+
+  /* Shadows — warm-tinted, soft */
+  --sh-sm: 0 1px 2px oklch(0.4 0.04 60 / 0.05), 0 1px 3px oklch(0.4 0.04 60 / 0.06);
+  --sh-md: 0 2px 6px oklch(0.4 0.04 60 / 0.05), 0 8px 22px oklch(0.4 0.04 60 / 0.07);
+  --sh-lg: 0 4px 12px oklch(0.4 0.04 60 / 0.07), 0 20px 44px oklch(0.4 0.04 60 / 0.11);
+  --sh-primary: 0 6px 18px oklch(0.685 0.19 47 / 0.32);
+  --sh-pop: 0 10px 30px oklch(0.685 0.19 47 / 0.28);
+
+  --font-display: 'Nunito', system-ui, sans-serif;
+  --font-body: 'Nunito', system-ui, sans-serif;
+  --header-h: 66px;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0; padding: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-body);
+  font-weight: 500;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+body { overflow: hidden; }
+
+h1, h2, h3, h4, h5 {
+  font-family: var(--font-display);
+  font-weight: 800;
+  margin: 0;
+  letter-spacing: -0.015em;
+  color: var(--ink);
+}
+
+button { font-family: inherit; cursor: pointer; }
+input, textarea, select { font-family: inherit; }
+
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-thumb { background: var(--line-2); border-radius: 999px; border: 2px solid transparent; background-clip: padding-box; }
+::-webkit-scrollbar-thumb:hover { background: var(--faint); background-clip: padding-box; }
+::-webkit-scrollbar-track { background: transparent; }
+
+#root { height: 100vh; }
+
+/* Layout utils */
+.row { display: flex; align-items: center; }
+.col { display: flex; flex-direction: column; }
+.gap-1 { gap: 4px; } .gap-2 { gap: 8px; } .gap-3 { gap: 12px; }
+.gap-4 { gap: 16px; } .gap-5 { gap: 20px; } .gap-6 { gap: 24px; }
+.grow { flex: 1; } .center { align-items: center; justify-content: center; }
+.between { justify-content: space-between; } .wrap { flex-wrap: wrap; }
+.mono { font-family: 'Spline Sans Mono', ui-monospace, monospace; }
+.t-muted { color: var(--muted); } .t-soft { color: var(--ink-soft); }
+.truncate { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* ---- Animations ---- */
+@keyframes fadeUp { from { transform: translateY(12px); } to { transform: translateY(0); } }
+@keyframes fadeIn { from { transform: translateY(4px); } to { transform: translateY(0); } }
+@keyframes pop { 0% { transform: scale(0.9); } 60% { transform: scale(1.03); } 100% { transform: scale(1); } }
+@keyframes pulseRing {
+  0% { box-shadow: 0 0 0 0 oklch(0.64 0.15 18 / 0.45); }
+  70% { box-shadow: 0 0 0 20px oklch(0.64 0.15 18 / 0); }
+  100% { box-shadow: 0 0 0 0 oklch(0.64 0.15 18 / 0); }
+}
+@keyframes bars { 0%, 100% { transform: scaleY(0.32); } 50% { transform: scaleY(1); } }
+@keyframes shimmer { 0% { background-position: -480px 0; } 100% { background-position: 480px 0; } }
+@keyframes spin { to { transform: rotate(360deg); } }
+@keyframes floaty { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-7px); } }
+@keyframes confettiFall {
+  0% { transform: translateY(-12vh) rotate(0deg); opacity: 1; }
+  100% { transform: translateY(108vh) rotate(720deg); opacity: 1; }
+}
+@keyframes ringDraw { from { stroke-dashoffset: var(--dash); } }
+@keyframes blink { 0%, 92%, 100% { transform: scaleY(1); } 96% { transform: scaleY(0.1); } }
+
+.anim-fade-up { animation: fadeUp 0.45s cubic-bezier(0.2,0.7,0.3,1); }
+.anim-fade-in { animation: fadeIn 0.4s ease; }
+.anim-pop { animation: pop 0.4s cubic-bezier(0.2,0.8,0.3,1.2); }
+.floaty { animation: floaty 4s ease-in-out infinite; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 0.001s !important; animation-iteration-count: 1 !important; }
+  .floaty { animation: none !important; }
+}
+
+:focus-visible { outline: 2.5px solid var(--primary); outline-offset: 2px; }
+
+/* Skeleton */
+.skel {
+  background: linear-gradient(90deg, var(--surface-3) 25%, var(--surface-2) 50%, var(--surface-3) 75%);
+  background-size: 480px 100%;
+  animation: shimmer 1.3s infinite linear;
+  border-radius: var(--r-sm);
+}
+
+/* tap feel */
+.tap { transition: transform .12s ease; }
+.tap:active { transform: scale(0.96); }

@@ -1,0 +1,22 @@
+import uuid
+from datetime import datetime
+
+from pydantic import BaseModel, ConfigDict, EmailStr
+
+
+class StudentManageOut(BaseModel):
+    """A student as seen by a teacher/admin managing premium access."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    email: EmailStr
+    full_name: str
+    is_active: bool
+    is_premium: bool
+    created_at: datetime
+    submission_count: int = 0
+
+
+class PremiumUpdate(BaseModel):
+    is_premium: bool

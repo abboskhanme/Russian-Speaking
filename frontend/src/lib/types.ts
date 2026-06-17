@@ -1,0 +1,295 @@
+export type UserRole = "admin" | "teacher" | "student";
+export type QuestionType = "text" | "image" | "video";
+export type SubmissionStatus = "pending" | "processing" | "done" | "failed";
+
+export interface User {
+  id: string;
+  email: string;
+  full_name: string;
+  role: UserRole;
+  is_active: boolean;
+  is_premium: boolean;
+  preferred_language: string;
+  xp: number;
+  daily_goal: number;
+  streak_freezes: number;
+  current_streak: number;
+  longest_streak: number;
+}
+
+export interface LeaderboardEntry {
+  rank: number;
+  id: string;
+  full_name: string;
+  xp: number;
+  weekly_xp: number;
+  current_streak: number;
+  is_me: boolean;
+}
+
+export interface ReviewItem {
+  id: string;
+  question_id: string;
+  question_title: string | null;
+  question_topic: string | null;
+  question_level: string | null;
+  weakness_dim: string;
+  due_at: string;
+}
+
+export interface Assignment {
+  id: string;
+  student_id: string;
+  student_name: string | null;
+  question_id: string;
+  question_title: string | null;
+  question_topic: string | null;
+  question_level: string | null;
+  due_at: string | null;
+  created_at: string;
+  completed: boolean;
+  submission_id: string | null;
+  overall_band: number | null;
+}
+
+export interface ExplainResult {
+  explanation: string;
+  improved_sentence: string;
+}
+
+export interface StudentManage {
+  id: string;
+  email: string;
+  full_name: string;
+  is_active: boolean;
+  is_premium: boolean;
+  created_at: string;
+  submission_count: number;
+}
+
+export interface TopicImage {
+  id: string;
+  url: string;
+}
+
+export interface Topic {
+  id: string;
+  name: string;
+  images: TopicImage[];
+}
+
+export interface AdminTeacher {
+  id: string;
+  email: string;
+  full_name: string;
+  is_active: boolean;
+  created_at: string;
+  question_count: number;
+}
+
+export interface AdminStudent {
+  id: string;
+  email: string;
+  full_name: string;
+  is_active: boolean;
+  created_at: string;
+  submission_count: number;
+}
+
+export interface Question {
+  id: string;
+  teacher_id: string;
+  teacher_name: string | null;
+  type: QuestionType;
+  title: string;
+  prompt_text: string;
+  media_key: string | null;
+  media_url: string | null;
+  level: string | null;
+  topic: string | null;
+  prep_time_sec: number;
+  answer_time_limit_sec: number;
+  is_published: boolean;
+  model_answer_text: string | null;
+  created_at: string;
+}
+
+export interface Evaluation {
+  fluency_score: number;
+  lexical_score: number;
+  grammar_score: number;
+  relevance_score: number | null;
+  pronunciation_score: number | null;
+  overall_band: number;
+  level_score: number | null;
+  feedback: {
+    summary: string;
+    strengths: string[];
+    improvements: string[];
+    vocabulary_suggestions: string[];
+  } | null;
+  corrections:
+    | { original: string; corrected: string; type: string; explanation: string }[]
+    | null;
+  explanation: { explanation: string; improved_sentence: string } | null;
+}
+
+export interface TranscriptWord {
+  word: string;
+  start: number | null;
+  end: number | null;
+  accuracy: number | null;
+  error_type: string | null;
+}
+
+export interface ReferenceMatch {
+  completeness: number;
+  similarity: number;
+  matched_words: number;
+  reference_words: number;
+  spoken_words: number;
+  on_topic: boolean;
+}
+
+export interface PronunciationScores {
+  accuracy: number | null;
+  fluency: number | null;
+  completeness: number | null;
+  prosody: number | null;
+  pronunciation: number | null;
+  // Present only for shadowing: how well the transcript matched the target.
+  reference_match?: ReferenceMatch | null;
+}
+
+export interface Transcript {
+  text: string;
+  language: string | null;
+  word_timestamps: TranscriptWord[] | null;
+  pronunciation: PronunciationScores | null;
+}
+
+export interface Submission {
+  id: string;
+  student_id: string;
+  question_id: string | null;
+  reference_text: string | null;
+  audio_key: string;
+  audio_url: string | null;
+  audio_duration_sec: number | null;
+  status: SubmissionStatus;
+  error_message: string | null;
+  created_at: string;
+  completed_at: string | null;
+  student_name: string | null;
+  question_title: string | null;
+  question_topic: string | null;
+  question_level: string | null;
+  model_answer_text: string | null;
+  teacher_comment: string | null;
+  teacher_band: number | null;
+  reviewed_at: string | null;
+  transcript: Transcript | null;
+  evaluation: Evaluation | null;
+}
+
+export interface GroupMember {
+  id: string;
+  full_name: string;
+  email: string;
+  is_premium: boolean;
+  submission_count: number;
+}
+
+export interface Group {
+  id: string;
+  name: string;
+  join_code: string;
+  member_count: number;
+  teacher_name: string | null;
+  created_at: string;
+  members?: GroupMember[];
+}
+
+export interface MemberStat {
+  id: string;
+  full_name: string;
+  avg_band: number | null;
+  attempts: number;
+  tasks_done: number;
+  tasks_total: number;
+  last_activity: string | null;
+}
+
+export interface TaskStudent {
+  student_id: string;
+  full_name: string;
+  completed: boolean;
+  submission_id: string | null;
+  band: number | null;
+}
+
+export interface GroupTask {
+  question_id: string;
+  question_title: string | null;
+  question_topic: string | null;
+  due_at: string | null;
+  created_at: string;
+  total: number;
+  done: number;
+  students: TaskStudent[];
+}
+
+export interface GroupOverview {
+  id: string;
+  name: string;
+  join_code: string;
+  member_count: number;
+  avg_band: number | null;
+  members: MemberStat[];
+  tasks: GroupTask[];
+}
+
+export interface GradebookRow {
+  student_id: string;
+  full_name: string;
+  email: string;
+  attempts: number;
+  avg_band: number | null;
+  best_band: number | null;
+  last_activity: string | null;
+}
+
+export interface Analytics {
+  total_submissions: number;
+  evaluated: number;
+  active_students_7d: number;
+  student_count: number;
+  averages: {
+    fluency: number | null;
+    lexical: number | null;
+    grammar: number | null;
+    relevance: number | null;
+    overall: number | null;
+  };
+  weakest: string | null;
+  band_distribution: Record<string, number>;
+}
+
+export interface AdminStats {
+  teachers: number;
+  students: number;
+  questions: number;
+  published_questions: number;
+  submissions: number;
+  evaluated_submissions: number;
+}
+
+export interface AppNotification {
+  id: string;
+  type: string;
+  title: string;
+  body: string | null;
+  link: string | null;
+  is_read: boolean;
+  created_at: string;
+}
