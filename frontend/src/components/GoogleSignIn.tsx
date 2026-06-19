@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "../lib/auth";
 import { useI18n } from "../lib/i18n";
 import { GOOGLE_CLIENT_ID } from "../lib/plan";
@@ -20,6 +20,11 @@ export function GoogleSignIn() {
   const nav = useNavigate();
   const ref = useRef<HTMLDivElement>(null);
   const [err, setErr] = useState<string | null>(null);
+  // Referral group code from the teacher's link (?ref=…). Held in a ref so the
+  // one-time GSI callback always reads the latest value.
+  const [params] = useSearchParams();
+  const groupCode = useRef<string | undefined>(undefined);
+  groupCode.current = params.get("ref") || undefined;
 
   useEffect(() => {
     if (!GOOGLE_CLIENT_ID) return;
@@ -32,7 +37,7 @@ export function GoogleSignIn() {
         client_id: GOOGLE_CLIENT_ID,
         callback: async (resp) => {
           try {
-            await loginWithGoogle(resp.credential);
+            await loginWithGoogle(resp.credential, groupCode.current);
             nav("/");
           } catch {
             setErr(t("googleError"));

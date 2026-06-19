@@ -9,6 +9,7 @@ import { useStudentStats } from "./lib/useStats";
 import { FREE_ATTEMPT_LIMIT } from "./lib/plan";
 import { Login } from "./pages/Login";
 import { Register } from "./pages/Register";
+import { CompleteProfile } from "./pages/CompleteProfile";
 import { StudentHome } from "./pages/StudentHome";
 import { StudentProgress } from "./pages/StudentProgress";
 import { StudentQuestions } from "./pages/StudentQuestions";
@@ -481,6 +482,12 @@ export default function App() {
         <Route path="*" element={<Navigate to="/login" replace />} />
       </Routes>
     );
+  }
+
+  // Phone is mandatory for students and teachers (e.g. Google sign-ups, or older
+  // accounts created before phone existed) — gate the app until it's provided.
+  if (user.role !== "admin" && !user.phone) {
+    return <CompleteProfile />;
   }
 
   return (

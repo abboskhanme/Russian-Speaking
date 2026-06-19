@@ -130,15 +130,15 @@ def my_groups(
     return [_group_out(db, g) for g in gs]
 
 
-@router.post("/join", response_model=GroupOut)
-def join_group(
-    payload: JoinGroup,
-    user: User = Depends(get_current_user),
-    db: Session = Depends(get_db),
-) -> GroupOut:
-    g = db.scalar(select(Group).where(Group.join_code == payload.code.strip().upper()))
+def add_member_by_code(db: Session, user: User, code: str) -> Group | None:
+    """Add `user` to the group with this join code (idempotent). Returns the group,
+    or None if the code is invalid. Shared by the /join endpoint and referral sign-up.
+
+    Does NOT commit — the caller commits so the join is part of its transaction.
+    """
+    g = db.scalar(select(Group).where(Group.join_code == code.strip().upper()))
     if g is None:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, "Invalid group code")
+        return None
     exists = db.scalar(
         select(GroupMember).where(GroupMember.group_id == g.id, GroupMember.student_id == user.id)
     )
@@ -154,7 +154,19 @@ def join_group(
             link=f"/teacher/groups/{g.id}",
             commit=False,
         )
-        db.commit()
+    return g
+
+
+@router.post("/join", response_model=GroupOut)
+def join_group(
+    payload: JoinGroup,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> GroupOut:
+    g = add_member_by_code(db, user, payload.code)
+    if g is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Invalid group code")
+    db.commit()
     return _group_out(db, g)
 
 

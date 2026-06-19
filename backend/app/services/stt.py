@@ -64,6 +64,35 @@ def _to_wav(audio_bytes: bytes) -> str:
     return dst_path
 
 
+def to_mp3_bytes(audio_bytes: bytes) -> bytes:
+    """Transcode arbitrary browser audio to a compact 16 kHz mono MP3, returned as
+    bytes. Used to hand the ACTUAL recording to the multimodal LLM (Gemini accepts
+    audio/mp3) so it can judge delivery — intonation, stress, pace, naturalness,
+    accent — from the real sound, not just the transcript. 48 kbps mono is ample
+    for speech and keeps the request small (~0.36 MB/min)."""
+    src = tempfile.NamedTemporaryFile(suffix=".bin", delete=False)
+    try:
+        src.write(audio_bytes)
+        src.flush()
+    finally:
+        src.close()
+
+    dst_path = src.name + ".mp3"
+    try:
+        subprocess.run(
+            ["ffmpeg", "-y", "-i", src.name, "-ar", "16000", "-ac", "1", "-b:a", "48k", dst_path],
+            check=True,
+            capture_output=True,
+            timeout=60,
+        )
+        with open(dst_path, "rb") as f:
+            return f.read()
+    finally:
+        os.unlink(src.name)
+        if os.path.exists(dst_path):
+            os.unlink(dst_path)
+
+
 def _parse_segment(json_result: str) -> dict | None:
     """Pull text, per-word timing and pronunciation scores out of one recognized
     segment's detailed JSON."""

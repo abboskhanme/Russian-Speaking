@@ -33,6 +33,7 @@ export function TeacherGroupDetail() {
   const qc = useQueryClient();
   const confirm = useConfirm();
   const [tab, setTab] = useState<"students" | "tasks">("students");
+  const [copied, setCopied] = useState(false);
 
   const { data: ov, isLoading } = useQuery({
     queryKey: ["group-overview", id],
@@ -152,6 +153,24 @@ export function TeacherGroupDetail() {
             <Pill hue={80} icon="lock">
               {t("joinCode")}: {ov.join_code}
             </Pill>
+            <Button
+              variant="ghost"
+              size="sm"
+              icon={copied ? "check" : "link"}
+              onClick={async () => {
+                const link = `${window.location.origin}/register?ref=${ov.join_code}`;
+                try {
+                  await navigator.clipboard.writeText(link);
+                } catch {
+                  // Clipboard blocked (insecure context) — show the link to copy by hand.
+                  window.prompt(t("copyReferralLink"), link);
+                }
+                setCopied(true);
+                setTimeout(() => setCopied(false), 2000);
+              }}
+            >
+              {copied ? t("referralCopied") : t("copyReferralLink")}
+            </Button>
             {!editingName && (
               <Button
                 variant="ghost"

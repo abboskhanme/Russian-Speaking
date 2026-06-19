@@ -100,6 +100,31 @@ def test_parse_segment_phonemes_none_when_absent():
     assert seg["words"][0]["phonemes"] is None
 
 
+@pytest.mark.parametrize(
+    "raw,expected",
+    [
+        ("+998 90 123 45 67", "+998901234567"),
+        ("901234567", "+998901234567"),
+        ("998901234567", "+998901234567"),
+        ("+998-90-123-45-67", "+998901234567"),
+    ],
+)
+def test_normalize_uz_phone_ok(raw, expected):
+    from app.schemas.auth import normalize_uz_phone
+
+    assert normalize_uz_phone(raw) == expected
+
+
+@pytest.mark.parametrize("raw", ["", "12345", "9012345678901", "abc"])
+def test_normalize_uz_phone_rejects_bad(raw):
+    import pytest as _pytest
+
+    from app.schemas.auth import normalize_uz_phone
+
+    with _pytest.raises(ValueError):
+        normalize_uz_phone(raw)
+
+
 def test_parse_segment_handles_garbage():
     assert _parse_segment("not json") is None
     assert _parse_segment(json.dumps({"NBest": []})) is None

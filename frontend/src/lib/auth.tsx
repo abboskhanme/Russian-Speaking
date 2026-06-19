@@ -11,8 +11,11 @@ interface AuthCtx {
     password: string,
     full_name: string,
     role: "teacher" | "student",
+    phone: string,
+    group_code?: string,
   ) => Promise<{ pending: boolean }>;
-  loginWithGoogle: (credential: string) => Promise<void>;
+  loginWithGoogle: (credential: string, group_code?: string) => Promise<void>;
+  completeProfile: (phone: string) => Promise<void>;
   refreshUser: () => Promise<void>;
   logout: () => void;
 }
@@ -49,19 +52,34 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     password: string,
     full_name: string,
     role: "teacher" | "student",
+    phone: string,
+    group_code?: string,
   ) {
-    const { data } = await api.post<User>("/auth/register", { email, password, full_name, role });
+    const { data } = await api.post<User>("/auth/register", {
+      email,
+      password,
+      full_name,
+      role,
+      phone,
+      group_code,
+    });
     // Teachers are created inactive (pending admin approval) — don't log in.
     if (!data.is_active) return { pending: true };
     await login(email, password);
     return { pending: false };
   }
 
-  async function loginWithGoogle(credential: string) {
-    const { data } = await api.post("/auth/google", { credential });
+  async function loginWithGoogle(credential: string, group_code?: string) {
+    const { data } = await api.post("/auth/google", { credential, group_code });
     tokenStore.set(data.access_token, data.refresh_token);
     const me = await api.get<User>("/auth/me");
     setUser(me.data);
+  }
+
+  // Used by the complete-profile gate (Google sign-ups have no phone yet).
+  async function completeProfile(phone: string) {
+    const { data } = await api.patch<User>("/auth/me", { phone });
+    setUser(data);
   }
 
   async function refreshUser() {
@@ -75,7 +93,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   return (
-    <Ctx.Provider value={{ user, loading, login, register, loginWithGoogle, refreshUser, logout }}>
+    <Ctx.Provider value={{ user, loading, login, register, loginWithGoogle, completeProfile, refreshUser, logout }}>
       {children}
     </Ctx.Provider>
   );

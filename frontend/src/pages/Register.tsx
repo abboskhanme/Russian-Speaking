@@ -1,12 +1,13 @@
 import { useState } from "react";
 import type { CSSProperties } from "react";
-import { Navigate, useNavigate } from "react-router-dom";
+import { Navigate, useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "../lib/auth";
 import { useI18n } from "../lib/i18n";
 import { Button, Icon, Logo, Mascot } from "../components/govori";
 import type { IconName } from "../components/govori";
 import { GoogleSignIn } from "../components/GoogleSignIn";
 import { GOOGLE_CLIENT_ID } from "../lib/plan";
+import { canonicalUzPhone, formatUzPhone, isValidUzPhone, uzPhoneDigits } from "../lib/phone";
 
 type Role = "student" | "teacher";
 
@@ -57,8 +58,11 @@ export function Register() {
   const { user, register } = useAuth();
   const { t } = useI18n();
   const nav = useNavigate();
+  const [params] = useSearchParams();
+  const referralCode = params.get("ref") || undefined; // teacher's group join code
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
+  const [phone, setPhone] = useState(""); // 9 national digits only
   const [password, setPassword] = useState("");
   const [role, setRole] = useState<Role>("student");
   const [error, setError] = useState<string | null>(null);
@@ -69,10 +73,14 @@ export function Register() {
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
+    if (!isValidUzPhone(phone)) {
+      setError(t("phoneInvalid"));
+      return;
+    }
     setBusy(true);
     setError(null);
     try {
-      const res = await register(email, password, fullName, role);
+      const res = await register(email, password, fullName, role, canonicalUzPhone(phone), referralCode);
       if (res.pending) setPending(true); // teacher awaiting admin approval
       else nav("/");
     } catch {
@@ -177,6 +185,25 @@ export function Register() {
           <h2 style={{ fontSize: 25 }}>{t("signUp")} 🎉</h2>
           <p style={{ color: "var(--muted)", marginTop: 5, marginBottom: 20, fontSize: 14.5 }}>{t("appName")}</p>
 
+          {referralCode && !pending && (
+            <div
+              className="row gap-2"
+              style={{
+                alignItems: "center",
+                padding: "10px 13px",
+                marginBottom: 18,
+                background: "var(--primary-tint)",
+                borderRadius: "var(--r-md)",
+                fontSize: 13.5,
+                color: "var(--primary-press)",
+                fontWeight: 700,
+              }}
+            >
+              <Icon name="users" size={17} />
+              {t("invitedToGroup")}
+            </div>
+          )}
+
           {GOOGLE_CLIENT_ID && (
             <>
               <div style={{ marginBottom: 16, display: "flex", justifyContent: "center" }}>
@@ -229,6 +256,14 @@ export function Register() {
             <div className="col gap-3" style={{ marginBottom: 18 }}>
               <AuthInput icon="user" placeholder={t("fullName")} value={fullName} onChange={setFullName} required />
               <AuthInput icon="message" type="email" placeholder={t("email")} value={email} onChange={setEmail} required />
+              <AuthInput
+                icon="phone"
+                type="tel"
+                placeholder={t("phone")}
+                value={phone ? formatUzPhone(phone) : ""}
+                onChange={(v) => setPhone(uzPhoneDigits(v))}
+                required
+              />
               <AuthInput icon="lock" type="password" placeholder={t("minCharsPwd")} value={password} onChange={setPassword} required minLength={6} />
             </div>
 

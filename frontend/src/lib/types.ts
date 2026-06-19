@@ -6,6 +6,7 @@ export interface User {
   id: string;
   email: string;
   full_name: string;
+  phone: string | null;
   role: UserRole;
   is_active: boolean;
   is_premium: boolean;
@@ -157,6 +158,7 @@ export interface Evaluation {
     strengths: string[];
     improvements: string[];
     vocabulary_suggestions: string[];
+    pronunciation_feedback?: string;
   } | null;
   corrections:
     | { original: string; corrected: string; type: string; explanation: string }[]

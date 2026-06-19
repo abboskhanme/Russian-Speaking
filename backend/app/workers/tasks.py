@@ -144,6 +144,13 @@ def process_submission(self, submission_id: str) -> str:
                 image_mime = _image_mime(question.media_key)
             except Exception:  # noqa: BLE001 — fall back to text-only analysis
                 image_bytes = image_mime = None
+        # Hand the actual recording to Gemini (multimodal) so it judges delivery —
+        # intonation, pace, naturalness — from the real sound, not just the text.
+        # Best-effort: if transcoding fails, fall back to text-only analysis.
+        try:
+            audio_for_llm = stt.to_mp3_bytes(audio)
+        except Exception:  # noqa: BLE001
+            audio_for_llm = None
         _t_llm = time.monotonic()
         result = llm.analyze(
             question_prompt=question.prompt_text,
@@ -153,6 +160,7 @@ def process_submission(self, submission_id: str) -> str:
             topic=question.topic,
             image_bytes=image_bytes,
             image_mime=image_mime,
+            audio_bytes=audio_for_llm,
         )
         logger.info(
             "llm done",
@@ -177,6 +185,7 @@ def process_submission(self, submission_id: str) -> str:
                 "strengths": result.strengths,
                 "improvements": result.improvements,
                 "vocabulary_suggestions": result.vocabulary_suggestions,
+                "pronunciation_feedback": result.pronunciation_feedback,
             },
             corrections=[c.model_dump() for c in result.corrections],
             llm_model=settings.GEMINI_MODEL,

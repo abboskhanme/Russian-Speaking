@@ -837,6 +837,19 @@ export function SubmissionResult() {
         </Card>
       )}
 
+      {/* Pronunciation & delivery — Gemini's analysis of the actual audio */}
+      {fb?.pronunciation_feedback && (
+        <Card style={{ marginBottom: 16 }}>
+          <div className="row gap-2" style={{ marginBottom: 10, alignItems: "center" }}>
+            <Icon name="speak" size={20} style={{ color: "var(--primary)" }} />
+            <h3 style={{ fontSize: 18 }}>{t("pronFeedback")}</h3>
+          </div>
+          <p style={{ fontSize: 15, lineHeight: 1.6, color: "var(--ink)", whiteSpace: "pre-wrap" }}>
+            {fb.pronunciation_feedback}
+          </p>
+        </Card>
+      )}
+
       {/* Transcript + per-word pronunciation */}
       {sub.transcript?.text && <TranscriptCard transcript={sub.transcript} />}
 

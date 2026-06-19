@@ -5,6 +5,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_user
+from app.api.v1.groups import add_member_by_code
 from app.core.ratelimit import rate_limit
 from app.core.config import settings
 from app.core.security import (
@@ -70,12 +71,17 @@ def register(payload: UserRegister, db: Session = Depends(get_db)) -> User:
         email=payload.email,
         password_hash=hash_password(payload.password),
         full_name=payload.full_name,
+        phone=payload.phone,  # already normalised to +998XXXXXXXXX by the schema
         role=UserRole.teacher if is_teacher else UserRole.student,
         is_active=not is_teacher,  # teachers wait for admin approval
     )
     db.add(user)
     db.commit()
     db.refresh(user)
+    # Referral sign-up: auto-join the teacher's group. Only students join groups.
+    if payload.group_code and user.role == UserRole.student:
+        add_member_by_code(db, user, payload.group_code)
+        db.commit()
     return user
 
 
@@ -129,6 +135,11 @@ def google_auth(payload: GoogleAuth, db: Session = Depends(get_db)) -> TokenPair
         db.add(user)
         db.commit()
         db.refresh(user)
+        # Referral link → auto-join the group. Phone is collected afterwards by the
+        # complete-profile step (Google sign-up never asks for it inline).
+        if payload.group_code:
+            add_member_by_code(db, user, payload.group_code)
+            db.commit()
     else:
         if not user.is_active:
             raise HTTPException(status.HTTP_403_FORBIDDEN, "Account is blocked")
@@ -167,6 +178,8 @@ def update_me(
 ) -> User:
     if payload.full_name is not None:
         user.full_name = payload.full_name
+    if payload.phone is not None:
+        user.phone = payload.phone  # normalised by the schema validator
     if payload.preferred_language is not None:
         user.preferred_language = payload.preferred_language
     if payload.daily_goal is not None:

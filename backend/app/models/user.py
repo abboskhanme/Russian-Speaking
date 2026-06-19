@@ -16,6 +16,10 @@ class User(Base, TimestampMixin):
     # Nullable: Google-authenticated accounts have no local password.
     password_hash: Mapped[str | None] = mapped_column(String(255), nullable=True)
     full_name: Mapped[str] = mapped_column(String(255), nullable=False)
+    # Uzbek phone, stored canonical as "+998XXXXXXXXX". Nullable so Google sign-ups
+    # can be created first and asked to complete it; the app then requires it for
+    # students and teachers (see the complete-profile gate).
+    phone: Mapped[str | None] = mapped_column(String(20), nullable=True)
     role: Mapped[UserRole] = mapped_column(
         Enum(UserRole, name="user_role"), default=UserRole.student, nullable=False
     )
