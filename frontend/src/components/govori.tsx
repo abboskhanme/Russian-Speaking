@@ -895,11 +895,19 @@ export function Waveform({ active, bars = 44 }: { active: boolean; bars?: number
 }
 
 /* ---------------- Per-word pronunciation transcript ---------------- */
+export type PronTone = "good" | "mid" | "low" | "neutral";
+export interface PhonemeSeg {
+  ph: string;
+  pron?: PronTone;
+  note?: string;
+}
 export interface WordSeg {
   w: string;
-  pron?: "good" | "mid" | "low" | "neutral";
+  pron?: PronTone;
   issue?: "grammar" | "filler";
   note?: string;
+  // Per-sound (letter) breakdown; shown under words that weren't pronounced well.
+  phonemes?: PhonemeSeg[];
 }
 const PRON_MAP = {
   good: { bg: "var(--pron-good-bg)", fg: "var(--pron-good)" },
@@ -919,26 +927,61 @@ export function WordTranscript({ words }: { words: WordSeg[] }) {
         // Show the accuracy % inline on the words that aren't green, so it's clear
         // WHY they're coloured (works on touch — no hover needed).
         const showPct = seg.note && (tone === "mid" || tone === "low");
+        // Letter-by-letter breakdown for words that weren't pronounced well, so the
+        // learner sees exactly which sounds to fix — only the off ones, to stay tidy.
+        const badPhonemes = (tone === "mid" || tone === "low") && seg.phonemes
+          ? seg.phonemes.filter((p) => p.pron === "mid" || p.pron === "low")
+          : [];
         return (
           <span
             key={i}
-            title={seg.note || ""}
             style={{
-              background: c.bg,
-              color: c.fg,
-              borderRadius: 6,
-              padding: "2px 5px",
+              display: "inline-flex",
+              flexDirection: "column",
+              alignItems: "center",
+              gap: 3,
               margin: "0 1.5px",
-              textDecoration: underline,
-              textUnderlineOffset: 3,
-              fontWeight: 700,
-              display: "inline-block",
+              verticalAlign: "top",
             }}
           >
-            {seg.w}
-            {showPct && (
-              <span style={{ fontSize: 11, fontWeight: 800, marginLeft: 3, opacity: 0.75 }}>
-                {seg.note}
+            <span
+              title={seg.note || ""}
+              style={{
+                background: c.bg,
+                color: c.fg,
+                borderRadius: 6,
+                padding: "2px 5px",
+                textDecoration: underline,
+                textUnderlineOffset: 3,
+                fontWeight: 700,
+              }}
+            >
+              {seg.w}
+              {showPct && (
+                <span style={{ fontSize: 11, fontWeight: 800, marginLeft: 3, opacity: 0.75 }}>
+                  {seg.note}
+                </span>
+              )}
+            </span>
+            {badPhonemes.length > 0 && (
+              <span className="row" style={{ gap: 2, flexWrap: "wrap", justifyContent: "center" }}>
+                {badPhonemes.map((p, j) => (
+                  <span
+                    key={j}
+                    title={p.note || ""}
+                    style={{
+                      background: PRON_MAP[p.pron || "neutral"].bg,
+                      color: PRON_MAP[p.pron || "neutral"].fg,
+                      borderRadius: 4,
+                      padding: "0 3px",
+                      fontSize: 11,
+                      fontWeight: 800,
+                      lineHeight: 1.5,
+                    }}
+                  >
+                    {p.ph}
+                  </span>
+                ))}
               </span>
             )}
           </span>

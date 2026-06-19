@@ -164,12 +164,20 @@ export interface Evaluation {
   explanation: { explanation: string; improved_sentence: string } | null;
 }
 
+export interface TranscriptPhoneme {
+  phoneme: string;
+  accuracy: number | null;
+}
+
 export interface TranscriptWord {
   word: string;
   start: number | null;
   end: number | null;
   accuracy: number | null;
   error_type: string | null;
+  // Per-sound (letter) accuracy from Azure phoneme-level assessment. Null on the
+  // Whisper fallback (no pronunciation assessment).
+  phonemes?: TranscriptPhoneme[] | null;
 }
 
 export interface ReferenceMatch {

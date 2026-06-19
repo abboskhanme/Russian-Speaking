@@ -63,6 +63,43 @@ def test_parse_segment_extracts_text_words_scores():
     assert w["start"] == 0.0 and w["end"] == 0.5 and w["accuracy"] == 80.0
 
 
+def test_parse_segment_extracts_phonemes():
+    raw = json.dumps(
+        {
+            "DisplayText": "мир",
+            "NBest": [
+                {
+                    "Display": "мир",
+                    "PronunciationAssessment": {"AccuracyScore": 80.0, "PronScore": 80.0},
+                    "Words": [
+                        {
+                            "Word": "мир",
+                            "Offset": 0,
+                            "Duration": 5_000_000,
+                            "PronunciationAssessment": {"AccuracyScore": 80.0},
+                            "Phonemes": [
+                                {"Phoneme": "m", "PronunciationAssessment": {"AccuracyScore": 95.0}},
+                                {"Phoneme": "i", "PronunciationAssessment": {"AccuracyScore": 40.0}},
+                                {"Phoneme": "r", "PronunciationAssessment": {"AccuracyScore": 88.0}},
+                            ],
+                        }
+                    ],
+                }
+            ],
+        }
+    )
+    seg = _parse_segment(raw)
+    phs = seg["words"][0]["phonemes"]
+    assert [p["phoneme"] for p in phs] == ["m", "i", "r"]
+    assert phs[1]["accuracy"] == 40.0
+
+
+def test_parse_segment_phonemes_none_when_absent():
+    # Word granularity / Whisper-style data has no Phonemes key.
+    seg = _parse_segment(_segment_json())
+    assert seg["words"][0]["phonemes"] is None
+
+
 def test_parse_segment_handles_garbage():
     assert _parse_segment("not json") is None
     assert _parse_segment(json.dumps({"NBest": []})) is None

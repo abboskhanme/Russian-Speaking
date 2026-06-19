@@ -3,11 +3,12 @@
 `transcribe()` picks a provider (see STT_PROVIDER / _provider):
 
 * **Azure AI Speech** (preferred) — acoustically faithful transcript that does NOT
-  auto-correct the learner, PLUS pronunciation assessment (accuracy, fluency at
-  utterance + word level). Recognition is always UNSCRIPTED so a target sentence
-  never biases what is "heard"; for shadowing, the real transcript is compared to
-  the target in our own code (see `_reference_match`). Word granularity, prosody
-  off — keeps latency down since only per-word accuracy is surfaced.
+  auto-correct the learner, PLUS pronunciation assessment (accuracy, fluency,
+  prosody at utterance + word + phoneme level). Recognition is always UNSCRIPTED so
+  a target sentence never biases what is "heard"; for shadowing, the real transcript
+  is compared to the target in our own code (see `_reference_match`). Phoneme
+  granularity is on so we can show the learner WHICH sounds (letters) were
+  mispronounced inside each word, not just a per-word score.
 * **OpenAI Whisper** (fallback when no Azure key) — transcribes only; no
   pronunciation assessment, and it tends to silently correct learner errors. Used
   so the app keeps working before an Azure key is provisioned.
@@ -82,6 +83,17 @@ def _parse_segment(json_result: str) -> dict | None:
         offset = w.get("Offset")
         duration = w.get("Duration")
         w_pa = w.get("PronunciationAssessment") or {}
+        # Per-phoneme (letter-sound) accuracy — present because we run at Phoneme
+        # granularity. Lets the UI highlight exactly which sounds were off inside a
+        # word, e.g. a soft "ь" or a stressed vowel the learner missed.
+        phonemes = [
+            {
+                "phoneme": p.get("Phoneme"),
+                "accuracy": (p.get("PronunciationAssessment") or {}).get("AccuracyScore"),
+            }
+            for p in (w.get("Phonemes") or [])
+            if p.get("Phoneme")
+        ]
         words.append(
             {
                 "word": w.get("Word"),
@@ -91,6 +103,7 @@ def _parse_segment(json_result: str) -> dict | None:
                 else None,
                 "accuracy": w_pa.get("AccuracyScore"),
                 "error_type": w_pa.get("ErrorType"),
+                "phonemes": phonemes or None,
             }
         )
 
@@ -207,15 +220,17 @@ def _transcribe_azure(
         )
 
         # Unscripted assessment (empty reference, miscue OFF) so the recognizer is
-        # never biased toward a target sentence. Word granularity (not Phoneme) and
-        # prosody OFF: we only surface per-word accuracy, so the heavier
-        # phoneme/prosody analysis adds latency for data we never show.
+        # never biased toward a target sentence. Phoneme granularity gives us a
+        # per-sound (letter) breakdown inside every word — word-level accuracy alone
+        # was too coarse to tell the learner what to fix. Prosody is on too, so the
+        # whole assessment Azure offers is used.
         pa_config = speechsdk.PronunciationAssessmentConfig(
             reference_text="",
             grading_system=speechsdk.PronunciationAssessmentGradingSystem.HundredMark,
-            granularity=speechsdk.PronunciationAssessmentGranularity.Word,
+            granularity=speechsdk.PronunciationAssessmentGranularity.Phoneme,
             enable_miscue=False,
         )
+        pa_config.enable_prosody_assessment()
         pa_config.apply_to(recognizer)
 
         segments: list[dict] = []
@@ -315,6 +330,7 @@ def _transcribe_whisper(
             "end": getattr(w, "end", None),
             "accuracy": None,
             "error_type": None,
+            "phonemes": None,
         }
         for w in (getattr(resp, "words", None) or [])
     ]

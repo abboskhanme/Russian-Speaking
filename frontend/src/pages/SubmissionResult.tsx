@@ -70,6 +70,14 @@ function toWordSegs(words: TranscriptWord[]): WordSeg[] {
       w: w.word,
       pron: pronTone(w.accuracy),
       note: w.accuracy != null ? `${Math.round(w.accuracy)}%` : undefined,
+      // Per-letter breakdown so the learner sees exactly which sounds were off.
+      phonemes: (w.phonemes ?? [])
+        .filter((p) => p && p.phoneme)
+        .map((p) => ({
+          ph: p.phoneme,
+          pron: pronTone(p.accuracy),
+          note: p.accuracy != null ? `${Math.round(p.accuracy)}%` : undefined,
+        })),
     }));
 }
 
