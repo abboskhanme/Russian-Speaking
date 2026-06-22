@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import axios from "axios";
 import { useNavigate, useParams } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, uploadToPresigned } from "../lib/api";
@@ -54,6 +55,8 @@ export function CreateQuestion() {
     previewRef.current = url;
     setPreview(url);
     setFile(f);
+    // Reset the input value so re-selecting the same file still fires onChange.
+    if (fileInputRef.current) fileInputRef.current.value = "";
   }
   // Revoke the object URL when leaving the page.
   useEffect(() => () => { if (previewRef.current) URL.revokeObjectURL(previewRef.current); }, []);
@@ -145,12 +148,21 @@ export function CreateQuestion() {
           is_published: publish,
           is_public: isPublic,
         });
-        await uploadMedia(q.id);
+        try {
+          await uploadMedia(q.id);
+        } catch (err) {
+          // Media upload failed (e.g. video too large) — delete the orphaned
+          // question so retries don't pile up duplicate copies.
+          await api.delete(`/questions/${q.id}`).catch(() => {});
+          throw err;
+        }
       }
       qc.invalidateQueries({ queryKey: ["questions"] });
       nav("/teacher/questions");
-    } catch {
-      setError(t("createError"));
+    } catch (err) {
+      // A 413 from the upload proxy means the file exceeded the size limit.
+      const tooLarge = axios.isAxiosError(err) && err.response?.status === 413;
+      setError(tooLarge ? t("mediaTooLarge") : t("createError"));
       setBusy(false);
     }
   }
