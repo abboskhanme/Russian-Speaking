@@ -17,6 +17,9 @@ import {
 
 const LEVELS = ["A1", "A2", "B1", "B2", "C1", "C2"];
 
+// Keep in sync with nginx `client_max_body_size` for /russpeak-media/ (200m).
+const MAX_MEDIA_BYTES = 200 * 1024 * 1024;
+
 const TYPE_META: Record<QuestionType, { hue: number; icon: IconName }> = {
   text: { hue: 47, icon: "message" },
   image: { hue: 152, icon: "eye" },
@@ -50,13 +53,19 @@ export function CreateQuestion() {
 
   // Pick a media file and build a local preview URL (revoking the previous one).
   function onPickFile(f: File | null) {
+    // Reset the input value so re-selecting the same file still fires onChange.
+    if (fileInputRef.current) fileInputRef.current.value = "";
+    // Reject oversized files up front instead of failing after a long upload.
+    if (f && f.size > MAX_MEDIA_BYTES) {
+      setError(t("mediaTooLarge"));
+      return;
+    }
+    setError(null);
     if (previewRef.current) URL.revokeObjectURL(previewRef.current);
     const url = f ? URL.createObjectURL(f) : null;
     previewRef.current = url;
     setPreview(url);
     setFile(f);
-    // Reset the input value so re-selecting the same file still fires onChange.
-    if (fileInputRef.current) fileInputRef.current.value = "";
   }
   // Revoke the object URL when leaving the page.
   useEffect(() => () => { if (previewRef.current) URL.revokeObjectURL(previewRef.current); }, []);

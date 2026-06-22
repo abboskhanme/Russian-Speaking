@@ -41,7 +41,7 @@ def new_key(prefix: str, ext: str) -> str:
     return f"{prefix}/{uuid.uuid4().hex}.{ext.lstrip('.')}"
 
 
-def presigned_put(key: str, content_type: str, expires: int = 900) -> str:
+def presigned_put(key: str, content_type: str, expires: int = 1800) -> str:
     return _s3_public.generate_presigned_url(
         "put_object",
         Params={"Bucket": settings.S3_BUCKET, "Key": key, "ContentType": content_type},
