@@ -42,6 +42,15 @@ export function StudentProgress() {
         ...(latest.pronunciation_score != null
           ? [{ short: t("pronunciation").split(/\s+/)[0], score: latest.pronunciation_score }]
           : []),
+        ...(latest.naturalness_score != null
+          ? [{ short: t("naturalness").split(/\s+/)[0], score: latest.naturalness_score }]
+          : []),
+        ...(latest.speech_rate_score != null
+          ? [{ short: t("speech_rate").split(/\s+/)[0], score: latest.speech_rate_score }]
+          : []),
+        ...(latest.intonation_score != null
+          ? [{ short: t("intonation").split(/\s+/)[0], score: latest.intonation_score }]
+          : []),
       ]
     : [];
   const criteria = latest
@@ -54,6 +63,15 @@ export function StudentProgress() {
           : []),
         ...(latest.pronunciation_score != null
           ? [{ label: t("pronunciation"), score: latest.pronunciation_score }]
+          : []),
+        ...(latest.naturalness_score != null
+          ? [{ label: t("naturalness"), score: latest.naturalness_score }]
+          : []),
+        ...(latest.speech_rate_score != null
+          ? [{ label: t("speech_rate"), score: latest.speech_rate_score }]
+          : []),
+        ...(latest.intonation_score != null
+          ? [{ label: t("intonation"), score: latest.intonation_score }]
           : []),
       ]
     : [];

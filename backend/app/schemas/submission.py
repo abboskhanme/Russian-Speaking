@@ -49,8 +49,12 @@ class EvaluationOut(BaseModel):
     grammar_score: float
     relevance_score: float | None
     pronunciation_score: float | None
+    naturalness_score: float | None = None
+    speech_rate_score: float | None = None
+    intonation_score: float | None = None
     overall_band: float
     level_score: float | None = None
+    native_likeness: float | None = None
     feedback: dict | None
     corrections: list | None
     explanation: dict | None = None

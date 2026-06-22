@@ -21,11 +21,19 @@ class Evaluation(Base, TimestampMixin):
     grammar_score: Mapped[float] = mapped_column(Float, nullable=False)
     relevance_score: Mapped[float | None] = mapped_column(Float, nullable=True)
     pronunciation_score: Mapped[float | None] = mapped_column(Float, nullable=True)
+    # Diagnostic sub-scores (0–100), judged from the audio. Nullable: older rows
+    # and any analysis that ran before these were added stay valid.
+    naturalness_score: Mapped[float | None] = mapped_column(Float, nullable=True)
+    speech_rate_score: Mapped[float | None] = mapped_column(Float, nullable=True)
+    intonation_score: Mapped[float | None] = mapped_column(Float, nullable=True)
     # Overall on the absolute C2 scale (0–100) — the "true" CEFR position.
     overall_band: Mapped[float] = mapped_column(Float, nullable=False)
     # Overall relative to the task's own CEFR level (0–100) — morale-friendly,
     # and what XP / progress are based on. Null when the task has no level.
     level_score: Mapped[float | None] = mapped_column(Float, nullable=True)
+    # How close the delivery is to a native's LIVE COLLOQUIAL speech, as a % (0–100).
+    # An objective signal, separate from level_score; nullable for older rows.
+    native_likeness: Mapped[float | None] = mapped_column(Float, nullable=True)
 
     # Structured feedback: { summary, strengths[], improvements[], vocabulary_suggestions[] }
     feedback: Mapped[dict | None] = mapped_column(JSONB, nullable=True)

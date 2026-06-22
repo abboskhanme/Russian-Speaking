@@ -34,6 +34,17 @@ import {
 
 const BAND_OPTIONS = Array.from({ length: 21 }, (_, i) => i * 5); // 0, 5 … 100
 
+// Native-likeness % → descriptive band label key (mirrors the rubric's scale).
+// Return type is inferred as the literal-key union so it satisfies t()'s key param.
+function nativeBandKey(pct: number) {
+  if (pct <= 20) return "nl_beginner";
+  if (pct <= 40) return "nl_basic";
+  if (pct <= 60) return "nl_confident";
+  if (pct <= 80) return "nl_advanced";
+  if (pct <= 90) return "nl_near_native";
+  return "nl_native";
+}
+
 // Hue per correction type so each tag reads at a glance.
 function corrHue(type: string): number {
   switch (type) {
@@ -438,7 +449,11 @@ export function SubmissionResult() {
     { label: t("grammar"), value: ev?.grammar_score ?? null },
     { label: t("relevance"), value: ev?.relevance_score ?? null },
     { label: t("pronunciation"), value: ev?.pronunciation_score ?? null },
+    { label: t("naturalness"), value: ev?.naturalness_score ?? null },
+    { label: t("speech_rate"), value: ev?.speech_rate_score ?? null },
+    { label: t("intonation"), value: ev?.intonation_score ?? null },
   ].filter((c) => c.value != null);
+  const nativeLikeness = ev?.native_likeness ?? null;
 
   return (
     <div className="focus-wrap anim-fade-in" style={{ maxWidth: 880, marginInline: "auto" }}>
@@ -625,6 +640,39 @@ export function SubmissionResult() {
                   </div>
                 );
               })}
+            </div>
+          )}
+
+          {/* Native-likeness — how close the delivery is to live colloquial Russian */}
+          {nativeLikeness != null && (
+            <div
+              style={{
+                padding: "16px clamp(16px, 4vw, 30px)",
+                borderTop: "1px solid var(--line)",
+              }}
+            >
+              <div className="row between" style={{ marginBottom: 8, gap: 12 }}>
+                <div className="col gap-1">
+                  <span style={{ fontSize: 12.5, fontWeight: 700, color: "var(--ink-soft)" }}>
+                    {t("native_likeness")}
+                  </span>
+                  <span style={{ fontSize: 11.5, fontWeight: 700, color: "var(--ink-mute)" }}>
+                    {t(nativeBandKey(nativeLikeness))}
+                  </span>
+                </div>
+                <span
+                  style={{
+                    fontSize: 22,
+                    fontWeight: 900,
+                    fontFamily: "var(--font-display)",
+                    color: `oklch(0.5 0.15 ${bandColor(nativeLikeness)})`,
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  {Math.round(nativeLikeness)}%
+                </span>
+              </div>
+              <Bar value={nativeLikeness} hue={bandColor(nativeLikeness)} height={9} />
             </div>
           )}
         </Card>

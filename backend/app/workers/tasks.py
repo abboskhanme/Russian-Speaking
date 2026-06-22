@@ -178,8 +178,12 @@ def process_submission(self, submission_id: str) -> str:
             grammar_score=result.scores.grammar,
             relevance_score=result.scores.relevance,
             pronunciation_score=pronunciation_score,
+            naturalness_score=result.scores.naturalness,
+            speech_rate_score=result.scores.speech_rate,
+            intonation_score=result.scores.intonation,
             overall_band=result.scores.overall,
             level_score=result.scores.level_overall,
+            native_likeness=result.scores.native_likeness,
             feedback={
                 "summary": result.summary,
                 "strengths": result.strengths,

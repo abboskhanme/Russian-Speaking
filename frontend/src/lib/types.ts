@@ -151,8 +151,12 @@ export interface Evaluation {
   grammar_score: number;
   relevance_score: number | null;
   pronunciation_score: number | null;
+  naturalness_score: number | null;
+  speech_rate_score: number | null;
+  intonation_score: number | null;
   overall_band: number;
   level_score: number | null;
+  native_likeness: number | null;
   feedback: {
     summary: string;
     strengths: string[];
