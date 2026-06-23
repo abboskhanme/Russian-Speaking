@@ -6,16 +6,26 @@ interface AuthCtx {
   user: User | null;
   loading: boolean;
   login: (email: string, password: string) => Promise<void>;
-  register: (
-    email: string,
-    password: string,
-    full_name: string,
-    role: "teacher" | "student",
-    phone: string,
-    group_code?: string,
-  ) => Promise<{ pending: boolean }>;
+  requestEmailCode: (email: string) => Promise<void>;
+  verifyEmailCode: (email: string, code: string) => Promise<string>;
+  register: (data: {
+    email: string;
+    password: string;
+    full_name: string;
+    phone: string;
+    age: number;
+    region: string;
+    district: string;
+    email_verify_token?: string;
+    group_code?: string;
+  }) => Promise<{ pending: boolean }>;
   loginWithGoogle: (credential: string, group_code?: string) => Promise<void>;
-  completeProfile: (phone: string) => Promise<void>;
+  completeProfile: (data: Partial<{
+    phone: string;
+    age: number;
+    region: string;
+    district: string;
+  }>) => Promise<void>;
   refreshUser: () => Promise<void>;
   logout: () => void;
 }
@@ -47,25 +57,32 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(me.data);
   }
 
-  async function register(
-    email: string,
-    password: string,
-    full_name: string,
-    role: "teacher" | "student",
-    phone: string,
-    group_code?: string,
-  ) {
-    const { data } = await api.post<User>("/auth/register", {
-      email,
-      password,
-      full_name,
-      role,
-      phone,
-      group_code,
-    });
-    // Teachers are created inactive (pending admin approval) — don't log in.
-    if (!data.is_active) return { pending: true };
-    await login(email, password);
+  // Step 1 of email verification: send a one-time code to the address.
+  async function requestEmailCode(email: string) {
+    await api.post("/auth/email/request-code", { email });
+  }
+
+  // Step 2: exchange a correct code for a short-lived proof token.
+  async function verifyEmailCode(email: string, code: string): Promise<string> {
+    const { data } = await api.post("/auth/email/verify-code", { email, code });
+    return data.email_verify_token as string;
+  }
+
+  async function register(data: {
+    email: string;
+    password: string;
+    full_name: string;
+    phone: string;
+    age: number;
+    region: string;
+    district: string;
+    email_verify_token?: string;
+    group_code?: string;
+  }) {
+    const { data: created } = await api.post<User>("/auth/register", data);
+    // Sign-up always creates an active student — log straight in.
+    if (!created.is_active) return { pending: true };
+    await login(data.email, data.password);
     return { pending: false };
   }
 
@@ -76,10 +93,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(me.data);
   }
 
-  // Used by the complete-profile gate (Google sign-ups have no phone yet).
-  async function completeProfile(phone: string) {
-    const { data } = await api.patch<User>("/auth/me", { phone });
-    setUser(data);
+  // Used by the complete-profile gate (Google sign-ups have no phone/address yet).
+  async function completeProfile(data: Partial<{
+    phone: string;
+    age: number;
+    region: string;
+    district: string;
+  }>) {
+    const { data: updated } = await api.patch<User>("/auth/me", data);
+    setUser(updated);
   }
 
   async function refreshUser() {
@@ -93,7 +115,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   return (
-    <Ctx.Provider value={{ user, loading, login, register, loginWithGoogle, completeProfile, refreshUser, logout }}>
+    <Ctx.Provider value={{ user, loading, login, requestEmailCode, verifyEmailCode, register, loginWithGoogle, completeProfile, refreshUser, logout }}>
       {children}
     </Ctx.Provider>
   );

@@ -10,6 +10,7 @@ from app.core.ratelimit import rate_limit
 from app.core.config import settings
 from app.core.security import (
     create_access_token,
+    create_email_verify_token,
     create_refresh_token,
     decode_token,
     hash_password,
@@ -18,6 +19,9 @@ from app.core.security import (
 from app.db.session import get_db
 from app.models import User, UserRole
 from app.schemas.auth import (
+    EmailCodeRequest,
+    EmailCodeVerify,
+    EmailVerifyToken,
     GoogleAuth,
     ProfileUpdate,
     RefreshRequest,
@@ -25,6 +29,8 @@ from app.schemas.auth import (
     UserOut,
     UserRegister,
 )
+from app.services import otp
+from app.services.email import send_otp_email
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -53,6 +59,42 @@ def _verify_google_token(credential: str) -> dict:
     return data
 
 
+@router.get("/config")
+def auth_config() -> dict:
+    """Public client config: which optional sign-up features the server enables."""
+    return {
+        "email_verification": settings.email_enabled,
+        "google": bool(settings.GOOGLE_CLIENT_ID),
+    }
+
+
+@router.post(
+    "/email/request-code",
+    status_code=status.HTTP_200_OK,
+    dependencies=[Depends(rate_limit("email_code", 5, 600))],
+)
+def request_email_code(payload: EmailCodeRequest, db: Session = Depends(get_db)) -> dict:
+    """Send a one-time verification code to the email a user is signing up with."""
+    email = payload.email.lower()
+    if db.scalar(select(User).where(User.email == email)):
+        raise HTTPException(status.HTTP_409_CONFLICT, "Email already registered")
+    code = otp.generate_and_store(email)
+    send_otp_email(email, code)
+    return {"ok": True, "expires_in": settings.EMAIL_OTP_TTL_SEC}
+
+
+@router.post(
+    "/email/verify-code",
+    response_model=EmailVerifyToken,
+    dependencies=[Depends(rate_limit("email_verify", 10, 600))],
+)
+def verify_email_code(payload: EmailCodeVerify) -> EmailVerifyToken:
+    """Check the code; on success return a short-lived token proving ownership."""
+    if not otp.verify(payload.email, payload.code):
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "Tasdiqlash kodi noto'g'ri yoki muddati o'tgan")
+    return EmailVerifyToken(email_verify_token=create_email_verify_token(payload.email))
+
+
 @router.post(
     "/register",
     response_model=UserOut,
@@ -60,26 +102,36 @@ def _verify_google_token(credential: str) -> dict:
     dependencies=[Depends(rate_limit("register", 10, 3600))],
 )
 def register(payload: UserRegister, db: Session = Depends(get_db)) -> User:
+    # When SMTP is configured, the email must have been verified via an OTP code.
+    # Without SMTP, verification is skipped so sign-up still works.
+    if settings.email_enabled:
+        data = decode_token(payload.email_verify_token or "")
+        if (
+            data is None
+            or data.get("type") != "email_verify"
+            or data.get("sub") != payload.email.lower()
+        ):
+            raise HTTPException(status.HTTP_400_BAD_REQUEST, "Email tasdiqlanmagan")
     existing = db.scalar(select(User).where(User.email == payload.email))
     if existing:
         raise HTTPException(status.HTTP_409_CONFLICT, "Email already registered")
-    # Students are active immediately. A teacher sign-up creates a teacher account
-    # that is INACTIVE (pending) until an admin approves it. Admin can't be
-    # self-registered.
-    is_teacher = payload.role == UserRole.teacher
+    # Self-service sign-up always creates an active STUDENT. Teacher accounts are
+    # created by an admin only (see /admin/teachers).
     user = User(
         email=payload.email,
         password_hash=hash_password(payload.password),
         full_name=payload.full_name,
         phone=payload.phone,  # already normalised to +998XXXXXXXXX by the schema
-        role=UserRole.teacher if is_teacher else UserRole.student,
-        is_active=not is_teacher,  # teachers wait for admin approval
+        age=payload.age,
+        region=payload.region,
+        district=payload.district,
+        role=UserRole.student,
     )
     db.add(user)
     db.commit()
     db.refresh(user)
-    # Referral sign-up: auto-join the teacher's group. Only students join groups.
-    if payload.group_code and user.role == UserRole.student:
+    # Referral sign-up: auto-join the teacher's group.
+    if payload.group_code:
         add_member_by_code(db, user, payload.group_code)
         db.commit()
     return user
@@ -180,6 +232,12 @@ def update_me(
         user.full_name = payload.full_name
     if payload.phone is not None:
         user.phone = payload.phone  # normalised by the schema validator
+    if payload.age is not None:
+        user.age = payload.age
+    if payload.region is not None:
+        user.region = payload.region
+    if payload.district is not None:
+        user.district = payload.district
     if payload.preferred_language is not None:
         user.preferred_language = payload.preferred_language
     if payload.daily_goal is not None:

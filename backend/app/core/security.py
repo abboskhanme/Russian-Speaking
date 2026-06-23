@@ -46,6 +46,16 @@ def create_refresh_token(subject: str) -> str:
     )
 
 
+def create_email_verify_token(email: str) -> str:
+    """Short-lived proof that `email`'s ownership was verified via an OTP code.
+    The sign-up endpoint requires this token to create the account."""
+    return _create_token(
+        email.lower(),
+        timedelta(minutes=settings.EMAIL_VERIFY_TOKEN_EXPIRE_MINUTES),
+        "email_verify",
+    )
+
+
 def decode_token(token: str) -> dict[str, Any] | None:
     try:
         return jwt.decode(token, settings.SECRET_KEY, algorithms=[ALGORITHM])

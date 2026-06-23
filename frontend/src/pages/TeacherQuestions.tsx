@@ -15,6 +15,7 @@ import {
   iconBtn,
   type IconName,
 } from "../components/govori";
+import { Dropdown, type DropdownOption } from "../components/Dropdown";
 import { useConfirm } from "../components/ConfirmDialog";
 
 /** Hue + icon per question type, matching the Govori practice grid. */
@@ -24,6 +25,8 @@ const TYPE_META: Record<QuestionType, { hue: number; icon: IconName }> = {
   video: { hue: 248, icon: "play" },
 };
 
+const LEVELS = ["A1", "A2", "B1", "B2", "C1", "C2"];
+
 export function TeacherQuestions() {
   const { t } = useI18n();
   const nav = useNavigate();
@@ -31,6 +34,8 @@ export function TeacherQuestions() {
   const ask = useConfirm();
   const [search, setSearch] = useState("");
   const [typeFilter, setTypeFilter] = useState<"all" | "open" | "assigned">("all");
+  const [level, setLevel] = useState("");
+  const [topic, setTopic] = useState("");
 
   const { data, isLoading } = useQuery({
     queryKey: ["questions", "mine"],
@@ -53,11 +58,21 @@ export function TeacherQuestions() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ["questions"] }),
   });
 
+  // Topics actually present across the teacher's tests — the filter only offers
+  // what exists, so it never shows empty results for a missing topic.
+  const topicsAvailable = useMemo(() => {
+    const set = new Set<string>();
+    for (const q of data ?? []) if (q.topic) set.add(q.topic);
+    return [...set].sort((a, b) => a.localeCompare(b));
+  }, [data]);
+
   const rows = useMemo(() => {
     let arr = data ?? [];
     if (typeFilter !== "all") {
       arr = arr.filter((q) => (typeFilter === "open" ? q.is_public : !q.is_public));
     }
+    if (level) arr = arr.filter((q) => q.level === level);
+    if (topic) arr = arr.filter((q) => q.topic === topic);
     const s = search.trim().toLowerCase();
     if (s) {
       arr = arr.filter(
@@ -68,7 +83,25 @@ export function TeacherQuestions() {
       );
     }
     return arr;
-  }, [data, search, typeFilter]);
+  }, [data, search, typeFilter, level, topic]);
+
+  const levelOptions: DropdownOption<string>[] = [
+    { value: "", label: t("allLevels") },
+    ...LEVELS.map((l) => ({ value: l, label: l })),
+  ];
+  const topicOptions: DropdownOption<string>[] = [
+    { value: "", label: t("allTopics") },
+    ...topicsAvailable.map((tp) => ({ value: tp, label: tp })),
+  ];
+
+  const hasFilters =
+    !!search || typeFilter !== "all" || !!level || !!topic;
+  const clearFilters = () => {
+    setSearch("");
+    setTypeFilter("all");
+    setLevel("");
+    setTopic("");
+  };
 
   const typeLabel: Record<QuestionType, string> = {
     text: t("typeText"),
@@ -87,63 +120,117 @@ export function TeacherQuestions() {
         }
       />
 
-      <div
-        className="row gap-2"
-        style={{
-          background: "var(--surface)",
-          border: "1px solid var(--line-2)",
-          borderRadius: "var(--r-pill)",
-          padding: "9px 16px",
-          marginBottom: 18,
-          maxWidth: 380,
-        }}
-      >
-        <Icon name="search" size={18} style={{ color: "var(--muted)" }} />
-        <input
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          placeholder={t("searchPh")}
-          style={{
-            border: "none",
-            background: "transparent",
-            outline: "none",
-            flex: 1,
-            fontSize: 14,
-            color: "var(--ink)",
-            fontFamily: "inherit",
-          }}
-        />
-      </div>
-
-      {/* Task-type filter */}
-      <div className="row gap-2 wrap" style={{ marginBottom: 18 }}>
-        {([
-          ["all", t("allFilter")],
-          ["open", t("taskOpenShort")],
-          ["assigned", t("taskAssignedShort")],
-        ] as const).map(([val, label]) => {
-          const active = typeFilter === val;
-          return (
-            <button
-              key={val}
-              type="button"
-              onClick={() => setTypeFilter(val)}
+      {/* Filter toolbar: search · level · topic · task-type segmented control */}
+      <Card pad={14} style={{ marginBottom: 18 }}>
+        <div className="row gap-3 wrap" style={{ alignItems: "center" }}>
+          <div
+            className="row gap-2 grow"
+            style={{
+              background: "var(--surface-2)",
+              border: "1px solid var(--line-2)",
+              borderRadius: "var(--r-pill)",
+              padding: "9px 16px",
+              minWidth: 220,
+            }}
+          >
+            <Icon name="search" size={18} style={{ color: "var(--muted)" }} />
+            <input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder={t("searchPh")}
               style={{
-                padding: "7px 14px",
-                borderRadius: "var(--r-pill)",
-                border: `1.5px solid ${active ? "var(--primary)" : "var(--line-2)"}`,
-                background: active ? "var(--primary-tint)" : "var(--surface)",
-                color: active ? "var(--primary-press)" : "var(--ink-soft)",
-                fontWeight: 700,
-                fontSize: 13.5,
+                border: "none",
+                background: "transparent",
+                outline: "none",
+                flex: 1,
+                fontSize: 14,
+                color: "var(--ink)",
+                fontFamily: "inherit",
+              }}
+            />
+          </div>
+
+          <Dropdown value={level} onChange={setLevel} options={levelOptions} className="w-40" />
+          <Dropdown
+            value={topic}
+            onChange={setTopic}
+            options={topicOptions}
+            placeholder={t("allTopics")}
+            className="w-48"
+          />
+
+          {/* Task-type segmented control */}
+          <div
+            className="row"
+            style={{
+              background: "var(--surface-2)",
+              border: "1px solid var(--line-2)",
+              borderRadius: "var(--r-pill)",
+              padding: 3,
+              gap: 2,
+            }}
+          >
+            {([
+              ["all", t("allFilter")],
+              ["open", t("taskOpenShort")],
+              ["assigned", t("taskAssignedShort")],
+            ] as const).map(([val, label]) => {
+              const active = typeFilter === val;
+              return (
+                <button
+                  key={val}
+                  type="button"
+                  onClick={() => setTypeFilter(val)}
+                  className="tap"
+                  style={{
+                    padding: "7px 14px",
+                    borderRadius: "var(--r-pill)",
+                    border: "none",
+                    background: active ? "var(--surface)" : "transparent",
+                    color: active ? "var(--primary-press)" : "var(--muted)",
+                    boxShadow: active ? "var(--sh-sm)" : "none",
+                    fontFamily: "var(--font-display)",
+                    fontWeight: 800,
+                    fontSize: 13,
+                    cursor: "pointer",
+                  }}
+                >
+                  {label}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Result count + clear, only once a filter narrows the list */}
+        {hasFilters && (
+          <div
+            className="row between"
+            style={{ marginTop: 12, paddingTop: 12, borderTop: "1px solid var(--line)" }}
+          >
+            <span style={{ fontSize: 13, fontWeight: 700, color: "var(--muted)" }}>
+              {t("resultsCount").replace("{n}", String(rows.length))}
+            </span>
+            <button
+              type="button"
+              onClick={clearFilters}
+              className="row gap-1 tap"
+              style={{
+                border: "none",
+                background: "transparent",
+                color: "var(--primary-press)",
+                fontWeight: 800,
+                fontFamily: "var(--font-display)",
+                fontSize: 13,
                 cursor: "pointer",
               }}
             >
-              {label}
+              <Icon name="x" size={14} />
+              {t("clearFilters")}
             </button>
-          );
-        })}
-      </div>
+          </div>
+        )}
+      </Card>
 
       {isLoading ? (
         <Loading />

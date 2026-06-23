@@ -7,6 +7,9 @@ export interface User {
   email: string;
   full_name: string;
   phone: string | null;
+  age: number | null;
+  region: string | null;
+  district: string | null;
   role: UserRole;
   is_active: boolean;
   is_premium: boolean;

@@ -485,8 +485,12 @@ export default function App() {
   }
 
   // Phone is mandatory for students and teachers (e.g. Google sign-ups, or older
-  // accounts created before phone existed) — gate the app until it's provided.
-  if (user.role !== "admin" && !user.phone) {
+  // accounts created before phone existed). Students must also have an address —
+  // gate the app on the complete-profile step until everything is provided.
+  const needsProfile =
+    user.role !== "admin" &&
+    (!user.phone || (user.role === "student" && (!user.age || !user.region)));
+  if (needsProfile) {
     return <CompleteProfile />;
   }
 

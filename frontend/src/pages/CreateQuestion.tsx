@@ -26,7 +26,17 @@ const TYPE_META: Record<QuestionType, { hue: number; icon: IconName }> = {
   video: { hue: 248, icon: "play" },
 };
 
+// The same component backs both /new and /:id/edit. React Router reuses the
+// instance when navigating between those routes, so without a key the previous
+// form's state (title, prompt, level…) leaks into the next screen — e.g. opening
+// "new" right after editing a question would show the edited question's data.
+// Keying by id forces a fresh remount whenever the target changes.
 export function CreateQuestion() {
+  const { id } = useParams<{ id: string }>();
+  return <CreateQuestionForm key={id ?? "new"} />;
+}
+
+function CreateQuestionForm() {
   const { t } = useI18n();
   const nav = useNavigate();
   const qc = useQueryClient();

@@ -63,6 +63,28 @@ class Settings(BaseSettings):
     # Freemium: number of free speaking attempts before premium is required.
     FREE_ATTEMPT_LIMIT: int = 3
 
+    # Email (SMTP) — provider-agnostic. Works with Gmail (smtp.gmail.com:587, an
+    # app password) or any transactional provider (Resend/Mailgun/SendGrid) that
+    # speaks SMTP. When SMTP_HOST/SMTP_USER are empty, emails are not sent — the
+    # verification code is logged instead (handy in local development).
+    SMTP_HOST: str = ""
+    SMTP_PORT: int = 587
+    SMTP_USER: str = ""
+    SMTP_PASSWORD: str = ""
+    SMTP_FROM: str = ""  # defaults to SMTP_USER when empty
+    SMTP_FROM_NAME: str = "Govori"
+    SMTP_STARTTLS: bool = True  # True for port 587; False uses SMTP_SSL (port 465)
+
+    # Email verification (one-time code sent at sign-up)
+    EMAIL_OTP_LENGTH: int = 6
+    EMAIL_OTP_TTL_SEC: int = 600  # code lifetime (10 minutes)
+    EMAIL_OTP_MAX_ATTEMPTS: int = 5  # wrong tries before the code is burned
+    EMAIL_VERIFY_TOKEN_EXPIRE_MINUTES: int = 20  # proof-of-verification token TTL
+
+    @property
+    def email_enabled(self) -> bool:
+        return bool(self.SMTP_HOST and self.SMTP_USER)
+
     @property
     def cors_origins(self) -> list[str]:
         return [o.strip() for o in self.BACKEND_CORS_ORIGINS.split(",") if o.strip()]
