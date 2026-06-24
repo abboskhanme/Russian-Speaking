@@ -10,13 +10,17 @@ from app.core.ratelimit import rate_limit
 from app.db.session import get_db
 from app.models import Assignment, Question, QuestionType, User, UserRole
 from app.schemas.question import (
+    BulkActionResult,
+    BulkIds,
     MediaUploadRequest,
     MediaUploadURL,
     QuestionCreate,
+    QuestionGenerateRequest,
+    QuestionGenerateResult,
     QuestionOut,
     QuestionUpdate,
 )
-from app.services import llm, storage
+from app.services import llm, storage, question_gen
 from app.services.text import html_to_text
 
 router = APIRouter(prefix="/questions", tags=["questions"])
@@ -57,6 +61,85 @@ def create_question(
     db.commit()
     db.refresh(q)
     return _to_out(q)
+
+
+@router.post("/generate", response_model=QuestionGenerateResult, status_code=status.HTTP_201_CREATED)
+def generate_questions(
+    payload: QuestionGenerateRequest,
+    teacher: User = Depends(require_teacher),
+    db: Session = Depends(get_db),
+) -> QuestionGenerateResult:
+    """AI-generate a batch of DRAFT questions owned by the current teacher.
+
+    Synchronous and bounded (see question_gen caps) — large libraries use the
+    `generate_questions` CLI script. Drafts are reviewed/published in the UI.
+    """
+    types = [t.value for t in payload.types]
+    cells = len(payload.levels) * len(payload.topics) * len(types)
+    if cells > question_gen.MAX_CELLS_PER_REQUEST:
+        raise HTTPException(
+            status.HTTP_422_UNPROCESSABLE_ENTITY,
+            f"Too many combinations ({cells}); max {question_gen.MAX_CELLS_PER_REQUEST}. "
+            "Pick fewer levels/topics/types.",
+        )
+    if cells * payload.count_per_cell > question_gen.MAX_PER_REQUEST:
+        raise HTTPException(
+            status.HTTP_422_UNPROCESSABLE_ENTITY,
+            f"Too many at once; max {question_gen.MAX_PER_REQUEST} per request. Lower the count.",
+        )
+    created, skipped = question_gen.generate_batch(
+        db,
+        teacher_id=teacher.id,
+        levels=payload.levels,
+        topics=payload.topics,
+        types=types,
+        count_per_cell=payload.count_per_cell,
+        limit_sec=payload.answer_time_limit_sec,
+        publish=False,
+    )
+    db.commit()
+    for q in created:
+        db.refresh(q)
+    return QuestionGenerateResult(
+        created=len(created),
+        skipped_no_media=skipped,
+        questions=[_to_out(q) for q in created],
+    )
+
+
+def _owned_questions(db: Session, ids: list[uuid.UUID], user: User):
+    """The caller's (admin: anyone's) non-deleted questions among `ids`."""
+    stmt = select(Question).where(Question.id.in_(ids), Question.is_deleted.is_(False))
+    if user.role != UserRole.admin:
+        stmt = stmt.where(Question.teacher_id == user.id)
+    return db.scalars(stmt).all()
+
+
+@router.post("/bulk-publish", response_model=BulkActionResult)
+def bulk_publish(
+    payload: BulkIds,
+    teacher: User = Depends(require_teacher),
+    db: Session = Depends(get_db),
+) -> BulkActionResult:
+    rows = _owned_questions(db, payload.ids, teacher)
+    for q in rows:
+        q.is_published = True
+    db.commit()
+    return BulkActionResult(count=len(rows))
+
+
+@router.post("/bulk-delete", response_model=BulkActionResult)
+def bulk_delete(
+    payload: BulkIds,
+    teacher: User = Depends(require_teacher),
+    db: Session = Depends(get_db),
+) -> BulkActionResult:
+    rows = _owned_questions(db, payload.ids, teacher)
+    for q in rows:
+        q.is_deleted = True
+        q.is_published = False
+    db.commit()
+    return BulkActionResult(count=len(rows))
 
 
 @router.post("/{question_id}/media-url", response_model=MediaUploadURL)

@@ -13,11 +13,11 @@ import {
   PageHead,
   Loading,
   EmptyState,
-  iconBtn,
   type IconName,
 } from "../components/govori";
 import { Dropdown, type DropdownOption } from "../components/Dropdown";
 import { useConfirm } from "../components/ConfirmDialog";
+import { GenerateQuestionsModal, type GenerateResult } from "../components/GenerateQuestionsModal";
 
 /** Hue + icon per question type, matching the Govori practice grid. */
 const TYPE_META: Record<QuestionType, { hue: number; icon: IconName }> = {
@@ -35,8 +35,11 @@ export function TeacherQuestions() {
   const ask = useConfirm();
   const [search, setSearch] = useState("");
   const [typeFilter, setTypeFilter] = useState<"all" | "open" | "assigned">("all");
+  const [statusFilter, setStatusFilter] = useState<"all" | "draft" | "published">("all");
   const [level, setLevel] = useState("");
   const [topic, setTopic] = useState("");
+  const [genOpen, setGenOpen] = useState(false);
+  const [banner, setBanner] = useState<string | null>(null);
 
   const { data, isLoading } = useQuery({
     queryKey: ["questions", "mine"],
@@ -59,6 +62,16 @@ export function TeacherQuestions() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ["questions"] }),
   });
 
+  // Approve a whole batch of AI drafts at once — no per-row checkboxes needed.
+  const publishAll = useMutation({
+    mutationFn: async (ids: string[]) =>
+      (await api.post<{ count: number }>("/questions/bulk-publish", { ids })).data,
+    onSuccess: (r) => {
+      qc.invalidateQueries({ queryKey: ["questions"] });
+      setBanner(t("publishedCount").replace("{n}", String(r.count)));
+    },
+  });
+
   // Topics actually present across the teacher's tests — the filter only offers
   // what exists, so it never shows empty results for a missing topic.
   const topicsAvailable = useMemo(() => {
@@ -72,6 +85,9 @@ export function TeacherQuestions() {
     if (typeFilter !== "all") {
       arr = arr.filter((q) => (typeFilter === "open" ? q.is_public : !q.is_public));
     }
+    if (statusFilter !== "all") {
+      arr = arr.filter((q) => (statusFilter === "draft" ? !q.is_published : q.is_published));
+    }
     if (level) arr = arr.filter((q) => q.level === level);
     if (topic) arr = arr.filter((q) => q.topic === topic);
     const s = search.trim().toLowerCase();
@@ -84,7 +100,11 @@ export function TeacherQuestions() {
       );
     }
     return arr;
-  }, [data, search, typeFilter, level, topic]);
+  }, [data, search, typeFilter, statusFilter, level, topic]);
+
+  const draftCount = useMemo(() => (data ?? []).filter((q) => !q.is_published).length, [data]);
+  // Draft ids currently shown — used by the one-click "publish all" action.
+  const visibleDraftIds = useMemo(() => rows.filter((q) => !q.is_published).map((q) => q.id), [rows]);
 
   const levelOptions: DropdownOption<string>[] = [
     { value: "", label: t("allLevels") },
@@ -96,10 +116,11 @@ export function TeacherQuestions() {
   ];
 
   const hasFilters =
-    !!search || typeFilter !== "all" || !!level || !!topic;
+    !!search || typeFilter !== "all" || statusFilter !== "all" || !!level || !!topic;
   const clearFilters = () => {
     setSearch("");
     setTypeFilter("all");
+    setStatusFilter("all");
     setLevel("");
     setTopic("");
   };
@@ -115,11 +136,29 @@ export function TeacherQuestions() {
       <PageHead
         title={t("myTests")}
         action={
-          <Button icon="plus" onClick={() => nav("/teacher/questions/new")}>
-            {t("newTest")}
-          </Button>
+          <div className="row gap-2 wrap">
+            <Button variant="soft" icon="sparkles" onClick={() => setGenOpen(true)}>
+              {t("genButton")}
+            </Button>
+            <Button icon="plus" onClick={() => nav("/teacher/questions/new")}>
+              {t("newTest")}
+            </Button>
+          </div>
         }
       />
+
+      {banner && (
+        <Card pad={12} style={{ marginBottom: 14, background: "var(--success-tint)", border: "1px solid var(--success)" }}>
+          <div className="row between gap-2">
+            <span className="row gap-2" style={{ fontSize: 14, fontWeight: 700, color: "var(--success-strong, var(--success))" }}>
+              <Icon name="check" size={16} /> {banner}
+            </span>
+            <button onClick={() => setBanner(null)} className="tap" style={{ border: "none", background: "transparent", cursor: "pointer", color: "var(--muted)" }}>
+              <Icon name="x" size={16} />
+            </button>
+          </div>
+        </Card>
+      )}
 
       {/* Filter toolbar: search · level · topic · task-type segmented control */}
       <Card pad={14} style={{ marginBottom: 18 }}>
@@ -201,6 +240,48 @@ export function TeacherQuestions() {
               );
             })}
           </div>
+
+          {/* Status segmented control (all / drafts / published) */}
+          <div
+            className="row"
+            style={{
+              background: "var(--surface-2)",
+              border: "1px solid var(--line-2)",
+              borderRadius: "var(--r-pill)",
+              padding: 3,
+              gap: 2,
+            }}
+          >
+            {([
+              ["all", t("allFilter")],
+              ["draft", `${t("draft")}${draftCount ? ` (${draftCount})` : ""}`],
+              ["published", t("published")],
+            ] as const).map(([val, label]) => {
+              const active = statusFilter === val;
+              return (
+                <button
+                  key={val}
+                  type="button"
+                  onClick={() => setStatusFilter(val as "all" | "draft" | "published")}
+                  className="tap"
+                  style={{
+                    padding: "7px 14px",
+                    borderRadius: "var(--r-pill)",
+                    border: "none",
+                    background: active ? "var(--surface)" : "transparent",
+                    color: active ? "var(--primary-press)" : "var(--muted)",
+                    boxShadow: active ? "var(--sh-sm)" : "none",
+                    fontFamily: "var(--font-display)",
+                    fontWeight: 800,
+                    fontSize: 13,
+                    cursor: "pointer",
+                  }}
+                >
+                  {label}
+                </button>
+              );
+            })}
+          </div>
         </div>
 
         {/* Result count + clear, only once a filter narrows the list */}
@@ -238,12 +319,46 @@ export function TeacherQuestions() {
       ) : !rows.length ? (
         <EmptyState text={t("noTests")} />
       ) : (
-        <div className="col gap-3">
+        <>
+          {/* One-click batch approval for AI drafts — keeps the list checkbox-free */}
+          {statusFilter === "draft" && visibleDraftIds.length > 0 && (
+            <div
+              className="row between gap-3 wrap"
+              style={{
+                marginBottom: 12,
+                padding: "11px 16px",
+                borderRadius: "var(--r-sm)",
+                background: "var(--primary-tint)",
+              }}
+            >
+              <span style={{ fontSize: 13.5, fontWeight: 700, color: "var(--ink-soft)" }}>
+                {t("draftsHint").replace("{n}", String(visibleDraftIds.length))}
+              </span>
+              <Button
+                size="sm"
+                icon="check"
+                disabled={publishAll.isPending}
+                onClick={async () => {
+                  if (
+                    await ask({
+                      message: t("publishAllConfirm").replace("{n}", String(visibleDraftIds.length)),
+                      confirmText: t("publish"),
+                    })
+                  )
+                    publishAll.mutate(visibleDraftIds);
+                }}
+              >
+                {t("publishAll")}
+              </Button>
+            </div>
+          )}
+
+          <div className="col gap-3">
           {rows.map((q) => {
             const meta = TYPE_META[q.type];
             return (
               <Card key={q.id} hover pad={16}>
-                <div className="row gap-4 wrap">
+                <div className="row gap-4 wrap" style={{ alignItems: "center" }}>
                   <div
                     style={{
                       width: 46,
@@ -295,35 +410,26 @@ export function TeacherQuestions() {
                       </Pill>
                     </div>
                   </div>
-                  <div className="row gap-2">
-                    <button
-                      style={iconBtn}
-                      className="tap"
-                      title={t("edit")}
+                  <div className="row gap-1" style={{ flexShrink: 0 }}>
+                    <IconAction
+                      icon="edit"
+                      label={t("edit")}
                       onClick={() => nav(`/teacher/questions/${q.id}/edit`)}
-                    >
-                      <Icon name="edit" size={18} />
-                    </button>
-                    <button
-                      style={iconBtn}
-                      className="tap"
-                      title={q.is_published ? t("unpublish") : t("publish")}
+                    />
+                    <IconAction
+                      icon={q.is_published ? "eyeOff" : "eye"}
+                      label={q.is_published ? t("unpublish") : t("publish")}
                       onClick={() => togglePublish.mutate(q)}
-                    >
-                      <Icon name="eye" size={18} />
-                    </button>
-                    <button
-                      style={iconBtn}
-                      className="tap"
-                      title={t("duplicate")}
+                    />
+                    <IconAction
+                      icon="layers"
+                      label={t("duplicate")}
                       onClick={() => duplicate.mutate(q.id)}
-                    >
-                      <Icon name="layers" size={18} />
-                    </button>
-                    <button
-                      style={iconBtn}
-                      className="tap"
-                      title={t("delete")}
+                    />
+                    <IconAction
+                      icon="trash"
+                      label={t("delete")}
+                      danger
                       onClick={async () => {
                         if (
                           await ask({
@@ -334,16 +440,53 @@ export function TeacherQuestions() {
                         )
                           remove.mutate(q.id);
                       }}
-                    >
-                      <Icon name="trash" size={18} />
-                    </button>
+                    />
                   </div>
                 </div>
               </Card>
             );
           })}
-        </div>
+          </div>
+        </>
       )}
+
+      <GenerateQuestionsModal
+        open={genOpen}
+        onClose={() => setGenOpen(false)}
+        existingTopics={topicsAvailable}
+        onDone={(r: GenerateResult) => {
+          setStatusFilter("draft");
+          setBanner(
+            t("genDone").replace("{n}", String(r.created)) +
+              (r.skipped_no_media ? " " + t("genNoMedia").replace("{n}", String(r.skipped_no_media)) : ""),
+          );
+        }}
+      />
     </div>
+  );
+}
+
+/** Minimal row action: icon button with a styled tooltip that appears on hover. */
+function IconAction({
+  icon,
+  label,
+  onClick,
+  danger,
+}: {
+  icon: IconName;
+  label: string;
+  onClick: () => void;
+  danger?: boolean;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-label={label}
+      className={`icon-action${danger ? " danger" : ""}`}
+    >
+      <Icon name={icon} size={17} />
+      <span className="icon-action-tip">{label}</span>
+    </button>
   );
 }

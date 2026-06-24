@@ -53,6 +53,10 @@ class Settings(BaseSettings):
     GEMINI_API_KEY: str = ""
     GEMINI_MODEL: str = "gemini-2.5-flash"
 
+    # Pexels — stock photos/videos for auto-generated media questions.
+    # Free key: https://www.pexels.com/api/  (one key covers both photo + video)
+    PEXELS_API_KEY: str = ""
+
     # Auth
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
     REFRESH_TOKEN_EXPIRE_DAYS: int = 7

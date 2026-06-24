@@ -371,3 +371,126 @@ def generate_model_answer(
                 continue
             raise
     return (response.text or "").strip()
+
+
+# ─── Bulk question generation ──────────────────────────────────────────────
+class GeneratedQuestion(BaseModel):
+    title: str = Field(description="Краткое название задания (3–6 слов), на русском (кириллица)")
+    prompt_text: str = Field(
+        description="Текст задания для УСТНОГО ответа — что студент должен рассказать/описать. На русском."
+    )
+    model_answer_text: str = Field(
+        description="Образцовый РАЗГОВОРНЫЙ ответ носителя на это задание: 4–7 живых предложений, только кириллица."
+    )
+    media_query: str = Field(
+        default="",
+        description=(
+            "Для image/video заданий — 2–4 АНГЛИЙСКИХ ключевых слова для подбора стокового "
+            "фото/видео (например 'family dinner table'). Для текстовых заданий — пустая строка."
+        ),
+    )
+
+
+class _GeneratedBatch(BaseModel):
+    questions: list[GeneratedQuestion]
+
+
+_GEN_SYSTEM = """Ты — методист и преподаватель русского как иностранного (РКИ). \
+Твоя задача — генерировать РАЗНООБРАЗНЫЕ задания для развития УСТНОЙ разговорной речи.
+
+Требования:
+- Строго соблюдай уровень CEFR (A1–C2): лексика, грамматика и сложность темы должны \
+соответствовать уровню. A1/A2 — простые бытовые вопросы; B1/B2 — рассуждение и сравнение; \
+C1/C2 — абстрактные темы, аргументация.
+- Каждое задание — отдельный коммуникативный повод и РАЗНЫЙ формат: описать, рассказать о \
+своём опыте, сравнить, высказать и обосновать мнение, ролевая ситуация, дать совет и т.п.
+- НИКАКИХ повторов и почти-дубликатов между заданиями.
+- Образцовый ответ (model_answer_text) — живая РАЗГОВОРНАЯ речь носителя, НЕ книжная, только кириллица.
+- Всё на русском языке (кириллица), кроме media_query (английские ключевые слова).
+- Для image-заданий: студент ОПИСЫВАЕТ фотографию — сформулируй задание так, чтобы на него \
+можно было ответить, глядя на фото; дай media_query.
+- Для video-заданий: студент смотрит короткое видео и реагирует/описывает; дай media_query."""
+
+
+# Per-call ceiling: asking the model for too many items at once truncates the
+# JSON and hurts variety, so larger counts are split into several calls.
+_GEN_CHUNK = 20
+
+
+@gemini_breaker
+def _generate_chunk(
+    *,
+    level: str,
+    topic: str,
+    qtype: str,
+    count: int,
+    avoid_titles: list[str] | None = None,
+) -> list[GeneratedQuestion]:
+    """Generate up to ~`count` varied speaking tasks in a single model call."""
+    type_hint = {
+        "text": "Тип заданий: устный ответ БЕЗ медиа. media_query оставь пустым.",
+        "image": "Тип заданий: студент ОПИСЫВАЕТ фотографию. Обязательно заполни media_query.",
+        "video": "Тип заданий: студент смотрит короткое видео и реагирует. Обязательно заполни media_query.",
+    }.get(qtype, "Тип заданий: устный ответ.")
+    avoid = ""
+    if avoid_titles:
+        sample = "\n- ".join(avoid_titles[:40])
+        avoid = f"\n\nНЕ повторяй эти уже существующие задания:\n- {sample}"
+    user_content = (
+        f"Уровень CEFR: {level}\nТема: {topic}\n{type_hint}\n\n"
+        f"Сгенерируй ровно {count} разных заданий.{avoid}"
+    )
+    config = types.GenerateContentConfig(
+        system_instruction=_GEN_SYSTEM,
+        response_mime_type="application/json",
+        response_schema=_GeneratedBatch,
+        temperature=1.1,  # higher temperature → more variety across the library
+    )
+    for attempt in range(_MAX_ATTEMPTS):
+        try:
+            response = _client.models.generate_content(
+                model=settings.GEMINI_MODEL, contents=user_content, config=config
+            )
+            break
+        except genai_errors.APIError as e:
+            if getattr(e, "code", None) in _RETRYABLE_CODES and attempt < _MAX_ATTEMPTS - 1:
+                time.sleep(2 * (attempt + 1))
+                continue
+            raise
+    parsed = _GeneratedBatch.model_validate_json(response.text or '{"questions": []}')
+    return parsed.questions
+
+
+def generate_questions(
+    *,
+    level: str,
+    topic: str,
+    qtype: str,
+    count: int,
+    avoid_titles: list[str] | None = None,
+) -> list[GeneratedQuestion]:
+    """Generate `count` varied tasks, chunking large counts across calls.
+
+    Each chunk is told the titles already produced so the model keeps varying
+    instead of repeating itself.
+    """
+    if count <= _GEN_CHUNK:
+        return _generate_chunk(
+            level=level, topic=topic, qtype=qtype, count=count, avoid_titles=avoid_titles
+        )
+    out: list[GeneratedQuestion] = []
+    seen: list[str] = list(avoid_titles or [])
+    remaining = count
+    guard = 0
+    while remaining > 0 and guard < 20:
+        guard += 1
+        n = min(_GEN_CHUNK, remaining)
+        batch = _generate_chunk(
+            level=level, topic=topic, qtype=qtype, count=n, avoid_titles=seen[-60:]
+        )
+        if not batch:
+            break
+        out.extend(batch)
+        seen.extend(q.title for q in batch)
+        remaining -= len(batch)
+    return out

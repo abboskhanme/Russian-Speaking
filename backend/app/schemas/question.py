@@ -62,3 +62,25 @@ class MediaUploadURL(BaseModel):
     upload_url: str
     media_key: str
     fields: dict | None = None
+
+
+class QuestionGenerateRequest(BaseModel):
+    levels: list[str] = Field(min_length=1, max_length=6)
+    topics: list[str] = Field(min_length=1, max_length=30)
+    types: list[QuestionType] = Field(default_factory=lambda: [QuestionType.text], min_length=1)
+    count_per_cell: int = Field(default=5, ge=1, le=50)
+    answer_time_limit_sec: int = Field(default=120, ge=30, le=600)
+
+
+class QuestionGenerateResult(BaseModel):
+    created: int
+    skipped_no_media: int
+    questions: list[QuestionOut]
+
+
+class BulkIds(BaseModel):
+    ids: list[uuid.UUID] = Field(min_length=1, max_length=2000)
+
+
+class BulkActionResult(BaseModel):
+    count: int
