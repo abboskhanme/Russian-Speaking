@@ -9,6 +9,7 @@ import { isLocked } from "../lib/plan";
 import type { Question, Submission } from "../lib/types";
 import { AudioRecorder } from "../components/AudioRecorder";
 import { Paywall } from "../components/Paywall";
+import { RichText } from "../components/RichTextEditor";
 import {
   Button,
   Card,
@@ -18,15 +19,6 @@ import {
   AttemptDots,
   bandColor,
 } from "../components/govori";
-
-/** Split a prompt into bullet clauses on "?"-terminated sentences. */
-function toBullets(text: string): string[] {
-  const parts = text
-    .split(/(?<=[?？])\s+/)
-    .map((s) => s.trim())
-    .filter(Boolean);
-  return parts.length > 1 ? parts : [];
-}
 
 const FREE_ATTEMPTS = 3;
 
@@ -75,7 +67,6 @@ export function AnswerQuestion() {
 
   // Topic gives the card its accent hue; falls back to the Govori orange.
   const hue = q.topic ? (bandColor(q.topic.length % 9) + q.topic.charCodeAt(0)) % 360 : 47;
-  const bullets = toBullets(q.prompt_text);
 
   return (
     <div className="focus-wrap anim-fade-in" style={{ maxWidth: 820, marginInline: "auto" }}>
@@ -111,37 +102,10 @@ export function AnswerQuestion() {
           </div>
           <h2 style={{ fontSize: 24, lineHeight: 1.25 }}>{q.title}</h2>
 
-          {bullets.length ? (
-            <div className="col gap-2" style={{ marginTop: 16 }}>
-              {bullets.map((b, i) => (
-                <div key={i} className="row gap-3" style={{ alignItems: "flex-start" }}>
-                  <span
-                    style={{
-                      width: 6,
-                      height: 6,
-                      borderRadius: "50%",
-                      background: `oklch(0.65 0.16 ${hue})`,
-                      marginTop: 9,
-                      flexShrink: 0,
-                    }}
-                  />
-                  <span style={{ fontSize: 16, color: "var(--ink)" }}>{b}</span>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <p
-              style={{
-                fontSize: 16,
-                lineHeight: 1.6,
-                color: "var(--ink-soft)",
-                marginTop: 10,
-                whiteSpace: "pre-wrap",
-              }}
-            >
-              {q.prompt_text}
-            </p>
-          )}
+          <RichText
+            html={q.prompt_text}
+            style={{ fontSize: 16, lineHeight: 1.6, color: "var(--ink-soft)", marginTop: 12 }}
+          />
 
           {q.type === "image" && q.media_url && (
             <img

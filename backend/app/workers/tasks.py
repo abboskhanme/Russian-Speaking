@@ -19,6 +19,7 @@ from app.models import (
     Transcript,
 )
 from app.services import gamification, llm, notifications, stt, storage
+from app.services.text import html_to_text
 from app.workers.celery_app import celery
 
 logger = logging.getLogger("worker.process")
@@ -153,7 +154,7 @@ def process_submission(self, submission_id: str) -> str:
             audio_for_llm = None
         _t_llm = time.monotonic()
         result = llm.analyze(
-            question_prompt=question.prompt_text,
+            question_prompt=html_to_text(question.prompt_text),
             transcript_text=stt_result["text"],
             question_title=question.title,
             level=question.level,

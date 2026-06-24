@@ -31,6 +31,7 @@ import {
   inp,
   type WordSeg,
 } from "../components/govori";
+import { RichText } from "../components/RichTextEditor";
 
 const BAND_OPTIONS = Array.from({ length: 21 }, (_, i) => i * 5); // 0, 5 … 100
 
@@ -686,9 +687,10 @@ export function SubmissionResult() {
             {question.level && <Pill hue={47}>{question.level}</Pill>}
           </div>
           <h3 style={{ fontSize: 18 }}>{question.title}</h3>
-          <p style={{ fontSize: 14, lineHeight: 1.6, color: "var(--muted)", marginTop: 6 }}>
-            {question.prompt_text}
-          </p>
+          <RichText
+            html={question.prompt_text}
+            style={{ fontSize: 14, lineHeight: 1.6, color: "var(--muted)", marginTop: 6 }}
+          />
         </Card>
       )}
 

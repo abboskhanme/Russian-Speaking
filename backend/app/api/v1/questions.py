@@ -17,6 +17,7 @@ from app.schemas.question import (
     QuestionUpdate,
 )
 from app.services import llm, storage
+from app.services.text import html_to_text
 
 router = APIRouter(prefix="/questions", tags=["questions"])
 
@@ -181,7 +182,7 @@ def generate_model_answer(
     if q is None or (teacher.role != UserRole.admin and q.teacher_id != teacher.id):
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Question not found")
     text = llm.generate_model_answer(
-        question_prompt=q.prompt_text,
+        question_prompt=html_to_text(q.prompt_text),
         question_title=q.title,
         level=q.level,
         topic=q.topic,

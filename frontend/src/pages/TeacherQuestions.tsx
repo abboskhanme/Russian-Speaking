@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import { api } from "../lib/api";
 import { useI18n } from "../lib/i18n";
+import { stripHtml } from "../components/RichTextEditor";
 import type { Question, QuestionType } from "../lib/types";
 import {
   Card,
@@ -78,7 +79,7 @@ export function TeacherQuestions() {
       arr = arr.filter(
         (q) =>
           q.title.toLowerCase().includes(s) ||
-          q.prompt_text.toLowerCase().includes(s) ||
+          stripHtml(q.prompt_text).toLowerCase().includes(s) ||
           (q.topic ?? "").toLowerCase().includes(s),
       );
     }
@@ -265,7 +266,7 @@ export function TeacherQuestions() {
                         className="truncate"
                         style={{ fontSize: 13, color: "var(--muted)", maxWidth: 460 }}
                       >
-                        {q.prompt_text}
+                        {stripHtml(q.prompt_text)}
                       </span>
                     )}
                     <div className="row gap-2 wrap">

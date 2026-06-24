@@ -23,6 +23,7 @@ from app.schemas.submission import (
     TeacherFeedback,
 )
 from app.services import llm, storage
+from app.services.text import html_to_text
 from app.workers.tasks import process_submission
 
 router = APIRouter(prefix="/submissions", tags=["submissions"])
@@ -273,7 +274,7 @@ def explain_submission(
         return ExplainOut(**ev.explanation)
 
     result = llm.explain_answer(
-        question_prompt=sub.question.prompt_text,
+        question_prompt=html_to_text(sub.question.prompt_text),
         transcript_text=sub.transcript.text,
     )
     ev.explanation = {

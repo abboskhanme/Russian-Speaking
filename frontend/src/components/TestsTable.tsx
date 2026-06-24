@@ -2,6 +2,7 @@ import { useMemo, useState, type CSSProperties } from "react";
 import { useI18n } from "../lib/i18n";
 import type { Question, QuestionType } from "../lib/types";
 import { Card, Pill, Icon, iconBtn, inp, type IconName } from "./govori";
+import { stripHtml } from "./RichTextEditor";
 import { Dropdown, type DropdownOption } from "./Dropdown";
 import { useConfirm } from "./ConfirmDialog";
 
@@ -166,7 +167,7 @@ export function TestsTable({ questions, showTeacher, onEdit, onTogglePublish, on
                   whiteSpace: "nowrap",
                 }}
               >
-                {q.prompt_text}
+                {stripHtml(q.prompt_text)}
               </span>
             </div>
 

@@ -9,7 +9,8 @@ from app.models.enums import QuestionType
 class QuestionCreate(BaseModel):
     type: QuestionType
     title: str = Field(min_length=1, max_length=200)
-    prompt_text: str = Field(min_length=1, max_length=5000)
+    # Rich-text (sanitised HTML) — the markup inflates length, so allow headroom.
+    prompt_text: str = Field(min_length=1, max_length=20000)
     level: str | None = Field(default=None, max_length=8)
     topic: str | None = Field(default=None, max_length=100)
     prep_time_sec: int = 30
@@ -22,7 +23,7 @@ class QuestionCreate(BaseModel):
 
 class QuestionUpdate(BaseModel):
     title: str | None = Field(default=None, min_length=1, max_length=200)
-    prompt_text: str | None = Field(default=None, min_length=1, max_length=5000)
+    prompt_text: str | None = Field(default=None, min_length=1, max_length=20000)
     level: str | None = Field(default=None, max_length=8)
     topic: str | None = Field(default=None, max_length=100)
     prep_time_sec: int | None = None

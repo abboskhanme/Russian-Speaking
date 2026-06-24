@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import { api } from "../lib/api";
 import { useI18n } from "../lib/i18n";
+import { stripHtml } from "../components/RichTextEditor";
 import type { Question, QuestionType } from "../lib/types";
 import {
   Card,
@@ -167,7 +168,7 @@ export function StudentQuestions() {
                       overflow: "hidden",
                     }}
                   >
-                    {q.prompt_text}
+                    {stripHtml(q.prompt_text)}
                   </p>
                   <div
                     className="row between"

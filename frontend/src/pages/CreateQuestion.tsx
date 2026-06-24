@@ -14,6 +14,7 @@ import {
   inp,
   type IconName,
 } from "../components/govori";
+import { RichTextEditor, isEmptyRich } from "../components/RichTextEditor";
 
 const LEVELS = ["A1", "A2", "B1", "B2", "C1", "C2"];
 
@@ -140,6 +141,12 @@ function CreateQuestionForm() {
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
+    // The rich-text prompt is required, but contentEditable can't use native
+    // `required`, so validate it (ignoring empty formatting tags) by hand.
+    if (isEmptyRich(prompt)) {
+      setError(t("instructionRequired"));
+      return;
+    }
     // Media is required when creating an image/video question.
     if (!isEdit && type !== "text" && !file) {
       setError(t("mediaRequired"));
@@ -200,7 +207,7 @@ function CreateQuestionForm() {
   ];
 
   return (
-    <div className="focus-wrap anim-fade-up" style={{ maxWidth: 760, marginInline: "auto" }}>
+    <div className="focus-wrap anim-fade-up" style={{ maxWidth: 920, marginInline: "auto" }}>
       {/* Blocking progress overlay — gives clear feedback during the (possibly
           slow) media upload so the teacher waits instead of re-clicking. */}
       {busy && (
@@ -411,13 +418,11 @@ function CreateQuestionForm() {
             </Field>
 
             <Field label={t("instruction")}>
-              <textarea
-                required
-                rows={3}
+              <RichTextEditor
                 value={prompt}
-                onChange={(e) => setPrompt(e.target.value)}
+                onChange={setPrompt}
                 placeholder={t("instructionPh")}
-                style={inp}
+                minHeight={260}
               />
             </Field>
 
