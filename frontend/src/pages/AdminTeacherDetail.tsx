@@ -131,7 +131,7 @@ export function AdminTeacherDetail() {
                         </span>
                       </div>
                     </div>
-                    <div className="row gap-2">
+                    <div className="row gap-2 wrap" style={{ justifyContent: "flex-end" }}>
                       {s.is_premium && (
                         <Pill hue={70} size="sm" icon="sparkles">
                           {t("premium")}
@@ -168,7 +168,7 @@ export function AdminTeacherDetail() {
                     <span className="truncate" style={{ fontWeight: 700, fontSize: 14 }}>
                       {q.title}
                     </span>
-                    <div className="row gap-2">
+                    <div className="row gap-2 wrap" style={{ justifyContent: "flex-end" }}>
                       <Pill hue={q.is_public ? 200 : 305} size="sm">
                         {q.is_public ? t("taskOpenShort") : t("taskAssignedShort")}
                       </Pill>

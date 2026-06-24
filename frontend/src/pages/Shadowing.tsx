@@ -192,7 +192,7 @@ export function Shadowing() {
           <Pill hue={80} icon="volume">
             {t("shadowResult")}
           </Pill>
-          <h2 style={{ fontSize: 24, marginTop: 16, lineHeight: 1.3 }}>{phrase}</h2>
+          <h2 style={{ fontSize: "clamp(18px, 5vw, 24px)", marginTop: 16, lineHeight: 1.3 }}>{phrase}</h2>
 
           <div style={{ margin: "22px 0" }}>
             <Waveform active={speaking} />

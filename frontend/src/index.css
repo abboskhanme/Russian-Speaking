@@ -331,6 +331,11 @@ input, textarea, select { font-family: inherit; }
 /* ---- Mobile ---- */
 @media (max-width: 720px) {
   .page { padding: 16px 16px calc(88px + env(safe-area-inset-bottom, 0px)); }
+  /* Safety net: long unbreakable strings (emails, join codes, URLs) wrap
+     instead of forcing horizontal overflow on narrow screens. */
+  .page { overflow-wrap: break-word; }
+  /* Embedded media never exceeds its column width. */
+  .page img, .page video { max-width: 100%; }
   .mobile-only { display: flex; }
   .hide-sm { display: none !important; }
   .g2, .g3 { grid-template-columns: 1fr; }

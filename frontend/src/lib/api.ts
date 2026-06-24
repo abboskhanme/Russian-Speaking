@@ -62,6 +62,21 @@ api.interceptors.response.use(
 );
 
 // Upload bytes directly to a presigned S3/MinIO URL (bypasses the API).
-export async function uploadToPresigned(url: string, blob: Blob, contentType: string) {
-  await axios.put(url, blob, { headers: { "Content-Type": contentType } });
+// `onProgress` reports 0–100 as the bytes go up so callers can show a real
+// progress bar (important for large videos on slow connections). `timeout: 0`
+// disables any client-side abort — big uploads are bounded only by the 30-min
+// presigned URL expiry, not an axios timeout.
+export async function uploadToPresigned(
+  url: string,
+  blob: Blob,
+  contentType: string,
+  onProgress?: (pct: number) => void,
+) {
+  await axios.put(url, blob, {
+    headers: { "Content-Type": contentType },
+    timeout: 0,
+    onUploadProgress: (e) => {
+      if (onProgress && e.total) onProgress(Math.round((e.loaded / e.total) * 100));
+    },
+  });
 }

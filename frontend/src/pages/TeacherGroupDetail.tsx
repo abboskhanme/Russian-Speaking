@@ -149,7 +149,7 @@ export function TeacherGroupDetail() {
             )}
           </div>
 
-          <div className="row gap-3" style={{ alignItems: "center" }}>
+          <div className="row gap-3 wrap" style={{ alignItems: "center" }}>
             <Pill hue={80} icon="lock">
               {t("joinCode")}: {ov.join_code}
             </Pill>

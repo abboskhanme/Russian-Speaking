@@ -59,6 +59,9 @@ function CreateQuestionForm() {
   const [isPublic, setIsPublic] = useState(true);
   const [existingMedia, setExistingMedia] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  // Media upload progress: null = no upload phase (creating/finishing, shown as
+  // an indeterminate spinner), 0–100 = bytes uploaded (shown as a % ring).
+  const [uploadPct, setUploadPct] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   // Pick a media file and build a local preview URL (revoking the previous one).
@@ -130,7 +133,9 @@ function CreateQuestionForm() {
     if (type === "text" || !file) return;
     const ct = file.type || (type === "image" ? "image/jpeg" : "video/mp4");
     const { data: up } = await api.post(`/questions/${questionId}/media-url`, { content_type: ct });
-    await uploadToPresigned(up.upload_url, file, ct);
+    // Enter the determinate phase and stream real upload progress to the overlay.
+    setUploadPct(0);
+    await uploadToPresigned(up.upload_url, file, ct, setUploadPct);
   }
 
   async function submit(e: React.FormEvent) {
@@ -142,6 +147,7 @@ function CreateQuestionForm() {
     }
     setBusy(true);
     setError(null);
+    setUploadPct(null);
     try {
       if (isEdit) {
         await api.patch(`/questions/${id}`, {
@@ -183,6 +189,7 @@ function CreateQuestionForm() {
       const tooLarge = axios.isAxiosError(err) && err.response?.status === 413;
       setError(tooLarge ? t("mediaTooLarge") : t("createError"));
       setBusy(false);
+      setUploadPct(null);
     }
   }
 
@@ -194,6 +201,66 @@ function CreateQuestionForm() {
 
   return (
     <div className="focus-wrap anim-fade-up" style={{ maxWidth: 760, marginInline: "auto" }}>
+      {/* Blocking progress overlay — gives clear feedback during the (possibly
+          slow) media upload so the teacher waits instead of re-clicking. */}
+      {busy && (
+        <div
+          style={{
+            position: "fixed", inset: 0, zIndex: 200,
+            background: "oklch(0.30 0.02 60 / 0.45)", backdropFilter: "blur(2px)",
+            display: "flex", alignItems: "center", justifyContent: "center", padding: 24,
+          }}
+        >
+          <div
+            className="anim-pop"
+            style={{
+              background: "var(--surface)", borderRadius: "var(--r-lg)", boxShadow: "var(--sh-lg)",
+              padding: "30px 34px", width: "100%", maxWidth: 320,
+              display: "flex", flexDirection: "column", alignItems: "center", gap: 16,
+            }}
+          >
+            {uploadPct === null ? (
+              <div
+                style={{
+                  width: 64, height: 64, borderRadius: "50%",
+                  border: "5px solid var(--surface-3)", borderTopColor: "var(--primary)",
+                  animation: "spin 0.8s linear infinite",
+                }}
+              />
+            ) : (
+              (() => {
+                const R = 50.5;
+                const C = 2 * Math.PI * R;
+                const off = C * (1 - uploadPct / 100);
+                return (
+                  <div style={{ position: "relative", width: 110, height: 110 }}>
+                    <svg width="110" height="110" style={{ transform: "rotate(-90deg)" }}>
+                      <circle cx="55" cy="55" r={R} fill="none" stroke="var(--surface-3)" strokeWidth="9" />
+                      <circle
+                        cx="55" cy="55" r={R} fill="none" stroke="var(--primary)" strokeWidth="9"
+                        strokeLinecap="round" strokeDasharray={C} strokeDashoffset={off}
+                        style={{ transition: "stroke-dashoffset 0.2s ease" }}
+                      />
+                    </svg>
+                    <span
+                      style={{
+                        position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center",
+                        fontFamily: "var(--font-display)", fontWeight: 800, fontSize: 22, color: "var(--ink)",
+                      }}
+                    >
+                      {uploadPct}%
+                    </span>
+                  </div>
+                );
+              })()
+            )}
+            <span style={{ fontFamily: "var(--font-display)", fontWeight: 800, fontSize: 15.5, color: "var(--ink-soft)" }}>
+              {uploadPct !== null && uploadPct < 100 ? t("uploadingMedia") : t("saving")}
+            </span>
+            <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+          </div>
+        </div>
+      )}
       <Button variant="ghost" size="sm" icon="chevL" onClick={() => nav(-1)} style={{ marginBottom: 16 }}>
         {t("back")}
       </Button>
@@ -252,6 +319,20 @@ function CreateQuestionForm() {
         <Card>
           <div className="col gap-4">
             {type !== "text" && (
+              <>
+              {/* The hidden file input lives OUTSIDE <Field>'s <label>. When it sat
+                  inside the label, a single click on the drop-zone fired both our
+                  onClick (which calls input.click()) AND the label's native "activate
+                  the control" behavior — opening the file picker twice, so the user
+                  had to choose a file on every attempt. Keeping it outside the label
+                  leaves exactly one trigger. */}
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept={type === "image" ? "image/*" : "video/*"}
+                onChange={(e) => onPickFile(e.target.files?.[0] ?? null)}
+                style={{ display: "none" }}
+              />
               <Field label={type === "image" ? t("mediaImage") : t("mediaVideo")}>
                 {(() => {
                   const hue = TYPE_META[type].hue;
@@ -260,14 +341,6 @@ function CreateQuestionForm() {
                   const showExisting = !showNew && isEdit && !!existingMedia;
                   const src = showNew ? preview! : showExisting ? existingMedia! : null;
                   return (
-                    <>
-                      <input
-                        ref={fileInputRef}
-                        type="file"
-                        accept={type === "image" ? "image/*" : "video/*"}
-                        onChange={(e) => onPickFile(e.target.files?.[0] ?? null)}
-                        style={{ display: "none" }}
-                      />
                       <div
                         role="button"
                         tabIndex={0}
@@ -321,10 +394,10 @@ function CreateQuestionForm() {
                           </>
                         )}
                       </div>
-                    </>
                   );
                 })()}
               </Field>
+              </>
             )}
 
             <Field label={t("title")}>

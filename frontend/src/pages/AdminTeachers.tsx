@@ -197,7 +197,7 @@ export function AdminTeachers() {
                   {tch.is_active ? t("active") : t("inactive")}
                 </span>
               </span>
-              <div className="row gap-2" style={{ justifyContent: "flex-end" }}>
+              <div className="row gap-2 wrap" style={{ justifyContent: "flex-end" }}>
                 <Button
                   size="sm"
                   variant="ghost"

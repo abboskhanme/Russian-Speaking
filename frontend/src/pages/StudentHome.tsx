@@ -199,7 +199,7 @@ export function StudentHome() {
               <span style={{ fontSize: 14, opacity: 0.92 }}>
                 {t("greeting")}, {firstName(user?.full_name)}! 👋
               </span>
-              <h2 style={{ color: "#fff", fontSize: 26, marginTop: 6, lineHeight: 1.2 }}>
+              <h2 style={{ color: "#fff", fontSize: "clamp(20px, 5.5vw, 26px)", marginTop: 6, lineHeight: 1.2 }}>
                 {t("greetingSub")}
               </h2>
               <div className="row gap-3" style={{ marginTop: 16 }}>
