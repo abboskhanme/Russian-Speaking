@@ -425,8 +425,14 @@ def _generate_chunk(
     qtype: str,
     count: int,
     avoid_titles: list[str] | None = None,
+    custom: str | None = None,
 ) -> list[GeneratedQuestion]:
-    """Generate up to ~`count` varied speaking tasks in a single model call."""
+    """Generate up to ~`count` varied speaking tasks in a single model call.
+
+    `custom` is optional free-text guidance from the teacher (desired format,
+    tone, focus). It steers generation but must never override the safety/format
+    rules in the system prompt.
+    """
     type_hint = {
         "text": "Тип заданий: устный ответ БЕЗ медиа. media_query оставь пустым.",
         "image": "Тип заданий: студент ОПИСЫВАЕТ фотографию. Обязательно заполни media_query.",
@@ -436,9 +442,15 @@ def _generate_chunk(
     if avoid_titles:
         sample = "\n- ".join(avoid_titles[:40])
         avoid = f"\n\nНЕ повторяй эти уже существующие задания:\n- {sample}"
+    extra = ""
+    if custom and custom.strip():
+        extra = (
+            "\n\nДополнительные пожелания преподавателя (учитывай их при составлении "
+            f"заданий, но не нарушай требования формата и уровня):\n{custom.strip()}"
+        )
     user_content = (
         f"Уровень CEFR: {level}\nТема: {topic}\n{type_hint}\n\n"
-        f"Сгенерируй ровно {count} разных заданий.{avoid}"
+        f"Сгенерируй ровно {count} разных заданий.{avoid}{extra}"
     )
     config = types.GenerateContentConfig(
         system_instruction=_GEN_SYSTEM,
@@ -468,15 +480,16 @@ def generate_questions(
     qtype: str,
     count: int,
     avoid_titles: list[str] | None = None,
+    custom: str | None = None,
 ) -> list[GeneratedQuestion]:
     """Generate `count` varied tasks, chunking large counts across calls.
 
     Each chunk is told the titles already produced so the model keeps varying
-    instead of repeating itself.
+    instead of repeating itself. `custom` carries optional teacher guidance.
     """
     if count <= _GEN_CHUNK:
         return _generate_chunk(
-            level=level, topic=topic, qtype=qtype, count=count, avoid_titles=avoid_titles
+            level=level, topic=topic, qtype=qtype, count=count, avoid_titles=avoid_titles, custom=custom
         )
     out: list[GeneratedQuestion] = []
     seen: list[str] = list(avoid_titles or [])
@@ -486,7 +499,7 @@ def generate_questions(
         guard += 1
         n = min(_GEN_CHUNK, remaining)
         batch = _generate_chunk(
-            level=level, topic=topic, qtype=qtype, count=n, avoid_titles=seen[-60:]
+            level=level, topic=topic, qtype=qtype, count=n, avoid_titles=seen[-60:], custom=custom
         )
         if not batch:
             break

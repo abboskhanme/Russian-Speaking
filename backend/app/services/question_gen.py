@@ -55,6 +55,7 @@ def generate_batch(
     limit_sec: int = 120,
     publish: bool = False,
     existing: set[str] | None = None,
+    custom: str | None = None,
 ) -> tuple[list[Question], int]:
     """Generate drafts across the matrix. Returns (created rows, #media skipped).
 
@@ -82,7 +83,7 @@ def generate_batch(
                     continue
                 try:
                     items = llm.generate_questions(
-                        level=level, topic=topic, qtype=qtype, count=count_per_cell
+                        level=level, topic=topic, qtype=qtype, count=count_per_cell, custom=custom
                     )
                 except Exception as e:  # noqa: BLE001
                     logger.warning("generation failed [%s/%s/%s]: %s", topic, level, qtype, e)

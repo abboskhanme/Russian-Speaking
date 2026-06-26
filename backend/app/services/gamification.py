@@ -25,9 +25,15 @@ def xp_for_band(score: float | None) -> int:
     return XP_BASE + int(round((score or 0) / 100 * 18))
 
 
-def award_submission(db: Session, sub: Submission, evaluation: Evaluation) -> None:
+def award_submission(
+    db: Session, sub: Submission, evaluation: Evaluation, *, answered: bool = True
+) -> None:
     user = db.get(User, sub.student_id)
     if user is None:
+        return
+    # No spoken answer (silent / empty recording) → no XP, no streak. The student
+    # only earns engagement rewards when they actually said something.
+    if not answered:
         return
     # XP follows the level-relative score (motivating) when available, else the
     # absolute overall.

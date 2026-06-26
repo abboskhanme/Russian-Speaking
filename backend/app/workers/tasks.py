@@ -201,11 +201,16 @@ def process_submission(self, submission_id: str) -> str:
         sub.completed_at = datetime.now(timezone.utc)
         db.commit()
 
-        # Engagement side-effects — must never break the pipeline.
+        # Engagement side-effects — must never break the pipeline. A silent /
+        # empty recording (nothing transcribed) earns no XP, no streak and no
+        # spaced-repetition review — the student only gets rewards for actually
+        # speaking.
+        answered = bool((stt_result.get("text") or "").strip())
         try:
             db.refresh(evaluation)
-            gamification.award_submission(db, sub, evaluation)
-            gamification.schedule_review(db, sub, evaluation)
+            gamification.award_submission(db, sub, evaluation, answered=answered)
+            if answered:
+                gamification.schedule_review(db, sub, evaluation)
         except Exception:  # noqa: BLE001
             db.rollback()
 

@@ -96,6 +96,7 @@ def generate_questions(
         count_per_cell=payload.count_per_cell,
         limit_sec=payload.answer_time_limit_sec,
         publish=False,
+        custom=payload.custom_instructions,
     )
     db.commit()
     for q in created:

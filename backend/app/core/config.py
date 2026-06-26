@@ -65,7 +65,7 @@ class Settings(BaseSettings):
     GOOGLE_CLIENT_ID: str = ""
 
     # Freemium: number of free speaking attempts before premium is required.
-    FREE_ATTEMPT_LIMIT: int = 3
+    FREE_ATTEMPT_LIMIT: int = 10
 
     # Email (SMTP) — provider-agnostic. Works with Gmail (smtp.gmail.com:587, an
     # app password) or any transactional provider (Resend/Mailgun/SendGrid) that

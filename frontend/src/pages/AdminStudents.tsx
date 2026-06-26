@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "../lib/api";
+import { friendlyError } from "../lib/errors";
 import { useI18n } from "../lib/i18n";
 import type { AdminStudent } from "../lib/types";
 import {
@@ -51,8 +52,8 @@ export function AdminStudents() {
       setError(null);
     },
     onError: (e: unknown) => {
-      const detail = (e as { response?: { data?: { detail?: string } } })?.response?.data?.detail;
-      setError(detail || t("genericError"));
+      // Never echo the raw server `detail` — show a safe, friendly message.
+      setError(friendlyError(e, t));
     },
   });
 

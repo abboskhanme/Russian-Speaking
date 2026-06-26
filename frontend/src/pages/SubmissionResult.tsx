@@ -347,9 +347,9 @@ export function SubmissionResult() {
           <p style={{ fontSize: 17, fontWeight: 800, color: "var(--danger)", marginTop: 8 }}>
             {t("failed")}
           </p>
-          {sub.error_message && (
-            <p style={{ fontSize: 14, color: "var(--muted)", marginTop: 4 }}>{sub.error_message}</p>
-          )}
+          {/* Never surface the raw backend exception (e.g. AI quota / upstream
+              error) — show a calm "server problem, contact admin" note instead. */}
+          <p style={{ fontSize: 14, color: "var(--muted)", marginTop: 4 }}>{t("serverError")}</p>
           <div style={{ marginTop: 18 }}>
             <Button variant="ghost" icon="chevL" onClick={() => nav(-1)}>
               {t("back")}

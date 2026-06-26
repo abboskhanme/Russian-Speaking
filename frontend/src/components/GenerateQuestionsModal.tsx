@@ -57,6 +57,7 @@ export function GenerateQuestionsModal({
   const [types, setTypes] = useState<string[]>(["text"]);
   const [topicsText, setTopicsText] = useState("");
   const [count, setCount] = useState(5);
+  const [custom, setCustom] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -91,11 +92,15 @@ export function GenerateQuestionsModal({
         topics,
         types,
         count_per_cell: count,
+        custom_instructions: custom.trim() || undefined,
       });
       onDone(data);
       onClose();
-    } catch {
-      setError(t("genError"));
+    } catch (e) {
+      const status = (e as { response?: { status?: number } })?.response?.status;
+      // AI quota exhausted / upstream unavailable → tell them it's a server-side
+      // problem, not their input.
+      setError(status === 429 || status === 503 || (status ?? 0) >= 500 ? t("serverError") : t("genError"));
     } finally {
       setBusy(false);
     }
@@ -190,6 +195,24 @@ export function GenerateQuestionsModal({
               padding: "11px 13px", fontSize: 14.5, fontFamily: "inherit", outline: "none", width: 120,
             }}
           />
+        </div>
+
+        {/* Custom instructions — free-text guidance for the AI */}
+        <div className="col gap-2" style={{ marginBottom: 16 }}>
+          {sectionLabel(t("genCustom"))}
+          <textarea
+            value={custom}
+            onChange={(e) => setCustom(e.target.value)}
+            placeholder={t("genCustomPh")}
+            rows={3}
+            maxLength={2000}
+            style={{
+              border: "1.5px solid var(--line-2)", borderRadius: "var(--r-sm)",
+              padding: "11px 13px", fontSize: 14.5, fontFamily: "inherit", outline: "none",
+              width: "100%", resize: "vertical", lineHeight: 1.5,
+            }}
+          />
+          <span style={{ fontSize: 12, color: "var(--muted)" }}>{t("genCustomHint")}</span>
         </div>
 
         {/* Total summary */}

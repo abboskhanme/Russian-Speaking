@@ -5,7 +5,8 @@ import { api, uploadToPresigned } from "../lib/api";
 import { useAuth } from "../lib/auth";
 import { useI18n } from "../lib/i18n";
 import { useStudentStats } from "../lib/useStats";
-import { isLocked } from "../lib/plan";
+import { isLocked, FREE_ATTEMPT_LIMIT } from "../lib/plan";
+import { friendlyError } from "../lib/errors";
 import type { Question, Submission } from "../lib/types";
 import { AudioRecorder } from "../components/AudioRecorder";
 import { Paywall } from "../components/Paywall";
@@ -20,7 +21,7 @@ import {
   bandColor,
 } from "../components/govori";
 
-const FREE_ATTEMPTS = 3;
+const FREE_ATTEMPTS = FREE_ATTEMPT_LIMIT;
 
 export function AnswerQuestion() {
   const { id } = useParams<{ id: string }>();
@@ -59,8 +60,10 @@ export function AnswerQuestion() {
       nav(`/submissions/${sub.id}`);
     } catch (e) {
       const status = (e as { response?: { status?: number } }).response?.status;
+      // 402 = free-trial exhausted → show the paywall, not an error message.
+      // 5xx / rate-limit → friendly "server problem"; anything else → send error.
       if (status === 402) setServerLocked(true);
-      else setError(t("sendError"));
+      else setError(friendlyError(e, t, t("sendError")));
       setUploading(false);
     }
   }

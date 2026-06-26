@@ -1,7 +1,7 @@
 import type { User } from "./types";
 
 /** Free speaking attempts before premium is required (mirrors backend FREE_ATTEMPT_LIMIT). */
-export const FREE_ATTEMPT_LIMIT = 3;
+export const FREE_ATTEMPT_LIMIT = 10;
 
 /** Google OAuth Web Client ID, injected at build time. Empty → Google sign-in hidden. */
 export const GOOGLE_CLIENT_ID = (import.meta.env.VITE_GOOGLE_CLIENT_ID as string | undefined) ?? "";

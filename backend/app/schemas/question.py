@@ -70,6 +70,9 @@ class QuestionGenerateRequest(BaseModel):
     types: list[QuestionType] = Field(default_factory=lambda: [QuestionType.text], min_length=1)
     count_per_cell: int = Field(default=5, ge=1, le=50)
     answer_time_limit_sec: int = Field(default=120, ge=30, le=600)
+    # Free-text guidance the teacher types to steer the AI (format, tone, focus,
+    # constraints). Optional — empty/None means use the default rubric only.
+    custom_instructions: str | None = Field(default=None, max_length=2000)
 
 
 class QuestionGenerateResult(BaseModel):
