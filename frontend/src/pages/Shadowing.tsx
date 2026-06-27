@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { api, uploadToPresigned } from "../lib/api";
+import { friendlyError } from "../lib/errors";
 import { useI18n } from "../lib/i18n";
 import type { Submission } from "../lib/types";
 import { AudioRecorder } from "../components/AudioRecorder";
@@ -86,8 +87,9 @@ export function Shadowing() {
         audio_duration_sec: durationSec,
       });
       nav(`/submissions/${sub.id}`);
-    } catch {
-      setError(t("sendError"));
+    } catch (e) {
+      // 5xx / rate-limit → calm "server problem"; anything else → send error.
+      setError(friendlyError(e, t, t("sendError")));
       setUploading(false);
     }
   }
