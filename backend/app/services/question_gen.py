@@ -73,8 +73,12 @@ def generate_batch(
 
     created: list[Question] = []
     skipped_no_media = 0
-    for topic in topics:
-        if not db.scalar(select(Topic).where(Topic.teacher_id == teacher_id, Topic.name == topic)):
+    # Empty topic list → one general cell (topic not mandatory).
+    for topic in (topics or [""]):
+        topic = (topic or "").strip()
+        if topic and not db.scalar(
+            select(Topic).where(Topic.teacher_id == teacher_id, Topic.name == topic)
+        ):
             db.add(Topic(teacher_id=teacher_id, name=topic))
             db.flush()
         for level in levels:
@@ -106,7 +110,7 @@ def generate_batch(
                         model_answer_text=(item.model_answer_text or "").strip() or None,
                         media_key=media_key,
                         level=level,
-                        topic=topic,
+                        topic=topic or None,
                         answer_time_limit_sec=limit_sec,
                         is_published=publish,
                         is_public=True,  # library questions live in the public pool

@@ -64,7 +64,8 @@ export function GenerateQuestionsModal({
   if (!open) return null;
 
   const topics = [...new Set(topicsText.split(",").map((s) => s.trim()).filter(Boolean))];
-  const cells = levels.length * topics.length * types.length;
+  // Topic is optional — no topic still counts as one general cell.
+  const cells = levels.length * Math.max(1, topics.length) * types.length;
   const total = cells * count;
   const mediaSelected = types.includes("image") || types.includes("video");
 
@@ -80,7 +81,6 @@ export function GenerateQuestionsModal({
 
   async function run() {
     if (!levels.length) return setError(t("genNeedLevel"));
-    if (!topics.length) return setError(t("genNeedTopic"));
     if (!types.length) return setError(t("genNeedType"));
     if (cells > MAX_CELLS) return setError(t("genTooManyCells").replace("{n}", String(MAX_CELLS)));
     if (total > MAX_TOTAL) return setError(t("genTooMany").replace("{n}", String(MAX_TOTAL)));

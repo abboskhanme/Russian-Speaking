@@ -2,11 +2,14 @@ export type UserRole = "admin" | "teacher" | "student";
 export type QuestionType = "text" | "image" | "video";
 export type SubmissionStatus = "pending" | "processing" | "done" | "failed";
 
+export type RuStyle = "regular" | "live";
+
 export interface User {
   id: string;
   email: string;
   full_name: string;
   phone: string | null;
+  telegram: string | null;
   age: number | null;
   region: string | null;
   district: string | null;
@@ -140,12 +143,33 @@ export interface Question {
   media_url: string | null;
   level: string | null;
   topic: string | null;
+  block_id: string | null;
+  ru_style: RuStyle | null;
   prep_time_sec: number;
   answer_time_limit_sec: number;
   is_published: boolean;
   is_public: boolean;
   model_answer_text: string | null;
   created_at: string;
+}
+
+export interface QuestionBlock {
+  id: string;
+  teacher_id: string;
+  name: string;
+  topic: string | null;
+  level: string | null;
+  ru_style: RuStyle | null;
+  question_count: number;
+  created_at: string;
+}
+
+export interface TeacherContact {
+  id: string;
+  full_name: string;
+  email: string | null;
+  phone: string | null;
+  telegram: string | null;
 }
 
 export interface Evaluation {

@@ -29,10 +29,12 @@ export function Review() {
           ? t("grammar")
           : d === "relevance"
             ? t("relevance")
-            : d;
+            : d === "teacher"
+              ? t("reviewFromTeacher")
+              : d;
 
   const dimHue = (d: string) =>
-    d === "fluency" ? 47 : d === "lexical" ? 80 : d === "grammar" ? 28 : 248;
+    d === "fluency" ? 47 : d === "lexical" ? 80 : d === "grammar" ? 28 : d === "teacher" ? 305 : 248;
 
   const dueCount = data?.length ?? 0;
 

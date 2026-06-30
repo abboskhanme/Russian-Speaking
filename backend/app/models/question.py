@@ -25,6 +25,12 @@ class Question(Base, TimestampMixin):
     level: Mapped[str | None] = mapped_column(String(8), nullable=True, index=True)
     # Free-form topic/theme for categorization (e.g. "Путешествия", "Работа")
     topic: Mapped[str | None] = mapped_column(String(128), nullable=True, index=True)
+    # Optional named block/set this question belongs to (teacher grouping).
+    block_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("question_blocks.id", ondelete="SET NULL"), index=True, nullable=True
+    )
+    # Russian style: "regular" (Обычный) | "live" (Живой). None = unspecified.
+    ru_style: Mapped[str | None] = mapped_column(String(8), nullable=True, index=True)
     prep_time_sec: Mapped[int] = mapped_column(Integer, default=30, nullable=False)
     answer_time_limit_sec: Mapped[int] = mapped_column(Integer, default=120, nullable=False)
     is_published: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
@@ -42,6 +48,9 @@ class Question(Base, TimestampMixin):
     model_answer_text: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     teacher: Mapped["User"] = relationship(back_populates="questions")  # noqa: F821
+    block: Mapped["QuestionBlock | None"] = relationship(  # noqa: F821
+        back_populates="questions"
+    )
     submissions: Mapped[list["Submission"]] = relationship(  # noqa: F821
         back_populates="question", cascade="all, delete-orphan"
     )

@@ -75,7 +75,8 @@ def generate_questions(
     `generate_questions` CLI script. Drafts are reviewed/published in the UI.
     """
     types = [t.value for t in payload.types]
-    cells = len(payload.levels) * len(payload.topics) * len(types)
+    # No topic → still one "general" cell per (level × type).
+    cells = len(payload.levels) * max(1, len(payload.topics)) * len(types)
     if cells > question_gen.MAX_CELLS_PER_REQUEST:
         raise HTTPException(
             status.HTTP_422_UNPROCESSABLE_ENTITY,
@@ -181,6 +182,8 @@ def list_questions(
     type: QuestionType | None = None,
     level: str | None = None,
     topic: str | None = None,
+    ru_style: str | None = Query(default=None),
+    block_id: uuid.UUID | None = Query(default=None),
     published_only: bool = Query(default=False),
     teacher_id: uuid.UUID | None = Query(default=None),
     user: User = Depends(get_current_user),
@@ -204,6 +207,10 @@ def list_questions(
         stmt = stmt.where(Question.level == level)
     if topic:
         stmt = stmt.where(Question.topic == topic)
+    if ru_style:
+        stmt = stmt.where(Question.ru_style == ru_style)
+    if block_id is not None:
+        stmt = stmt.where(Question.block_id == block_id)
     stmt = stmt.order_by(Question.created_at.desc())
     out = [_to_out(q) for q in db.scalars(stmt).all()]
     if user.role == UserRole.student:
@@ -270,6 +277,7 @@ def generate_model_answer(
         question_title=q.title,
         level=q.level,
         topic=q.topic,
+        ru_style=q.ru_style,
     )
     q.model_answer_text = text
     db.commit()

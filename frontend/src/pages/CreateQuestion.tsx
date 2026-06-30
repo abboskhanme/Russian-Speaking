@@ -4,7 +4,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, uploadToPresigned } from "../lib/api";
 import { useI18n } from "../lib/i18n";
-import type { Question, QuestionType, Topic } from "../lib/types";
+import type { Question, QuestionBlock, QuestionType, RuStyle, Topic } from "../lib/types";
 import {
   Card,
   Button,
@@ -49,6 +49,8 @@ function CreateQuestionForm() {
   const [prompt, setPrompt] = useState("");
   const [level, setLevel] = useState("");
   const [topic, setTopic] = useState("");
+  const [ruStyle, setRuStyle] = useState<"" | RuStyle>("");
+  const [blockId, setBlockId] = useState("");
   const [answerLimit, setAnswerLimit] = useState(120);
   const [modelAnswer, setModelAnswer] = useState("");
   const [file, setFile] = useState<File | null>(null);
@@ -101,6 +103,8 @@ function CreateQuestionForm() {
     setPrompt(editing.prompt_text);
     setLevel(editing.level ?? "");
     setTopic(editing.topic ?? "");
+    setRuStyle(editing.ru_style ?? "");
+    setBlockId(editing.block_id ?? "");
     setAnswerLimit(editing.answer_time_limit_sec);
     setModelAnswer(editing.model_answer_text ?? "");
     setPublish(editing.is_published);
@@ -111,6 +115,11 @@ function CreateQuestionForm() {
   const { data: topics } = useQuery({
     queryKey: ["topics-managed"],
     queryFn: async () => (await api.get<Topic[]>("/topics")).data,
+  });
+
+  const { data: blocks } = useQuery({
+    queryKey: ["blocks"],
+    queryFn: async () => (await api.get<QuestionBlock[]>("/blocks")).data,
   });
 
   const addTopic = useMutation({
@@ -162,6 +171,8 @@ function CreateQuestionForm() {
           prompt_text: prompt,
           level: level || null,
           topic: topic || null,
+          ru_style: ruStyle || null,
+          block_id: blockId || null,
           answer_time_limit_sec: answerLimit,
           model_answer_text: modelAnswer || null,
           is_published: publish,
@@ -175,6 +186,8 @@ function CreateQuestionForm() {
           prompt_text: prompt,
           level: level || null,
           topic: topic || null,
+          ru_style: ruStyle || null,
+          block_id: blockId || null,
           answer_time_limit_sec: answerLimit,
           model_answer_text: modelAnswer || null,
           is_published: publish,
@@ -540,6 +553,30 @@ function CreateQuestionForm() {
                 </>
               )}
             </Field>
+
+            <div className="g2">
+              <Field label={t("ruStyle")}>
+                <select
+                  value={ruStyle}
+                  onChange={(e) => setRuStyle(e.target.value as "" | RuStyle)}
+                  style={inp}
+                >
+                  <option value="">—</option>
+                  <option value="regular">{t("ruRegular")}</option>
+                  <option value="live">{t("ruLive")}</option>
+                </select>
+              </Field>
+              <Field label={t("navBlocks")}>
+                <select value={blockId} onChange={(e) => setBlockId(e.target.value)} style={inp}>
+                  <option value="">— {t("noBlock")} —</option>
+                  {(blocks ?? []).map((b) => (
+                    <option key={b.id} value={b.id}>
+                      {b.name}
+                    </option>
+                  ))}
+                </select>
+              </Field>
+            </div>
 
             <Field label={t("taskTypeLabel")}>
               <div className="row gap-2 wrap">

@@ -145,13 +145,8 @@ def process_submission(self, submission_id: str) -> str:
                 image_mime = _image_mime(question.media_key)
             except Exception:  # noqa: BLE001 — fall back to text-only analysis
                 image_bytes = image_mime = None
-        # Hand the actual recording to Gemini (multimodal) so it judges delivery —
-        # intonation, pace, naturalness — from the real sound, not just the text.
-        # Best-effort: if transcoding fails, fall back to text-only analysis.
-        try:
-            audio_for_llm = stt.to_mp3_bytes(audio)
-        except Exception:  # noqa: BLE001
-            audio_for_llm = None
+        # Text-only analysis: delivery (pronunciation, pace, intonation) is no
+        # longer scored, so the recording is not sent to the LLM.
         _t_llm = time.monotonic()
         result = llm.analyze(
             question_prompt=html_to_text(question.prompt_text),
@@ -161,16 +156,11 @@ def process_submission(self, submission_id: str) -> str:
             topic=question.topic,
             image_bytes=image_bytes,
             image_mime=image_mime,
-            audio_bytes=audio_for_llm,
         )
         logger.info(
             "llm done",
             extra={"submission_id": submission_id, "llm_secs": round(time.monotonic() - _t_llm, 2)},
         )
-
-        # Azure pronunciation is already 0–100 — same scale as the rest now.
-        pron = (stt_result.get("pronunciation") or {}).get("pronunciation")
-        pronunciation_score = round(pron, 1) if pron is not None else None
 
         evaluation = Evaluation(
             submission_id=sub.id,
@@ -178,24 +168,34 @@ def process_submission(self, submission_id: str) -> str:
             lexical_score=result.scores.lexical,
             grammar_score=result.scores.grammar,
             relevance_score=result.scores.relevance,
-            pronunciation_score=pronunciation_score,
-            naturalness_score=result.scores.naturalness,
-            speech_rate_score=result.scores.speech_rate,
-            intonation_score=result.scores.intonation,
             overall_band=result.scores.overall,
             level_score=result.scores.level_overall,
-            native_likeness=result.scores.native_likeness,
             feedback={
                 "summary": result.summary,
                 "strengths": result.strengths,
                 "improvements": result.improvements,
                 "vocabulary_suggestions": result.vocabulary_suggestions,
-                "pronunciation_feedback": result.pronunciation_feedback,
             },
             corrections=[c.model_dump() for c in result.corrections],
             llm_model=settings.GEMINI_MODEL,
         )
         db.add(evaluation)
+
+        # Fresh exemplar answer for THIS attempt (a new variant each time),
+        # adapted to the task and its Russian style. Best-effort — a failure here
+        # must never fail the whole submission; the UI falls back to the question's
+        # stored model answer.
+        try:
+            sub.model_answer_text = llm.generate_model_answer(
+                question_prompt=html_to_text(question.prompt_text),
+                question_title=question.title,
+                level=question.level,
+                topic=question.topic,
+                ru_style=question.ru_style,
+                variant_hint=str(sub.id),
+            ) or None
+        except Exception:  # noqa: BLE001
+            sub.model_answer_text = None
 
         sub.status = SubmissionStatus.done
         sub.completed_at = datetime.now(timezone.utc)

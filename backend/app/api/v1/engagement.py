@@ -21,6 +21,7 @@ from app.schemas.gamification import (
     AssignmentCreate,
     AssignmentOut,
     LeaderboardEntry,
+    ReviewItemCreate,
     ReviewItemOut,
 )
 from app.services import notifications
@@ -182,6 +183,93 @@ def my_reviews(
             continue
         seen.add(it.question_id)
         q = qmap.get(it.question_id)
+        out.append(
+            ReviewItemOut(
+                id=it.id,
+                question_id=it.question_id,
+                question_title=q.title if q else None,
+                question_topic=q.topic if q else None,
+                question_level=q.level if q else None,
+                weakness_dim=it.weakness_dim,
+                due_at=it.due_at,
+            )
+        )
+    return out
+
+
+@router.post("/review", response_model=list[ReviewItemOut], status_code=status.HTTP_201_CREATED)
+def create_reviews(
+    payload: ReviewItemCreate,
+    teacher: User = Depends(require_teacher),
+    db: Session = Depends(get_db),
+) -> list[ReviewItemOut]:
+    """Teacher adds question(s) to a student's (or whole group's) review queue.
+
+    Items surface immediately (due now) and are tagged 'teacher'. Duplicates of an
+    already-pending item for the same (student, question) are skipped."""
+    # Validate the questions belong to this teacher (admin: any).
+    qstmt = select(Question).where(Question.id.in_(payload.question_ids))
+    if teacher.role != UserRole.admin:
+        qstmt = qstmt.where(Question.teacher_id == teacher.id)
+    questions = {q.id: q for q in db.scalars(qstmt).all()}
+    if not questions:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "No matching questions")
+
+    # Resolve target students: explicit ids ∪ a whole group's members.
+    target_ids = set(payload.student_ids)
+    if payload.group_id is not None:
+        target_ids.update(
+            db.scalars(
+                select(GroupMember.student_id).where(GroupMember.group_id == payload.group_id)
+            ).all()
+        )
+    valid_ids = set(
+        db.scalars(
+            select(User.id).where(User.id.in_(target_ids), User.role == UserRole.student)
+        ).all()
+    )
+    if not valid_ids:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "No target students")
+
+    now = datetime.now(timezone.utc)
+    created: list[ReviewItem] = []
+    for sid in valid_ids:
+        for qid in questions:
+            # Skip if an identical pending review already exists.
+            exists = db.scalar(
+                select(ReviewItem.id).where(
+                    ReviewItem.student_id == sid,
+                    ReviewItem.question_id == qid,
+                    ReviewItem.completed.is_(False),
+                )
+            )
+            if exists:
+                continue
+            item = ReviewItem(
+                student_id=sid,
+                question_id=qid,
+                weakness_dim="teacher",
+                interval_index=0,
+                due_at=now,
+                completed=False,
+            )
+            db.add(item)
+            created.append(item)
+        notifications.notify(
+            db,
+            user_id=sid,
+            type="review_added",
+            title="Takrorlash uchun yangi mashqlar",
+            body="O'qituvchi sizga takrorlash uchun mashq(lar) qo'shdi.",
+            link="/review",
+            commit=False,
+        )
+    db.commit()
+    for it in created:
+        db.refresh(it)
+    out: list[ReviewItemOut] = []
+    for it in created:
+        q = questions.get(it.question_id)
         out.append(
             ReviewItemOut(
                 id=it.id,
