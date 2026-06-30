@@ -9,6 +9,7 @@ from app.api.deps import get_current_user, require_teacher
 from app.db.session import get_db
 from app.models import (
     Assignment,
+    Group,
     GroupMember,
     Question,
     ReviewItem,
@@ -223,17 +224,28 @@ def create_reviews(
                 select(GroupMember.student_id).where(GroupMember.group_id == payload.group_id)
             ).all()
         )
-    valid_ids = set(
-        db.scalars(
-            select(User.id).where(User.id.in_(target_ids), User.role == UserRole.student)
-        ).all()
-    )
+    # A teacher may only queue reviews for their OWN students (members of a group
+    # they own); admins may target anyone. Without this, a teacher could inject
+    # review items into any student's queue — and, since a pending review item
+    # unlocks submission of an assigned task, grant access to students they don't
+    # teach. Filtering target_ids through the roster covers both the explicit
+    # student_ids and group_id paths.
+    stmt = select(User.id).where(User.id.in_(target_ids), User.role == UserRole.student)
+    if teacher.role != UserRole.admin:
+        roster = (
+            select(GroupMember.student_id)
+            .join(Group, GroupMember.group_id == Group.id)
+            .where(Group.teacher_id == teacher.id)
+        )
+        stmt = stmt.where(User.id.in_(roster))
+    valid_ids = set(db.scalars(stmt).all())
     if not valid_ids:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "No target students")
 
     now = datetime.now(timezone.utc)
     created: list[ReviewItem] = []
     for sid in valid_ids:
+        made = 0
         for qid in questions:
             # Skip if an identical pending review already exists.
             exists = db.scalar(
@@ -255,15 +267,19 @@ def create_reviews(
             )
             db.add(item)
             created.append(item)
-        notifications.notify(
-            db,
-            user_id=sid,
-            type="review_added",
-            title="Takrorlash uchun yangi mashqlar",
-            body="O'qituvchi sizga takrorlash uchun mashq(lar) qo'shdi.",
-            link="/review",
-            commit=False,
-        )
+            made += 1
+        # Only ping the student when something was actually added — re-adding
+        # questions they already have pending must not spam a notification.
+        if made:
+            notifications.notify(
+                db,
+                user_id=sid,
+                type="review_added",
+                title="Takrorlash uchun yangi mashqlar",
+                body="O'qituvchi sizga takrorlash uchun mashq(lar) qo'shdi.",
+                link="/review",
+                commit=False,
+            )
     db.commit()
     for it in created:
         db.refresh(it)

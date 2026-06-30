@@ -704,6 +704,8 @@ export function SubmissionResult() {
             {CORR_CAT_ORDER.map(({ cat, labelKey }) => {
               const group = shownCorr.filter((c) => corrCat(c.type) === cat);
               if (group.length === 0) return null;
+              // Badge shows the category's TRUE total, not just the shown slice.
+              const catTotal = corrections.filter((c) => corrCat(c.type) === cat).length;
               const ch = corrHue(cat);
               return (
                 <div key={cat} className="col gap-2">
@@ -729,7 +731,7 @@ export function SubmissionResult() {
                       {t(labelKey)}
                     </span>
                     <Pill hue={ch} size="sm">
-                      {group.length}
+                      {catTotal}
                     </Pill>
                   </div>
                   {group.map((c, i) => (

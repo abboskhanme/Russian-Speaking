@@ -19,7 +19,17 @@ from pydantic import BaseModel, Field
 from app.core.breaker import gemini_breaker
 from app.core.config import settings
 
-_client = genai.Client(api_key=settings.GEMINI_API_KEY)
+_client: genai.Client | None = None
+
+
+def _get_client() -> genai.Client:
+    """Lazily build the Gemini client on first use. Deferring construction keeps
+    the app importable (so the API still boots) when GEMINI_API_KEY is unset —
+    only the AI calls themselves fail, not the whole process."""
+    global _client
+    if _client is None:
+        _client = genai.Client(api_key=settings.GEMINI_API_KEY)
+    return _client
 
 # Gemini sometimes returns transient 503 (overloaded) / 429 (rate) errors.
 # Retry with backoff — this runs in a background Celery worker, so the wait is invisible to users.
@@ -193,7 +203,7 @@ def analyze(
 
     for attempt in range(_MAX_ATTEMPTS):
         try:
-            response = _client.models.generate_content(
+            response = _get_client().models.generate_content(
                 model=settings.GEMINI_MODEL,
                 contents=contents,
                 config=config,
@@ -248,7 +258,7 @@ def explain_answer(*, question_prompt: str, transcript_text: str) -> ExplainResu
     )
     for attempt in range(_MAX_ATTEMPTS):
         try:
-            response = _client.models.generate_content(
+            response = _get_client().models.generate_content(
                 model=settings.GEMINI_MODEL, contents=user_content, config=config
             )
             break
@@ -317,7 +327,7 @@ def generate_model_answer(
     )
     for attempt in range(_MAX_ATTEMPTS):
         try:
-            response = _client.models.generate_content(
+            response = _get_client().models.generate_content(
                 model=settings.GEMINI_MODEL, contents=user_content, config=config
             )
             break
@@ -418,7 +428,7 @@ def _generate_chunk(
     )
     for attempt in range(_MAX_ATTEMPTS):
         try:
-            response = _client.models.generate_content(
+            response = _get_client().models.generate_content(
                 model=settings.GEMINI_MODEL, contents=user_content, config=config
             )
             break

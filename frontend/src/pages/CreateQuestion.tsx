@@ -203,6 +203,8 @@ function CreateQuestionForm() {
         }
       }
       qc.invalidateQueries({ queryKey: ["questions"] });
+      // Assigning/changing block_id shifts a block's question_count.
+      qc.invalidateQueries({ queryKey: ["blocks"] });
       nav("/teacher/questions");
     } catch (err) {
       // A 413 from the upload proxy means the file exceeded the size limit.

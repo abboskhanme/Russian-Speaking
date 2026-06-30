@@ -38,6 +38,9 @@ function BlockBody({ block }: { block: QuestionBlock }) {
   const invalidate = () => {
     qc.invalidateQueries({ queryKey: ["block-questions", block.id] });
     qc.invalidateQueries({ queryKey: ["blocks"] });
+    // `addable` is derived from this list's cached block_id — refetch it so a
+    // just-removed question can be re-added and a just-added one disappears.
+    qc.invalidateQueries({ queryKey: ["questions", "mine"] });
   };
 
   const add = useMutation({
