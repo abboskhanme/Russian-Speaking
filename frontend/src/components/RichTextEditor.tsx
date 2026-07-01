@@ -101,6 +101,10 @@ export function RichTextEditor({
   const { t } = useI18n();
   const ref = useRef<HTMLDivElement>(null);
   const [active, setActive] = useState<Active>({});
+  // Current block format at the caret ("p" | "h1" | "h2" | "h3"). Drives the
+  // Format dropdown so it reflects — and defaults to Paragraph rather than a
+  // forced placeholder.
+  const [blockFmt, setBlockFmt] = useState("p");
   const [colorOpen, setColorOpen] = useState(false);
   const [hiliteOpen, setHiliteOpen] = useState(false);
   const [empty, setEmpty] = useState(isEmptyRich(value));
@@ -133,6 +137,15 @@ export function RichTextEditor({
       strike: q("strikeThrough"), ul: q("insertUnorderedList"), ol: q("insertOrderedList"),
       left: q("justifyLeft"), center: q("justifyCenter"), right: q("justifyRight"),
     });
+    // Reflect the caret's block in the Format dropdown. queryCommandValue
+    // returns the tag (h1/h2/h3/p/blockquote/…); anything that isn't a heading
+    // falls back to Paragraph so the control always has a valid default value.
+    let fmt = "p";
+    try {
+      const v = String(document.queryCommandValue("formatBlock") || "").toLowerCase();
+      if (v === "h1" || v === "h2" || v === "h3") fmt = v;
+    } catch { /* noop */ }
+    setBlockFmt(fmt);
   }, []);
 
   useEffect(() => {
@@ -207,19 +220,16 @@ export function RichTextEditor({
     <div className="rte-wrap">
       {/* Toolbar */}
       <div className="rte-toolbar">
+        {/* Stateful block-format control: shows the caret's current block and
+            defaults to Paragraph — a real, reselectable value, not a forced
+            placeholder. Picking an item applies it; `blockFmt` (kept in sync by
+            refreshActive) then displays what was chosen. */}
         <select
           className="rte-select"
           title={t("rteFormat")}
-          value=""
-          onChange={(e) => { const v = e.target.value; e.target.value = ""; setBlock(v); }}
+          value={blockFmt}
+          onChange={(e) => setBlock(e.target.value)}
         >
-          {/* Command menu: always shows this placeholder; picking an item runs
-              the action and the control snaps back to "" (it never holds a value).
-              We reset e.target.value BEFORE running the command: the controlled
-              value="" only re-syncs on a React re-render, which doesn't happen
-              when the command changes no HTML (empty/unfocused editor). Without
-              the manual reset the dropdown would stay stuck on the picked item. */}
-          <option value="" disabled hidden>{t("rteFormat")}</option>
           <option value="p">{t("rteParagraph")}</option>
           <option value="h1">{t("rteHeading")} 1</option>
           <option value="h2">{t("rteHeading")} 2</option>
