@@ -38,6 +38,10 @@ class Submission(Base, TimestampMixin):
     )
     error_message: Mapped[str | None] = mapped_column(Text, nullable=True)
     completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    # Exemplar answer generated FRESH for this attempt (a new variant each time),
+    # adapted to the task + its Russian style. Falls back to the question's stored
+    # model answer when this is null (older rows / generation failure).
+    model_answer_text: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     # Human-in-the-loop: a teacher's manual note and optional band override.
     teacher_comment: Mapped[str | None] = mapped_column(Text, nullable=True)

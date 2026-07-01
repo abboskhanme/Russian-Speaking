@@ -4,13 +4,31 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from app.api.deps import require_teacher_or_admin
+from app.api.deps import get_current_user, require_teacher_or_admin
 from app.db.session import get_db
 from app.models import Group, GroupMember, Submission, User, UserRole
-from app.schemas.user import PremiumUpdate, StudentManageOut
+from app.schemas.user import PremiumUpdate, StudentManageOut, TeacherContactOut
 from app.services import notifications
 
 router = APIRouter(prefix="/users", tags=["users"])
+
+
+@router.get("/my-teachers", response_model=list[TeacherContactOut])
+def my_teachers(
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> list[TeacherContactOut]:
+    """The current student's teachers (owners of the groups they belong to),
+    with contact details for the Contact (Bog'lanish) page."""
+    teachers = db.scalars(
+        select(User)
+        .join(Group, Group.teacher_id == User.id)
+        .join(GroupMember, GroupMember.group_id == Group.id)
+        .where(GroupMember.student_id == user.id)
+        .distinct()
+        .order_by(User.full_name)
+    ).all()
+    return [TeacherContactOut.model_validate(t) for t in teachers]
 
 
 def _roster_ids(teacher_id):

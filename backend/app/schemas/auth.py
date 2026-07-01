@@ -1,7 +1,7 @@
 import re
 import uuid
 
-from pydantic import BaseModel, ConfigDict, EmailStr, field_validator
+from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
 
 from app.models.enums import UserRole
 
@@ -102,6 +102,7 @@ class UserOut(BaseModel):
     email: EmailStr
     full_name: str
     phone: str | None = None
+    telegram: str | None = None
     age: int | None = None
     region: str | None = None
     district: str | None = None
@@ -119,6 +120,7 @@ class UserOut(BaseModel):
 class ProfileUpdate(BaseModel):
     full_name: str | None = None
     phone: str | None = None
+    telegram: str | None = Field(default=None, max_length=64)
     age: int | None = None
     region: str | None = None
     district: str | None = None

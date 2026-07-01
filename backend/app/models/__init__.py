@@ -3,6 +3,7 @@ from app.models.enums import (
     SubmissionStatus,
     UserRole,
 )
+from app.models.block import QuestionBlock
 from app.models.evaluation import Evaluation
 from app.models.gamification import Assignment, ReviewItem, XpEvent
 from app.models.group import Group, GroupMember
@@ -16,6 +17,7 @@ from app.models.user import User
 __all__ = [
     "User",
     "Question",
+    "QuestionBlock",
     "Submission",
     "Transcript",
     "Evaluation",

@@ -20,6 +20,9 @@ class User(Base, TimestampMixin):
     # can be created first and asked to complete it; the app then requires it for
     # students and teachers (see the complete-profile gate).
     phone: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    # Telegram handle/contact (e.g. "@username"). Shown to students on the
+    # teacher's contact card. Optional.
+    telegram: Mapped[str | None] = mapped_column(String(64), nullable=True)
     # Collected at student sign-up (mandatory there). Nullable so admin-created
     # teachers and Google sign-ups created before the address step stay valid.
     age: Mapped[int | None] = mapped_column(Integer, nullable=True)

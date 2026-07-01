@@ -17,6 +17,7 @@ import { AnswerQuestion } from "./pages/AnswerQuestion";
 import { SubmissionResult } from "./pages/SubmissionResult";
 import { Leaderboard } from "./pages/Leaderboard";
 import { Review } from "./pages/Review";
+import { Contact } from "./pages/Contact";
 import { Shadowing } from "./pages/Shadowing";
 import { Notifications } from "./pages/Notifications";
 import { StudentAssignments } from "./pages/StudentAssignments";
@@ -29,6 +30,8 @@ import { TeacherGroups } from "./pages/TeacherGroups";
 import { TeacherGroupDetail } from "./pages/TeacherGroupDetail";
 import { TeacherGradebook } from "./pages/TeacherGradebook";
 import { TeacherTopics } from "./pages/TeacherTopics";
+import { TeacherBlocks } from "./pages/TeacherBlocks";
+import { TeacherReview } from "./pages/TeacherReview";
 import { CreateQuestion } from "./pages/CreateQuestion";
 import { PremiumInfo } from "./pages/PremiumInfo";
 import { AdminDashboard } from "./pages/AdminDashboard";
@@ -84,8 +87,10 @@ function useNavItems(): NavItem[] {
     return [
       { to: "/teacher", icon: "home", label: t("navOverview") },
       { to: "/teacher/questions", icon: "message", label: t("navTests") },
+      { to: "/teacher/blocks", icon: "layers", label: t("navBlocks") },
       { to: "/teacher/groups", icon: "users", label: t("navGroups") },
       { to: "/teacher/submissions", icon: "headphones", label: t("navAnswers") },
+      { to: "/teacher/review", icon: "refresh", label: t("navTeacherReview") },
       { to: "/teacher/gradebook", icon: "grad", label: t("navGradebook") },
     ];
   return [
@@ -94,6 +99,7 @@ function useNavItems(): NavItem[] {
     { to: "/shadowing", icon: "headphones", label: t("navShadow") },
     { to: "/leaderboard", icon: "trophy", label: t("navRating") },
     { to: "/progress", icon: "chart", label: t("navProgress") },
+    { to: "/contact", icon: "phone", label: t("navContact") },
   ];
 }
 
@@ -114,9 +120,22 @@ function bestMatch(items: NavItem[], pathname: string): string {
 /* ─── Language switcher ─────────────────────────────────── */
 function LangSwitcher() {
   const { lang, setLang } = useI18n();
+  const { user, refreshUser } = useAuth();
   const [open, setOpen] = useState(false);
   const short: Record<Lang, string> = { uz: "Oʻz", ru: "Ру", en: "En" };
   const full: [Lang, string][] = [["uz", "Oʻzbekcha"], ["ru", "Русский"], ["en", "English"]];
+  // Persist the choice to the server too, so it survives reloads/other devices
+  // and LanguageSync never clobbers it back to a stale server value.
+  const choose = (code: Lang) => {
+    setLang(code);
+    setOpen(false);
+    if (user && user.preferred_language !== code) {
+      api
+        .patch("/auth/me", { preferred_language: code })
+        .then(() => refreshUser())
+        .catch(() => {});
+    }
+  };
   return (
     <div style={{ position: "relative" }}>
       <button
@@ -134,7 +153,7 @@ function LangSwitcher() {
             {full.map(([code, label]) => (
               <button
                 key={code}
-                onClick={() => { setLang(code); setOpen(false); }}
+                onClick={() => choose(code)}
                 className="tap"
                 style={{
                   display: "flex", width: "100%", alignItems: "center", gap: 10, padding: "9px 12px", borderRadius: "var(--r-sm)", border: "none",
@@ -415,6 +434,11 @@ function LanguageSync() {
   const { user } = useAuth();
   const { lang, setLang } = useI18n();
   useEffect(() => {
+    // Only adopt the server preference when the user has NEVER made an explicit
+    // local choice on this device. Once they pick a language (which writes
+    // russpeak_lang to localStorage), their choice always wins — otherwise this
+    // effect would clobber it back to a stale server value on every (re)load.
+    if (localStorage.getItem("russpeak_lang")) return;
     const pref = user?.preferred_language as Lang | undefined;
     if (pref && pref !== lang && ["uz", "ru", "en"].includes(pref)) setLang(pref);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -433,6 +457,7 @@ function AppRoutes() {
       <Route path="/progress" element={<StudentProgress />} />
       <Route path="/leaderboard" element={<Leaderboard />} />
       <Route path="/review" element={<Review />} />
+      <Route path="/contact" element={<Contact />} />
       <Route path="/shadowing" element={<Shadowing />} />
       <Route path="/notifications" element={<Notifications />} />
       <Route path="/assignments" element={<StudentAssignments />} />
@@ -447,6 +472,8 @@ function AppRoutes() {
       <Route path="/teacher/questions/new" element={<CreateQuestion />} />
       <Route path="/teacher/questions/:id/edit" element={<CreateQuestion />} />
       <Route path="/teacher/submissions" element={<TeacherSubmissions />} />
+      <Route path="/teacher/blocks" element={<TeacherBlocks />} />
+      <Route path="/teacher/review" element={<TeacherReview />} />
       <Route path="/teacher/topics" element={<TeacherTopics />} />
       <Route path="/admin" element={<AdminDashboard />} />
       <Route path="/admin/teachers" element={<AdminTeachers />} />

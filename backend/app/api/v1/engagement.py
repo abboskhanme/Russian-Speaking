@@ -9,6 +9,7 @@ from app.api.deps import get_current_user, require_teacher
 from app.db.session import get_db
 from app.models import (
     Assignment,
+    Group,
     GroupMember,
     Question,
     ReviewItem,
@@ -21,6 +22,7 @@ from app.schemas.gamification import (
     AssignmentCreate,
     AssignmentOut,
     LeaderboardEntry,
+    ReviewItemCreate,
     ReviewItemOut,
 )
 from app.services import notifications
@@ -182,6 +184,108 @@ def my_reviews(
             continue
         seen.add(it.question_id)
         q = qmap.get(it.question_id)
+        out.append(
+            ReviewItemOut(
+                id=it.id,
+                question_id=it.question_id,
+                question_title=q.title if q else None,
+                question_topic=q.topic if q else None,
+                question_level=q.level if q else None,
+                weakness_dim=it.weakness_dim,
+                due_at=it.due_at,
+            )
+        )
+    return out
+
+
+@router.post("/review", response_model=list[ReviewItemOut], status_code=status.HTTP_201_CREATED)
+def create_reviews(
+    payload: ReviewItemCreate,
+    teacher: User = Depends(require_teacher),
+    db: Session = Depends(get_db),
+) -> list[ReviewItemOut]:
+    """Teacher adds question(s) to a student's (or whole group's) review queue.
+
+    Items surface immediately (due now) and are tagged 'teacher'. Duplicates of an
+    already-pending item for the same (student, question) are skipped."""
+    # Validate the questions belong to this teacher (admin: any).
+    qstmt = select(Question).where(Question.id.in_(payload.question_ids))
+    if teacher.role != UserRole.admin:
+        qstmt = qstmt.where(Question.teacher_id == teacher.id)
+    questions = {q.id: q for q in db.scalars(qstmt).all()}
+    if not questions:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "No matching questions")
+
+    # Resolve target students: explicit ids ∪ a whole group's members.
+    target_ids = set(payload.student_ids)
+    if payload.group_id is not None:
+        target_ids.update(
+            db.scalars(
+                select(GroupMember.student_id).where(GroupMember.group_id == payload.group_id)
+            ).all()
+        )
+    # A teacher may only queue reviews for their OWN students (members of a group
+    # they own); admins may target anyone. Without this, a teacher could inject
+    # review items into any student's queue — and, since a pending review item
+    # unlocks submission of an assigned task, grant access to students they don't
+    # teach. Filtering target_ids through the roster covers both the explicit
+    # student_ids and group_id paths.
+    stmt = select(User.id).where(User.id.in_(target_ids), User.role == UserRole.student)
+    if teacher.role != UserRole.admin:
+        roster = (
+            select(GroupMember.student_id)
+            .join(Group, GroupMember.group_id == Group.id)
+            .where(Group.teacher_id == teacher.id)
+        )
+        stmt = stmt.where(User.id.in_(roster))
+    valid_ids = set(db.scalars(stmt).all())
+    if not valid_ids:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "No target students")
+
+    now = datetime.now(timezone.utc)
+    created: list[ReviewItem] = []
+    for sid in valid_ids:
+        made = 0
+        for qid in questions:
+            # Skip if an identical pending review already exists.
+            exists = db.scalar(
+                select(ReviewItem.id).where(
+                    ReviewItem.student_id == sid,
+                    ReviewItem.question_id == qid,
+                    ReviewItem.completed.is_(False),
+                )
+            )
+            if exists:
+                continue
+            item = ReviewItem(
+                student_id=sid,
+                question_id=qid,
+                weakness_dim="teacher",
+                interval_index=0,
+                due_at=now,
+                completed=False,
+            )
+            db.add(item)
+            created.append(item)
+            made += 1
+        # Only ping the student when something was actually added — re-adding
+        # questions they already have pending must not spam a notification.
+        if made:
+            notifications.notify(
+                db,
+                user_id=sid,
+                type="review_added",
+                title="Takrorlash uchun yangi mashqlar",
+                body="O'qituvchi sizga takrorlash uchun mashq(lar) qo'shdi.",
+                link="/review",
+                commit=False,
+            )
+    db.commit()
+    for it in created:
+        db.refresh(it)
+    out: list[ReviewItemOut] = []
+    for it in created:
+        q = questions.get(it.question_id)
         out.append(
             ReviewItemOut(
                 id=it.id,

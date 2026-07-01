@@ -1,9 +1,20 @@
 import uuid
 from datetime import datetime
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from app.models.enums import QuestionType
+
+_RU_STYLES = {"regular", "live"}
+
+
+def _norm_style(v: str | None) -> str | None:
+    s = (v or "").strip().lower()
+    if not s:
+        return None
+    if s not in _RU_STYLES:
+        raise ValueError("ru_style must be 'regular' or 'live'")
+    return s
 
 
 class QuestionCreate(BaseModel):
@@ -13,6 +24,9 @@ class QuestionCreate(BaseModel):
     prompt_text: str = Field(min_length=1, max_length=20000)
     level: str | None = Field(default=None, max_length=8)
     topic: str | None = Field(default=None, max_length=100)
+    # Optional block membership + Russian style ("regular" | "live").
+    block_id: uuid.UUID | None = None
+    ru_style: str | None = Field(default=None, max_length=8)
     prep_time_sec: int = 30
     answer_time_limit_sec: int = 120
     is_published: bool = False
@@ -20,17 +34,29 @@ class QuestionCreate(BaseModel):
     is_public: bool = False
     model_answer_text: str | None = Field(default=None, max_length=10000)
 
+    @field_validator("ru_style")
+    @classmethod
+    def _v_style(cls, v: str | None) -> str | None:
+        return _norm_style(v)
+
 
 class QuestionUpdate(BaseModel):
     title: str | None = Field(default=None, min_length=1, max_length=200)
     prompt_text: str | None = Field(default=None, min_length=1, max_length=20000)
     level: str | None = Field(default=None, max_length=8)
     topic: str | None = Field(default=None, max_length=100)
+    block_id: uuid.UUID | None = None
+    ru_style: str | None = Field(default=None, max_length=8)
     prep_time_sec: int | None = None
     answer_time_limit_sec: int | None = None
     is_published: bool | None = None
     is_public: bool | None = None
     model_answer_text: str | None = Field(default=None, max_length=10000)
+
+    @field_validator("ru_style")
+    @classmethod
+    def _v_style(cls, v: str | None) -> str | None:
+        return _norm_style(v)
 
 
 class QuestionOut(BaseModel):
@@ -46,6 +72,8 @@ class QuestionOut(BaseModel):
     media_url: str | None = None
     level: str | None
     topic: str | None
+    block_id: uuid.UUID | None = None
+    ru_style: str | None = None
     prep_time_sec: int
     answer_time_limit_sec: int
     is_published: bool
@@ -66,7 +94,8 @@ class MediaUploadURL(BaseModel):
 
 class QuestionGenerateRequest(BaseModel):
     levels: list[str] = Field(min_length=1, max_length=6)
-    topics: list[str] = Field(min_length=1, max_length=30)
+    # Topic is optional — empty means "no specific topic" (one general cell).
+    topics: list[str] = Field(default_factory=list, max_length=30)
     types: list[QuestionType] = Field(default_factory=lambda: [QuestionType.text], min_length=1)
     count_per_cell: int = Field(default=5, ge=1, le=50)
     answer_time_limit_sec: int = Field(default=120, ge=30, le=600)

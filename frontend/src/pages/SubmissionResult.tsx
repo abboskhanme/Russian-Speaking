@@ -6,13 +6,7 @@ import { useAuth } from "../lib/auth";
 import { useI18n } from "../lib/i18n";
 import { useStudentStats } from "../lib/useStats";
 import { freeAttemptsLeft } from "../lib/plan";
-import type {
-  ExplainResult,
-  Question,
-  Submission,
-  Transcript,
-  TranscriptWord,
-} from "../lib/types";
+import type { ExplainResult, Question, Submission, Transcript } from "../lib/types";
 import {
   Avatar,
   Bar,
@@ -25,26 +19,13 @@ import {
   Mascot,
   Pill,
   Ring,
-  WordTranscript,
   bandColor,
   fmt,
   inp,
-  type WordSeg,
 } from "../components/govori";
 import { RichText } from "../components/RichTextEditor";
 
 const BAND_OPTIONS = Array.from({ length: 21 }, (_, i) => i * 5); // 0, 5 … 100
-
-// Native-likeness % → descriptive band label key (mirrors the rubric's scale).
-// Return type is inferred as the literal-key union so it satisfies t()'s key param.
-function nativeBandKey(pct: number) {
-  if (pct <= 20) return "nl_beginner";
-  if (pct <= 40) return "nl_basic";
-  if (pct <= 60) return "nl_confident";
-  if (pct <= 80) return "nl_advanced";
-  if (pct <= 90) return "nl_near_native";
-  return "nl_native";
-}
 
 // Hue per correction type so each tag reads at a glance.
 function corrHue(type: string): number {
@@ -65,33 +46,31 @@ function corrHue(type: string): number {
   }
 }
 
-/** Map a per-word accuracy (0–100) to the Govori transcript tone. Unscored words
- *  are "neutral" (plain), never green — so green always means good pronunciation. */
-function pronTone(acc: number | null): WordSeg["pron"] {
-  if (acc == null) return "neutral";
-  if (acc >= 80) return "good";
-  if (acc >= 60) return "mid";
-  return "low";
+type CorrCat = "grammar" | "lexis" | "word_order" | "other";
+
+// Bucket each correction into a section so errors are shown grouped by category.
+function corrCat(type: string): CorrCat {
+  switch (type) {
+    case "grammar":
+      return "grammar";
+    case "lexis":
+    case "lexical":
+    case "vocabulary":
+      return "lexis";
+    case "word_order":
+      return "word_order";
+    default:
+      return "other";
+  }
 }
 
-/** Build WordTranscript segments from real per-word transcript data. */
-function toWordSegs(words: TranscriptWord[]): WordSeg[] {
-  return words
-    .filter((w) => w && w.word)
-    .map((w) => ({
-      w: w.word,
-      pron: pronTone(w.accuracy),
-      note: w.accuracy != null ? `${Math.round(w.accuracy)}%` : undefined,
-      // Per-letter breakdown so the learner sees exactly which sounds were off.
-      phonemes: (w.phonemes ?? [])
-        .filter((p) => p && p.phoneme)
-        .map((p) => ({
-          ph: p.phoneme,
-          pron: pronTone(p.accuracy),
-          note: p.accuracy != null ? `${Math.round(p.accuracy)}%` : undefined,
-        })),
-    }));
-}
+// Section order + their i18n label keys.
+const CORR_CAT_ORDER: { cat: CorrCat; labelKey: "errCatGrammar" | "errCatLexis" | "errCatWordOrder" | "errCatOther" }[] = [
+  { cat: "grammar", labelKey: "errCatGrammar" },
+  { cat: "lexis", labelKey: "errCatLexis" },
+  { cat: "word_order", labelKey: "errCatWordOrder" },
+  { cat: "other", labelKey: "errCatOther" },
+];
 
 /* ── Custom audio player with a decorative waveform ── */
 function AudioPlayer({ url, duration }: { url: string; duration: number | null }) {
@@ -154,12 +133,10 @@ function AudioPlayer({ url, duration }: { url: string; duration: number | null }
   );
 }
 
-/* ── Transcript card: per-word pronunciation when available, else plain text ── */
+/* ── Transcript card: plain text of what the student said ── */
 function TranscriptCard({ transcript }: { transcript: Transcript }) {
   const { t } = useI18n();
   const [open, setOpen] = useState(false);
-  const words = (transcript.word_timestamps ?? []).filter((w) => w && w.word);
-  const hasWordScores = words.some((w) => w.accuracy != null);
 
   return (
     <Card style={{ marginBottom: 16 }}>
@@ -194,43 +171,9 @@ function TranscriptCard({ transcript }: { transcript: Transcript }) {
 
       {open && (
         <div className="anim-fade-in" style={{ marginTop: 16 }}>
-          {hasWordScores ? (
-            <>
-              <div className="row gap-4 wrap" style={{ marginBottom: 14 }}>
-                {[
-                  ["var(--pron-good)", t("pronGood"), "80–100%"],
-                  ["var(--pron-mid)", t("pronOk"), "60–79%"],
-                  ["var(--pron-low)", t("pronWeak"), "0–59%"],
-                  ["var(--muted)", t("pronNone"), ""],
-                ].map((l, i) => (
-                  <span key={i} className="row gap-2" style={{ fontSize: 12.5, color: "var(--muted)" }}>
-                    <span style={{ width: 12, height: 12, borderRadius: 4, background: l[0] }} />
-                    <span style={{ fontWeight: 700, color: "var(--ink-soft)" }}>{l[1]}</span>
-                    {l[2] && <span style={{ opacity: 0.7 }}>{l[2]}</span>}
-                  </span>
-                ))}
-              </div>
-              <WordTranscript words={toWordSegs(words)} />
-              <div
-                className="row gap-2"
-                style={{
-                  marginTop: 14,
-                  padding: 12,
-                  background: "var(--surface-2)",
-                  borderRadius: "var(--r-sm)",
-                  fontSize: 13,
-                  color: "var(--muted)",
-                }}
-              >
-                <Icon name="bulb" size={16} style={{ color: "var(--amber)" }} />
-                {t("pronHint")}
-              </div>
-            </>
-          ) : (
-            <p style={{ fontSize: 16, lineHeight: 1.7, color: "var(--ink)", whiteSpace: "pre-wrap" }}>
-              «{transcript.text}»
-            </p>
-          )}
+          <p style={{ fontSize: 16, lineHeight: 1.7, color: "var(--ink)", whiteSpace: "pre-wrap" }}>
+            «{transcript.text}»
+          </p>
         </div>
       )}
     </Card>
@@ -444,17 +387,14 @@ export function SubmissionResult() {
   const shownCorr = showAllErrors ? corrections : corrections.slice(0, 3);
   const noAttemptsLeft = isStudent && !user?.is_premium && freeAttemptsLeft(user ?? null, totalCount) <= 0;
 
+  // Text-based criteria only — delivery scores (pronunciation, naturalness,
+  // pace, intonation, native-likeness) were removed.
   const criteria: { label: string; value: number | null }[] = [
     { label: t("fluency"), value: ev?.fluency_score ?? null },
     { label: t("lexical"), value: ev?.lexical_score ?? null },
     { label: t("grammar"), value: ev?.grammar_score ?? null },
     { label: t("relevance"), value: ev?.relevance_score ?? null },
-    { label: t("pronunciation"), value: ev?.pronunciation_score ?? null },
-    { label: t("naturalness"), value: ev?.naturalness_score ?? null },
-    { label: t("speech_rate"), value: ev?.speech_rate_score ?? null },
-    { label: t("intonation"), value: ev?.intonation_score ?? null },
   ].filter((c) => c.value != null);
-  const nativeLikeness = ev?.native_likeness ?? null;
 
   return (
     <div className="focus-wrap anim-fade-in" style={{ maxWidth: 880, marginInline: "auto" }}>
@@ -644,38 +584,6 @@ export function SubmissionResult() {
             </div>
           )}
 
-          {/* Native-likeness — how close the delivery is to live colloquial Russian */}
-          {nativeLikeness != null && (
-            <div
-              style={{
-                padding: "16px clamp(16px, 4vw, 30px)",
-                borderTop: "1px solid var(--line)",
-              }}
-            >
-              <div className="row between" style={{ marginBottom: 8, gap: 12 }}>
-                <div className="col gap-1">
-                  <span style={{ fontSize: 12.5, fontWeight: 700, color: "var(--ink-soft)" }}>
-                    {t("native_likeness")}
-                  </span>
-                  <span style={{ fontSize: 11.5, fontWeight: 700, color: "var(--ink-mute)" }}>
-                    {t(nativeBandKey(nativeLikeness))}
-                  </span>
-                </div>
-                <span
-                  style={{
-                    fontSize: 22,
-                    fontWeight: 900,
-                    fontFamily: "var(--font-display)",
-                    color: `oklch(0.5 0.15 ${bandColor(nativeLikeness)})`,
-                    whiteSpace: "nowrap",
-                  }}
-                >
-                  {Math.round(nativeLikeness)}%
-                </span>
-              </div>
-              <Bar value={nativeLikeness} hue={bandColor(nativeLikeness)} height={9} />
-            </div>
-          )}
         </Card>
       )}
 
@@ -791,59 +699,93 @@ export function SubmissionResult() {
               {corrections.length}
             </Pill>
           </div>
-          <div className="col gap-2">
-            {shownCorr.map((c, i) => {
-              const ch = corrHue(c.type);
+          {/* Errors grouped by section (grammar, lexis, word order, …) */}
+          <div className="col gap-4">
+            {CORR_CAT_ORDER.map(({ cat, labelKey }) => {
+              const group = shownCorr.filter((c) => corrCat(c.type) === cat);
+              if (group.length === 0) return null;
+              // Badge shows the category's TRUE total, not just the shown slice.
+              const catTotal = corrections.filter((c) => corrCat(c.type) === cat).length;
+              const ch = corrHue(cat);
               return (
-                <div
-                  key={i}
-                  className="row gap-3"
-                  style={{
-                    alignItems: "flex-start",
-                    padding: 13,
-                    background: "var(--surface-2)",
-                    borderRadius: "var(--r-sm)",
-                  }}
-                >
-                  <div
-                    style={{
-                      width: 26,
-                      height: 26,
-                      borderRadius: 8,
-                      background: `oklch(0.94 0.05 ${ch})`,
-                      color: `oklch(0.5 0.15 ${ch})`,
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      flexShrink: 0,
-                      fontSize: 13,
-                      fontWeight: 900,
-                      fontFamily: "var(--font-display)",
-                    }}
-                  >
-                    {i + 1}
+                <div key={cat} className="col gap-2">
+                  <div className="row gap-2" style={{ alignItems: "center" }}>
+                    <span
+                      style={{
+                        width: 10,
+                        height: 10,
+                        borderRadius: 3,
+                        background: `oklch(0.6 0.16 ${ch})`,
+                        flexShrink: 0,
+                      }}
+                    />
+                    <span
+                      style={{
+                        fontSize: 12.5,
+                        fontWeight: 800,
+                        textTransform: "uppercase",
+                        letterSpacing: "0.04em",
+                        color: "var(--ink-soft)",
+                      }}
+                    >
+                      {t(labelKey)}
+                    </span>
+                    <Pill hue={ch} size="sm">
+                      {catTotal}
+                    </Pill>
                   </div>
-                  <div className="col gap-1" style={{ minWidth: 0 }}>
-                    <div className="row gap-2 wrap" style={{ alignItems: "baseline" }}>
-                      <span
+                  {group.map((c, i) => (
+                    <div
+                      key={i}
+                      className="row gap-3"
+                      style={{
+                        alignItems: "flex-start",
+                        padding: 13,
+                        background: "var(--surface-2)",
+                        borderRadius: "var(--r-sm)",
+                      }}
+                    >
+                      <div
                         style={{
-                          fontSize: 15,
-                          fontWeight: 700,
-                          color: "var(--muted)",
-                          textDecoration: "line-through",
+                          width: 26,
+                          height: 26,
+                          borderRadius: 8,
+                          background: `oklch(0.94 0.05 ${ch})`,
+                          color: `oklch(0.5 0.15 ${ch})`,
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          flexShrink: 0,
+                          fontSize: 13,
+                          fontWeight: 900,
+                          fontFamily: "var(--font-display)",
                         }}
                       >
-                        {c.original}
-                      </span>
-                      <Icon name="chevR" size={14} style={{ color: "var(--faint)" }} />
-                      <span style={{ fontSize: 15, fontWeight: 800, color: "var(--success)" }}>
-                        {c.corrected}
-                      </span>
+                        {i + 1}
+                      </div>
+                      <div className="col gap-1" style={{ minWidth: 0 }}>
+                        <div className="row gap-2 wrap" style={{ alignItems: "baseline" }}>
+                          <span
+                            style={{
+                              fontSize: 15,
+                              fontWeight: 700,
+                              color: "var(--muted)",
+                              textDecoration: "line-through",
+                            }}
+                          >
+                            {c.original}
+                          </span>
+                          <Icon name="chevR" size={14} style={{ color: "var(--faint)" }} />
+                          <span style={{ fontSize: 15, fontWeight: 800, color: "var(--success)" }}>
+                            {c.corrected}
+                          </span>
+                        </div>
+                        {c.explanation && (
+                          <span style={{ fontSize: 13.5, color: "var(--muted)" }}>{c.explanation}</span>
+                        )}
+                      </div>
                     </div>
-                    {c.explanation && (
-                      <span style={{ fontSize: 13.5, color: "var(--muted)" }}>{c.explanation}</span>
-                    )}
-                  </div>
+                  ))}
                 </div>
               );
             })}
@@ -887,20 +829,7 @@ export function SubmissionResult() {
         </Card>
       )}
 
-      {/* Pronunciation & delivery — Gemini's analysis of the actual audio */}
-      {fb?.pronunciation_feedback && (
-        <Card style={{ marginBottom: 16 }}>
-          <div className="row gap-2" style={{ marginBottom: 10, alignItems: "center" }}>
-            <Icon name="speak" size={20} style={{ color: "var(--primary)" }} />
-            <h3 style={{ fontSize: 18 }}>{t("pronFeedback")}</h3>
-          </div>
-          <p style={{ fontSize: 15, lineHeight: 1.6, color: "var(--ink)", whiteSpace: "pre-wrap" }}>
-            {fb.pronunciation_feedback}
-          </p>
-        </Card>
-      )}
-
-      {/* Transcript + per-word pronunciation */}
+      {/* Transcript */}
       {sub.transcript?.text && <TranscriptCard transcript={sub.transcript} />}
 
       {/* Model answer */}

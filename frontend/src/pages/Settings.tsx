@@ -55,7 +55,9 @@ export function Settings() {
   const nav = useNavigate();
 
   const [name, setName] = useState(user?.full_name ?? "");
+  const [telegram, setTelegram] = useState(user?.telegram ?? "");
   const [password, setPassword] = useState("");
+  const isTeacher = user?.role === "teacher" || user?.role === "admin";
   const [savingProfile, setSavingProfile] = useState(false);
   const [savedMsg, setSavedMsg] = useState(false);
 
@@ -92,6 +94,7 @@ export function Settings() {
       await api.patch("/auth/me", {
         full_name: name || undefined,
         password: password || undefined,
+        ...(isTeacher ? { telegram } : {}),
       });
       await refreshUser();
       setPassword("");
@@ -126,6 +129,18 @@ export function Settings() {
               <span style={{ fontSize: 13, fontWeight: 800, color: "var(--ink-soft)" }}>{t("fullName")}</span>
               <input value={name} onChange={(e) => setName(e.target.value)} style={inp} />
             </label>
+            {isTeacher && (
+              <label className="col gap-2">
+                <span style={{ fontSize: 13, fontWeight: 800, color: "var(--ink-soft)" }}>{t("telegram")}</span>
+                <input
+                  value={telegram}
+                  onChange={(e) => setTelegram(e.target.value)}
+                  placeholder="@username"
+                  style={inp}
+                />
+                <span style={{ fontSize: 12, color: "var(--muted)" }}>{t("telegramHint")}</span>
+              </label>
+            )}
             <label className="col gap-2">
               <span style={{ fontSize: 13, fontWeight: 800, color: "var(--ink-soft)" }}>{t("changePassword")}</span>
               <input

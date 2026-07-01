@@ -20,3 +20,15 @@ class StudentManageOut(BaseModel):
 
 class PremiumUpdate(BaseModel):
     is_premium: bool
+
+
+class TeacherContactOut(BaseModel):
+    """A teacher's contact card, shown to their students on the Contact page."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    full_name: str
+    email: EmailStr | None = None
+    phone: str | None = None
+    telegram: str | None = None

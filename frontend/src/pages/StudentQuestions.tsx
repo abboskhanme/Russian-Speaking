@@ -31,6 +31,7 @@ export function StudentQuestions() {
   const nav = useNavigate();
   const [level, setLevel] = useState("");
   const [topic, setTopic] = useState("");
+  const [ruStyle, setRuStyle] = useState("");
 
   const { data: topics } = useQuery({
     queryKey: ["topics"],
@@ -38,11 +39,12 @@ export function StudentQuestions() {
   });
 
   const { data, isLoading } = useQuery({
-    queryKey: ["questions", "published", level, topic],
+    queryKey: ["questions", "published", level, topic, ruStyle],
     queryFn: async () => {
       const params: Record<string, string> = {};
       if (level) params.level = level;
       if (topic) params.topic = topic;
+      if (ruStyle) params.ru_style = ruStyle;
       return (await api.get<Question[]>("/questions", { params })).data;
     },
   });
@@ -55,6 +57,11 @@ export function StudentQuestions() {
     { value: "", label: t("allTopics") },
     ...(topics ?? []).map((tp) => ({ value: tp, label: tp })),
   ];
+  const styleOptions: DropdownOption<string>[] = [
+    { value: "", label: t("ruStyleAll") },
+    { value: "regular", label: t("ruRegular") },
+    { value: "live", label: t("ruLive") },
+  ];
 
   return (
     <div className="focus-wrap anim-fade-up">
@@ -63,6 +70,7 @@ export function StudentQuestions() {
         sub={t("tagline")}
         action={
           <div className="row gap-2 wrap">
+            <Dropdown value={ruStyle} onChange={setRuStyle} options={styleOptions} className="w-48" />
             <Dropdown value={level} onChange={setLevel} options={levelOptions} className="w-40" />
             {!!topics?.length && (
               <Dropdown value={topic} onChange={setTopic} options={topicOptions} className="w-48" />

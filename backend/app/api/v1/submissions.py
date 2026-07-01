@@ -11,7 +11,7 @@ from app.api.v1.questions import active_assignment
 from app.core.ratelimit import rate_limit
 from app.core.config import settings
 from app.db.session import get_db
-from app.models import Group, GroupMember, Question, Submission, User, UserRole
+from app.models import Group, GroupMember, Question, ReviewItem, Submission, User, UserRole
 from app.schemas.gamification import ExplainOut
 from app.schemas.submission import (
     AudioUploadURL,
@@ -61,7 +61,10 @@ def _to_out(sub: Submission) -> SubmissionOut:
         out.question_title = sub.question.title
         out.question_topic = sub.question.topic
         out.question_level = sub.question.level
-        out.model_answer_text = sub.question.model_answer_text
+    # Prefer the fresh per-attempt exemplar; fall back to the question's stored one.
+    out.model_answer_text = sub.model_answer_text or (
+        sub.question.model_answer_text if sub.question is not None else None
+    )
     return out
 
 
@@ -118,12 +121,21 @@ def create_submission(
     else:
         # Assigned task → must have a still-open assignment; no freemium gate.
         # Admin (super-user) may answer any task even without an assignment.
+        # A teacher-added review item also unlocks the task (so review works).
         assignment = active_assignment(db, student.id, q.id)
         if assignment is None and student.role != UserRole.admin:
-            raise HTTPException(
-                status.HTTP_403_FORBIDDEN,
-                "This task isn't assigned to you, or its deadline has passed.",
+            in_review = db.scalar(
+                select(ReviewItem.id).where(
+                    ReviewItem.student_id == student.id,
+                    ReviewItem.question_id == q.id,
+                    ReviewItem.completed.is_(False),
+                )
             )
+            if in_review is None:
+                raise HTTPException(
+                    status.HTTP_403_FORBIDDEN,
+                    "This task isn't assigned to you, or its deadline has passed.",
+                )
 
     sub = Submission(
         student_id=student.id,

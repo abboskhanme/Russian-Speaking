@@ -232,6 +232,8 @@ def update_me(
         user.full_name = payload.full_name
     if payload.phone is not None:
         user.phone = payload.phone  # normalised by the schema validator
+    if payload.telegram is not None:
+        user.telegram = payload.telegram.strip() or None
     if payload.age is not None:
         user.age = payload.age
     if payload.region is not None:

@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 # ─── Leaderboard ───────────────────────────────────────────────────────────
@@ -24,6 +24,13 @@ class ReviewItemOut(BaseModel):
     question_level: str | None = None
     weakness_dim: str
     due_at: datetime
+
+
+# Teacher manually adds question(s) to a student's (or group's) review queue.
+class ReviewItemCreate(BaseModel):
+    question_ids: list[uuid.UUID] = Field(min_length=1, max_length=200)
+    student_ids: list[uuid.UUID] = []
+    group_id: uuid.UUID | None = None
 
 
 # ─── Explain my answer ─────────────────────────────────────────────────────
