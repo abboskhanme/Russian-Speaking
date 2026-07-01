@@ -211,10 +211,14 @@ export function RichTextEditor({
           className="rte-select"
           title={t("rteFormat")}
           value=""
-          onChange={(e) => setBlock(e.target.value)}
+          onChange={(e) => { const v = e.target.value; e.target.value = ""; setBlock(v); }}
         >
           {/* Command menu: always shows this placeholder; picking an item runs
-              the action and the control snaps back to "" (it never holds a value). */}
+              the action and the control snaps back to "" (it never holds a value).
+              We reset e.target.value BEFORE running the command: the controlled
+              value="" only re-syncs on a React re-render, which doesn't happen
+              when the command changes no HTML (empty/unfocused editor). Without
+              the manual reset the dropdown would stay stuck on the picked item. */}
           <option value="" disabled hidden>{t("rteFormat")}</option>
           <option value="p">{t("rteParagraph")}</option>
           <option value="h1">{t("rteHeading")} 1</option>
@@ -226,7 +230,7 @@ export function RichTextEditor({
           className="rte-select"
           title={t("rteSize")}
           value=""
-          onChange={(e) => exec("fontSize", e.target.value)}
+          onChange={(e) => { const v = e.target.value; e.target.value = ""; exec("fontSize", v); }}
         >
           <option value="" disabled hidden>{t("rteSize")}</option>
           <option value="2">{t("rteSmall")}</option>
@@ -273,7 +277,7 @@ export function RichTextEditor({
           className="rte-select"
           title={t("rteList")}
           value=""
-          onChange={(e) => setList(e.target.value)}
+          onChange={(e) => { const v = e.target.value; e.target.value = ""; setList(v); }}
         >
           <option value="" disabled hidden>{t("rteList")}</option>
           <option value="none">{t("rteListNone")}</option>
