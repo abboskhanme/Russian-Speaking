@@ -92,3 +92,9 @@ class SubmissionOut(BaseModel):
 class TeacherFeedback(BaseModel):
     comment: str | None = Field(default=None, max_length=2000)
     band: float | None = Field(default=None, ge=0, le=100)  # 0–100 override
+
+
+class ModelAnswerOut(BaseModel):
+    """A freshly generated exemplar-answer variant for a submission's task."""
+
+    text: str

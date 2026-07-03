@@ -181,12 +181,15 @@ def list_questions(
     type: QuestionType | None = None,
     level: str | None = None,
     topic: str | None = None,
+    block_id: uuid.UUID | None = Query(default=None),
     published_only: bool = Query(default=False),
     teacher_id: uuid.UUID | None = Query(default=None),
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> list[QuestionOut]:
     stmt = select(Question).where(Question.is_deleted.is_(False))
+    if block_id is not None:
+        stmt = stmt.where(Question.block_id == block_id)
     # Students browse only OPEN published questions (any teacher). Assigned
     # tasks never appear here — they're reached via assignments. Teachers see
     # only their own. Admin sees everything (or one teacher's via teacher_id).
@@ -204,7 +207,11 @@ def list_questions(
         stmt = stmt.where(Question.level == level)
     if topic:
         stmt = stmt.where(Question.topic == topic)
-    stmt = stmt.order_by(Question.created_at.desc())
+    # Inside a module → manual drag-and-drop order; otherwise newest first.
+    if block_id is not None:
+        stmt = stmt.order_by(Question.sort_order, Question.created_at)
+    else:
+        stmt = stmt.order_by(Question.created_at.desc())
     out = [_to_out(q) for q in db.scalars(stmt).all()]
     if user.role == UserRole.student:
         for o in out:  # never leak the exemplar answer before submitting
@@ -309,6 +316,7 @@ def duplicate_question(
         teacher_id=teacher.id,
         type=src.type,
         title=f"{src.title} (копия)"[:255],
+        instruction_text=src.instruction_text,
         prompt_text=src.prompt_text,
         media_key=src.media_key,
         level=src.level,

@@ -8,6 +8,7 @@ import { useStudentStats } from "../lib/useStats";
 import { freeAttemptsLeft } from "../lib/plan";
 import type {
   ExplainResult,
+  OrthoepyError,
   Question,
   Submission,
   Transcript,
@@ -37,15 +38,6 @@ const BAND_OPTIONS = Array.from({ length: 21 }, (_, i) => i * 5); // 0, 5 … 10
 
 // Native-likeness % → descriptive band label key (mirrors the rubric's scale).
 // Return type is inferred as the literal-key union so it satisfies t()'s key param.
-function nativeBandKey(pct: number) {
-  if (pct <= 20) return "nl_beginner";
-  if (pct <= 40) return "nl_basic";
-  if (pct <= 60) return "nl_confident";
-  if (pct <= 80) return "nl_advanced";
-  if (pct <= 90) return "nl_near_native";
-  return "nl_native";
-}
-
 // Hue per correction type so each tag reads at a glance.
 function corrHue(type: string): number {
   switch (type) {
@@ -155,6 +147,51 @@ function AudioPlayer({ url, duration }: { url: string; duration: number | null }
 }
 
 /* ── Transcript card: per-word pronunciation when available, else plain text ── */
+// Words the learner read AS SPELLED (written ≠ spoken). AI-detected from audio.
+function OrthoepyCard({ errors }: { errors: OrthoepyError[] }) {
+  const { t } = useI18n();
+  return (
+    <Card style={{ marginBottom: 16 }}>
+      <div className="row gap-2" style={{ marginBottom: 6, alignItems: "center" }}>
+        <Icon name="speak" size={20} style={{ color: "oklch(0.6 0.16 28)" }} />
+        <h3 style={{ fontSize: 18 }}>{t("orthoepyTitle")}</h3>
+        <Pill hue={28} size="sm">{errors.length}</Pill>
+      </div>
+      <p style={{ fontSize: 13.5, color: "var(--muted)", marginBottom: 12 }}>{t("orthoepyHint")}</p>
+      <div className="col gap-2">
+        {errors.map((e, i) => (
+          <div
+            key={i}
+            className="col gap-1"
+            style={{ padding: 13, background: "var(--surface-2)", borderRadius: "var(--r-sm)" }}
+          >
+            <div className="row gap-2 wrap" style={{ alignItems: "baseline" }}>
+              <span style={{ fontSize: 16, fontWeight: 800, color: "var(--ink)" }}>
+                {e.word_with_stress || e.word}
+              </span>
+              {e.said && (
+                <span style={{ fontSize: 14, fontWeight: 700, color: "var(--muted)", textDecoration: "line-through" }}>
+                  {e.said}
+                </span>
+              )}
+              <Icon name="chevR" size={14} style={{ color: "var(--faint)" }} />
+              <span style={{ fontSize: 15, fontWeight: 800, color: "var(--success)" }}>
+                {e.correct}
+              </span>
+            </div>
+            {e.rule_uz && (
+              <span style={{ fontSize: 13.5, color: "var(--ink-soft)" }}>{e.rule_uz}</span>
+            )}
+            {e.rule_ru && (
+              <span style={{ fontSize: 12.5, color: "var(--muted)" }}>{e.rule_ru}</span>
+            )}
+          </div>
+        ))}
+      </div>
+    </Card>
+  );
+}
+
 function TranscriptCard({ transcript }: { transcript: Transcript }) {
   const { t } = useI18n();
   const [open, setOpen] = useState(false);
@@ -241,7 +278,7 @@ export function SubmissionResult() {
   const { id } = useParams<{ id: string }>();
   const { t } = useI18n();
   const { user } = useAuth();
-  const { totalCount } = useStudentStats();
+  const { totalCount, level: stableLevel } = useStudentStats();
   const nav = useNavigate();
   const isStudent = user?.role === "student";
   const qc = useQueryClient();
@@ -275,6 +312,14 @@ export function SubmissionResult() {
     mutationFn: async () =>
       (await api.post<ExplainResult>(`/submissions/${sub!.id}/explain`)).data,
     onSuccess: (data) => setExplanation(data),
+  });
+
+  // A fresh, task-fitting model-answer variant (new wording each request).
+  const [variantText, setVariantText] = useState<string | null>(null);
+  const modelVariantMut = useMutation({
+    mutationFn: async () =>
+      (await api.post<{ text: string }>(`/submissions/${sub!.id}/model-answer`)).data,
+    onSuccess: (d) => setVariantText(d.text),
   });
 
   // Initialize feedback fields once the submission loads.
@@ -422,6 +467,9 @@ export function SubmissionResult() {
             </Card>
           );
         })()}
+        {sub.transcript?.pronunciation?.orthoepy_errors?.length ? (
+          <OrthoepyCard errors={sub.transcript.pronunciation.orthoepy_errors} />
+        ) : null}
         {sub.transcript && <TranscriptCard transcript={sub.transcript} />}
         <Button full icon="refresh" onClick={() => nav("/shadowing")}>
           {t("shadowTitle")}
@@ -434,6 +482,9 @@ export function SubmissionResult() {
   const fb = ev?.feedback;
   const band = ev?.overall_band ?? 0; // absolute, vs C2
   const levelScore = ev?.level_score ?? null; // relative to the task's CEFR level
+  // "Your level" ring shows the STABLE rolling level (doesn't jump each answer);
+  // falls back to this answer's level until the stats list includes it.
+  const shownLevel = stableLevel ?? levelScore;
   const hue = bandColor(band);
   // Celebrate / reward by the level-relative score so beginners stay motivated.
   const moodScore = levelScore ?? band;
@@ -442,19 +493,44 @@ export function SubmissionResult() {
   const tips = (fb?.improvements?.length ? fb.improvements : [t("tip1"), t("tip2"), t("tip3")]).slice(0, 3);
   const corrections = ev?.corrections ?? [];
   const shownCorr = showAllErrors ? corrections : corrections.slice(0, 3);
+  // Group the shown errors by section (grammar / lexis / word order / other) so
+  // the student sees which area each mistake belongs to.
+  const corrGroups = (() => {
+    const norm = (ty: string) =>
+      ty === "grammar"
+        ? "grammar"
+        : ["lexis", "lexical", "vocabulary"].includes(ty)
+          ? "lexis"
+          : ty === "word_order"
+            ? "word_order"
+            : "other";
+    const label: Record<string, string> = {
+      grammar: t("grammar"),
+      lexis: t("lexical"),
+      word_order: t("corrWordOrder"),
+      other: t("corrOther"),
+    };
+    const map = new Map<string, typeof corrections>();
+    for (const c of shownCorr) {
+      const k = norm(c.type);
+      (map.get(k) ?? map.set(k, []).get(k)!).push(c);
+    }
+    return ["grammar", "lexis", "word_order", "other"]
+      .filter((k) => map.has(k))
+      .map((k) => ({ key: k, label: label[k], items: map.get(k)! }));
+  })();
   const noAttemptsLeft = isStudent && !user?.is_premium && freeAttemptsLeft(user ?? null, totalCount) <= 0;
 
+  // Only the language metrics are shown. The delivery/acoustic metrics
+  // (pronunciation, naturalness, speech_rate, intonation, native_likeness) are
+  // intentionally hidden — they aren't reliable enough for Russian to show the
+  // student, though the backend still computes them.
   const criteria: { label: string; value: number | null }[] = [
     { label: t("fluency"), value: ev?.fluency_score ?? null },
     { label: t("lexical"), value: ev?.lexical_score ?? null },
     { label: t("grammar"), value: ev?.grammar_score ?? null },
     { label: t("relevance"), value: ev?.relevance_score ?? null },
-    { label: t("pronunciation"), value: ev?.pronunciation_score ?? null },
-    { label: t("naturalness"), value: ev?.naturalness_score ?? null },
-    { label: t("speech_rate"), value: ev?.speech_rate_score ?? null },
-    { label: t("intonation"), value: ev?.intonation_score ?? null },
   ].filter((c) => c.value != null);
-  const nativeLikeness = ev?.native_likeness ?? null;
 
   return (
     <div className="focus-wrap anim-fade-in" style={{ maxWidth: 880, marginInline: "auto" }}>
@@ -523,20 +599,20 @@ export function SubmissionResult() {
                 </div>
               </div>
               <div className="row gap-4 wrap" style={{ alignItems: "flex-start" }}>
-                {/* Level-relative score (motivating) — shown first when available */}
-                {levelScore != null && (
+                {/* Stable "your level" (rolling average) — doesn't jump per answer */}
+                {shownLevel != null && (
                   <div className="col" style={{ alignItems: "center", gap: 7 }}>
-                    <Ring value={levelScore} size={104} sw={11} hue={bandColor(levelScore)}>
+                    <Ring value={shownLevel} size={104} sw={11} hue={bandColor(shownLevel)}>
                       <span
                         style={{
                           fontFamily: "var(--font-display)",
                           fontWeight: 900,
                           fontSize: 36,
-                          color: `oklch(0.5 0.15 ${bandColor(levelScore)})`,
+                          color: `oklch(0.5 0.15 ${bandColor(shownLevel)})`,
                           lineHeight: 1,
                         }}
                       >
-                        {Math.round(levelScore)}
+                        {Math.round(shownLevel)}
                       </span>
                     </Ring>
                     <span
@@ -548,18 +624,18 @@ export function SubmissionResult() {
                         textAlign: "center",
                       }}
                     >
-                      {(question?.level ? question.level + " · " : "") + t("scoreLevel").toUpperCase()}
+                      {t("scoreLevel").toUpperCase()}
                     </span>
                   </div>
                 )}
                 {/* Absolute score (vs C2) — the "true" CEFR position */}
                 <div className="col" style={{ alignItems: "center", gap: 7 }}>
-                  <Ring value={band} size={levelScore != null ? 90 : 104} sw={levelScore != null ? 10 : 11} hue={hue}>
+                  <Ring value={band} size={shownLevel != null ? 90 : 104} sw={shownLevel != null ? 10 : 11} hue={hue}>
                     <span
                       style={{
                         fontFamily: "var(--font-display)",
                         fontWeight: 900,
-                        fontSize: levelScore != null ? 30 : 36,
+                        fontSize: shownLevel != null ? 30 : 36,
                         color: `oklch(0.5 0.15 ${hue})`,
                         lineHeight: 1,
                       }}
@@ -644,38 +720,6 @@ export function SubmissionResult() {
             </div>
           )}
 
-          {/* Native-likeness — how close the delivery is to live colloquial Russian */}
-          {nativeLikeness != null && (
-            <div
-              style={{
-                padding: "16px clamp(16px, 4vw, 30px)",
-                borderTop: "1px solid var(--line)",
-              }}
-            >
-              <div className="row between" style={{ marginBottom: 8, gap: 12 }}>
-                <div className="col gap-1">
-                  <span style={{ fontSize: 12.5, fontWeight: 700, color: "var(--ink-soft)" }}>
-                    {t("native_likeness")}
-                  </span>
-                  <span style={{ fontSize: 11.5, fontWeight: 700, color: "var(--ink-mute)" }}>
-                    {t(nativeBandKey(nativeLikeness))}
-                  </span>
-                </div>
-                <span
-                  style={{
-                    fontSize: 22,
-                    fontWeight: 900,
-                    fontFamily: "var(--font-display)",
-                    color: `oklch(0.5 0.15 ${bandColor(nativeLikeness)})`,
-                    whiteSpace: "nowrap",
-                  }}
-                >
-                  {Math.round(nativeLikeness)}%
-                </span>
-              </div>
-              <Bar value={nativeLikeness} hue={bandColor(nativeLikeness)} height={9} />
-            </div>
-          )}
         </Card>
       )}
 
@@ -791,10 +835,29 @@ export function SubmissionResult() {
               {corrections.length}
             </Pill>
           </div>
-          <div className="col gap-2">
-            {shownCorr.map((c, i) => {
-              const ch = corrHue(c.type);
-              return (
+          <div className="col gap-4">
+            {corrGroups.map((g) => (
+              <div key={g.key} className="col gap-2">
+                <div className="row gap-2" style={{ alignItems: "center" }}>
+                  <span
+                    style={{
+                      fontSize: 12.5,
+                      fontWeight: 800,
+                      color: `oklch(0.5 0.15 ${corrHue(g.key)})`,
+                      textTransform: "uppercase",
+                      letterSpacing: "0.04em",
+                    }}
+                  >
+                    {g.label}
+                  </span>
+                  <span style={{ fontSize: 12, fontWeight: 700, color: "var(--muted)" }}>
+                    {g.items.length}
+                  </span>
+                </div>
+                <div className="col gap-2">
+                  {g.items.map((c, i) => {
+                    const ch = corrHue(c.type);
+                    return (
                 <div
                   key={i}
                   className="row gap-3"
@@ -845,8 +908,11 @@ export function SubmissionResult() {
                     )}
                   </div>
                 </div>
-              );
-            })}
+                    );
+                  })}
+                </div>
+              </div>
+            ))}
           </div>
           {corrections.length > 3 && (
             <button
@@ -877,6 +943,11 @@ export function SubmissionResult() {
         </Card>
       )}
 
+      {/* Orthoepy: words read AS SPELLED (AI-detected from audio) */}
+      {fb?.orthoepy_errors && fb.orthoepy_errors.length > 0 && (
+        <OrthoepyCard errors={fb.orthoepy_errors} />
+      )}
+
       {/* Summary */}
       {fb?.summary && (
         <Card style={{ marginBottom: 16 }}>
@@ -887,24 +958,11 @@ export function SubmissionResult() {
         </Card>
       )}
 
-      {/* Pronunciation & delivery — Gemini's analysis of the actual audio */}
-      {fb?.pronunciation_feedback && (
-        <Card style={{ marginBottom: 16 }}>
-          <div className="row gap-2" style={{ marginBottom: 10, alignItems: "center" }}>
-            <Icon name="speak" size={20} style={{ color: "var(--primary)" }} />
-            <h3 style={{ fontSize: 18 }}>{t("pronFeedback")}</h3>
-          </div>
-          <p style={{ fontSize: 15, lineHeight: 1.6, color: "var(--ink)", whiteSpace: "pre-wrap" }}>
-            {fb.pronunciation_feedback}
-          </p>
-        </Card>
-      )}
-
       {/* Transcript + per-word pronunciation */}
       {sub.transcript?.text && <TranscriptCard transcript={sub.transcript} />}
 
-      {/* Model answer */}
-      {sub.model_answer_text && (
+      {/* Model answer — static exemplar or a fresh AI variant (changes each time) */}
+      {sub.question_id && (
         <Card style={{ marginBottom: 16 }}>
           <div className="row between gap-3" style={{ marginBottom: 10 }}>
             <div className="col" style={{ minWidth: 0 }}>
@@ -912,25 +970,48 @@ export function SubmissionResult() {
               <span style={{ fontSize: 13, color: "var(--muted)" }}>{t("modelAnswerHint")}</span>
             </div>
             {!showModel && (
-              <Button variant="soft" size="sm" onClick={() => setShowModel(true)}>
+              <Button
+                variant="soft"
+                size="sm"
+                onClick={() => {
+                  setShowModel(true);
+                  if (!sub.model_answer_text) modelVariantMut.mutate();
+                }}
+              >
                 {t("showModelAnswer")}
               </Button>
             )}
           </div>
           {showModel && (
-            <p
-              style={{
-                fontSize: 15,
-                lineHeight: 1.6,
-                color: "var(--ink)",
-                whiteSpace: "pre-wrap",
-                padding: 14,
-                background: "var(--primary-tint)",
-                borderRadius: "var(--r-md)",
-              }}
-            >
-              {sub.model_answer_text}
-            </p>
+            <>
+              {modelVariantMut.isPending && !variantText && !sub.model_answer_text ? (
+                <p style={{ fontSize: 14, color: "var(--muted)", padding: 14 }}>{t("generating")}</p>
+              ) : (
+                <p
+                  style={{
+                    fontSize: 15,
+                    lineHeight: 1.6,
+                    color: "var(--ink)",
+                    whiteSpace: "pre-wrap",
+                    padding: 14,
+                    background: "var(--primary-tint)",
+                    borderRadius: "var(--r-md)",
+                  }}
+                >
+                  {variantText ?? sub.model_answer_text}
+                </p>
+              )}
+              <Button
+                variant="ghost"
+                size="sm"
+                icon="sparkles"
+                disabled={modelVariantMut.isPending}
+                onClick={() => modelVariantMut.mutate()}
+                style={{ marginTop: 10 }}
+              >
+                {modelVariantMut.isPending ? t("generating") : t("anotherVariant")}
+              </Button>
+            </>
           )}
         </Card>
       )}

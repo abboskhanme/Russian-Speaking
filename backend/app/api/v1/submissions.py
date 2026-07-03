@@ -16,6 +16,7 @@ from app.schemas.gamification import ExplainOut
 from app.schemas.submission import (
     AudioUploadURL,
     AudioUploadURLRequest,
+    ModelAnswerOut,
     ShadowCreate,
     ShadowUploadURLRequest,
     SubmissionCreate,
@@ -244,8 +245,13 @@ def get_submission(
     sub = db.get(Submission, submission_id)
     if sub is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Submission not found")
+    # Anyone can always read their OWN submission — including a teacher/admin who
+    # did a shadowing practice themselves (that has no question, so the roster
+    # check below would wrongly 404 it).
+    if sub.student_id == user.id:
+        return _to_out(sub)
     # Students read only their own; teachers only their own students' answers.
-    if user.role == UserRole.student and sub.student_id != user.id:
+    if user.role == UserRole.student:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Submission not found")
     if user.role == UserRole.teacher and _teacher_denied(db, user.id, sub):
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Submission not found")
@@ -283,6 +289,37 @@ def explain_submission(
     }
     db.commit()
     return ExplainOut(explanation=result.explanation, improved_sentence=result.improved_sentence)
+
+
+@router.post(
+    "/{submission_id}/model-answer",
+    response_model=ModelAnswerOut,
+    dependencies=[Depends(rate_limit("model_answer", 15, 600))],
+)
+def model_answer_variant(
+    submission_id: uuid.UUID,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> ModelAnswerOut:
+    """Generate a FRESH, task-fitting exemplar-answer variant for this submission
+    — a new wording each call. Students may request it for their own answers."""
+    sub = db.get(Submission, submission_id)
+    if sub is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Submission not found")
+    if user.role == UserRole.student and sub.student_id != user.id:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Submission not found")
+    q = sub.question
+    if q is None:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "This submission has no task")
+    text = llm.generate_model_answer(
+        question_prompt=html_to_text(q.prompt_text),
+        question_title=q.title,
+        level=q.level,
+        topic=q.topic,
+        instruction=html_to_text(q.instruction_text) if q.instruction_text else None,
+        variety=True,
+    )
+    return ModelAnswerOut(text=text)
 
 
 @router.patch("/{submission_id}/feedback", response_model=SubmissionOut)

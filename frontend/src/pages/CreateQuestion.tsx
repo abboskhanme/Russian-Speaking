@@ -1,10 +1,10 @@
 import { useEffect, useRef, useState } from "react";
 import axios from "axios";
-import { useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, uploadToPresigned } from "../lib/api";
 import { useI18n } from "../lib/i18n";
-import type { Question, QuestionType, Topic } from "../lib/types";
+import type { Block, BlockRegister, Question, QuestionType, Topic } from "../lib/types";
 import {
   Card,
   Button,
@@ -46,9 +46,13 @@ function CreateQuestionForm() {
 
   const [type, setType] = useState<QuestionType>("text");
   const [title, setTitle] = useState("");
+  const [instruction, setInstruction] = useState("");
   const [prompt, setPrompt] = useState("");
+  const [searchParams] = useSearchParams();
   const [level, setLevel] = useState("");
   const [topic, setTopic] = useState("");
+  // Preselect a module when arriving from a module's "+ Add task".
+  const [block, setBlock] = useState(searchParams.get("block") ?? "");
   const [answerLimit, setAnswerLimit] = useState(120);
   const [modelAnswer, setModelAnswer] = useState("");
   const [file, setFile] = useState<File | null>(null);
@@ -98,9 +102,11 @@ function CreateQuestionForm() {
     if (!editing) return;
     setType(editing.type);
     setTitle(editing.title);
+    setInstruction(editing.instruction_text ?? "");
     setPrompt(editing.prompt_text);
     setLevel(editing.level ?? "");
     setTopic(editing.topic ?? "");
+    setBlock(editing.block_id ?? "");
     setAnswerLimit(editing.answer_time_limit_sec);
     setModelAnswer(editing.model_answer_text ?? "");
     setPublish(editing.is_published);
@@ -112,6 +118,16 @@ function CreateQuestionForm() {
     queryKey: ["topics-managed"],
     queryFn: async () => (await api.get<Topic[]>("/topics")).data,
   });
+
+  // Teacher's blocks, to optionally place this task into one.
+  const { data: blocks } = useQuery({
+    queryKey: ["blocks"],
+    queryFn: async () => (await api.get<Block[]>("/blocks")).data,
+  });
+  const REG_LABEL: Record<BlockRegister, string> = {
+    obychnyy: t("regObychnyy"),
+    zhivoy: t("regZhivoy"),
+  };
 
   const addTopic = useMutation({
     mutationFn: async (name: string) => (await api.post<Topic>("/topics", { name })).data,
@@ -159,9 +175,11 @@ function CreateQuestionForm() {
       if (isEdit) {
         await api.patch(`/questions/${id}`, {
           title,
+          instruction_text: instruction.trim() || null,
           prompt_text: prompt,
           level: level || null,
           topic: topic || null,
+          block_id: block || null,
           answer_time_limit_sec: answerLimit,
           model_answer_text: modelAnswer || null,
           is_published: publish,
@@ -172,9 +190,11 @@ function CreateQuestionForm() {
         const { data: q } = await api.post<Question>("/questions", {
           type,
           title,
+          instruction_text: instruction.trim() || null,
           prompt_text: prompt,
           level: level || null,
           topic: topic || null,
+          block_id: block || null,
           answer_time_limit_sec: answerLimit,
           model_answer_text: modelAnswer || null,
           is_published: publish,
@@ -417,7 +437,17 @@ function CreateQuestionForm() {
               />
             </Field>
 
-            <Field label={t("instruction")}>
+            <Field label={t("taskCondition")}>
+              <textarea
+                value={instruction}
+                onChange={(e) => setInstruction(e.target.value)}
+                placeholder={t("taskConditionPh")}
+                rows={2}
+                style={{ ...inp, resize: "vertical", fontFamily: "inherit", lineHeight: 1.5 }}
+              />
+            </Field>
+
+            <Field label={t("taskText")}>
               <RichTextEditor
                 value={prompt}
                 onChange={setPrompt}
@@ -539,6 +569,17 @@ function CreateQuestionForm() {
                   </button>
                 </>
               )}
+            </Field>
+
+            <Field label={t("blockField")}>
+              <select value={block} onChange={(e) => setBlock(e.target.value)} style={inp}>
+                <option value="">— {t("noBlock")} —</option>
+                {(blocks ?? []).map((b) => (
+                  <option key={b.id} value={b.id}>
+                    {REG_LABEL[b.register]} · {b.name}
+                  </option>
+                ))}
+              </select>
             </Field>
 
             <Field label={t("taskTypeLabel")}>

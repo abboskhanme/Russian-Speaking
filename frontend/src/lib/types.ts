@@ -129,13 +129,30 @@ export interface AdminStudent {
   submission_count: number;
 }
 
+export type BlockRegister = "obychnyy" | "zhivoy";
+
+export interface Block {
+  id: string;
+  register: BlockRegister;
+  name: string;
+  level: string | null;
+  description: string | null;
+  sort_order: number;
+  is_published: boolean;
+  task_count: number;
+  created_at: string;
+}
+
 export interface Question {
   id: string;
   teacher_id: string;
   teacher_name: string | null;
   type: QuestionType;
   title: string;
+  instruction_text: string | null;
   prompt_text: string;
+  block_id: string | null;
+  sort_order: number;
   media_key: string | null;
   media_url: string | null;
   level: string | null;
@@ -146,6 +163,15 @@ export interface Question {
   is_public: boolean;
   model_answer_text: string | null;
   created_at: string;
+}
+
+export interface OrthoepyError {
+  word: string;
+  word_with_stress: string;
+  correct: string;
+  said: string;
+  rule_ru: string;
+  rule_uz: string;
 }
 
 export interface Evaluation {
@@ -166,6 +192,7 @@ export interface Evaluation {
     improvements: string[];
     vocabulary_suggestions: string[];
     pronunciation_feedback?: string;
+    orthoepy_errors?: OrthoepyError[];
   } | null;
   corrections:
     | { original: string; corrected: string; type: string; explanation: string }[]
@@ -206,6 +233,8 @@ export interface PronunciationScores {
   pronunciation: number | null;
   // Present only for shadowing: how well the transcript matched the target.
   reference_match?: ReferenceMatch | null;
+  // Words the learner read AS SPELLED (orthoepy errors), from the AI audio check.
+  orthoepy_errors?: OrthoepyError[] | null;
 }
 
 export interface Transcript {

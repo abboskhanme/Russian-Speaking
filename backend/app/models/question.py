@@ -18,6 +18,9 @@ class Question(Base, TimestampMixin):
         Enum(QuestionType, name="question_type"), nullable=False, index=True
     )
     title: Mapped[str] = mapped_column(String(255), nullable=False)
+    # The task's condition/instruction ("shart") — what the student must do —
+    # kept separate from the task content so the AI grader gets it explicitly.
+    instruction_text: Mapped[str | None] = mapped_column(Text, nullable=True)
     prompt_text: Mapped[str] = mapped_column(Text, nullable=False)
     # S3 key for image/video questions (None for text questions)
     media_key: Mapped[str | None] = mapped_column(String(512), nullable=True)
@@ -25,6 +28,13 @@ class Question(Base, TimestampMixin):
     level: Mapped[str | None] = mapped_column(String(8), nullable=True, index=True)
     # Free-form topic/theme for categorization (e.g. "Путешествия", "Работа")
     topic: Mapped[str | None] = mapped_column(String(128), nullable=True, index=True)
+    # Optional membership in a Block (track → block → task). SET NULL if the
+    # block is deleted so the task itself survives.
+    block_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("blocks.id", ondelete="SET NULL"), index=True, nullable=True
+    )
+    # Manual ordering within a module/block (drag-and-drop). Lower = earlier.
+    sort_order: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     prep_time_sec: Mapped[int] = mapped_column(Integer, default=30, nullable=False)
     answer_time_limit_sec: Mapped[int] = mapped_column(Integer, default=120, nullable=False)
     is_published: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)

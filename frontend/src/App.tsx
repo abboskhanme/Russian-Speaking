@@ -5,6 +5,7 @@ import { useAuth } from "./lib/auth";
 import { api } from "./lib/api";
 import { NotFound } from "./pages/NotFound";
 import { useI18n, type Lang } from "./lib/i18n";
+import { TELEGRAM_CHANNEL_URL, TELEGRAM_SUPPORT_URL } from "./lib/contact";
 import { useStudentStats } from "./lib/useStats";
 import { FREE_ATTEMPT_LIMIT } from "./lib/plan";
 import { Login } from "./pages/Login";
@@ -22,6 +23,7 @@ import { Notifications } from "./pages/Notifications";
 import { StudentAssignments } from "./pages/StudentAssignments";
 import { TeacherDashboard } from "./pages/TeacherDashboard";
 import { TeacherQuestions } from "./pages/TeacherQuestions";
+import { TeacherBlocks } from "./pages/TeacherBlocks";
 import { TeacherSubmissions } from "./pages/TeacherSubmissions";
 import { TeacherStudents } from "./pages/TeacherStudents";
 import { TeacherAssignments } from "./pages/TeacherAssignments";
@@ -76,17 +78,21 @@ function useNavItems(): NavItem[] {
       { to: "/admin/teachers", icon: "grad", label: t("tabTeachers") },
       { to: "/admin/students", icon: "users", label: t("tabStudents") },
       { to: "/teacher/questions", icon: "message", label: t("navTests") },
-      { to: "/teacher/groups", icon: "layers", label: t("navGroups") },
+      { to: "/teacher/blocks", icon: "layers", label: t("blocks") },
+      { to: "/teacher/groups", icon: "users", label: t("navGroups") },
       { to: "/teacher/submissions", icon: "headphones", label: t("navAnswers") },
       { to: "/teacher/gradebook", icon: "chart", label: t("navGradebook") },
+      { to: "/shadowing", icon: "volume", label: t("navShadow") },
     ];
   if (user.role === "teacher")
     return [
       { to: "/teacher", icon: "home", label: t("navOverview") },
       { to: "/teacher/questions", icon: "message", label: t("navTests") },
+      { to: "/teacher/blocks", icon: "layers", label: t("blocks") },
       { to: "/teacher/groups", icon: "users", label: t("navGroups") },
       { to: "/teacher/submissions", icon: "headphones", label: t("navAnswers") },
       { to: "/teacher/gradebook", icon: "grad", label: t("navGradebook") },
+      { to: "/shadowing", icon: "volume", label: t("navShadow") },
     ];
   return [
     { to: "/", icon: "home", label: t("navHome") },
@@ -114,9 +120,25 @@ function bestMatch(items: NavItem[], pathname: string): string {
 /* ─── Language switcher ─────────────────────────────────── */
 function LangSwitcher() {
   const { lang, setLang } = useI18n();
+  const { user, refreshUser } = useAuth();
   const [open, setOpen] = useState(false);
   const short: Record<Lang, string> = { uz: "Oʻz", ru: "Ру", en: "En" };
   const full: [Lang, string][] = [["uz", "Oʻzbekcha"], ["ru", "Русский"], ["en", "English"]];
+
+  // Apply locally AND persist to the profile, so LanguageSync (which snaps the
+  // UI back to the saved preferred_language on reload) never overrides the
+  // user's choice. Without the PATCH, a header switch was lost on next load.
+  async function pick(code: Lang) {
+    setLang(code);
+    setOpen(false);
+    if (!user) return;
+    try {
+      await api.patch("/auth/me", { preferred_language: code });
+      await refreshUser();
+    } catch {
+      /* language still applied locally */
+    }
+  }
   return (
     <div style={{ position: "relative" }}>
       <button
@@ -134,7 +156,7 @@ function LangSwitcher() {
             {full.map(([code, label]) => (
               <button
                 key={code}
-                onClick={() => { setLang(code); setOpen(false); }}
+                onClick={() => pick(code)}
                 className="tap"
                 style={{
                   display: "flex", width: "100%", alignItems: "center", gap: 10, padding: "9px 12px", borderRadius: "var(--r-sm)", border: "none",
@@ -210,6 +232,42 @@ function Sidebar({ mobileOpen, setMobileOpen }: { mobileOpen: boolean; setMobile
                 <span style={{ background: "var(--danger)", color: "#fff", fontSize: 11, fontWeight: 800, borderRadius: 999, minWidth: 20, height: 20, display: "flex", alignItems: "center", justifyContent: "center", padding: "0 5px" }}>{it.badge}</span>
               ) : null}
             </NavLink>
+          ))}
+
+          {/* Contact — external Telegram links, shown for everyone */}
+          <div
+            style={{
+              fontSize: 11,
+              fontWeight: 800,
+              color: "var(--faint)",
+              textTransform: "uppercase",
+              letterSpacing: "0.06em",
+              padding: "14px 14px 4px",
+            }}
+          >
+            {t("contactHeading")}
+          </div>
+          {[
+            { href: TELEGRAM_SUPPORT_URL, icon: "message" as const, label: t("tgSupport") },
+            { href: TELEGRAM_CHANNEL_URL, icon: "send" as const, label: t("tgChannel") },
+          ].map((c) => (
+            <a
+              key={c.label}
+              href={c.href}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={() => setMobileOpen(false)}
+              className="tap"
+              style={{
+                display: "flex", alignItems: "center", gap: 13, padding: "12px 14px", borderRadius: "var(--r-sm)", textDecoration: "none",
+                background: "transparent", color: "var(--ink-soft)",
+                fontFamily: "var(--font-display)", fontWeight: 700, fontSize: 15.5,
+              }}
+            >
+              <Icon name={c.icon} size={21} />
+              <span className="grow">{c.label}</span>
+              <Icon name="link" size={15} style={{ color: "var(--faint)" }} />
+            </a>
           ))}
         </nav>
 
@@ -438,6 +496,7 @@ function AppRoutes() {
       <Route path="/assignments" element={<StudentAssignments />} />
       <Route path="/premium" element={<PremiumInfo />} />
       <Route path="/teacher" element={<TeacherDashboard />} />
+      <Route path="/teacher/blocks" element={<TeacherBlocks />} />
       <Route path="/teacher/assignments" element={<TeacherAssignments />} />
       <Route path="/teacher/groups" element={<TeacherGroups />} />
       <Route path="/teacher/groups/:id" element={<TeacherGroupDetail />} />

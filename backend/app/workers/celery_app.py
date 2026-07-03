@@ -37,5 +37,10 @@ celery.conf.update(
             "task": "cleanup_orphan_uploads",
             "schedule": 3600.0,  # hourly
         },
+        # Purge teacher/admin TEST submissions (view-only, not kept).
+        "cleanup-test-submissions": {
+            "task": "cleanup_test_submissions",
+            "schedule": 3600.0,  # hourly
+        },
     },
 )
