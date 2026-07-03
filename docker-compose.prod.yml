@@ -114,10 +114,21 @@ services:
       - "443:443"
     volumes:
       - ./nginx/certs:/etc/nginx/certs:ro
+      - ./certbot/www:/var/www/certbot:ro   # ACME HTTP-01 challenge files
     depends_on:
       - backend
       - minio
     restart: unless-stopped
+
+  # Let's Encrypt client. Run on demand: `docker compose -f docker-compose.prod.yml
+  # run --rm certbot` (see deploy/setup-domain.sh). Renew via cron (certbot renew).
+  certbot:
+    image: certbot/certbot:latest
+    volumes:
+      - ./certbot/conf:/etc/letsencrypt
+      - ./certbot/www:/var/www/certbot
+    entrypoint: ["/bin/sh", "-c"]
+    command: ["echo 'run via deploy/setup-domain.sh'"]
 
   backup:
     image: postgres:16-alpine
