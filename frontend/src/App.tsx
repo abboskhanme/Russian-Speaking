@@ -82,6 +82,7 @@ function useNavItems(): NavItem[] {
       { to: "/teacher/groups", icon: "layers", label: t("navGroups") },
       { to: "/teacher/submissions", icon: "headphones", label: t("navAnswers") },
       { to: "/teacher/gradebook", icon: "chart", label: t("navGradebook") },
+      { to: "/shadowing", icon: "volume", label: t("navShadow") },
     ];
   if (user.role === "teacher")
     return [
@@ -92,6 +93,7 @@ function useNavItems(): NavItem[] {
       { to: "/teacher/submissions", icon: "headphones", label: t("navAnswers") },
       { to: "/teacher/review", icon: "refresh", label: t("navTeacherReview") },
       { to: "/teacher/gradebook", icon: "grad", label: t("navGradebook") },
+      { to: "/shadowing", icon: "volume", label: t("navShadow") },
     ];
   return [
     { to: "/", icon: "home", label: t("navHome") },

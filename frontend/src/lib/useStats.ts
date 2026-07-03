@@ -35,9 +35,15 @@ export interface StudentStats {
   totalCount: number;
   avgBand: number | null;
   bestBand: number | null;
+  /** Stable proficiency level (0–100): rolling average of the last few answers'
+   *  level-relative scores, so it moves slowly instead of jumping each answer. */
+  level: number | null;
   submissions: Submission[];
   isLoading: boolean;
 }
+
+// How many recent answers feed the rolling "stable level".
+const LEVEL_WINDOW = 10;
 
 /**
  * Lightweight student stats derived from real submissions — no extra backend.
@@ -55,9 +61,18 @@ export function useStudentStats(): StudentStats {
   });
 
   const subs = data ?? [];
-  const bands = subs
-    .filter((s) => s.status === "done" && s.evaluation)
-    .map((s) => s.evaluation!.overall_band);
+  const evaluated = subs.filter((s) => s.status === "done" && s.evaluation);
+  const bands = evaluated.map((s) => s.evaluation!.overall_band);
+  // Stable level: average the level-relative score over the most recent answers
+  // (submissions come newest-first). Falls back to the absolute band when a
+  // level score is missing. This is the "your level" number shown to students.
+  const recentLevels = evaluated
+    .map((s) => s.evaluation!.level_score ?? s.evaluation!.overall_band)
+    .filter((v): v is number => v != null)
+    .slice(0, LEVEL_WINDOW);
+  const level = recentLevels.length
+    ? recentLevels.reduce((a, b) => a + b, 0) / recentLevels.length
+    : null;
   // Streak/XP are tracked server-side (supports freezes); fall back to a
   // client estimate only if the server value is missing.
   const streak = user?.current_streak ?? computeStreak(subs);
@@ -68,6 +83,7 @@ export function useStudentStats(): StudentStats {
     totalCount: subs.length,
     avgBand: bands.length ? bands.reduce((a, b) => a + b, 0) / bands.length : null,
     bestBand: bands.length ? Math.max(...bands) : null,
+    level,
     submissions: subs,
     isLoading: enabled && isLoading,
   };

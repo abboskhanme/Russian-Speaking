@@ -4,7 +4,7 @@ import logging
 import time
 import uuid
 
-from sqlalchemy import select
+from sqlalchemy import delete, select
 from datetime import datetime, timedelta, timezone
 
 from app.core.config import settings
@@ -17,12 +17,18 @@ from app.models import (
     Submission,
     SubmissionStatus,
     Transcript,
+    User,
+    UserRole,
 )
 from app.services import gamification, llm, notifications, stt, storage
 from app.services.text import html_to_text
 from app.workers.celery_app import celery
 
 logger = logging.getLogger("worker.process")
+
+# How hard an orthoepy slip (reading a word AS SPELLED) hits the overall band/XP.
+ORTHOEPY_PENALTY_PER_ERROR = 4.0
+ORTHOEPY_PENALTY_CAP = 20.0
 
 _IMAGE_MIME = {
     "jpg": "image/jpeg",
@@ -124,6 +130,20 @@ def process_submission(self, submission_id: str) -> str:
         # learner actually repeated the target. An off-topic answer (said something
         # else) fails the content check and earns no reward.
         if sub.reference_text:
+            # Orthoepy check: flag words read AS SPELLED (written ≠ spoken).
+            # Best-effort — must never break the (free) shadowing flow.
+            try:
+                oe = llm.detect_orthoepy(
+                    audio_bytes=stt.to_mp3_bytes(audio),
+                    reference_text=sub.reference_text,
+                    transcript_text=stt_result.get("text"),
+                )
+                if oe:
+                    pron = dict(transcript.pronunciation or {})
+                    pron["orthoepy_errors"] = [e.model_dump() for e in oe]
+                    transcript.pronunciation = pron
+            except Exception:  # noqa: BLE001
+                logger.warning("orthoepy check failed", extra={"submission_id": submission_id})
             sub.status = SubmissionStatus.done
             sub.completed_at = datetime.now(timezone.utc)
             db.commit()
@@ -151,6 +171,7 @@ def process_submission(self, submission_id: str) -> str:
         result = llm.analyze(
             question_prompt=html_to_text(question.prompt_text),
             transcript_text=stt_result["text"],
+            instruction=html_to_text(question.instruction_text) if question.instruction_text else None,
             question_title=question.title,
             level=question.level,
             topic=question.topic,
@@ -162,19 +183,34 @@ def process_submission(self, submission_id: str) -> str:
             extra={"submission_id": submission_id, "llm_secs": round(time.monotonic() - _t_llm, 2)},
         )
 
+        # Orthoepy (separate AUDIO pass — the text analysis above can't hear it).
+        # Reading words AS SPELLED lowers the overall band and, in turn, the XP.
+        orthoepy_errors: list = []
+        try:
+            orthoepy_errors = llm.detect_orthoepy(
+                audio_bytes=stt.to_mp3_bytes(audio),
+                transcript_text=stt_result["text"],
+            )
+        except Exception:  # noqa: BLE001
+            logger.warning("orthoepy check failed", extra={"submission_id": submission_id})
+        oe_penalty = min(len(orthoepy_errors) * ORTHOEPY_PENALTY_PER_ERROR, ORTHOEPY_PENALTY_CAP)
+        overall_band = max(0.0, result.scores.overall - oe_penalty)
+        level_score = max(0.0, result.scores.level_overall - oe_penalty)
+
         evaluation = Evaluation(
             submission_id=sub.id,
             fluency_score=result.scores.fluency,
             lexical_score=result.scores.lexical,
             grammar_score=result.scores.grammar,
             relevance_score=result.scores.relevance,
-            overall_band=result.scores.overall,
-            level_score=result.scores.level_overall,
+            overall_band=overall_band,
+            level_score=level_score,
             feedback={
                 "summary": result.summary,
                 "strengths": result.strengths,
                 "improvements": result.improvements,
                 "vocabulary_suggestions": result.vocabulary_suggestions,
+                "orthoepy_errors": [e.model_dump() for e in orthoepy_errors],
             },
             corrections=[c.model_dump() for c in result.corrections],
             llm_model=settings.GEMINI_MODEL,
@@ -251,6 +287,32 @@ def fail_stuck_submissions() -> int:
             sub.error_message = "Processing timed out — please try again."
         db.commit()
         return len(stuck)
+    finally:
+        db.close()
+
+
+@celery.task(name="cleanup_test_submissions")
+def cleanup_test_submissions() -> int:
+    """Teacher/admin submissions are throwaway TEST runs — they can view the
+    result, but it isn't kept. Purge non-student submissions (and their audio)
+    older than 6h. Transcript/Evaluation cascade on delete."""
+    cutoff = datetime.now(timezone.utc) - timedelta(hours=6)
+    db = SessionLocal()
+    try:
+        rows = db.execute(
+            select(Submission.id, Submission.audio_key)
+            .join(User, Submission.student_id == User.id)
+            .where(User.role != UserRole.student, Submission.created_at < cutoff)
+        ).all()
+        if not rows:
+            return 0
+        ids = [r[0] for r in rows]
+        keys = [r[1] for r in rows if r[1]]
+        db.execute(delete(Submission).where(Submission.id.in_(ids)))
+        db.commit()
+        if keys:
+            storage.delete_keys(keys)
+        return len(ids)
     finally:
         db.close()
 

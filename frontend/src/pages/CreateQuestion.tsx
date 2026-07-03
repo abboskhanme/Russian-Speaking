@@ -46,6 +46,7 @@ function CreateQuestionForm() {
 
   const [type, setType] = useState<QuestionType>("text");
   const [title, setTitle] = useState("");
+  const [instruction, setInstruction] = useState("");
   const [prompt, setPrompt] = useState("");
   const [level, setLevel] = useState("");
   const [topic, setTopic] = useState("");
@@ -100,6 +101,7 @@ function CreateQuestionForm() {
     if (!editing) return;
     setType(editing.type);
     setTitle(editing.title);
+    setInstruction(editing.instruction_text ?? "");
     setPrompt(editing.prompt_text);
     setLevel(editing.level ?? "");
     setTopic(editing.topic ?? "");
@@ -168,6 +170,7 @@ function CreateQuestionForm() {
       if (isEdit) {
         await api.patch(`/questions/${id}`, {
           title,
+          instruction_text: instruction.trim() || null,
           prompt_text: prompt,
           level: level || null,
           topic: topic || null,
@@ -183,6 +186,7 @@ function CreateQuestionForm() {
         const { data: q } = await api.post<Question>("/questions", {
           type,
           title,
+          instruction_text: instruction.trim() || null,
           prompt_text: prompt,
           level: level || null,
           topic: topic || null,
@@ -432,7 +436,17 @@ function CreateQuestionForm() {
               />
             </Field>
 
-            <Field label={t("instruction")}>
+            <Field label={t("taskCondition")}>
+              <textarea
+                value={instruction}
+                onChange={(e) => setInstruction(e.target.value)}
+                placeholder={t("taskConditionPh")}
+                rows={2}
+                style={{ ...inp, resize: "vertical", fontFamily: "inherit", lineHeight: 1.5 }}
+              />
+            </Field>
+
+            <Field label={t("taskText")}>
               <RichTextEditor
                 value={prompt}
                 onChange={setPrompt}

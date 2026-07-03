@@ -256,8 +256,13 @@ def get_submission(
     sub = db.get(Submission, submission_id)
     if sub is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Submission not found")
+    # Anyone can always read their OWN submission — including a teacher/admin who
+    # did a shadowing practice themselves (no question → the roster check below
+    # would wrongly 404 it).
+    if sub.student_id == user.id:
+        return _to_out(sub)
     # Students read only their own; teachers only their own students' answers.
-    if user.role == UserRole.student and sub.student_id != user.id:
+    if user.role == UserRole.student:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Submission not found")
     if user.role == UserRole.teacher and _teacher_denied(db, user.id, sub):
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Submission not found")

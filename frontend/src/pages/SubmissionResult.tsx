@@ -6,7 +6,7 @@ import { useAuth } from "../lib/auth";
 import { useI18n } from "../lib/i18n";
 import { useStudentStats } from "../lib/useStats";
 import { freeAttemptsLeft } from "../lib/plan";
-import type { ExplainResult, Question, Submission, Transcript } from "../lib/types";
+import type { ExplainResult, OrthoepyError, Question, Submission, Transcript } from "../lib/types";
 import {
   Avatar,
   Bar,
@@ -130,6 +130,37 @@ function AudioPlayer({ url, duration }: { url: string; duration: number | null }
         {fmt(duration ?? 0)}
       </span>
     </div>
+  );
+}
+
+/* ── Orthoepy card: words read AS SPELLED (written ≠ spoken), AI-detected ── */
+function OrthoepyCard({ errors }: { errors: OrthoepyError[] }) {
+  const { t } = useI18n();
+  return (
+    <Card style={{ marginBottom: 16 }}>
+      <div className="row gap-2" style={{ marginBottom: 6, alignItems: "center" }}>
+        <Icon name="speak" size={20} style={{ color: "oklch(0.6 0.16 28)" }} />
+        <h3 style={{ fontSize: 18 }}>{t("orthoepyTitle")}</h3>
+        <Pill hue={28} size="sm">{errors.length}</Pill>
+      </div>
+      <p style={{ fontSize: 13.5, color: "var(--muted)", marginBottom: 12 }}>{t("orthoepyHint")}</p>
+      <div className="col gap-2">
+        {errors.map((e, i) => (
+          <div key={i} className="col gap-1" style={{ padding: 13, background: "var(--surface-2)", borderRadius: "var(--r-sm)" }}>
+            <div className="row gap-2 wrap" style={{ alignItems: "baseline" }}>
+              <span style={{ fontSize: 16, fontWeight: 800, color: "var(--ink)" }}>{e.word_with_stress || e.word}</span>
+              {e.said && (
+                <span style={{ fontSize: 14, fontWeight: 700, color: "var(--muted)", textDecoration: "line-through" }}>{e.said}</span>
+              )}
+              <Icon name="chevR" size={14} style={{ color: "var(--faint)" }} />
+              <span style={{ fontSize: 15, fontWeight: 800, color: "var(--success)" }}>{e.correct}</span>
+            </div>
+            {e.rule_uz && <span style={{ fontSize: 13.5, color: "var(--ink-soft)" }}>{e.rule_uz}</span>}
+            {e.rule_ru && <span style={{ fontSize: 12.5, color: "var(--muted)" }}>{e.rule_ru}</span>}
+          </div>
+        ))}
+      </div>
+    </Card>
   );
 }
 
@@ -365,6 +396,9 @@ export function SubmissionResult() {
             </Card>
           );
         })()}
+        {sub.transcript?.pronunciation?.orthoepy_errors?.length ? (
+          <OrthoepyCard errors={sub.transcript.pronunciation.orthoepy_errors} />
+        ) : null}
         {sub.transcript && <TranscriptCard transcript={sub.transcript} />}
         <Button full icon="refresh" onClick={() => nav("/shadowing")}>
           {t("shadowTitle")}
@@ -830,6 +864,9 @@ export function SubmissionResult() {
       )}
 
       {/* Transcript */}
+      {ev?.feedback?.orthoepy_errors && ev.feedback.orthoepy_errors.length > 0 && (
+        <OrthoepyCard errors={ev.feedback.orthoepy_errors} />
+      )}
       {sub.transcript?.text && <TranscriptCard transcript={sub.transcript} />}
 
       {/* Model answer */}

@@ -149,6 +149,7 @@ def analyze(
     *,
     question_prompt: str,
     transcript_text: str,
+    instruction: str | None = None,
     question_title: str | None = None,
     level: str | None = None,
     topic: str | None = None,
@@ -178,11 +179,16 @@ def analyze(
         else ""
     )
 
+    instruction_block = (
+        f"Условие задания (что именно студент должен был сделать):\n{instruction.strip()}\n\n"
+        if instruction and instruction.strip()
+        else ""
+    )
     user_content = (
-        f"{context_block}{image_note}"
-        f"Задание (на которое отвечал студент):\n{question_prompt}\n\n"
+        f"{context_block}{image_note}{instruction_block}"
+        f"Текст задания (на которое отвечал студент):\n{question_prompt}\n\n"
         f"Транскрипция устного ответа студента:\n«{transcript_text}»\n\n"
-        f"Оцени этот ответ согласно критериям."
+        f"Оцени этот ответ согласно критериям (учитывай, выполнено ли условие задания)."
     )
 
     # Multimodal contents: attach the picture for picture-description tasks.
@@ -475,3 +481,74 @@ def generate_questions(
         seen.extend(q.title for q in batch)
         remaining -= len(batch)
     return out
+
+
+# ─── Orthoepy: words read AS SPELLED (written ≠ spoken), from the audio ──────
+class OrthoepyError(BaseModel):
+    word: str = Field(description="Слово как НАПИСАНО, кириллицей (например: Молоко)")
+    word_with_stress: str = Field(description="Слово с ударением (например: Молоко́)")
+    correct: str = Field(description="Правильное произношение в [скобках] (например: [малако́])")
+    said: str = Field(description="Как студент прочитал по буквам, в [скобках] (например: [молоко́])")
+    rule_ru: str = Field(description="Короткое правило на русском")
+    rule_uz: str = Field(description="Короткое правило на узбекском (O'zbekcha)")
+
+
+class OrthoepyResult(BaseModel):
+    errors: list[OrthoepyError]
+
+
+_ORTHOEPY_SYSTEM = """Ты — преподаватель русского произношения. Тебе дают АУДИО, где \
+студент читает русский текст вслух, и (возможно) сам текст. Найди слова, которые студент \
+произнёс ТАК, КАК ОНИ ПИШУТСЯ, нарушив нормы устного русского (написание ≠ произношение):
+- безударные «О»/«Е» → [а]/[и]: молоко→[малако́], сегодня→[сиво́дня];
+- звонкие на конце оглушаются: друг→[друк], город→[го́рът]; и перед глухими: автобус→[афто́бус];
+- «-ого»/«-его» → [-ова]/[-ева]: его→[йево́]; «что»→[што]; «-тся»/«-ться»→[ца];
+- непроизносимые согласные: здравствуйте→[здра́ствуйте], солнце→[со́нце].
+Для каждой ошибки заполни word, word_with_stress, correct (точная орфоэпическая запись всего \
+слова в [скобках]), said (как прочитал по буквам). СТРОГО: пиши записи аккуратно и \
+посимвольно, НЕ удваивай слоги; отмечай ТОЛЬКО реально услышанное «чтение по буквам»; \
+если не уверен или всё верно — не включай слово (пустой список). rule_uz — на узбекском \
+(O'zbekcha), rule_ru — на русском; все русские слова только кириллицей."""
+
+
+@gemini_breaker
+def detect_orthoepy(
+    *,
+    audio_bytes: bytes,
+    audio_mime: str = "audio/mp3",
+    reference_text: str | None = None,
+    transcript_text: str | None = None,
+) -> list[OrthoepyError]:
+    """Listen to a recording and flag words read AS SPELLED (orthoepy errors).
+    Standalone audio pass (the main analysis is text-only). Best-effort: returns
+    [] on any failure so it never breaks the pipeline."""
+    if not audio_bytes:
+        return []
+    ref = (reference_text or transcript_text or "").strip()
+    user_content = (
+        (f"Текст, который читал студент:\n«{ref}»\n\n" if ref else "")
+        + "Прослушай аудио и перечисли слова, прочитанные по написанию."
+    )
+    parts: list = [
+        types.Part.from_bytes(data=audio_bytes, mime_type=audio_mime or "audio/mp3"),
+        user_content,
+    ]
+    config = types.GenerateContentConfig(
+        system_instruction=_ORTHOEPY_SYSTEM,
+        response_mime_type="application/json",
+        response_schema=OrthoepyResult,
+        thinking_config=types.ThinkingConfig(thinking_budget=0),
+    )
+    for attempt in range(_MAX_ATTEMPTS):
+        try:
+            response = _get_client().models.generate_content(
+                model=settings.GEMINI_MODEL, contents=parts, config=config
+            )
+            break
+        except genai_errors.APIError as e:
+            if getattr(e, "code", None) in _RETRYABLE_CODES and attempt < _MAX_ATTEMPTS - 1:
+                time.sleep(2 * (attempt + 1))
+                continue
+            raise
+    parsed = response.parsed
+    return parsed.errors if isinstance(parsed, OrthoepyResult) else []

@@ -211,7 +211,10 @@ def list_questions(
         stmt = stmt.where(Question.ru_style == ru_style)
     if block_id is not None:
         stmt = stmt.where(Question.block_id == block_id)
-    stmt = stmt.order_by(Question.created_at.desc())
+        # Inside a module → manual drag-and-drop order.
+        stmt = stmt.order_by(Question.sort_order, Question.created_at)
+    else:
+        stmt = stmt.order_by(Question.created_at.desc())
     out = [_to_out(q) for q in db.scalars(stmt).all()]
     if user.role == UserRole.student:
         for o in out:  # never leak the exemplar answer before submitting
@@ -317,6 +320,7 @@ def duplicate_question(
         teacher_id=teacher.id,
         type=src.type,
         title=f"{src.title} (копия)"[:255],
+        instruction_text=src.instruction_text,
         prompt_text=src.prompt_text,
         media_key=src.media_key,
         level=src.level,

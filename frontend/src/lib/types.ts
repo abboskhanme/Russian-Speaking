@@ -138,6 +138,7 @@ export interface Question {
   teacher_name: string | null;
   type: QuestionType;
   title: string;
+  instruction_text: string | null;
   prompt_text: string;
   media_key: string | null;
   media_url: string | null;
@@ -145,6 +146,7 @@ export interface Question {
   topic: string | null;
   block_id: string | null;
   ru_style: RuStyle | null;
+  sort_order: number;
   prep_time_sec: number;
   answer_time_limit_sec: number;
   is_published: boolean;
@@ -160,8 +162,18 @@ export interface QuestionBlock {
   topic: string | null;
   level: string | null;
   ru_style: RuStyle | null;
+  sort_order: number;
   question_count: number;
   created_at: string;
+}
+
+export interface OrthoepyError {
+  word: string;
+  word_with_stress: string;
+  correct: string;
+  said: string;
+  rule_ru: string;
+  rule_uz: string;
 }
 
 export interface TeacherContact {
@@ -190,6 +202,7 @@ export interface Evaluation {
     improvements: string[];
     vocabulary_suggestions: string[];
     pronunciation_feedback?: string;
+    orthoepy_errors?: OrthoepyError[];
   } | null;
   corrections:
     | { original: string; corrected: string; type: string; explanation: string }[]
@@ -230,6 +243,8 @@ export interface PronunciationScores {
   pronunciation: number | null;
   // Present only for shadowing: how well the transcript matched the target.
   reference_match?: ReferenceMatch | null;
+  // AI-detected words read AS SPELLED (orthoepy errors).
+  orthoepy_errors?: OrthoepyError[] | null;
 }
 
 export interface Transcript {

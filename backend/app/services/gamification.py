@@ -9,7 +9,7 @@ from datetime import date, datetime, timedelta, timezone
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.models import Evaluation, ReviewItem, Submission, User, XpEvent
+from app.models import Evaluation, ReviewItem, Submission, User, UserRole, XpEvent
 
 XP_BASE = 10
 # Scores are 0–100; flag a skill for review below this (≈ the old 6.0/9 band).
@@ -29,8 +29,8 @@ def award_submission(
     db: Session, sub: Submission, evaluation: Evaluation, *, answered: bool = True
 ) -> None:
     user = db.get(User, sub.student_id)
-    if user is None:
-        return
+    if user is None or user.role != UserRole.student:
+        return  # teacher/admin runs are just test attempts — no XP, no streak
     # No spoken answer (silent / empty recording) → no XP, no streak. The student
     # only earns engagement rewards when they actually said something.
     if not answered:
@@ -52,8 +52,8 @@ def award_practice(db: Session, sub: Submission) -> None:
     """Reward a non-graded practice attempt (shadowing). Counts toward XP/streak
     for engagement, but carries no academic band."""
     user = db.get(User, sub.student_id)
-    if user is None:
-        return
+    if user is None or user.role != UserRole.student:
+        return  # teacher/admin practice runs earn nothing
     db.add(XpEvent(student_id=user.id, submission_id=sub.id, amount=PRACTICE_XP, reason="practice"))
     user.xp = (user.xp or 0) + PRACTICE_XP
     _update_streak(user)
@@ -89,6 +89,9 @@ def _update_streak(user: User) -> None:
 
 def schedule_review(db: Session, sub: Submission, evaluation: Evaluation) -> None:
     """Mark prior reviews for this question done; schedule a new one for the weakest skill."""
+    student = db.get(User, sub.student_id)
+    if student is None or student.role != UserRole.student:
+        return  # only real students accrue spaced-repetition reviews
     prior = db.scalars(
         select(ReviewItem).where(
             ReviewItem.student_id == sub.student_id,

@@ -72,11 +72,27 @@ export async function uploadToPresigned(
   contentType: string,
   onProgress?: (pct: number) => void,
 ) {
-  await axios.put(url, blob, {
-    headers: { "Content-Type": contentType },
-    timeout: 0,
-    onUploadProgress: (e) => {
-      if (onProgress && e.total) onProgress(Math.round((e.loaded / e.total) * 100));
-    },
-  });
+  // Mobile networks (4G on a shaky signal) drop the upload mid-flight, which
+  // showed up as "Javobni yuborib bo'lmadi". Retry a couple of times on
+  // network/5xx errors before giving up — a real 4xx (auth/expired URL) is
+  // permanent, so we don't retry those.
+  const MAX_ATTEMPTS = 3;
+  for (let attempt = 1; ; attempt++) {
+    try {
+      await axios.put(url, blob, {
+        headers: { "Content-Type": contentType },
+        timeout: 0,
+        onUploadProgress: (e) => {
+          if (onProgress && e.total) onProgress(Math.round((e.loaded / e.total) * 100));
+        },
+      });
+      return;
+    } catch (err) {
+      const status = (err as { response?: { status?: number } })?.response?.status;
+      const retriable = status === undefined || status >= 500; // network drop or server-side
+      if (attempt >= MAX_ATTEMPTS || !retriable) throw err;
+      onProgress?.(0);
+      await new Promise((r) => setTimeout(r, 800 * attempt));
+    }
+  }
 }

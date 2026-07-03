@@ -105,6 +105,34 @@ export function AnswerQuestion() {
           </div>
           <h2 style={{ fontSize: 24, lineHeight: 1.25 }}>{q.title}</h2>
 
+          {q.instruction_text && (
+            <div
+              style={{
+                marginTop: 12,
+                padding: "12px 14px",
+                background: "var(--primary-tint)",
+                borderRadius: "var(--r-md)",
+                borderLeft: "3px solid var(--primary)",
+              }}
+            >
+              <div
+                style={{
+                  fontSize: 11.5,
+                  fontWeight: 800,
+                  color: "var(--primary-press)",
+                  textTransform: "uppercase",
+                  letterSpacing: "0.04em",
+                  marginBottom: 4,
+                }}
+              >
+                {t("taskCondition")}
+              </div>
+              <div style={{ fontSize: 15, lineHeight: 1.55, color: "var(--ink)", whiteSpace: "pre-wrap" }}>
+                {q.instruction_text}
+              </div>
+            </div>
+          )}
+
           <RichText
             html={q.prompt_text}
             style={{ fontSize: 16, lineHeight: 1.6, color: "var(--ink-soft)", marginTop: 12 }}

@@ -30,9 +30,16 @@ class BlockOut(BaseModel):
     topic: str | None = None
     level: str | None = None
     ru_style: str | None = None
+    sort_order: int = 0
     question_count: int = 0
     created_at: datetime
 
 
 class BlockAddQuestions(BaseModel):
     question_ids: list[uuid.UUID] = Field(min_length=1, max_length=500)
+
+
+class ReorderIds(BaseModel):
+    """Ordered id list — index becomes the new sort_order (drag-and-drop)."""
+
+    ids: list[uuid.UUID] = Field(max_length=2000)

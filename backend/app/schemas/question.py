@@ -20,6 +20,8 @@ def _norm_style(v: str | None) -> str | None:
 class QuestionCreate(BaseModel):
     type: QuestionType
     title: str = Field(min_length=1, max_length=200)
+    # The task's condition/instruction ("shart"); optional, separate from content.
+    instruction_text: str | None = Field(default=None, max_length=20000)
     # Rich-text (sanitised HTML) — the markup inflates length, so allow headroom.
     prompt_text: str = Field(min_length=1, max_length=20000)
     level: str | None = Field(default=None, max_length=8)
@@ -42,6 +44,7 @@ class QuestionCreate(BaseModel):
 
 class QuestionUpdate(BaseModel):
     title: str | None = Field(default=None, min_length=1, max_length=200)
+    instruction_text: str | None = Field(default=None, max_length=20000)
     prompt_text: str | None = Field(default=None, min_length=1, max_length=20000)
     level: str | None = Field(default=None, max_length=8)
     topic: str | None = Field(default=None, max_length=100)
@@ -67,6 +70,7 @@ class QuestionOut(BaseModel):
     teacher_name: str | None = None
     type: QuestionType
     title: str
+    instruction_text: str | None = None
     prompt_text: str
     media_key: str | None
     media_url: str | None = None
@@ -74,6 +78,7 @@ class QuestionOut(BaseModel):
     topic: str | None
     block_id: uuid.UUID | None = None
     ru_style: str | None = None
+    sort_order: int = 0
     prep_time_sec: int
     answer_time_limit_sec: int
     is_published: bool

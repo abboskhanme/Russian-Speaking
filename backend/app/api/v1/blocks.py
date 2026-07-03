@@ -14,6 +14,7 @@ from app.schemas.block import (
     BlockCreate,
     BlockOut,
     BlockUpdate,
+    ReorderIds,
 )
 from app.schemas.question import QuestionOut
 
@@ -59,7 +60,7 @@ def list_blocks(
     db: Session = Depends(get_db),
 ) -> list[BlockOut]:
     """A teacher's blocks (admin: everyone's), newest first, with question counts."""
-    stmt = select(QuestionBlock).order_by(QuestionBlock.created_at.desc())
+    stmt = select(QuestionBlock).order_by(QuestionBlock.sort_order, QuestionBlock.created_at)
     if user.role != UserRole.admin:
         stmt = stmt.where(QuestionBlock.teacher_id == user.id)
     blocks = list(db.scalars(stmt).all())
@@ -131,7 +132,7 @@ def block_questions(
     items = db.scalars(
         select(Question)
         .where(Question.block_id == block.id, Question.is_deleted.is_(False))
-        .order_by(Question.created_at.desc())
+        .order_by(Question.sort_order, Question.created_at)
     ).all()
     return [question_to_out(q) for q in items]
 
@@ -179,4 +180,46 @@ def remove_question(
     if teacher.role != UserRole.admin and q.teacher_id != teacher.id:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Question not found")
     q.block_id = None
+    db.commit()
+
+
+@router.post("/reorder", status_code=status.HTTP_204_NO_CONTENT)
+def reorder_blocks(
+    payload: ReorderIds,
+    teacher: User = Depends(require_teacher),
+    db: Session = Depends(get_db),
+) -> None:
+    """Persist a new module order (drag-and-drop): index → sort_order."""
+    stmt = select(QuestionBlock).where(QuestionBlock.id.in_(payload.ids))
+    if teacher.role != UserRole.admin:
+        stmt = stmt.where(QuestionBlock.teacher_id == teacher.id)
+    owned = {b.id: b for b in db.scalars(stmt).all()}
+    for i, bid in enumerate(payload.ids):
+        b = owned.get(bid)
+        if b is not None:
+            b.sort_order = i
+    db.commit()
+
+
+@router.post("/{block_id}/tasks/reorder", status_code=status.HTTP_204_NO_CONTENT)
+def reorder_tasks(
+    block_id: uuid.UUID,
+    payload: ReorderIds,
+    teacher: User = Depends(require_teacher),
+    db: Session = Depends(get_db),
+) -> None:
+    """Persist a new task order within one module (drag-and-drop)."""
+    block = _owned_block(block_id, teacher, db)
+    q_map = {
+        q.id: q
+        for q in db.scalars(
+            select(Question).where(
+                Question.block_id == block.id, Question.id.in_(payload.ids)
+            )
+        ).all()
+    }
+    for i, qid in enumerate(payload.ids):
+        q = q_map.get(qid)
+        if q is not None:
+            q.sort_order = i
     db.commit()

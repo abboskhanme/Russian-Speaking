@@ -9,6 +9,7 @@ from app.models.gamification import Assignment, ReviewItem, XpEvent
 from app.models.group import Group, GroupMember
 from app.models.notification import Notification
 from app.models.question import Question
+from app.models.shadowing import ShadowingPhrase
 from app.models.submission import Submission
 from app.models.topic import Topic, TopicImage
 from app.models.transcript import Transcript
@@ -18,6 +19,7 @@ __all__ = [
     "User",
     "Question",
     "QuestionBlock",
+    "ShadowingPhrase",
     "Submission",
     "Transcript",
     "Evaluation",
