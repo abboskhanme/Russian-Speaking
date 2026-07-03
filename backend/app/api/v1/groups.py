@@ -6,7 +6,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from app.api.deps import get_current_user, require_teacher
+from app.api.deps import get_current_user, require_admin, require_teacher
 from app.db.session import get_db
 from app.models import Assignment, Group, GroupMember, Question, Submission, User, UserRole
 from app.schemas.group import (
@@ -17,6 +17,7 @@ from app.schemas.group import (
     GroupOut,
     GroupOverview,
     GroupTask,
+    GroupTeacherUpdate,
     GroupUpdate,
     JoinGroup,
     MemberStat,
@@ -54,6 +55,7 @@ def _group_out(db: Session, g: Group) -> GroupOut:
         name=g.name,
         join_code=g.join_code,
         member_count=count,
+        teacher_id=g.teacher_id,
         teacher_name=teacher.full_name if teacher else None,
         created_at=g.created_at,
     )
@@ -100,6 +102,27 @@ def create_group(
 ) -> GroupOut:
     g = Group(teacher_id=teacher.id, name=payload.name.strip() or "Группа", join_code=_gen_code(db))
     db.add(g)
+    db.commit()
+    db.refresh(g)
+    return _group_out(db, g)
+
+
+@router.patch("/{group_id}/teacher", response_model=GroupOut)
+def assign_teacher(
+    group_id: uuid.UUID,
+    payload: GroupTeacherUpdate,
+    _admin: User = Depends(require_admin),
+    db: Session = Depends(get_db),
+) -> GroupOut:
+    """Admin-only: (re)assign a group to a teacher — e.g. an admin-created group
+    that isn't attached to a real teacher yet."""
+    g = db.get(Group, group_id)
+    if g is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Group not found")
+    target = db.get(User, payload.teacher_id)
+    if target is None or target.role not in (UserRole.teacher, UserRole.admin):
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "Target user is not a teacher")
+    g.teacher_id = target.id
     db.commit()
     db.refresh(g)
     return _group_out(db, g)

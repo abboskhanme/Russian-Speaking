@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import { api } from "../lib/api";
+import { useAuth } from "../lib/auth";
 import { useI18n } from "../lib/i18n";
 import type { Group } from "../lib/types";
 import { useConfirm } from "../components/ConfirmDialog";
@@ -45,6 +46,21 @@ export function TeacherGroups() {
 
   const remove = useMutation({
     mutationFn: async (id: string) => api.delete(`/groups/${id}`),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["teacher-groups"] }),
+  });
+
+  // Admin only: assign an admin-created group to a real teacher.
+  const { user } = useAuth();
+  const isAdmin = user?.role === "admin";
+  const { data: teachers } = useQuery({
+    queryKey: ["admin-teachers"],
+    enabled: isAdmin,
+    queryFn: async () =>
+      (await api.get<{ id: string; full_name: string }[]>("/admin/teachers")).data,
+  });
+  const assign = useMutation({
+    mutationFn: async ({ groupId, teacherId }: { groupId: string; teacherId: string }) =>
+      api.patch(`/groups/${groupId}/teacher`, { teacher_id: teacherId }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["teacher-groups"] }),
   });
 
@@ -138,6 +154,28 @@ export function TeacherGroups() {
                     {g.member_count} {t("members")}
                   </span>
                 </div>
+
+                {/* Admin: (re)assign this group to a real teacher */}
+                {isAdmin && (
+                  <div onClick={(e) => e.stopPropagation()} style={{ marginTop: 12 }}>
+                    <span style={{ fontSize: 11.5, fontWeight: 800, color: "var(--faint)", textTransform: "uppercase", letterSpacing: "0.04em" }}>
+                      {t("groupTeacher")}
+                    </span>
+                    <select
+                      value={teachers?.some((tt) => tt.id === g.teacher_id) ? g.teacher_id ?? "" : ""}
+                      onChange={(e) => {
+                        e.stopPropagation();
+                        if (e.target.value) assign.mutate({ groupId: g.id, teacherId: e.target.value });
+                      }}
+                      style={{ ...inp, fontSize: 13, marginTop: 4 }}
+                    >
+                      <option value="">— {t("assignTeacher")} —</option>
+                      {(teachers ?? []).map((tt) => (
+                        <option key={tt.id} value={tt.id}>{tt.full_name}</option>
+                      ))}
+                    </select>
+                  </div>
+                )}
               </Card>
             );
           })}

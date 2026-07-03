@@ -291,6 +291,7 @@ export interface Group {
   name: string;
   join_code: string;
   member_count: number;
+  teacher_id: string | null;
   teacher_name: string | null;
   created_at: string;
   members?: GroupMember[];

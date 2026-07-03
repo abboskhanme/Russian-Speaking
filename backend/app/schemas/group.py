@@ -12,6 +12,10 @@ class GroupUpdate(BaseModel):
     name: str
 
 
+class GroupTeacherUpdate(BaseModel):
+    teacher_id: uuid.UUID
+
+
 class TaskDueUpdate(BaseModel):
     due_at: datetime | None = None
 
@@ -31,6 +35,7 @@ class GroupOut(BaseModel):
     name: str
     join_code: str
     member_count: int = 0
+    teacher_id: uuid.UUID | None = None
     teacher_name: str | None = None
     created_at: datetime
 
