@@ -137,6 +137,14 @@ export interface AiSettings {
   azure_openai_api_key: SecretState;
   azure_ready: boolean;
   active_provider: string;
+  // Speech-to-text
+  stt_provider: string; // auto | azure | whisper
+  azure_speech_region: string;
+  whisper_model: string;
+  azure_speech_key: SecretState;
+  openai_api_key: SecretState;
+  azure_speech_ready: boolean;
+  stt_active_provider: string;
 }
 
 export interface AdminStudent {

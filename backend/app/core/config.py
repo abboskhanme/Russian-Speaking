@@ -69,6 +69,11 @@ class Settings(BaseSettings):
     # Free key: https://www.pexels.com/api/  (one key covers both photo + video)
     PEXELS_API_KEY: str = ""
 
+    # Outbound contact links shown in the sidebar (env DEFAULTS only — an admin
+    # can override them at runtime from the AI/links settings page).
+    TG_SUPPORT_URL: str = "https://t.me/govori_support"
+    TG_CHANNEL_URL: str = "https://t.me/govori_channel"
+
     # Auth
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
     REFRESH_TOKEN_EXPIRE_DAYS: int = 7

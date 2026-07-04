@@ -28,6 +28,7 @@ import azure.cognitiveservices.speech as speechsdk
 
 from app.core.breaker import azure_speech_breaker
 from app.core.config import settings
+from app.services import app_settings as _cfg
 
 # Azure reports offsets/durations in 100-nanosecond ticks.
 _TICKS_PER_SEC = 10_000_000
@@ -235,9 +236,10 @@ def _transcribe_azure(
         raise ValueError("Audio file too large")
     wav_path = _to_wav(audio_bytes)
     try:
+        _stt = _cfg.resolve_stt()
         speech_config = speechsdk.SpeechConfig(
-            subscription=settings.AZURE_SPEECH_KEY,
-            region=settings.AZURE_SPEECH_REGION,
+            subscription=_stt["azure_speech_key"],
+            region=_stt["azure_speech_region"],
         )
         speech_config.speech_recognition_language = settings.STT_LANGUAGE
         speech_config.output_format = speechsdk.OutputFormat.Detailed
@@ -341,12 +343,13 @@ def _transcribe_whisper(
 
     from openai import OpenAI
 
-    client = OpenAI(api_key=settings.OPENAI_API_KEY)
+    _stt = _cfg.resolve_stt()
+    client = OpenAI(api_key=_stt["openai_api_key"])
     buf = io.BytesIO(audio_bytes)
     buf.name = filename  # the SDK infers format from the filename
 
     resp = client.audio.transcriptions.create(
-        model=settings.WHISPER_MODEL,
+        model=_stt["whisper_model"],
         file=buf,
         language=settings.STT_LANGUAGE.split("-")[0],  # "ru-RU" -> "ru"
         response_format="verbose_json",
@@ -369,7 +372,7 @@ def _transcribe_whisper(
         "words": words,
         "duration": getattr(resp, "duration", None),
         "pronunciation": None,  # Whisper cannot assess pronunciation
-        "model": settings.WHISPER_MODEL,
+        "model": _stt["whisper_model"],
     }
 
 
@@ -377,12 +380,13 @@ def _transcribe_whisper(
 def _provider() -> str:
     """Pick the STT backend. STT_PROVIDER=azure|whisper forces one; 'auto'
     (default) uses Azure when its key is set, else Whisper."""
-    forced = settings.STT_PROVIDER.lower()
+    s = _cfg.resolve_stt()
+    forced = s["provider"]
     if forced in ("azure", "whisper"):
         return forced
-    if settings.AZURE_SPEECH_KEY:
+    if s["azure_speech_key"]:
         return "azure"
-    if settings.OPENAI_API_KEY:
+    if s["openai_api_key"]:
         return "whisper"
     raise RuntimeError(
         "No STT provider configured — set AZURE_SPEECH_KEY (preferred) or OPENAI_API_KEY"

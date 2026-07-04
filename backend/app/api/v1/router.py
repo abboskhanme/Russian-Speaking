@@ -10,6 +10,7 @@ from app.api.v1 import (
     notifications,
     questions,
     reports,
+    settings_public,
     shadowing,
     submissions,
     topics,
@@ -30,3 +31,4 @@ api_router.include_router(engagement.router)
 api_router.include_router(groups.router)
 api_router.include_router(reports.router)
 api_router.include_router(notifications.router)
+api_router.include_router(settings_public.router)

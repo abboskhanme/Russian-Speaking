@@ -26,6 +26,15 @@ _SPEC: dict[str, tuple[str, bool]] = {
     "azure_openai_api_key": ("AZURE_OPENAI_API_KEY", True),
     "azure_openai_deployment": ("AZURE_OPENAI_DEPLOYMENT", False),
     "azure_openai_api_version": ("AZURE_OPENAI_API_VERSION", False),
+    # Speech-to-text (Azure Speech preferred, OpenAI Whisper fallback).
+    "stt_provider": ("STT_PROVIDER", False),
+    "azure_speech_key": ("AZURE_SPEECH_KEY", True),
+    "azure_speech_region": ("AZURE_SPEECH_REGION", False),
+    "openai_api_key": ("OPENAI_API_KEY", True),
+    "whisper_model": ("WHISPER_MODEL", False),
+    # Outbound links (sidebar contact menu) — managed at runtime.
+    "tg_support_url": ("TG_SUPPORT_URL", False),
+    "tg_channel_url": ("TG_CHANNEL_URL", False),
 }
 
 KEYS: list[str] = list(_SPEC)
@@ -103,6 +112,25 @@ def masked_state() -> dict[str, object]:
         else:
             out[key] = val
     return out
+
+
+def resolve_links() -> dict[str, str]:
+    """Resolved outbound links for the sidebar contact menu."""
+    return {
+        "tg_support_url": get("tg_support_url"),
+        "tg_channel_url": get("tg_channel_url"),
+    }
+
+
+def resolve_stt() -> dict[str, str]:
+    """Resolved speech-to-text config."""
+    return {
+        "provider": (get("stt_provider", "auto") or "auto").lower(),
+        "azure_speech_key": get("azure_speech_key"),
+        "azure_speech_region": get("azure_speech_region"),
+        "openai_api_key": get("openai_api_key"),
+        "whisper_model": get("whisper_model", "whisper-1"),
+    }
 
 
 def resolve_llm() -> dict[str, str]:

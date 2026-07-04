@@ -7,7 +7,7 @@ import { NotFound } from "./pages/NotFound";
 import { useI18n, type Lang } from "./lib/i18n";
 import { useStudentStats } from "./lib/useStats";
 import { FREE_ATTEMPT_LIMIT } from "./lib/plan";
-import { TELEGRAM_CHANNEL_URL, TELEGRAM_SUPPORT_URL } from "./lib/contact";
+import { useOutboundLinks } from "./lib/contact";
 import { Login } from "./pages/Login";
 import { Register } from "./pages/Register";
 import { CompleteProfile } from "./pages/CompleteProfile";
@@ -184,6 +184,7 @@ function Sidebar({ mobileOpen, setMobileOpen }: { mobileOpen: boolean; setMobile
   const { t } = useI18n();
   const { streak } = useStudentStats();
   const items = useNavItems();
+  const links = useOutboundLinks();
   if (!user) return null;
 
   return (
@@ -250,8 +251,8 @@ function Sidebar({ mobileOpen, setMobileOpen }: { mobileOpen: boolean; setMobile
             {t("contactHeading")}
           </div>
           {[
-            { href: TELEGRAM_SUPPORT_URL, icon: "message" as const, label: t("tgSupport") },
-            { href: TELEGRAM_CHANNEL_URL, icon: "send" as const, label: t("tgChannel") },
+            { href: links.tg_support_url, icon: "message" as const, label: t("tgSupport") },
+            { href: links.tg_channel_url, icon: "send" as const, label: t("tgChannel") },
           ].map((c) => (
             <a
               key={c.label}

@@ -20,6 +20,33 @@ class AiSettingsOut(BaseModel):
     # Derived, read-only status for the UI.
     azure_ready: bool         # Azure fully configured (endpoint + key + deployment)
     active_provider: str      # which provider will actually handle grading now
+    # Speech-to-text (Azure Speech preferred, Whisper fallback).
+    stt_provider: str         # auto | azure | whisper
+    azure_speech_region: str
+    whisper_model: str
+    azure_speech_key: SecretState
+    openai_api_key: SecretState
+    azure_speech_ready: bool  # key + region present
+    stt_active_provider: str  # which STT backend will run now
+
+
+class RevealOut(BaseModel):
+    """The raw value of one secret setting — admin-only, on explicit request."""
+
+    key: str
+    value: str
+
+
+class LinksOut(BaseModel):
+    """Outbound links shown in the sidebar contact menu."""
+
+    tg_support_url: str
+    tg_channel_url: str
+
+
+class LinksUpdate(BaseModel):
+    tg_support_url: str | None = None
+    tg_channel_url: str | None = None
 
 
 class AiSettingsUpdate(BaseModel):
@@ -33,3 +60,9 @@ class AiSettingsUpdate(BaseModel):
     azure_openai_api_key: str | None = None
     azure_openai_deployment: str | None = None
     azure_openai_api_version: str | None = None
+    # Speech-to-text
+    stt_provider: str | None = None
+    azure_speech_region: str | None = None
+    whisper_model: str | None = None
+    azure_speech_key: str | None = None
+    openai_api_key: str | None = None
