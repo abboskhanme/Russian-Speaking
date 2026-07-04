@@ -122,6 +122,23 @@ export interface AdminTeacher {
   question_count: number;
 }
 
+export interface SecretState {
+  set: boolean;
+  hint: string;
+}
+
+export interface AiSettings {
+  llm_provider: string; // auto | azure | gemini
+  gemini_model: string;
+  azure_openai_endpoint: string;
+  azure_openai_deployment: string;
+  azure_openai_api_version: string;
+  gemini_api_key: SecretState;
+  azure_openai_api_key: SecretState;
+  azure_ready: boolean;
+  active_provider: string;
+}
+
 export interface AdminStudent {
   id: string;
   email: string;

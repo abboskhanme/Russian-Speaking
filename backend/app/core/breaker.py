@@ -56,3 +56,7 @@ class CircuitBreaker:
 
 azure_speech_breaker = CircuitBreaker("Azure Speech")
 gemini_breaker = CircuitBreaker("Gemini")
+# LLM grader on Azure OpenAI — kept separate from Gemini's breaker so that when
+# Azure is down (and its circuit is open) the grader can still fall back to
+# Gemini, and vice-versa.
+azure_llm_breaker = CircuitBreaker("Azure OpenAI")

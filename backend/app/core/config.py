@@ -49,9 +49,21 @@ class Settings(BaseSettings):
     OPENAI_API_KEY: str = ""
     WHISPER_MODEL: str = "whisper-1"
 
-    # AI — Gemini (text analysis)
+    # AI — LLM grader provider. "auto" (Azure OpenAI when fully configured, else
+    # Gemini), or force "azure" / "gemini". These are env DEFAULTS only — an admin
+    # can override any of them at runtime from the DB (see services.app_settings).
+    LLM_PROVIDER: str = "auto"
+
+    # AI — Gemini (text analysis; also the emergency fallback for the grader)
     GEMINI_API_KEY: str = ""
     GEMINI_MODEL: str = "gemini-2.5-flash"
+
+    # AI — Azure OpenAI (preferred grader when configured). The deployment must be
+    # a structured-output-capable chat model (e.g. a gpt-4o deployment).
+    AZURE_OPENAI_ENDPOINT: str = ""       # https://<resource>.openai.azure.com
+    AZURE_OPENAI_API_KEY: str = ""
+    AZURE_OPENAI_DEPLOYMENT: str = ""     # your deployment name
+    AZURE_OPENAI_API_VERSION: str = "2024-10-21"
 
     # Pexels — stock photos/videos for auto-generated media questions.
     # Free key: https://www.pexels.com/api/  (one key covers both photo + video)

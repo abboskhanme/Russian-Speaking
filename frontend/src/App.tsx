@@ -41,6 +41,7 @@ import { AdminTeacherDetail } from "./pages/AdminTeacherDetail";
 import { AdminStudents } from "./pages/AdminStudents";
 import { AdminStudentDetail } from "./pages/AdminStudentDetail";
 import { AdminTests } from "./pages/AdminTests";
+import { AdminSettings } from "./pages/AdminSettings";
 import { Settings } from "./pages/Settings";
 import {
   Avatar,
@@ -84,6 +85,7 @@ function useNavItems(): NavItem[] {
       { to: "/teacher/submissions", icon: "headphones", label: t("navAnswers") },
       { to: "/teacher/gradebook", icon: "chart", label: t("navGradebook") },
       { to: "/shadowing", icon: "volume", label: t("navShadow") },
+      { to: "/admin/settings", icon: "settings", label: t("navAiSettings") },
     ];
   if (user.role === "teacher")
     return [
@@ -520,6 +522,7 @@ function AppRoutes() {
       <Route path="/admin/students" element={<AdminStudents />} />
       <Route path="/admin/students/:id" element={<AdminStudentDetail />} />
       <Route path="/admin/tests" element={<AdminTests />} />
+      <Route path="/admin/settings" element={<AdminSettings />} />
       <Route path="/settings" element={<Settings />} />
       <Route path="*" element={<NotFound />} />
     </Routes>
