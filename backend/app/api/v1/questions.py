@@ -8,7 +8,16 @@ from sqlalchemy.orm import Session
 from app.api.deps import get_current_user, require_teacher
 from app.core.ratelimit import rate_limit
 from app.db.session import get_db
-from app.models import Assignment, Question, QuestionType, User, UserRole
+from app.models import (
+    Assignment,
+    Group,
+    GroupMember,
+    Question,
+    QuestionBlock,
+    QuestionType,
+    User,
+    UserRole,
+)
 from app.schemas.question import (
     BulkActionResult,
     BulkIds,
@@ -238,6 +247,25 @@ def list_topics(
     return sorted({t for t in db.scalars(stmt).all() if t})
 
 
+def _student_module_access(db: Session, student_id: uuid.UUID, q: Question) -> bool:
+    """True if the question is in a module owned by one of the student's teachers,
+    so students can work through module tasks that aren't in the public pool."""
+    if q.block_id is None:
+        return False
+    teacher_id = db.scalar(select(QuestionBlock.teacher_id).where(QuestionBlock.id == q.block_id))
+    if teacher_id is None:
+        return False
+    return (
+        db.scalar(
+            select(Group.id)
+            .join(GroupMember, GroupMember.group_id == Group.id)
+            .where(GroupMember.student_id == student_id, Group.teacher_id == teacher_id)
+            .limit(1)
+        )
+        is not None
+    )
+
+
 @router.get("/{question_id}", response_model=QuestionOut)
 def get_question(
     question_id: uuid.UUID,
@@ -250,8 +278,13 @@ def get_question(
     if user.role == UserRole.student:
         if not q.is_published:
             raise HTTPException(status.HTTP_404_NOT_FOUND, "Question not found")
-        # Assigned task: only reachable with a still-open assignment.
-        if not q.is_public and active_assignment(db, user.id, q.id) is None:
+        # A non-public task is reachable only via a still-open assignment OR when
+        # it belongs to a module of one of the student's teachers (module path).
+        if (
+            not q.is_public
+            and active_assignment(db, user.id, q.id) is None
+            and not _student_module_access(db, user.id, q)
+        ):
             raise HTTPException(status.HTTP_404_NOT_FOUND, "Question not found")
     if user.role == UserRole.teacher and q.teacher_id != user.id:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Question not found")
@@ -346,6 +379,9 @@ def delete_question(
     if q is None or (teacher.role != UserRole.admin and q.teacher_id != teacher.id) or q.is_deleted:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Question not found")
     # Soft delete: unpublish + hide, but keep submissions/evaluations history.
+    # Also detach it from any module so it disappears from the module for
+    # students and teachers.
     q.is_deleted = True
     q.is_published = False
+    q.block_id = None
     db.commit()

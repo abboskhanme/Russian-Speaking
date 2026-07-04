@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session, selectinload
 from datetime import datetime, timezone
 
 from app.api.deps import get_current_user, require_teacher_or_admin
-from app.api.v1.questions import active_assignment
+from app.api.v1.questions import _student_module_access, active_assignment
 from app.core.ratelimit import rate_limit
 from app.core.config import settings
 from app.db.session import get_db
@@ -131,7 +131,9 @@ def create_submission(
                     ReviewItem.completed.is_(False),
                 )
             )
-            if in_review is None:
+            # A module task (in one of the student's teachers' modules) is also
+            # answerable — that's the module learning path.
+            if in_review is None and not _student_module_access(db, student.id, q):
                 raise HTTPException(
                     status.HTTP_403_FORBIDDEN,
                     "This task isn't assigned to you, or its deadline has passed.",
