@@ -4,6 +4,9 @@ import { api, uploadToPresigned } from "../lib/api";
 import { useAuth } from "../lib/auth";
 import { LANGUAGES, useI18n, type Lang } from "../lib/i18n";
 import { Avatar, Button, Card, Icon, Toggle, inp } from "../components/govori";
+import { Dropdown, type DropdownOption } from "../components/Dropdown";
+import { UZ_REGIONS, districtsOf } from "../lib/regions";
+import { canonicalUzPhone, formatUzPhone, isValidUzPhone, uzPhoneDigits } from "../lib/phone";
 
 function Section({ title, children }: { title: ReactNode; children: ReactNode }) {
   return (
@@ -57,9 +60,24 @@ export function Settings() {
   const [name, setName] = useState(user?.full_name ?? "");
   const [telegram, setTelegram] = useState(user?.telegram ?? "");
   const [password, setPassword] = useState("");
+  const [phone, setPhone] = useState(user?.phone ? uzPhoneDigits(user.phone) : "");
+  const [age, setAge] = useState(user?.age ? String(user.age) : "");
+  const [region, setRegion] = useState(user?.region ?? "");
+  const [district, setDistrict] = useState(user?.district ?? "");
   const isTeacher = user?.role === "teacher" || user?.role === "admin";
+  const isStudent = user?.role === "student";
   const [savingProfile, setSavingProfile] = useState(false);
   const [savedMsg, setSavedMsg] = useState(false);
+  const [profileErr, setProfileErr] = useState<string | null>(null);
+
+  const regionOptions: DropdownOption<string>[] = [
+    { value: "", label: t("selectRegion") },
+    ...UZ_REGIONS.map((r) => ({ value: r.name, label: r.name })),
+  ];
+  const districtOptions: DropdownOption<string>[] = [
+    { value: "", label: t("selectDistrict") },
+    ...districtsOf(region).map((d) => ({ value: d, label: d })),
+  ];
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
 
   async function onAvatarPick(e: React.ChangeEvent<HTMLInputElement>) {
@@ -108,12 +126,21 @@ export function Settings() {
   }
 
   async function saveProfile() {
+    setProfileErr(null);
+    if (phone && !isValidUzPhone(phone)) {
+      setProfileErr(t("phoneInvalid"));
+      return;
+    }
     setSavingProfile(true);
     setSavedMsg(false);
     try {
       await api.patch("/auth/me", {
         full_name: name || undefined,
         password: password || undefined,
+        ...(phone ? { phone: canonicalUzPhone(phone) } : {}),
+        ...(region ? { region } : {}),
+        ...(district ? { district } : {}),
+        ...(isStudent && age ? { age: Number(age) } : {}),
         ...(isTeacher ? { telegram } : {}),
       });
       await refreshUser();
@@ -181,6 +208,49 @@ export function Settings() {
               <span style={{ fontSize: 13, fontWeight: 800, color: "var(--ink-soft)" }}>{t("fullName")}</span>
               <input value={name} onChange={(e) => setName(e.target.value)} style={inp} />
             </label>
+            <label className="col gap-2">
+              <span style={{ fontSize: 13, fontWeight: 800, color: "var(--ink-soft)" }}>{t("phone")}</span>
+              <input
+                inputMode="tel"
+                value={phone ? formatUzPhone(phone) : ""}
+                onChange={(e) => setPhone(uzPhoneDigits(e.target.value))}
+                placeholder="+998 90 123 45 67"
+                style={inp}
+              />
+            </label>
+            {isStudent && (
+              <label className="col gap-2">
+                <span style={{ fontSize: 13, fontWeight: 800, color: "var(--ink-soft)" }}>{t("ageLabel")}</span>
+                <input
+                  inputMode="numeric"
+                  value={age}
+                  onChange={(e) => setAge(e.target.value.replace(/\D/g, "").slice(0, 3))}
+                  placeholder={t("agePh")}
+                  style={inp}
+                />
+              </label>
+            )}
+            <div className="col gap-2">
+              <span style={{ fontSize: 13, fontWeight: 800, color: "var(--ink-soft)" }}>{t("regionLabel")}</span>
+              <Dropdown
+                value={region}
+                onChange={(v) => {
+                  setRegion(v);
+                  setDistrict("");
+                }}
+                options={regionOptions}
+                placeholder={t("selectRegion")}
+              />
+            </div>
+            <div className="col gap-2">
+              <span style={{ fontSize: 13, fontWeight: 800, color: "var(--ink-soft)" }}>{t("districtLabel")}</span>
+              <Dropdown
+                value={district}
+                onChange={setDistrict}
+                options={districtOptions}
+                placeholder={region ? t("selectDistrict") : t("selectRegionFirst")}
+              />
+            </div>
             {isTeacher && (
               <label className="col gap-2">
                 <span style={{ fontSize: 13, fontWeight: 800, color: "var(--ink-soft)" }}>{t("telegram")}</span>
@@ -203,6 +273,9 @@ export function Settings() {
                 style={inp}
               />
             </label>
+            {profileErr && (
+              <span style={{ fontSize: 13, color: "var(--danger)", fontWeight: 700 }}>{profileErr}</span>
+            )}
             <Button variant="soft" full disabled={savingProfile} onClick={saveProfile}>
               {savingProfile ? t("saving") : savedMsg ? t("saved") : t("save")}
             </Button>
