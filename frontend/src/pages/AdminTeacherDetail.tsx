@@ -117,8 +117,15 @@ export function AdminTeacherDetail() {
                 {students.map((s) => (
                   <div
                     key={s.id}
-                    className="row between gap-3"
-                    style={{ padding: "8px 4px", borderBottom: "1px solid var(--line)" }}
+                    className="tap row between gap-3"
+                    onClick={() => nav(`/admin/students/${s.id}`)}
+                    style={{
+                      padding: "10px 12px",
+                      borderRadius: "var(--r-sm)",
+                      border: "1px solid var(--line)",
+                      background: "var(--surface)",
+                      cursor: "pointer",
+                    }}
                   >
                     <div className="row gap-3" style={{ minWidth: 0 }}>
                       <Avatar name={s.full_name} size={34} />
@@ -131,20 +138,27 @@ export function AdminTeacherDetail() {
                         </span>
                       </div>
                     </div>
-                    <div className="row gap-2 wrap" style={{ justifyContent: "flex-end" }}>
-                      {s.is_premium && (
-                        <Pill hue={70} size="sm" icon="sparkles">
-                          {t("premium")}
-                        </Pill>
-                      )}
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        icon="sparkles"
-                        onClick={() => premium.mutate(s)}
+                    <div className="row gap-2" style={{ alignItems: "center" }}>
+                      <div
+                        className="row gap-2 wrap"
+                        style={{ justifyContent: "flex-end" }}
+                        onClick={(e) => e.stopPropagation()}
                       >
-                        {s.is_premium ? t("revokePremium") : t("grantPremium")}
-                      </Button>
+                        {s.is_premium && (
+                          <Pill hue={70} size="sm" icon="sparkles">
+                            {t("premium")}
+                          </Pill>
+                        )}
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          icon="sparkles"
+                          onClick={() => premium.mutate(s)}
+                        >
+                          {s.is_premium ? t("revokePremium") : t("grantPremium")}
+                        </Button>
+                      </div>
+                      <Icon name="chevR" size={18} style={{ color: "var(--muted)" }} />
                     </div>
                   </div>
                 ))}

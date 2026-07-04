@@ -7,12 +7,14 @@ import { useI18n } from "../lib/i18n";
 import type { Group } from "../lib/types";
 import { useConfirm } from "../components/ConfirmDialog";
 import {
+  Avatar,
   Button,
   Card,
   EmptyState,
   Icon,
   Loading,
   PageHead,
+  Pill,
   inp,
 } from "../components/govori";
 
@@ -157,23 +159,54 @@ export function TeacherGroups() {
 
                 {/* Admin: (re)assign this group to a real teacher */}
                 {isAdmin && (
-                  <div onClick={(e) => e.stopPropagation()} style={{ marginTop: 12 }}>
-                    <span style={{ fontSize: 11.5, fontWeight: 800, color: "var(--faint)", textTransform: "uppercase", letterSpacing: "0.04em" }}>
-                      {t("groupTeacher")}
-                    </span>
-                    <select
-                      value={teachers?.some((tt) => tt.id === g.teacher_id) ? g.teacher_id ?? "" : ""}
-                      onChange={(e) => {
-                        e.stopPropagation();
-                        if (e.target.value) assign.mutate({ groupId: g.id, teacherId: e.target.value });
-                      }}
-                      style={{ ...inp, fontSize: 13, marginTop: 4 }}
-                    >
-                      <option value="">— {t("assignTeacher")} —</option>
-                      {(teachers ?? []).map((tt) => (
-                        <option key={tt.id} value={tt.id}>{tt.full_name}</option>
-                      ))}
-                    </select>
+                  <div
+                    onClick={(e) => e.stopPropagation()}
+                    style={{ marginTop: 14, paddingTop: 14, borderTop: "1px solid var(--line)" }}
+                  >
+                    <div className="row between" style={{ alignItems: "center", marginBottom: 8, gap: 8 }}>
+                      <span style={{ fontSize: 11, fontWeight: 800, color: "var(--faint)", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                        {t("groupTeacher")}
+                      </span>
+                      {g.teacher_name ? (
+                        <span className="row gap-2" style={{ minWidth: 0, alignItems: "center" }}>
+                          <Avatar name={g.teacher_name} size={22} />
+                          <span className="truncate" style={{ fontSize: 13, fontWeight: 700, color: "var(--ink-soft)" }}>
+                            {g.teacher_name}
+                          </span>
+                        </span>
+                      ) : (
+                        <Pill hue={28} size="sm">{t("noTeacher")}</Pill>
+                      )}
+                    </div>
+                    <div style={{ position: "relative" }}>
+                      <select
+                        value={teachers?.some((tt) => tt.id === g.teacher_id) ? g.teacher_id ?? "" : ""}
+                        disabled={assign.isPending}
+                        onChange={(e) => {
+                          if (e.target.value) assign.mutate({ groupId: g.id, teacherId: e.target.value });
+                        }}
+                        style={{
+                          ...inp,
+                          appearance: "none",
+                          WebkitAppearance: "none",
+                          MozAppearance: "none",
+                          paddingRight: 38,
+                          fontSize: 13.5,
+                          fontWeight: 700,
+                          cursor: "pointer",
+                        }}
+                      >
+                        <option value="">{t("assignTeacher")}</option>
+                        {(teachers ?? []).map((tt) => (
+                          <option key={tt.id} value={tt.id}>{tt.full_name}</option>
+                        ))}
+                      </select>
+                      <Icon
+                        name="chevD"
+                        size={16}
+                        style={{ position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)", pointerEvents: "none", color: "var(--muted)" }}
+                      />
+                    </div>
                   </div>
                 )}
               </Card>
