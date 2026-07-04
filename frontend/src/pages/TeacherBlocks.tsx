@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "../lib/api";
 import { useI18n } from "../lib/i18n";
-import type { Question, QuestionBlock, RuStyle } from "../lib/types";
+import type { ModuleStudentProgress, Question, QuestionBlock, RuStyle } from "../lib/types";
 
 function move<T>(arr: T[], from: number, to: number): T[] {
   const next = arr.slice();
@@ -32,6 +32,14 @@ function BlockBody({ block }: { block: QuestionBlock }) {
   const qc = useQueryClient();
   const [picking, setPicking] = useState(false);
   const [sel, setSel] = useState<Set<string>>(new Set());
+  const [showProg, setShowProg] = useState(false);
+
+  const { data: prog, isLoading: progLoading } = useQuery({
+    queryKey: ["block-progress", block.id],
+    enabled: showProg,
+    queryFn: async () =>
+      (await api.get<ModuleStudentProgress[]>(`/blocks/${block.id}/progress`)).data,
+  });
 
   const { data: inBlock } = useQuery({
     queryKey: ["block-questions", block.id],
@@ -167,6 +175,42 @@ function BlockBody({ block }: { block: QuestionBlock }) {
           </div>
         </div>
       )}
+
+      {/* Per-student progress through this module */}
+      <div style={{ borderTop: "1px solid var(--line)", paddingTop: 12, marginTop: 2 }}>
+        <Button variant="ghost" size="sm" icon="chart" onClick={() => setShowProg((v) => !v)}>
+          {t("studentProgress")}
+        </Button>
+        {showProg &&
+          (progLoading ? (
+            <p style={{ fontSize: 13, color: "var(--muted)", marginTop: 8 }}>…</p>
+          ) : !prog?.length ? (
+            <p style={{ fontSize: 13, color: "var(--muted)", marginTop: 8 }}>{t("noStudents")}</p>
+          ) : (
+            <div className="col gap-2" style={{ marginTop: 10 }}>
+              {prog.map((p) => (
+                <div
+                  key={p.student_id}
+                  className="row between gap-3"
+                  style={{ padding: "9px 12px", borderRadius: "var(--r-sm)", background: "var(--surface-2)" }}
+                >
+                  <div className="col" style={{ minWidth: 0 }}>
+                    <span className="truncate" style={{ fontSize: 14, fontWeight: 700 }}>{p.full_name}</span>
+                    <span className="truncate" style={{ fontSize: 12, color: "var(--muted)" }}>
+                      {p.current_task_title ? `${t("currentTask")}: ${p.current_task_title}` : t("moduleFinished")}
+                    </span>
+                  </div>
+                  <div className="col" style={{ alignItems: "flex-end", gap: 4, flexShrink: 0 }}>
+                    <span style={{ fontSize: 13, fontWeight: 800 }}>{p.done_count}/{p.total}</span>
+                    <div style={{ width: 90, height: 6, borderRadius: 999, background: "var(--surface)", overflow: "hidden" }}>
+                      <div style={{ width: `${p.percent}%`, height: "100%", background: "var(--primary)", borderRadius: 999 }} />
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ))}
+      </div>
     </div>
   );
 }

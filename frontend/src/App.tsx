@@ -15,6 +15,7 @@ import { StudentHome } from "./pages/StudentHome";
 import { StudentProgress } from "./pages/StudentProgress";
 import { StudentQuestions } from "./pages/StudentQuestions";
 import { AnswerQuestion } from "./pages/AnswerQuestion";
+import { StudentModules } from "./pages/StudentModules";
 import { SubmissionResult } from "./pages/SubmissionResult";
 import { Leaderboard } from "./pages/Leaderboard";
 import { Review } from "./pages/Review";
@@ -101,6 +102,7 @@ function useNavItems(): NavItem[] {
   return [
     { to: "/", icon: "home", label: t("navHome") },
     { to: "/questions", icon: "mic", label: t("navPractice") },
+    { to: "/modules", icon: "layers", label: t("navModules") },
     { to: "/shadowing", icon: "headphones", label: t("navShadow") },
     { to: "/leaderboard", icon: "trophy", label: t("navRating") },
     { to: "/progress", icon: "chart", label: t("navProgress") },
@@ -495,6 +497,7 @@ function AppRoutes() {
       <Route path="/" element={<Home />} />
       <Route path="/questions" element={<StudentQuestions />} />
       <Route path="/questions/:id/answer" element={<AnswerQuestion />} />
+      <Route path="/modules" element={<StudentModules />} />
       <Route path="/submissions/:id" element={<SubmissionResult />} />
       <Route path="/progress" element={<StudentProgress />} />
       <Route path="/leaderboard" element={<Leaderboard />} />

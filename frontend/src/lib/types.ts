@@ -25,6 +25,37 @@ export interface User {
   avatar_url: string | null;
 }
 
+export interface StudentTask {
+  id: string;
+  title: string;
+  type: QuestionType;
+  level: string | null;
+  sort_order: number;
+  done: boolean;
+  locked: boolean;
+}
+
+export interface StudentModule {
+  id: string;
+  name: string;
+  topic: string | null;
+  level: string | null;
+  ru_style: string | null;
+  total: number;
+  done_count: number;
+  next_task_id: string | null;
+  tasks: StudentTask[];
+}
+
+export interface ModuleStudentProgress {
+  student_id: string;
+  full_name: string;
+  done_count: number;
+  total: number;
+  percent: number;
+  current_task_title: string | null;
+}
+
 export interface LeaderboardEntry {
   rank: number;
   id: string;

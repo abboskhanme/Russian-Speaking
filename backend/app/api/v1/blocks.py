@@ -7,14 +7,26 @@ from sqlalchemy.orm import Session
 from app.api.deps import get_current_user, require_teacher
 from app.api.v1.questions import _to_out as question_to_out
 from app.db.session import get_db
-from app.models import Question, QuestionBlock, User, UserRole
+from app.models import (
+    Group,
+    GroupMember,
+    Question,
+    QuestionBlock,
+    Submission,
+    SubmissionStatus,
+    User,
+    UserRole,
+)
 from app.schemas.block import (
     RU_STYLES,
     BlockAddQuestions,
     BlockCreate,
     BlockOut,
     BlockUpdate,
+    ModuleStudentProgress,
     ReorderIds,
+    StudentModule,
+    StudentTask,
 )
 from app.schemas.question import QuestionOut
 
@@ -66,6 +78,143 @@ def list_blocks(
     blocks = list(db.scalars(stmt).all())
     counts = _counts(db, [b.id for b in blocks])
     return [_to_out(b, counts.get(b.id, 0)) for b in blocks]
+
+
+@router.get("/student", response_model=list[StudentModule])
+def student_modules(
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> list[StudentModule]:
+    """Modules the student can work through, with SEQUENTIAL locking: a task is
+    unlocked only once the previous task in the same module is completed."""
+    teacher_ids = list(
+        db.scalars(
+            select(Group.teacher_id)
+            .join(GroupMember, GroupMember.group_id == Group.id)
+            .where(GroupMember.student_id == user.id)
+            .distinct()
+        ).all()
+    )
+    if not teacher_ids:
+        return []
+    blocks = list(
+        db.scalars(
+            select(QuestionBlock)
+            .where(QuestionBlock.teacher_id.in_(teacher_ids))
+            .order_by(QuestionBlock.sort_order, QuestionBlock.created_at)
+        ).all()
+    )
+    if not blocks:
+        return []
+    done_qids = set(
+        db.scalars(
+            select(Submission.question_id)
+            .where(
+                Submission.student_id == user.id,
+                Submission.status == SubmissionStatus.done,
+                Submission.question_id.is_not(None),
+            )
+            .distinct()
+        ).all()
+    )
+    out: list[StudentModule] = []
+    for b in blocks:
+        qs = list(
+            db.scalars(
+                select(Question)
+                .where(
+                    Question.block_id == b.id,
+                    Question.is_deleted.is_(False),
+                    Question.is_published.is_(True),
+                )
+                .order_by(Question.sort_order, Question.created_at)
+            ).all()
+        )
+        if not qs:
+            continue
+        tasks: list[StudentTask] = []
+        prev_done = True  # the first task is always unlocked
+        next_id: uuid.UUID | None = None
+        done_count = 0
+        for q in qs:
+            done = q.id in done_qids
+            locked = not prev_done
+            if done:
+                done_count += 1
+            elif not locked and next_id is None:
+                next_id = q.id
+            tasks.append(
+                StudentTask(
+                    id=q.id, title=q.title, type=q.type.value, level=q.level,
+                    sort_order=q.sort_order, done=done, locked=locked,
+                )
+            )
+            prev_done = done
+        out.append(
+            StudentModule(
+                id=b.id, name=b.name, topic=b.topic, level=b.level, ru_style=b.ru_style,
+                total=len(qs), done_count=done_count, next_task_id=next_id, tasks=tasks,
+            )
+        )
+    return out
+
+
+@router.get("/{block_id}/progress", response_model=list[ModuleStudentProgress])
+def block_progress(
+    block_id: uuid.UUID,
+    teacher: User = Depends(require_teacher),
+    db: Session = Depends(get_db),
+) -> list[ModuleStudentProgress]:
+    """Per-student progress through one module (teacher view): how many tasks each
+    student finished and which task they are on."""
+    block = _owned_block(block_id, teacher, db)
+    qs = list(
+        db.scalars(
+            select(Question)
+            .where(
+                Question.block_id == block.id,
+                Question.is_deleted.is_(False),
+                Question.is_published.is_(True),
+            )
+            .order_by(Question.sort_order, Question.created_at)
+        ).all()
+    )
+    total = len(qs)
+    qids = [q.id for q in qs]
+    rows = db.execute(
+        select(User.id, User.full_name)
+        .join(GroupMember, GroupMember.student_id == User.id)
+        .join(Group, Group.id == GroupMember.group_id)
+        .where(Group.teacher_id == block.teacher_id)
+        .distinct()
+    ).all()
+    out: list[ModuleStudentProgress] = []
+    for sid, full_name in rows:
+        if qids:
+            done_qids = set(
+                db.scalars(
+                    select(Submission.question_id)
+                    .where(
+                        Submission.student_id == sid,
+                        Submission.status == SubmissionStatus.done,
+                        Submission.question_id.in_(qids),
+                    )
+                    .distinct()
+                ).all()
+            )
+        else:
+            done_qids = set()
+        done_count = sum(1 for q in qs if q.id in done_qids)
+        current = next((q.title for q in qs if q.id not in done_qids), None)
+        percent = round(done_count / total * 100) if total else 0
+        out.append(
+            ModuleStudentProgress(
+                student_id=sid, full_name=full_name, done_count=done_count,
+                total=total, percent=percent, current_task_title=current,
+            )
+        )
+    out.sort(key=lambda p: p.percent, reverse=True)
+    return out
 
 
 @router.post("", response_model=BlockOut, status_code=status.HTTP_201_CREATED)

@@ -43,3 +43,36 @@ class ReorderIds(BaseModel):
     """Ordered id list — index becomes the new sort_order (drag-and-drop)."""
 
     ids: list[uuid.UUID] = Field(max_length=2000)
+
+
+# ── Student-facing module view (sequential progression) ─────────────────────
+class StudentTask(BaseModel):
+    id: uuid.UUID
+    title: str
+    type: str
+    level: str | None = None
+    sort_order: int = 0
+    done: bool = False
+    locked: bool = False  # previous task not completed yet
+
+
+class StudentModule(BaseModel):
+    id: uuid.UUID
+    name: str
+    topic: str | None = None
+    level: str | None = None
+    ru_style: str | None = None
+    total: int = 0
+    done_count: int = 0
+    next_task_id: uuid.UUID | None = None  # the current actionable (unlocked, not done) task
+    tasks: list[StudentTask] = []
+
+
+# ── Teacher-facing per-module progress ──────────────────────────────────────
+class ModuleStudentProgress(BaseModel):
+    student_id: uuid.UUID
+    full_name: str
+    done_count: int = 0
+    total: int = 0
+    percent: int = 0
+    current_task_title: str | None = None  # next task the student should do (None = finished)
