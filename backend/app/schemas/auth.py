@@ -1,9 +1,10 @@
 import re
 import uuid
 
-from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
+from pydantic import BaseModel, ConfigDict, EmailStr, Field, computed_field, field_validator
 
 from app.models.enums import UserRole
+from app.services import storage
 
 
 def normalize_uz_phone(raw: str) -> str:
@@ -115,6 +116,18 @@ class UserOut(BaseModel):
     streak_freezes: int = 0
     current_streak: int = 0
     longest_streak: int = 0
+    avatar_key: str | None = None
+
+    @computed_field  # type: ignore[prop-decorator]
+    @property
+    def avatar_url(self) -> str | None:
+        """A short-lived signed URL for the avatar image (None if unset)."""
+        if not self.avatar_key:
+            return None
+        try:
+            return storage.presigned_get(self.avatar_key, expires=86400)
+        except Exception:
+            return None
 
 
 class ProfileUpdate(BaseModel):
@@ -127,6 +140,7 @@ class ProfileUpdate(BaseModel):
     preferred_language: str | None = None
     password: str | None = None
     daily_goal: int | None = None
+    avatar_key: str | None = None
 
     @field_validator("phone")
     @classmethod
@@ -139,3 +153,12 @@ class ProfileUpdate(BaseModel):
         if v is not None and (v < 5 or v > 100):
             raise ValueError("Yoshni to'g'ri kiriting")
         return v
+
+
+class AvatarUploadRequest(BaseModel):
+    content_type: str
+
+
+class AvatarUploadURL(BaseModel):
+    upload_url: str
+    avatar_key: str

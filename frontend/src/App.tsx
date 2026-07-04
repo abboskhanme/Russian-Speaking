@@ -292,7 +292,7 @@ function Sidebar({ mobileOpen, setMobileOpen }: { mobileOpen: boolean; setMobile
           className="tap"
           style={{ display: "flex", alignItems: "center", gap: 12, borderRadius: "var(--r-md)", background: "var(--surface-2)", padding: 12, textDecoration: "none", color: "var(--ink)" }}
         >
-          <Avatar name={user.full_name} size={38} />
+          <Avatar name={user.full_name} size={38} src={user.avatar_url} />
           <div className="col" style={{ minWidth: 0 }}>
             <span className="truncate" style={{ fontSize: 14, fontWeight: 800, fontFamily: "var(--font-display)" }}>{user.full_name}</span>
             <span style={{ fontSize: 12, color: "var(--muted)" }}>{roleLabel(user.role, t)}</span>
@@ -339,7 +339,7 @@ function UserMenu() {
   return (
     <div style={{ position: "relative" }}>
       <button onClick={() => setOpen(!open)} className="tap" style={{ display: "flex", alignItems: "center", gap: 10, border: "none", background: "transparent", cursor: "pointer", paddingLeft: 8, borderLeft: "1px solid var(--line)" }}>
-        <Avatar name={user.full_name} size={38} />
+        <Avatar name={user.full_name} size={38} src={user.avatar_url} />
         <div className="col hide-sm" style={{ minWidth: 0, alignItems: "flex-start" }}>
           <span className="truncate" style={{ fontSize: 14, fontWeight: 800, fontFamily: "var(--font-display)" }}>{user.full_name}</span>
           <span style={{ fontSize: 12, color: "var(--muted)" }}>{roleLabel(user.role, t)}</span>
@@ -351,7 +351,7 @@ function UserMenu() {
           <div onClick={() => setOpen(false)} style={{ position: "fixed", inset: 0, zIndex: 55 }} />
           <div className="anim-fade-up" style={{ position: "absolute", right: 0, top: 52, width: 232, background: "var(--surface)", borderRadius: "var(--r-md)", boxShadow: "var(--sh-lg)", border: "1px solid var(--line)", padding: 8, zIndex: 60 }}>
             <div className="row gap-3" style={{ padding: "8px 10px 12px", borderBottom: "1px solid var(--line)", marginBottom: 6 }}>
-              <Avatar name={user.full_name} size={40} />
+              <Avatar name={user.full_name} size={40} src={user.avatar_url} />
               <div className="col" style={{ minWidth: 0 }}>
                 <span className="truncate" style={{ fontSize: 14, fontWeight: 800, fontFamily: "var(--font-display)" }}>{user.full_name}</span>
                 <span style={{ fontSize: 12, color: "var(--muted)" }}>{roleLabel(user.role, t)}</span>

@@ -142,12 +142,31 @@ export function Avatar({
   name,
   size = 40,
   ring,
+  src,
 }: {
   name?: string | null;
   size?: number;
   ring?: boolean;
+  src?: string | null;
 }) {
   const [bg, fg] = avaColor(name || "?");
+  const ringShadow = ring ? `0 0 0 3px var(--surface), 0 0 0 5px ${fg}` : "none";
+  if (src)
+    return (
+      <img
+        src={src}
+        alt={name || ""}
+        style={{
+          width: size,
+          height: size,
+          borderRadius: "50%",
+          objectFit: "cover",
+          flexShrink: 0,
+          background: bg,
+          boxShadow: ringShadow,
+        }}
+      />
+    );
   return (
     <div
       style={{
@@ -163,7 +182,7 @@ export function Avatar({
         fontFamily: "var(--font-display)",
         fontWeight: 700,
         fontSize: size * 0.38,
-        boxShadow: ring ? `0 0 0 3px var(--surface), 0 0 0 5px ${fg}` : "none",
+        boxShadow: ringShadow,
       }}
     >
       {initials(name || "?")}

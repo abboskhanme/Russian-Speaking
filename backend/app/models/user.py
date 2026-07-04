@@ -23,6 +23,8 @@ class User(Base, TimestampMixin):
     # Telegram handle/contact (e.g. "@username"). Shown to students on the
     # teacher's contact card. Optional.
     telegram: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    # S3 key of the user's uploaded avatar image (None = use initials fallback).
+    avatar_key: Mapped[str | None] = mapped_column(String(512), nullable=True)
     # Collected at student sign-up (mandatory there). Nullable so admin-created
     # teachers and Google sign-ups created before the address step stay valid.
     age: Mapped[int | None] = mapped_column(Integer, nullable=True)

@@ -19,6 +19,8 @@ from app.core.security import (
 from app.db.session import get_db
 from app.models import User, UserRole
 from app.schemas.auth import (
+    AvatarUploadRequest,
+    AvatarUploadURL,
     EmailCodeRequest,
     EmailCodeVerify,
     EmailVerifyToken,
@@ -29,7 +31,7 @@ from app.schemas.auth import (
     UserOut,
     UserRegister,
 )
-from app.services import otp
+from app.services import otp, storage
 from app.services.email import send_otp_email
 
 router = APIRouter(prefix="/auth", tags=["auth"])
@@ -244,8 +246,26 @@ def update_me(
         user.preferred_language = payload.preferred_language
     if payload.daily_goal is not None:
         user.daily_goal = max(1, min(10, payload.daily_goal))
+    if payload.avatar_key is not None:
+        user.avatar_key = payload.avatar_key or None
     if payload.password:
         user.password_hash = hash_password(payload.password)
     db.commit()
     db.refresh(user)
     return user
+
+
+@router.post("/me/avatar-upload-url", response_model=AvatarUploadURL)
+def avatar_upload_url(
+    payload: AvatarUploadRequest,
+    user: User = Depends(get_current_user),
+) -> AvatarUploadURL:
+    """Presigned PUT for the user's own avatar image. The browser uploads the
+    bytes to `upload_url`, then PATCHes /auth/me with the returned avatar_key."""
+    ct = (payload.content_type or "").split(";")[0].strip()
+    if not ct.startswith("image/"):
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "Avatar must be an image")
+    ext = ct.split("/", 1)[-1] or "png"
+    key = storage.new_key(f"avatars/{user.id}", ext)
+    url = storage.presigned_put(key, ct)
+    return AvatarUploadURL(upload_url=url, avatar_key=key)

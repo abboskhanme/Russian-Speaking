@@ -22,6 +22,7 @@ export interface User {
   streak_freezes: number;
   current_streak: number;
   longest_streak: number;
+  avatar_url: string | null;
 }
 
 export interface LeaderboardEntry {
