@@ -7,6 +7,7 @@ import { NotFound } from "./pages/NotFound";
 import { useI18n, type Lang } from "./lib/i18n";
 import { useStudentStats } from "./lib/useStats";
 import { FREE_ATTEMPT_LIMIT } from "./lib/plan";
+import { TELEGRAM_CHANNEL_URL, TELEGRAM_SUPPORT_URL } from "./lib/contact";
 import { Login } from "./pages/Login";
 import { Register } from "./pages/Register";
 import { CompleteProfile } from "./pages/CompleteProfile";
@@ -231,6 +232,42 @@ function Sidebar({ mobileOpen, setMobileOpen }: { mobileOpen: boolean; setMobile
                 <span style={{ background: "var(--danger)", color: "#fff", fontSize: 11, fontWeight: 800, borderRadius: 999, minWidth: 20, height: 20, display: "flex", alignItems: "center", justifyContent: "center", padding: "0 5px" }}>{it.badge}</span>
               ) : null}
             </NavLink>
+          ))}
+
+          {/* Contact — external Telegram links, shown for everyone */}
+          <div
+            style={{
+              fontSize: 11,
+              fontWeight: 800,
+              color: "var(--faint)",
+              textTransform: "uppercase",
+              letterSpacing: "0.06em",
+              padding: "14px 14px 4px",
+            }}
+          >
+            {t("contactHeading")}
+          </div>
+          {[
+            { href: TELEGRAM_SUPPORT_URL, icon: "message" as const, label: t("tgSupport") },
+            { href: TELEGRAM_CHANNEL_URL, icon: "send" as const, label: t("tgChannel") },
+          ].map((c) => (
+            <a
+              key={c.label}
+              href={c.href}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={() => setMobileOpen(false)}
+              className="tap"
+              style={{
+                display: "flex", alignItems: "center", gap: 13, padding: "12px 14px", borderRadius: "var(--r-sm)", textDecoration: "none",
+                background: "transparent", color: "var(--ink-soft)",
+                fontFamily: "var(--font-display)", fontWeight: 700, fontSize: 15.5,
+              }}
+            >
+              <Icon name={c.icon} size={21} />
+              <span className="grow">{c.label}</span>
+              <Icon name="link" size={15} style={{ color: "var(--faint)" }} />
+            </a>
           ))}
         </nav>
 
