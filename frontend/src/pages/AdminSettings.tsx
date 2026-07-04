@@ -39,24 +39,35 @@ export function AdminSettings() {
   );
 }
 
-/** A masked API-key input. When a key is already stored, it persistently shows
- * dots; focusing clears it so the admin can type a new one. A blank field on
- * save keeps the stored value untouched. */
-function SecretInput({ settingKey, state, value, onChange }: { settingKey: string; state: SecretState; value: string; onChange: (v: string) => void }) {
+/** A masked API-key input. When a key is stored it shows persistent dots; the
+ * eye reveals/edits the real key (fetched on demand). Revealing is NOT an edit —
+ * `onReveal` sets both the value and its baseline so the field stays "unchanged"
+ * until the admin actually types. */
+function SecretInput({
+  settingKey,
+  state,
+  value,
+  onChange,
+  onReveal,
+}: {
+  settingKey: string;
+  state: SecretState;
+  value: string;
+  onChange: (v: string) => void;
+  onReveal: (raw: string) => void;
+}) {
   const { t } = useI18n();
   const [revealed, setRevealed] = useState(false);
   const [visible, setVisible] = useState(false);
   const [loading, setLoading] = useState(false);
-  // Masked resting state: a key is stored and the admin hasn't revealed/typed.
   const masked = !revealed && value === "" && state.set;
 
   async function onEye() {
     if (masked) {
-      // Fetch the stored key so it can be viewed and edited.
       try {
         setLoading(true);
         const { data } = await api.get<{ value: string }>(`/admin/settings/reveal/${settingKey}`);
-        onChange(data.value);
+        onReveal(data.value);
         setRevealed(true);
         setVisible(true);
       } finally {
@@ -114,6 +125,18 @@ function StatusBadge({ ok, label }: { ok: boolean; label: string }) {
   );
 }
 
+function SaveRow({ dirty, pending, saved, error, t }: { dirty: boolean; pending: boolean; saved: boolean; error: boolean; t: (k: string) => string }) {
+  return (
+    <div className="row gap-3" style={{ alignItems: "center" }}>
+      <Button type="submit" icon="check" disabled={pending || !dirty}>
+        {pending ? "…" : t("save")}
+      </Button>
+      {saved && <span style={{ color: "var(--primary-press)", fontWeight: 700 }}>{t("savedOk")}</span>}
+      {error && <span style={{ color: "var(--danger)", fontWeight: 700 }}>{t("registerError")}</span>}
+    </div>
+  );
+}
+
 /** Full AI form (grader + speech-to-text). Secrets start empty. */
 interface AiForm {
   llm_provider: string;
@@ -129,6 +152,8 @@ interface AiForm {
   azure_speech_key: string;
   openai_api_key: string;
 }
+
+type SecretKey = "gemini_api_key" | "azure_openai_api_key" | "azure_speech_key" | "openai_api_key";
 
 function AiSection({ data }: { data: AiSettings }) {
   const { t } = useI18n();
@@ -147,43 +172,70 @@ function AiSection({ data }: { data: AiSettings }) {
     azure_speech_key: "",
     openai_api_key: "",
   });
+  // Baseline for each secret: "" normally, or the revealed value (so a reveal
+  // isn't treated as an edit). A secret is "changed" iff form !== baseline.
+  const [baseline, setBaseline] = useState<Record<SecretKey, string>>({
+    gemini_api_key: "",
+    azure_openai_api_key: "",
+    azure_speech_key: "",
+    openai_api_key: "",
+  });
   const [saved, setSaved] = useState(false);
+
+  const nonSecretDirty =
+    form.llm_provider !== data.llm_provider ||
+    form.gemini_model !== data.gemini_model ||
+    form.azure_openai_endpoint !== data.azure_openai_endpoint ||
+    form.azure_openai_deployment !== data.azure_openai_deployment ||
+    form.azure_openai_api_version !== data.azure_openai_api_version ||
+    form.stt_provider !== data.stt_provider ||
+    form.azure_speech_region !== data.azure_speech_region ||
+    form.whisper_model !== data.whisper_model;
+  const secretsDirty =
+    form.gemini_api_key !== baseline.gemini_api_key ||
+    form.azure_openai_api_key !== baseline.azure_openai_api_key ||
+    form.azure_speech_key !== baseline.azure_speech_key ||
+    form.openai_api_key !== baseline.openai_api_key;
+  const dirty = nonSecretDirty || secretsDirty;
 
   const save = useMutation({
     mutationFn: async () => {
-      const payload: Record<string, string> = {
-        llm_provider: form.llm_provider,
-        gemini_model: form.gemini_model,
-        azure_openai_endpoint: form.azure_openai_endpoint,
-        azure_openai_deployment: form.azure_openai_deployment,
-        azure_openai_api_version: form.azure_openai_api_version,
-        stt_provider: form.stt_provider,
-        azure_speech_region: form.azure_speech_region,
-        whisper_model: form.whisper_model,
-      };
-      // Secrets: only send the ones the admin actually typed.
-      if (form.gemini_api_key) payload.gemini_api_key = form.gemini_api_key;
-      if (form.azure_openai_api_key) payload.azure_openai_api_key = form.azure_openai_api_key;
-      if (form.azure_speech_key) payload.azure_speech_key = form.azure_speech_key;
-      if (form.openai_api_key) payload.openai_api_key = form.openai_api_key;
-      return (await api.patch<AiSettings>("/admin/settings/ai", payload)).data;
+      const p: Record<string, string> = {};
+      if (form.llm_provider !== data.llm_provider) p.llm_provider = form.llm_provider;
+      if (form.gemini_model !== data.gemini_model) p.gemini_model = form.gemini_model;
+      if (form.azure_openai_endpoint !== data.azure_openai_endpoint) p.azure_openai_endpoint = form.azure_openai_endpoint;
+      if (form.azure_openai_deployment !== data.azure_openai_deployment) p.azure_openai_deployment = form.azure_openai_deployment;
+      if (form.azure_openai_api_version !== data.azure_openai_api_version) p.azure_openai_api_version = form.azure_openai_api_version;
+      if (form.stt_provider !== data.stt_provider) p.stt_provider = form.stt_provider;
+      if (form.azure_speech_region !== data.azure_speech_region) p.azure_speech_region = form.azure_speech_region;
+      if (form.whisper_model !== data.whisper_model) p.whisper_model = form.whisper_model;
+      if (form.gemini_api_key !== baseline.gemini_api_key) p.gemini_api_key = form.gemini_api_key;
+      if (form.azure_openai_api_key !== baseline.azure_openai_api_key) p.azure_openai_api_key = form.azure_openai_api_key;
+      if (form.azure_speech_key !== baseline.azure_speech_key) p.azure_speech_key = form.azure_speech_key;
+      if (form.openai_api_key !== baseline.openai_api_key) p.openai_api_key = form.openai_api_key;
+      return (await api.patch<AiSettings>("/admin/settings/ai", p)).data;
     },
     onSuccess: (fresh) => {
       qc.setQueryData(["ai-settings"], fresh);
-      setForm((p) => ({ ...p, gemini_api_key: "", azure_openai_api_key: "", azure_speech_key: "", openai_api_key: "" }));
+      setForm((prev) => ({ ...prev, gemini_api_key: "", azure_openai_api_key: "", azure_speech_key: "", openai_api_key: "" }));
+      setBaseline({ gemini_api_key: "", azure_openai_api_key: "", azure_speech_key: "", openai_api_key: "" });
       setSaved(true);
       setTimeout(() => setSaved(false), 2500);
     },
   });
 
-  const set = (k: keyof AiForm, v: string) => setForm({ ...form, [k]: v });
+  const set = (k: keyof AiForm, v: string) => setForm((f) => ({ ...f, [k]: v }));
+  const reveal = (k: SecretKey, raw: string) => {
+    setForm((f) => ({ ...f, [k]: raw }));
+    setBaseline((b) => ({ ...b, [k]: raw }));
+  };
 
   return (
     <form
       className="col gap-4"
       onSubmit={(e) => {
         e.preventDefault();
-        if (!save.isPending) save.mutate();
+        if (dirty && !save.isPending) save.mutate();
       }}
     >
       {/* ── AI grader ── */}
@@ -224,7 +276,7 @@ function AiSection({ data }: { data: AiSettings }) {
             <input value={form.azure_openai_api_version} onChange={(e) => set("azure_openai_api_version", e.target.value)} placeholder="2024-10-21" style={inp} />
           </Field>
           <Field label={t("azureApiKey")}>
-            <SecretInput settingKey="azure_openai_api_key" state={data.azure_openai_api_key} value={form.azure_openai_api_key} onChange={(v) => set("azure_openai_api_key", v)} />
+            <SecretInput settingKey="azure_openai_api_key" state={data.azure_openai_api_key} value={form.azure_openai_api_key} onChange={(v) => set("azure_openai_api_key", v)} onReveal={(r) => reveal("azure_openai_api_key", r)} />
           </Field>
         </div>
       </Card>
@@ -236,7 +288,7 @@ function AiSection({ data }: { data: AiSettings }) {
             <input value={form.gemini_model} onChange={(e) => set("gemini_model", e.target.value)} placeholder="gemini-2.5-flash" style={inp} />
           </Field>
           <Field label={t("geminiApiKey")}>
-            <SecretInput settingKey="gemini_api_key" state={data.gemini_api_key} value={form.gemini_api_key} onChange={(v) => set("gemini_api_key", v)} />
+            <SecretInput settingKey="gemini_api_key" state={data.gemini_api_key} value={form.gemini_api_key} onChange={(v) => set("gemini_api_key", v)} onReveal={(r) => reveal("gemini_api_key", r)} />
           </Field>
         </div>
       </Card>
@@ -276,7 +328,7 @@ function AiSection({ data }: { data: AiSettings }) {
             <input value={form.azure_speech_region} onChange={(e) => set("azure_speech_region", e.target.value)} placeholder="eastus" style={inp} />
           </Field>
           <Field label={t("azureSpeechKey")}>
-            <SecretInput settingKey="azure_speech_key" state={data.azure_speech_key} value={form.azure_speech_key} onChange={(v) => set("azure_speech_key", v)} />
+            <SecretInput settingKey="azure_speech_key" state={data.azure_speech_key} value={form.azure_speech_key} onChange={(v) => set("azure_speech_key", v)} onReveal={(r) => reveal("azure_speech_key", r)} />
           </Field>
         </div>
       </Card>
@@ -288,18 +340,12 @@ function AiSection({ data }: { data: AiSettings }) {
             <input value={form.whisper_model} onChange={(e) => set("whisper_model", e.target.value)} placeholder="whisper-1" style={inp} />
           </Field>
           <Field label={t("openaiKey")}>
-            <SecretInput settingKey="openai_api_key" state={data.openai_api_key} value={form.openai_api_key} onChange={(v) => set("openai_api_key", v)} />
+            <SecretInput settingKey="openai_api_key" state={data.openai_api_key} value={form.openai_api_key} onChange={(v) => set("openai_api_key", v)} onReveal={(r) => reveal("openai_api_key", r)} />
           </Field>
         </div>
       </Card>
 
-      <div className="row gap-3" style={{ alignItems: "center" }}>
-        <Button type="submit" icon="check" disabled={save.isPending}>
-          {save.isPending ? "…" : t("save")}
-        </Button>
-        {saved && <span style={{ color: "var(--primary-press)", fontWeight: 700 }}>{t("savedOk")}</span>}
-        {save.isError && <span style={{ color: "var(--danger)", fontWeight: 700 }}>{t("registerError")}</span>}
-      </div>
+      <SaveRow dirty={dirty} pending={save.isPending} saved={saved} error={save.isError} t={t} />
     </form>
   );
 }
@@ -309,6 +355,8 @@ function LinksSection({ data }: { data: OutboundLinks }) {
   const qc = useQueryClient();
   const [form, setForm] = useState<OutboundLinks>(data);
   const [saved, setSaved] = useState(false);
+
+  const dirty = form.tg_support_url !== data.tg_support_url || form.tg_channel_url !== data.tg_channel_url;
 
   const save = useMutation({
     mutationFn: async () => (await api.patch<OutboundLinks>("/admin/settings/links", form)).data,
@@ -327,7 +375,7 @@ function LinksSection({ data }: { data: OutboundLinks }) {
       style={{ marginTop: 28 }}
       onSubmit={(e) => {
         e.preventDefault();
-        if (!save.isPending) save.mutate();
+        if (dirty && !save.isPending) save.mutate();
       }}
     >
       <div>
@@ -344,13 +392,7 @@ function LinksSection({ data }: { data: OutboundLinks }) {
           </Field>
         </div>
       </Card>
-      <div className="row gap-3" style={{ alignItems: "center" }}>
-        <Button type="submit" icon="check" disabled={save.isPending}>
-          {save.isPending ? "…" : t("save")}
-        </Button>
-        {saved && <span style={{ color: "var(--primary-press)", fontWeight: 700 }}>{t("savedOk")}</span>}
-        {save.isError && <span style={{ color: "var(--danger)", fontWeight: 700 }}>{t("registerError")}</span>}
-      </div>
+      <SaveRow dirty={dirty} pending={save.isPending} saved={saved} error={save.isError} t={t} />
     </form>
   );
 }
