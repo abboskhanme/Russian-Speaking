@@ -12,6 +12,8 @@ class BlockCreate(BaseModel):
     topic: str | None = Field(default=None, max_length=128)
     level: str | None = Field(default=None, max_length=8)
     ru_style: str | None = Field(default=None, max_length=8)
+    # "public" official module (admin only) | "group" teacher module.
+    visibility: str | None = Field(default=None, max_length=8)
 
 
 class BlockUpdate(BaseModel):
@@ -19,6 +21,8 @@ class BlockUpdate(BaseModel):
     topic: str | None = Field(default=None, max_length=128)
     level: str | None = Field(default=None, max_length=8)
     ru_style: str | None = Field(default=None, max_length=8)
+    is_published: bool | None = None
+    visibility: str | None = Field(default=None, max_length=8)
 
 
 class BlockOut(BaseModel):
@@ -31,6 +35,10 @@ class BlockOut(BaseModel):
     level: str | None = None
     ru_style: str | None = None
     sort_order: int = 0
+    visibility: str = "group"
+    is_published: bool = False
+    cover_key: str | None = None
+    cover_url: str | None = None
     question_count: int = 0
     created_at: datetime
 
@@ -53,7 +61,8 @@ class StudentTask(BaseModel):
     level: str | None = None
     sort_order: int = 0
     done: bool = False
-    locked: bool = False  # previous task not completed yet
+    locked: bool = False  # previous task not completed yet (sequential unlock)
+    premium_locked: bool = False  # beyond the free preview → needs premium
 
 
 class StudentModule(BaseModel):
@@ -62,6 +71,9 @@ class StudentModule(BaseModel):
     topic: str | None = None
     level: str | None = None
     ru_style: str | None = None
+    # "public" official platform module | "group" the student's teacher's module.
+    visibility: str = "group"
+    cover_url: str | None = None
     total: int = 0
     done_count: int = 0
     next_task_id: uuid.UUID | None = None  # the current actionable (unlocked, not done) task

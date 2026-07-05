@@ -24,15 +24,10 @@ from app.schemas.group import (
     TaskDueUpdate,
     TaskStudent,
 )
-from app.services import notifications
+from app.services import notifications, scoring
 
-
-def _eff_band(s: Submission) -> float | None:
-    if s.teacher_band is not None:
-        return s.teacher_band
-    if s.evaluation is not None:
-        return s.evaluation.overall_band
-    return None
+# Level-relative, stable scoring lives in app.services.scoring; alias for brevity.
+_eff_band = scoring.effective_band
 
 router = APIRouter(prefix="/groups", tags=["groups"])
 
@@ -300,20 +295,22 @@ def group_overview(
     tasks.sort(key=lambda x: x.created_at, reverse=True)
 
     members: list[MemberStat] = []
-    all_bands: list[float] = []
+    member_scores: list[float] = []
     for sid in member_ids:
         u = users.get(sid)
         slist = by_student.get(sid, [])
-        # Class rating: only this group's assigned-task submissions count.
+        # Class rating: only this group's assigned-task submissions count, scored
+        # with the shared level-relative, recent-window definition (stable).
         graded = [s for s in slist if s.assignment_id in group_assignment_ids]
-        bands = [b for b in (_eff_band(s) for s in graded) if b is not None]
-        all_bands += bands
+        avg = scoring.rolling_avg(graded)
+        if avg is not None:
+            member_scores.append(avg)
         last = max((s.created_at for s in slist), default=None)
         members.append(
             MemberStat(
                 id=sid,
                 full_name=u.full_name if u else "—",
-                avg_band=round(sum(bands) / len(bands), 2) if bands else None,
+                avg_band=avg,
                 attempts=len(slist),
                 tasks_done=m_done.get(sid, 0),
                 tasks_total=m_total.get(sid, 0),
@@ -327,7 +324,9 @@ def group_overview(
         name=g.name,
         join_code=g.join_code,
         member_count=len(member_ids),
-        avg_band=round(sum(all_bands) / len(all_bands), 2) if all_bands else None,
+        # Group rating = mean of member scores (each already a stable per-student
+        # average) so it doesn't swing with raw attempt counts.
+        avg_band=round(sum(member_scores) / len(member_scores), 2) if member_scores else None,
         members=members,
         tasks=tasks,
     )

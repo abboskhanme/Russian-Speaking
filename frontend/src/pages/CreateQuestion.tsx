@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import axios from "axios";
-import { useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, uploadToPresigned } from "../lib/api";
 import { useI18n } from "../lib/i18n";
@@ -10,6 +10,7 @@ import {
   Button,
   Icon,
   Field,
+  MediaImage,
   Toggle,
   inp,
   type IconName,
@@ -42,7 +43,12 @@ function CreateQuestionForm() {
   const nav = useNavigate();
   const qc = useQueryClient();
   const { id } = useParams<{ id: string }>();
+  const [search] = useSearchParams();
   const isEdit = !!id;
+  // When a task is created from inside a module, pre-link it to that module and
+  // send the teacher back there on save.
+  const presetBlock = search.get("block") ?? "";
+  const returnTo = search.get("return") || "/teacher/questions";
 
   const [type, setType] = useState<QuestionType>("text");
   const [title, setTitle] = useState("");
@@ -51,7 +57,7 @@ function CreateQuestionForm() {
   const [level, setLevel] = useState("");
   const [topic, setTopic] = useState("");
   const [ruStyle, setRuStyle] = useState<"" | RuStyle>("");
-  const [blockId, setBlockId] = useState("");
+  const [blockId, setBlockId] = useState(presetBlock);
   const [answerLimit, setAnswerLimit] = useState(120);
   const [modelAnswer, setModelAnswer] = useState("");
   const [file, setFile] = useState<File | null>(null);
@@ -59,8 +65,6 @@ function CreateQuestionForm() {
   const previewRef = useRef<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [publish, setPublish] = useState(true);
-  // Task type: true = open (public pool), false = assigned (group/student only).
-  const [isPublic, setIsPublic] = useState(true);
   const [existingMedia, setExistingMedia] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   // Media upload progress: null = no upload phase (creating/finishing, shown as
@@ -110,7 +114,6 @@ function CreateQuestionForm() {
     setAnswerLimit(editing.answer_time_limit_sec);
     setModelAnswer(editing.model_answer_text ?? "");
     setPublish(editing.is_published);
-    setIsPublic(editing.is_public);
     setExistingMedia(editing.media_url);
   }, [editing?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -179,7 +182,7 @@ function CreateQuestionForm() {
           answer_time_limit_sec: answerLimit,
           model_answer_text: modelAnswer || null,
           is_published: publish,
-          is_public: isPublic,
+          is_public: false,
         });
         await uploadMedia(id!); // only if a new file was chosen
       } else {
@@ -195,7 +198,7 @@ function CreateQuestionForm() {
           answer_time_limit_sec: answerLimit,
           model_answer_text: modelAnswer || null,
           is_published: publish,
-          is_public: isPublic,
+          is_public: false,
         });
         try {
           await uploadMedia(q.id);
@@ -209,7 +212,8 @@ function CreateQuestionForm() {
       qc.invalidateQueries({ queryKey: ["questions"] });
       // Assigning/changing block_id shifts a block's question_count.
       qc.invalidateQueries({ queryKey: ["blocks"] });
-      nav("/teacher/questions");
+      qc.invalidateQueries({ queryKey: ["block-questions"] });
+      nav(returnTo);
     } catch (err) {
       // A 413 from the upload proxy means the file exceeded the size limit.
       const tooLarge = axios.isAxiosError(err) && err.response?.status === 413;
@@ -397,7 +401,21 @@ function CreateQuestionForm() {
                         {src ? (
                           <>
                             {type === "image" ? (
-                              <img src={src} alt="" style={{ maxHeight: 200, maxWidth: "100%", borderRadius: "var(--r-sm)", objectFit: "contain" }} />
+                              showNew ? (
+                                // Fresh local pick — an instant object-URL blob.
+                                <img src={src} alt="" style={{ maxHeight: 200, maxWidth: "100%", borderRadius: "var(--r-sm)", objectFit: "contain" }} />
+                              ) : (
+                                // Existing media is a remote presigned URL that can
+                                // stall/fail on slow networks — load it resiliently.
+                                // Stop clicks here from also opening the file picker;
+                                // the "change file" label below still does that.
+                                <div onClick={(e) => e.stopPropagation()}>
+                                  <MediaImage
+                                    src={src}
+                                    style={{ maxHeight: 200, maxWidth: "100%", borderRadius: "var(--r-sm)", objectFit: "contain" }}
+                                  />
+                                </div>
+                              )
                             ) : (
                               <video src={src} style={{ maxHeight: 200, maxWidth: "100%", borderRadius: "var(--r-sm)" }} controls onClick={(e) => e.stopPropagation()} />
                             )}
@@ -593,36 +611,6 @@ function CreateQuestionForm() {
                 </select>
               </Field>
             </div>
-
-            <Field label={t("taskTypeLabel")}>
-              <div className="row gap-2 wrap">
-                {[
-                  { val: true, label: t("taskTypeOpen"), hint: t("taskTypeOpenHint") },
-                  { val: false, label: t("taskTypeAssigned"), hint: t("taskTypeAssignedHint") },
-                ].map((o) => {
-                  const active = isPublic === o.val;
-                  return (
-                    <button
-                      key={String(o.val)}
-                      type="button"
-                      onClick={() => setIsPublic(o.val)}
-                      style={{
-                        flex: "1 1 200px",
-                        textAlign: "left",
-                        padding: "12px 14px",
-                        borderRadius: "var(--r-sm)",
-                        border: `2px solid ${active ? "var(--primary)" : "var(--line-2)"}`,
-                        background: active ? "var(--primary-tint)" : "var(--surface)",
-                        cursor: "pointer",
-                      }}
-                    >
-                      <div style={{ fontWeight: 800, fontSize: 14.5, color: "var(--ink)" }}>{o.label}</div>
-                      <div style={{ fontSize: 12.5, color: "var(--muted)", marginTop: 2 }}>{o.hint}</div>
-                    </button>
-                  );
-                })}
-              </div>
-            </Field>
 
             <label
               className="row between"

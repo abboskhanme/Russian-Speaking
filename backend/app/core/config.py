@@ -27,7 +27,12 @@ class Settings(BaseSettings):
     LOG_JSON: bool = True  # structured JSON logs (set false for human-readable dev logs)
     SENTRY_DSN: str = ""  # error tracking; disabled when empty
     # Per-student storage quota (max stored answer audios). 0 = unlimited.
-    STUDENT_UPLOAD_QUOTA: int = 500
+    # Kept unlimited by default: a hard cap silently blocks the most active
+    # students from ever submitting again (they hit a 409 on /upload-url).
+    STUDENT_UPLOAD_QUOTA: int = 0
+    # Freemium: the first N tasks (by order) of EVERY module are free to answer;
+    # the rest require premium. 0 = whole module free.
+    FREE_TASKS_PER_MODULE: int = 3
 
     # Object storage (S3 / MinIO)
     S3_ENDPOINT_URL: str

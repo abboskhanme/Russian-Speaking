@@ -4,8 +4,6 @@ import { useNavigate, useParams } from "react-router-dom";
 import { api } from "../lib/api";
 import { useAuth } from "../lib/auth";
 import { useI18n } from "../lib/i18n";
-import { useStudentStats } from "../lib/useStats";
-import { freeAttemptsLeft } from "../lib/plan";
 import type { ExplainResult, OrthoepyError, Question, Submission, Transcript } from "../lib/types";
 import {
   Avatar,
@@ -215,7 +213,6 @@ export function SubmissionResult() {
   const { id } = useParams<{ id: string }>();
   const { t } = useI18n();
   const { user } = useAuth();
-  const { totalCount } = useStudentStats();
   const nav = useNavigate();
   const isStudent = user?.role === "student";
   const qc = useQueryClient();
@@ -409,17 +406,16 @@ export function SubmissionResult() {
 
   const ev = sub.evaluation;
   const fb = ev?.feedback;
-  const band = ev?.overall_band ?? 0; // absolute, vs C2
-  const levelScore = ev?.level_score ?? null; // relative to the task's CEFR level
-  const hue = bandColor(band);
-  // Celebrate / reward by the level-relative score so beginners stay motivated.
-  const moodScore = levelScore ?? band;
+  // Single score everywhere = level-relative (fairer, stable). Legacy rows with
+  // no level fall back to the absolute band so there's always one number.
+  const mainScore = ev ? (ev.level_score ?? ev.overall_band) : 0;
+  const hue = bandColor(mainScore);
+  const moodScore = mainScore;
   const good = moodScore >= 60;
   const xp = 10 + Math.round((moodScore / 100) * 18); // mirrors backend xp_for_band
   const tips = (fb?.improvements?.length ? fb.improvements : [t("tip1"), t("tip2"), t("tip3")]).slice(0, 3);
   const corrections = ev?.corrections ?? [];
   const shownCorr = showAllErrors ? corrections : corrections.slice(0, 3);
-  const noAttemptsLeft = isStudent && !user?.is_premium && freeAttemptsLeft(user ?? null, totalCount) <= 0;
 
   // Text-based criteria only — delivery scores (pronunciation, naturalness,
   // pace, intonation, native-likeness) were removed.
@@ -497,48 +493,19 @@ export function SubmissionResult() {
                 </div>
               </div>
               <div className="row gap-4 wrap" style={{ alignItems: "flex-start" }}>
-                {/* Level-relative score (motivating) — shown first when available */}
-                {levelScore != null && (
-                  <div className="col" style={{ alignItems: "center", gap: 7 }}>
-                    <Ring value={levelScore} size={104} sw={11} hue={bandColor(levelScore)}>
-                      <span
-                        style={{
-                          fontFamily: "var(--font-display)",
-                          fontWeight: 900,
-                          fontSize: 36,
-                          color: `oklch(0.5 0.15 ${bandColor(levelScore)})`,
-                          lineHeight: 1,
-                        }}
-                      >
-                        {Math.round(levelScore)}
-                      </span>
-                    </Ring>
-                    <span
-                      style={{
-                        fontSize: 11,
-                        color: "var(--muted)",
-                        fontWeight: 800,
-                        letterSpacing: "0.04em",
-                        textAlign: "center",
-                      }}
-                    >
-                      {(question?.level ? question.level + " · " : "") + t("scoreLevel").toUpperCase()}
-                    </span>
-                  </div>
-                )}
-                {/* Absolute score (vs C2) — the "true" CEFR position */}
+                {/* Single level-relative score — one consistent number everywhere. */}
                 <div className="col" style={{ alignItems: "center", gap: 7 }}>
-                  <Ring value={band} size={levelScore != null ? 90 : 104} sw={levelScore != null ? 10 : 11} hue={hue}>
+                  <Ring value={mainScore} size={104} sw={11} hue={hue}>
                     <span
                       style={{
                         fontFamily: "var(--font-display)",
                         fontWeight: 900,
-                        fontSize: levelScore != null ? 30 : 36,
+                        fontSize: 36,
                         color: `oklch(0.5 0.15 ${hue})`,
                         lineHeight: 1,
                       }}
                     >
-                      {Math.round(band)}
+                      {Math.round(mainScore)}
                     </span>
                   </Ring>
                   <span
@@ -550,7 +517,7 @@ export function SubmissionResult() {
                       textAlign: "center",
                     }}
                   >
-                    {t("scoreAbsolute").toUpperCase()}
+                    {(question?.level ? question.level + " · " : "") + t("scoreLevel").toUpperCase()}
                   </span>
                 </div>
                 {isStudent && (
@@ -1037,46 +1004,6 @@ export function SubmissionResult() {
                 </span>
               )}
             </div>
-          </div>
-        </Card>
-      )}
-
-      {/* Paywall nudge — only after value shown, when no free attempts left */}
-      {noAttemptsLeft && (
-        <Card
-          style={{
-            marginBottom: 18,
-            background: "linear-gradient(135deg, oklch(0.96 0.05 80), var(--surface))",
-            borderColor: "oklch(0.85 0.1 80)",
-          }}
-        >
-          <div className="row gap-4 wrap between">
-            <div className="row gap-3">
-              <div
-                style={{
-                  width: 46,
-                  height: 46,
-                  borderRadius: 13,
-                  background: "var(--amber-tint)",
-                  color: "oklch(0.55 0.14 70)",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  flexShrink: 0,
-                }}
-              >
-                <Icon name="star" size={24} fill />
-              </div>
-              <div className="col">
-                <span style={{ fontWeight: 800, fontFamily: "var(--font-display)", fontSize: 16 }}>
-                  {t("limitReached")}
-                </span>
-                <span style={{ fontSize: 13.5, color: "var(--muted)" }}>{t("premiumCardText")}</span>
-              </div>
-            </div>
-            <Button variant="dark" icon="sparkles" onClick={() => nav("/premium")}>
-              {t("premium")}
-            </Button>
           </div>
         </Card>
       )}

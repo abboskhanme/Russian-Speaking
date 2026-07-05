@@ -6,7 +6,6 @@ import { api } from "./lib/api";
 import { NotFound } from "./pages/NotFound";
 import { useI18n, type Lang } from "./lib/i18n";
 import { useStudentStats } from "./lib/useStats";
-import { FREE_ATTEMPT_LIMIT } from "./lib/plan";
 import { useOutboundLinks } from "./lib/contact";
 import { Login } from "./pages/Login";
 import { Register } from "./pages/Register";
@@ -46,7 +45,6 @@ import { AdminSettings } from "./pages/AdminSettings";
 import { Settings } from "./pages/Settings";
 import {
   Avatar,
-  AttemptDots,
   Icon,
   Loading,
   Logo,
@@ -388,7 +386,6 @@ function TopBar({ onMenu }: { onMenu: () => void }) {
   const loc = useLocation();
   const navigate = useNavigate();
   const items = useNavItems();
-  const { doneCount } = useStudentStats();
   if (!user) return null;
   const active = bestMatch(items, loc.pathname);
   // Titles for routes that aren't primary nav items (settings, detail pages, …).
@@ -406,8 +403,6 @@ function TopBar({ onMenu }: { onMenu: () => void }) {
   const navTitle = items.find((i) => i.to === active)?.label;
   const extraTitle = extraTitles.find(([p]) => loc.pathname === p || loc.pathname.startsWith(p + "/"))?.[1];
   const title = navTitle || extraTitle || t("appName");
-  const used = Math.min(doneCount, FREE_ATTEMPT_LIMIT);
-  const left = FREE_ATTEMPT_LIMIT - used;
 
   return (
     <header style={{ height: "var(--header-h)", flexShrink: 0, borderBottom: "1px solid var(--line)", background: "var(--surface)", display: "flex", alignItems: "center", gap: 14, padding: "0 20px", position: "relative", zIndex: 30 }}>
@@ -418,8 +413,8 @@ function TopBar({ onMenu }: { onMenu: () => void }) {
 
       {user.role === "student" && !user.is_premium && (
         <button onClick={() => navigate("/premium")} className="tap row gap-2 hide-sm" title={t("premiumAccess")} style={{ background: "var(--primary-tint)", border: "none", cursor: "pointer", borderRadius: "var(--r-pill)", padding: "6px 12px" }}>
-          <AttemptDots used={used} total={FREE_ATTEMPT_LIMIT} />
-          <span style={{ fontSize: 12.5, fontWeight: 800, color: "var(--primary-press)", fontFamily: "var(--font-display)" }}>{left} {t("attempts")}</span>
+          <Icon name="star" size={15} style={{ color: "var(--primary-press)" }} />
+          <span style={{ fontSize: 12.5, fontWeight: 800, color: "var(--primary-press)", fontFamily: "var(--font-display)" }}>{t("premium")}</span>
         </button>
       )}
       {user.role === "student" && user.is_premium && (
@@ -432,36 +427,6 @@ function TopBar({ onMenu }: { onMenu: () => void }) {
       <NotificationBell />
       <UserMenu />
     </header>
-  );
-}
-
-/* ─── Bottom nav (mobile) ───────────────────────────────── */
-function BottomNav() {
-  const { user } = useAuth();
-  const loc = useLocation();
-  const items = useNavItems();
-  if (!user) return null;
-  const active = bestMatch(items, loc.pathname);
-  return (
-    <nav className="bottom-nav">
-      {items.map((it) => {
-        const isActive = active === it.to;
-        return (
-          <NavLink
-            key={it.to}
-            to={it.to}
-            className="tap"
-            style={{
-              flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 3, padding: "8px 0", border: "none", background: "transparent", textDecoration: "none",
-              color: isActive ? "var(--primary)" : "var(--muted)", fontFamily: "var(--font-display)", fontWeight: 800, fontSize: 11.5,
-            }}
-          >
-            <Icon name={it.icon} size={24} sw={isActive ? 2.4 : 2} />
-            {it.label}
-          </NavLink>
-        );
-      })}
-    </nav>
   );
 }
 
@@ -578,7 +543,6 @@ export default function App() {
             <AppRoutes />
           </div>
         </main>
-        {user.role === "student" && <BottomNav />}
       </div>
     </div>
   );

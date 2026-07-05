@@ -4,8 +4,6 @@ import { useNavigate, useParams } from "react-router-dom";
 import { api, uploadToPresigned } from "../lib/api";
 import { useAuth } from "../lib/auth";
 import { useI18n } from "../lib/i18n";
-import { useStudentStats } from "../lib/useStats";
-import { isLocked, FREE_ATTEMPT_LIMIT } from "../lib/plan";
 import { friendlyError } from "../lib/errors";
 import type { Question, Submission } from "../lib/types";
 import { AudioRecorder } from "../components/AudioRecorder";
@@ -17,24 +15,20 @@ import {
   Pill,
   Icon,
   Loading,
-  AttemptDots,
+  MediaImage,
   bandColor,
 } from "../components/govori";
-
-const FREE_ATTEMPTS = FREE_ATTEMPT_LIMIT;
 
 export function AnswerQuestion() {
   const { id } = useParams<{ id: string }>();
   const { t } = useI18n();
   const { user } = useAuth();
-  const { totalCount } = useStudentStats();
   const nav = useNavigate();
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [serverLocked, setServerLocked] = useState(false);
 
   const isPremium = !!user?.is_premium;
-  const locked = serverLocked || isLocked(user ?? null, totalCount);
 
   const { data: q, isLoading } = useQuery({
     queryKey: ["question", id],
@@ -42,6 +36,10 @@ export function AnswerQuestion() {
   });
 
   if (isLoading || !q) return <Loading full />;
+
+  // Positional freemium: this task is beyond the module's free preview, or the
+  // server rejected the submit with 402.
+  const locked = serverLocked || (!isPremium && !!q.locked);
 
   async function handleComplete(blob: Blob, durationSec: number) {
     setUploading(true);
@@ -139,11 +137,10 @@ export function AnswerQuestion() {
           />
 
           {q.type === "image" && q.media_url && (
-            <img
+            <MediaImage
               src={q.media_url}
-              alt=""
+              containerStyle={{ marginTop: 18 }}
               style={{
-                marginTop: 18,
                 width: "100%",
                 maxHeight: 320,
                 objectFit: "contain",
@@ -166,15 +163,6 @@ export function AnswerQuestion() {
         <Paywall />
       ) : (
         <Card style={{ textAlign: "center" }}>
-          {!isPremium && (
-            <div className="row center gap-2" style={{ marginBottom: 18 }}>
-              <AttemptDots used={totalCount} total={FREE_ATTEMPTS} />
-              <span style={{ fontSize: 13, fontWeight: 700, color: "var(--muted)" }}>
-                {Math.max(0, FREE_ATTEMPTS - totalCount)} / {FREE_ATTEMPTS}
-              </span>
-            </div>
-          )}
-
           {uploading ? (
             <div className="col center gap-3" style={{ padding: "24px 0" }}>
               <Loading />

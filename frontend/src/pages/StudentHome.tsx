@@ -4,6 +4,7 @@ import { api } from "../lib/api";
 import { useAuth } from "../lib/auth";
 import { useI18n } from "../lib/i18n";
 import { useStudentStats } from "../lib/useStats";
+import { answerScore } from "../lib/score";
 import type { Assignment, ReviewItem, Submission } from "../lib/types";
 import {
   Card,
@@ -24,7 +25,7 @@ const sameDay = (a: Date, b: Date) =>
 /** A compact row for a recent answer. */
 export function SubmissionRow({ s, onClick }: { s: Submission; onClick: () => void }) {
   const { t } = useI18n();
-  const band = s.status === "done" && s.evaluation ? s.evaluation.overall_band : null;
+  const band = answerScore(s);
   return (
     <div
       onClick={onClick}

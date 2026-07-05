@@ -47,13 +47,14 @@ def _image_mime(key: str) -> str:
 def _notify_after_done(db, sub: Submission, evaluation: Evaluation) -> None:
     """Tell the student their result is ready, and — if this answered an
     assignment — tell the teacher who assigned it that it's completed."""
-    band = evaluation.overall_band
+    # Level-relative score (fairer, matches every other view), not the absolute band.
+    band = evaluation.level_score if evaluation.level_score is not None else evaluation.overall_band
     notifications.notify(
         db,
         user_id=sub.student_id,
         type="result_ready",
         title="Natija tayyor",
-        body=f"Javobingiz baholandi. Umumiy ball: {band:.0f}/100" if band is not None else "Javobingiz baholandi.",
+        body=f"Javobingiz baholandi. Ball: {band:.0f}/100" if band is not None else "Javobingiz baholandi.",
         link=f"/submissions/{sub.id}",
         commit=False,
     )

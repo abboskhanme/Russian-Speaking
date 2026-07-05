@@ -92,7 +92,7 @@ export function StudentQuestions() {
                 key={q.id}
                 hover
                 pad={0}
-                onClick={() => nav(`/questions/${q.id}/answer`)}
+                onClick={() => nav(q.locked ? "/premium" : `/questions/${q.id}/answer`)}
                 style={{ overflow: "hidden" }}
               >
                 <div
@@ -130,6 +130,19 @@ export function StudentQuestions() {
                   >
                     <Icon name={meta.icon} size={25} />
                   </div>
+                  {q.locked && (
+                    <span
+                      className="row gap-1"
+                      style={{
+                        position: "absolute", top: 12, left: 16,
+                        background: "oklch(0.72 0.14 70)", color: "#fff",
+                        fontSize: 11, fontWeight: 800, padding: "3px 8px", borderRadius: 999,
+                        alignItems: "center",
+                      }}
+                    >
+                      <Icon name="star" size={12} /> {t("premium")}
+                    </span>
+                  )}
                   {q.level && (
                     <span
                       style={{

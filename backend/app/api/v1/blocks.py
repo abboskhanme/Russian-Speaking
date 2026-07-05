@@ -1,7 +1,7 @@
 import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy import func, select
+from sqlalchemy import and_, func, or_, select
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_user, require_teacher
@@ -17,6 +17,7 @@ from app.models import (
     User,
     UserRole,
 )
+from app.core.config import settings
 from app.schemas.block import (
     RU_STYLES,
     BlockAddQuestions,
@@ -28,9 +29,13 @@ from app.schemas.block import (
     StudentModule,
     StudentTask,
 )
-from app.schemas.question import QuestionOut
+from app.schemas.question import MediaUploadURL, MediaUploadRequest, QuestionOut
+from app.services import access, storage
 
 router = APIRouter(prefix="/blocks", tags=["blocks"])
+
+# Module visibility values (mirrors QuestionBlock.visibility).
+_VISIBILITIES = {"public", "group"}
 
 
 def _clean_style(value: str | None) -> str | None:
@@ -63,6 +68,8 @@ def _counts(db: Session, block_ids: list[uuid.UUID]) -> dict[uuid.UUID, int]:
 def _to_out(block: QuestionBlock, count: int = 0) -> BlockOut:
     out = BlockOut.model_validate(block)
     out.question_count = count
+    if block.cover_key:
+        out.cover_url = storage.presigned_get(block.cover_key)
     return out
 
 
@@ -85,23 +92,26 @@ def student_modules(
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> list[StudentModule]:
-    """Modules the student can work through, with SEQUENTIAL locking: a task is
-    unlocked only once the previous task in the same module is completed."""
-    teacher_ids = list(
-        db.scalars(
-            select(Group.teacher_id)
-            .join(GroupMember, GroupMember.group_id == Group.id)
-            .where(GroupMember.student_id == user.id)
-            .distinct()
-        ).all()
-    )
-    if not teacher_ids:
-        return []
+    """Modules the student can work through: official PUBLIC modules (everyone,
+    incl. teacherless students) plus their own teachers' GROUP modules. Two locks
+    per task — SEQUENTIAL (previous task not done yet) and PREMIUM (beyond the free
+    preview of an official module)."""
+    teacher_ids = access.student_teacher_ids(db, user.id)
+    cond = QuestionBlock.visibility == "public"
+    if teacher_ids:
+        cond = or_(
+            cond,
+            and_(
+                QuestionBlock.visibility == "group",
+                QuestionBlock.teacher_id.in_(teacher_ids),
+            ),
+        )
     blocks = list(
         db.scalars(
             select(QuestionBlock)
-            .where(QuestionBlock.teacher_id.in_(teacher_ids))
-            .order_by(QuestionBlock.sort_order, QuestionBlock.created_at)
+            .where(QuestionBlock.is_published.is_(True), cond)
+            # Teacher (group) modules first, then official public ones; each by order.
+            .order_by(QuestionBlock.visibility, QuestionBlock.sort_order, QuestionBlock.created_at)
         ).all()
     )
     if not blocks:
@@ -117,6 +127,7 @@ def student_modules(
             .distinct()
         ).all()
     )
+    free_n = settings.FREE_TASKS_PER_MODULE
     out: list[StudentModule] = []
     for b in blocks:
         qs = list(
@@ -132,27 +143,33 @@ def student_modules(
         )
         if not qs:
             continue
+        # Positional freemium applies only to official public modules.
+        gated = b.visibility == "public" and not user.is_premium and free_n > 0
         tasks: list[StudentTask] = []
-        prev_done = True  # the first task is always unlocked
+        prev_done = True  # the first task is always sequentially unlocked
         next_id: uuid.UUID | None = None
         done_count = 0
-        for q in qs:
+        for idx, q in enumerate(qs):
             done = q.id in done_qids
-            locked = not prev_done
+            seq_locked = not prev_done
+            premium_locked = gated and idx >= free_n
             if done:
                 done_count += 1
-            elif not locked and next_id is None:
+            elif not seq_locked and not premium_locked and next_id is None:
                 next_id = q.id
             tasks.append(
                 StudentTask(
                     id=q.id, title=q.title, type=q.type.value, level=q.level,
-                    sort_order=q.sort_order, done=done, locked=locked,
+                    sort_order=q.sort_order, done=done, locked=seq_locked,
+                    premium_locked=premium_locked,
                 )
             )
             prev_done = done
         out.append(
             StudentModule(
                 id=b.id, name=b.name, topic=b.topic, level=b.level, ru_style=b.ru_style,
+                visibility=b.visibility,
+                cover_url=storage.presigned_get(b.cover_key) if b.cover_key else None,
                 total=len(qs), done_count=done_count, next_task_id=next_id, tasks=tasks,
             )
         )
@@ -217,6 +234,16 @@ def block_progress(
     return out
 
 
+def _clean_visibility(value: str | None, teacher: User) -> str:
+    """Only admins may create/keep an official PUBLIC module; teachers are 'group'."""
+    v = (value or "").strip().lower()
+    if v and v not in _VISIBILITIES:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "Invalid visibility")
+    if v == "public" and teacher.role != UserRole.admin:
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "Only admins can create public modules")
+    return v or "group"
+
+
 @router.post("", response_model=BlockOut, status_code=status.HTTP_201_CREATED)
 def create_block(
     payload: BlockCreate,
@@ -229,6 +256,10 @@ def create_block(
         topic=(payload.topic or "").strip() or None,
         level=(payload.level or "").strip() or None,
         ru_style=_clean_style(payload.ru_style),
+        visibility=_clean_visibility(payload.visibility, teacher),
+        # New modules start live so existing "create = visible" behaviour holds;
+        # the editor can move a module back to draft with is_published=false.
+        is_published=True,
     )
     db.add(block)
     db.commit()
@@ -253,10 +284,31 @@ def update_block(
         block.level = (data["level"] or "").strip() or None
     if "ru_style" in data:
         block.ru_style = _clean_style(data["ru_style"])
+    if "is_published" in data and data["is_published"] is not None:
+        block.is_published = bool(data["is_published"])
+    if "visibility" in data and data["visibility"] is not None:
+        block.visibility = _clean_visibility(data["visibility"], teacher)
     db.commit()
     db.refresh(block)
     count = _counts(db, [block.id]).get(block.id, 0)
     return _to_out(block, count)
+
+
+@router.post("/{block_id}/cover-url", response_model=MediaUploadURL)
+def block_cover_url(
+    block_id: uuid.UUID,
+    payload: MediaUploadRequest,
+    teacher: User = Depends(require_teacher),
+    db: Session = Depends(get_db),
+) -> MediaUploadURL:
+    """Presigned PUT for a module cover image; stores the key on the module."""
+    block = _owned_block(block_id, teacher, db)
+    ext = "jpg" if "jpeg" in payload.content_type else payload.content_type.split("/")[-1]
+    key = storage.new_key("covers", ext)
+    url = storage.presigned_put(key, payload.content_type)
+    block.cover_key = key
+    db.commit()
+    return MediaUploadURL(upload_url=url, media_key=key)
 
 
 @router.delete("/{block_id}", status_code=status.HTTP_204_NO_CONTENT)

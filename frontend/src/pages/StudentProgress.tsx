@@ -27,7 +27,7 @@ export function StudentProgress() {
 
   // Chronological band history (oldest → newest) for the trend chart.
   const evaluated = submissions.filter((s) => s.status === "done" && s.evaluation);
-  const trend = evaluated.map((s) => s.evaluation!.overall_band).reverse();
+  const trend = evaluated.map((s) => s.evaluation!.level_score ?? s.evaluation!.overall_band).reverse();
 
   // Skill criteria from the most recent evaluation.
   const latest = evaluated[0]?.evaluation ?? null;

@@ -25,7 +25,7 @@ from app.schemas.gamification import (
     ReviewItemCreate,
     ReviewItemOut,
 )
-from app.services import notifications
+from app.services import notifications, scoring
 
 router = APIRouter(tags=["engagement"])
 
@@ -352,7 +352,9 @@ def _assignments_out(db: Session, items: list[Assignment]) -> list[AssignmentOut
                 created_at=a.created_at,
                 completed=sub is not None,
                 submission_id=sub.id if sub else None,
-                overall_band=sub.evaluation.overall_band if (sub and sub.evaluation) else None,
+                # Level-relative score (not the absolute band) — one consistent
+                # number everywhere. Field name kept for API compatibility.
+                overall_band=scoring.effective_band(sub) if sub else None,
             )
         )
     return out
@@ -367,13 +369,8 @@ def create_assignments(
     q = db.get(Question, payload.question_id)
     if q is None or (teacher.role != UserRole.admin and q.teacher_id != teacher.id):
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Question not found")
-    # Only ASSIGNED-type tasks may be assigned. Open tasks already live in the
-    # public pool and count toward the general (not group) rating.
-    if q.is_public:
-        raise HTTPException(
-            status.HTTP_400_BAD_REQUEST,
-            "Open tasks can't be assigned to a group. Create an assigned-type task.",
-        )
+    # In the module model any of the teacher's own tasks can be assigned with a
+    # deadline (the old open-vs-assigned distinction is gone).
 
     # Resolve the target students: explicit ids ∪ a whole group's members.
     target_ids = set(payload.student_ids)

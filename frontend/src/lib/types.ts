@@ -33,6 +33,7 @@ export interface StudentTask {
   sort_order: number;
   done: boolean;
   locked: boolean;
+  premium_locked: boolean;
 }
 
 export interface StudentModule {
@@ -41,6 +42,8 @@ export interface StudentModule {
   topic: string | null;
   level: string | null;
   ru_style: string | null;
+  visibility: "public" | "group";
+  cover_url: string | null;
   total: number;
   done_count: number;
   next_task_id: string | null;
@@ -208,6 +211,7 @@ export interface Question {
   answer_time_limit_sec: number;
   is_published: boolean;
   is_public: boolean;
+  locked?: boolean;
   model_answer_text: string | null;
   created_at: string;
 }
@@ -220,6 +224,10 @@ export interface QuestionBlock {
   level: string | null;
   ru_style: RuStyle | null;
   sort_order: number;
+  visibility: "public" | "group";
+  is_published: boolean;
+  cover_key: string | null;
+  cover_url: string | null;
   question_count: number;
   created_at: string;
 }

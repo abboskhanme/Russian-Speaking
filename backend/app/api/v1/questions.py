@@ -15,6 +15,7 @@ from app.models import (
     Question,
     QuestionBlock,
     QuestionType,
+    ReviewItem,
     User,
     UserRole,
 )
@@ -29,7 +30,7 @@ from app.schemas.question import (
     QuestionOut,
     QuestionUpdate,
 )
-from app.services import llm, storage, question_gen
+from app.services import access, llm, storage, question_gen
 from app.services.text import html_to_text
 
 router = APIRouter(prefix="/questions", tags=["questions"])
@@ -199,11 +200,18 @@ def list_questions(
     db: Session = Depends(get_db),
 ) -> list[QuestionOut]:
     stmt = select(Question).where(Question.is_deleted.is_(False))
-    # Students browse only OPEN published questions (any teacher). Assigned
-    # tasks never appear here — they're reached via assignments. Teachers see
-    # only their own. Admin sees everything (or one teacher's via teacher_id).
+    # Students browse the "free practice" pool = tasks from official PUBLIC modules
+    # (unstructured/non-sequential). Teacher & assigned tasks aren't here — those
+    # live in /modules. Teachers see only their own; admin sees everything.
     if user.role == UserRole.student:
-        stmt = stmt.where(Question.is_published.is_(True), Question.is_public.is_(True))
+        stmt = (
+            stmt.join(QuestionBlock, Question.block_id == QuestionBlock.id)
+            .where(
+                Question.is_published.is_(True),
+                QuestionBlock.visibility == "public",
+                QuestionBlock.is_published.is_(True),
+            )
+        )
     elif user.role == UserRole.teacher:
         stmt = stmt.where(Question.teacher_id == user.id)
         if published_only:
@@ -224,10 +232,12 @@ def list_questions(
         stmt = stmt.order_by(Question.sort_order, Question.created_at)
     else:
         stmt = stmt.order_by(Question.created_at.desc())
-    out = [_to_out(q) for q in db.scalars(stmt).all()]
+    qs_list = list(db.scalars(stmt).all())
+    out = [_to_out(q) for q in qs_list]
     if user.role == UserRole.student:
-        for o in out:  # never leak the exemplar answer before submitting
-            o.model_answer_text = None
+        for q, o in zip(qs_list, out):
+            o.model_answer_text = None  # never leak the exemplar before submitting
+            o.locked = access.needs_premium(db, user, q)  # positional freemium
     return out
 
 
@@ -243,7 +253,12 @@ def list_topics(
         .distinct()
     )
     if user.role.value == "student":
-        stmt = stmt.where(Question.is_published.is_(True), Question.is_public.is_(True))
+        # Same source as the student practice pool: official public modules.
+        stmt = stmt.join(QuestionBlock, Question.block_id == QuestionBlock.id).where(
+            Question.is_published.is_(True),
+            QuestionBlock.visibility == "public",
+            QuestionBlock.is_published.is_(True),
+        )
     return sorted({t for t in db.scalars(stmt).all() if t})
 
 
@@ -278,12 +293,21 @@ def get_question(
     if user.role == UserRole.student:
         if not q.is_published:
             raise HTTPException(status.HTTP_404_NOT_FOUND, "Question not found")
-        # A non-public task is reachable only via a still-open assignment OR when
-        # it belongs to a module of one of the student's teachers (module path).
-        if (
-            not q.is_public
-            and active_assignment(db, user.id, q.id) is None
-            and not _student_module_access(db, user.id, q)
+        # Reachable via its module (official public, or the student's teacher's
+        # group), or a still-open assignment, or a pending review item. Premium
+        # locking isn't enforced here — the student can OPEN a locked task and
+        # sees the paywall when they try to submit.
+        if not (
+            access.can_reach(db, user, q)
+            or active_assignment(db, user.id, q.id) is not None
+            or db.scalar(
+                select(ReviewItem.id).where(
+                    ReviewItem.student_id == user.id,
+                    ReviewItem.question_id == q.id,
+                    ReviewItem.completed.is_(False),
+                )
+            )
+            is not None
         ):
             raise HTTPException(status.HTTP_404_NOT_FOUND, "Question not found")
     if user.role == UserRole.teacher and q.teacher_id != user.id:
@@ -291,6 +315,7 @@ def get_question(
     out = _to_out(q)
     if user.role == UserRole.student:
         out.model_answer_text = None  # revealed only on the result page
+        out.locked = access.needs_premium(db, user, q)  # positional freemium
     return out
 
 

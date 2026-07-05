@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { api } from "../lib/api";
 import { useAuth } from "../lib/auth";
 import { useI18n } from "../lib/i18n";
+import { answerScore } from "../lib/score";
 import type { Question, Submission } from "../lib/types";
 import {
   Avatar,
@@ -20,11 +21,7 @@ import { useTeacherSubmissions } from "./TeacherSubmissions";
 
 const firstName = (full?: string | null) => (full ?? "").trim().split(/\s+/)[0] || "";
 
-function autoBand(s: Submission): number | null {
-  if (s.teacher_band != null) return s.teacher_band;
-  if (s.status === "done" && s.evaluation) return s.evaluation.overall_band;
-  return null;
-}
+const autoBand = answerScore;
 
 export function TeacherDashboard() {
   const { user } = useAuth();

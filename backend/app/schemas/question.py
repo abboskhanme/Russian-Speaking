@@ -83,6 +83,9 @@ class QuestionOut(BaseModel):
     answer_time_limit_sec: int
     is_published: bool
     is_public: bool = False
+    # Positional freemium: True when a non-premium student can't answer this task
+    # yet (beyond the module's free preview). Only set for the student pool.
+    locked: bool = False
     model_answer_text: str | None = None
     created_at: datetime
 

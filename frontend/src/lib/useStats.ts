@@ -62,14 +62,15 @@ export function useStudentStats(): StudentStats {
 
   const subs = data ?? [];
   const evaluated = subs.filter((s) => s.status === "done" && s.evaluation);
-  const bands = evaluated.map((s) => s.evaluation!.overall_band);
-  // Stable level: average the level-relative score over the most recent answers
-  // (submissions come newest-first). Falls back to the absolute band when a
-  // level score is missing. This is the "your level" number shown to students.
-  const recentLevels = evaluated
+  // Score on the level-relative result (fair, stable), not the absolute C2 band.
+  // Falls back to the absolute band only for legacy rows with no level score.
+  const levelBands = evaluated
     .map((s) => s.evaluation!.level_score ?? s.evaluation!.overall_band)
-    .filter((v): v is number => v != null)
-    .slice(0, LEVEL_WINDOW);
+    .filter((v): v is number => v != null);
+  // Stable level: average over the most recent answers (submissions come
+  // newest-first) so one bad attempt doesn't yank the number around. This is the
+  // SAME definition the backend uses, so student and teacher see one number.
+  const recentLevels = levelBands.slice(0, LEVEL_WINDOW);
   const level = recentLevels.length
     ? recentLevels.reduce((a, b) => a + b, 0) / recentLevels.length
     : null;
@@ -81,8 +82,9 @@ export function useStudentStats(): StudentStats {
     xp: user?.xp ?? 0,
     doneCount: subs.filter((s) => s.status === "done").length,
     totalCount: subs.length,
-    avgBand: bands.length ? bands.reduce((a, b) => a + b, 0) / bands.length : null,
-    bestBand: bands.length ? Math.max(...bands) : null,
+    // Headline average = the stable, level-based rolling number (matches teacher view).
+    avgBand: level,
+    bestBand: levelBands.length ? Math.max(...levelBands) : null,
     level,
     submissions: subs,
     isLoading: enabled && isLoading,

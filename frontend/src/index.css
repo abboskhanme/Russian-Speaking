@@ -281,7 +281,6 @@ input, textarea, select { font-family: inherit; }
 .mobile-only { display: none; }
 .tap { transition: transform .12s ease; }
 .tap:active { transform: scale(0.96); }
-.bottom-nav { display: none; }
 
 /* ---- Animations ---- */
 @keyframes fadeUp { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
@@ -330,7 +329,7 @@ input, textarea, select { font-family: inherit; }
 
 /* ---- Mobile ---- */
 @media (max-width: 720px) {
-  .page { padding: 16px 16px calc(88px + env(safe-area-inset-bottom, 0px)); }
+  .page { padding: 16px 16px calc(16px + env(safe-area-inset-bottom, 0px)); }
   /* Safety net: long unbreakable strings (emails, join codes, URLs) wrap
      instead of forcing horizontal overflow on narrow screens. */
   .page { overflow-wrap: break-word; }
@@ -347,11 +346,6 @@ input, textarea, select { font-family: inherit; }
     box-shadow: var(--sh-lg);
   }
   .gov-sidebar.open { transform: translateX(0); }
-  .bottom-nav {
-    display: flex; height: 62px; flex-shrink: 0; align-items: stretch;
-    background: var(--surface); border-top: 1px solid var(--line);
-    padding-bottom: env(safe-area-inset-bottom, 0);
-  }
   .t-row { grid-template-columns: 1fr auto !important; gap: 8px !important; }
   .t-head { display: none !important; }
   .t-row > .t-hide-sm { display: none !important; }

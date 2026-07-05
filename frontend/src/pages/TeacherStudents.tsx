@@ -2,11 +2,9 @@ import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "../lib/api";
 import { useI18n } from "../lib/i18n";
-import { FREE_ATTEMPT_LIMIT } from "../lib/plan";
 import type { StudentManage } from "../lib/types";
 import {
   Avatar,
-  Bar,
   Button,
   Card,
   EmptyState,
@@ -104,11 +102,7 @@ export function TeacherStudents() {
           {list.map((s, i) => {
             const busy =
               setPremium.isPending && setPremium.variables?.id === s.id;
-            const limit = s.is_premium ? Infinity : FREE_ATTEMPT_LIMIT;
             const used = s.submission_count;
-            const pct = s.is_premium
-              ? 100
-              : Math.min(100, (used / FREE_ATTEMPT_LIMIT) * 100);
             return (
               <div
                 key={s.id}
@@ -153,25 +147,18 @@ export function TeacherStudents() {
                   )}
                 </span>
 
-                <div className="row gap-2 t-hide-sm" style={{ minWidth: 0 }}>
-                  <Bar value={pct} hue={47} height={7} />
+                <div className="row gap-2 t-hide-sm" style={{ minWidth: 0, alignItems: "center" }}>
                   <span
                     className="mono"
-                    style={{
-                      fontSize: 12.5,
-                      color: "var(--muted)",
-                      whiteSpace: "nowrap",
-                    }}
+                    style={{ fontSize: 13, fontWeight: 700, color: "var(--ink-soft)", whiteSpace: "nowrap" }}
                   >
-                    {used}/{limit === Infinity ? "∞" : limit}
+                    {used}
                   </span>
+                  <span style={{ fontSize: 12.5, color: "var(--muted)" }}>{t("trialAttempts")}</span>
                 </div>
 
-                <span
-                  className="t-hide-sm"
-                  style={{ fontSize: 13, color: "var(--muted)" }}
-                >
-                  {used} {t("trialAttempts")}
+                <span className="t-hide-sm" style={{ fontSize: 13, color: "var(--muted)" }}>
+                  {s.is_premium ? t("premiumBadge") : t("freeBadge")}
                 </span>
 
                 <div style={{ justifySelf: "end" }}>

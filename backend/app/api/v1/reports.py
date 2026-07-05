@@ -11,16 +11,12 @@ from app.api.deps import require_teacher_or_admin
 from app.db.session import get_db
 from app.models import Group, GroupMember, Question, Submission, User, UserRole
 from app.schemas.report import Analytics, CriterionAvg, GradebookRow
+from app.services import scoring
 
 router = APIRouter(prefix="/reports", tags=["reports"])
 
-
-def _effective_band(sub: Submission) -> float | None:
-    if sub.teacher_band is not None:
-        return sub.teacher_band
-    if sub.evaluation is not None:
-        return sub.evaluation.overall_band
-    return None
+# Level-relative, stable scoring lives in app.services.scoring; alias for brevity.
+_effective_band = scoring.effective_band
 
 
 def _relevant_submissions(
@@ -51,28 +47,26 @@ def _relevant_submissions(
 
 
 def _gradebook(db: Session, subs: list[Submission]) -> list[GradebookRow]:
-    agg: dict[uuid.UUID, dict] = {}
+    # Group each student's answers, then score with the shared level-relative,
+    # recent-window definition so this matches what the student sees.
+    by_student: dict[uuid.UUID, list[Submission]] = {}
+    last_seen: dict[uuid.UUID, object] = {}
     for s in subs:
-        r = agg.setdefault(s.student_id, {"attempts": 0, "bands": [], "last": None})
-        r["attempts"] += 1
-        b = _effective_band(s)
-        if b is not None:
-            r["bands"].append(b)
-        if r["last"] is None or s.created_at > r["last"]:
-            r["last"] = s.created_at
+        by_student.setdefault(s.student_id, []).append(s)
+        if s.student_id not in last_seen or s.created_at > last_seen[s.student_id]:
+            last_seen[s.student_id] = s.created_at
     rows: list[GradebookRow] = []
-    for sid, r in agg.items():
+    for sid, slist in by_student.items():
         u = db.get(User, sid)
-        bands = r["bands"]
         rows.append(
             GradebookRow(
                 student_id=sid,
                 full_name=u.full_name if u else "—",
                 email=u.email if u else "",
-                attempts=r["attempts"],
-                avg_band=round(sum(bands) / len(bands), 2) if bands else None,
-                best_band=max(bands) if bands else None,
-                last_activity=r["last"],
+                attempts=len(slist),
+                avg_band=scoring.rolling_avg(slist),
+                best_band=scoring.best_band(slist),
+                last_activity=last_seen.get(sid),
             )
         )
     rows.sort(key=lambda x: x.full_name.lower())

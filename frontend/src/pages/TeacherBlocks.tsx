@@ -1,15 +1,10 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { api } from "../lib/api";
+import { api, uploadToPresigned } from "../lib/api";
+import { useAuth } from "../lib/auth";
 import { useI18n } from "../lib/i18n";
 import type { ModuleStudentProgress, Question, QuestionBlock, RuStyle } from "../lib/types";
-
-function move<T>(arr: T[], from: number, to: number): T[] {
-  const next = arr.slice();
-  const [item] = next.splice(from, 1);
-  next.splice(to, 0, item);
-  return next;
-}
 import {
   Button,
   Card,
@@ -20,15 +15,29 @@ import {
   PageHead,
   Pill,
   inp,
+  type IconName,
 } from "../components/govori";
+
+function move<T>(arr: T[], from: number, to: number): T[] {
+  const next = arr.slice();
+  const [item] = next.splice(from, 1);
+  next.splice(to, 0, item);
+  return next;
+}
+
+const TYPE_ICON: Record<string, IconName> = { text: "message", image: "eye", video: "play" };
 
 function styleLabel(t: (k: any) => string, s: RuStyle | null) {
   return s === "regular" ? t("ruRegular") : s === "live" ? t("ruLive") : null;
 }
 
-/** Expanded view of one block: its questions + a picker to add more. */
+/** The return path new/edit task screens send the teacher back to. */
+const RETURN = encodeURIComponent("/teacher/blocks");
+
+/** Expanded view of one module: its tasks (create/edit/publish/reorder inline) + progress. */
 function BlockBody({ block }: { block: QuestionBlock }) {
   const { t } = useI18n();
+  const nav = useNavigate();
   const qc = useQueryClient();
   const [picking, setPicking] = useState(false);
   const [sel, setSel] = useState<Set<string>>(new Set());
@@ -53,28 +62,44 @@ function BlockBody({ block }: { block: QuestionBlock }) {
   const invalidate = () => {
     qc.invalidateQueries({ queryKey: ["block-questions", block.id] });
     qc.invalidateQueries({ queryKey: ["blocks"] });
-    // `addable` is derived from this list's cached block_id — refetch it so a
-    // just-removed question can be re-added and a just-added one disappears.
     qc.invalidateQueries({ queryKey: ["questions", "mine"] });
   };
 
   const add = useMutation({
     mutationFn: async () => api.post(`/blocks/${block.id}/questions`, { question_ids: [...sel] }),
-    onSuccess: () => {
-      setSel(new Set());
-      setPicking(false);
-      invalidate();
-    },
+    onSuccess: () => { setSel(new Set()); setPicking(false); invalidate(); },
   });
   const remove = useMutation({
     mutationFn: async (qid: string) => api.delete(`/blocks/${block.id}/questions/${qid}`),
+    onSuccess: invalidate,
+  });
+  const togglePublish = useMutation({
+    mutationFn: async (q: Question) =>
+      api.patch(`/questions/${q.id}`, { is_published: !q.is_published }),
     onSuccess: invalidate,
   });
   const reorder = useMutation({
     mutationFn: async (ids: string[]) => api.post(`/blocks/${block.id}/tasks/reorder`, { ids }),
   });
 
-  // Local, drag-reorderable copy of the block's questions.
+  // Cover image upload (presigned PUT straight to storage).
+  const coverInput = useRef<HTMLInputElement | null>(null);
+  const [coverBusy, setCoverBusy] = useState(false);
+  async function uploadCover(f: File | null) {
+    if (coverInput.current) coverInput.current.value = "";
+    if (!f) return;
+    setCoverBusy(true);
+    try {
+      const ct = f.type || "image/jpeg";
+      const { data: up } = await api.post(`/blocks/${block.id}/cover-url`, { content_type: ct });
+      await uploadToPresigned(up.upload_url, f, ct);
+      qc.invalidateQueries({ queryKey: ["blocks"] });
+    } finally {
+      setCoverBusy(false);
+    }
+  }
+
+  // Local, drag-reorderable copy of the module's tasks.
   const [tasks, setTasks] = useState<Question[]>([]);
   useEffect(() => { if (inBlock) setTasks(inBlock); }, [inBlock]);
   const [dragT, setDragT] = useState<number | null>(null);
@@ -90,7 +115,6 @@ function BlockBody({ block }: { block: QuestionBlock }) {
 
   return (
     <div className="col gap-3" style={{ marginTop: 12 }}>
-      {/* Current questions */}
       {tasks.length === 0 ? (
         <p style={{ fontSize: 13.5, color: "var(--muted)" }}>{t("blockNoQuestions")}</p>
       ) : (
@@ -111,27 +135,74 @@ function BlockBody({ block }: { block: QuestionBlock }) {
             >
               <div className="row gap-2" style={{ alignItems: "center", minWidth: 0 }}>
                 <Icon name="menu" size={15} style={{ color: "var(--faint)", flexShrink: 0 }} />
+                <span style={{ color: "var(--muted)", display: "flex", flexShrink: 0 }}>
+                  <Icon name={TYPE_ICON[q.type] ?? "message"} size={15} />
+                </span>
                 <span className="truncate" style={{ fontSize: 14, fontWeight: 600 }}>{q.title}</span>
+                {!q.is_published && <Pill hue={40} size="sm">{t("moduleDraft")}</Pill>}
               </div>
-              <button
-                type="button"
-                aria-label="remove"
-                onClick={() => remove.mutate(q.id)}
-                className="tap"
-                style={{ border: "none", background: "transparent", color: "var(--danger)", cursor: "pointer", display: "flex" }}
-              >
-                <Icon name="x" size={16} />
-              </button>
+              <div className="row gap-1" style={{ flexShrink: 0 }}>
+                <button
+                  type="button"
+                  aria-label="publish"
+                  title={q.is_published ? t("modulePublished") : t("moduleDraft")}
+                  onClick={() => togglePublish.mutate(q)}
+                  className="tap"
+                  style={{ border: "none", background: "transparent", color: q.is_published ? "var(--success)" : "var(--faint)", cursor: "pointer", display: "flex", padding: 3 }}
+                >
+                  <Icon name={q.is_published ? "eye" : "eyeOff"} size={16} />
+                </button>
+                <button
+                  type="button"
+                  aria-label="edit"
+                  onClick={() => nav(`/teacher/questions/${q.id}/edit?return=${RETURN}`)}
+                  className="tap"
+                  style={{ border: "none", background: "transparent", color: "var(--muted)", cursor: "pointer", display: "flex", padding: 3 }}
+                >
+                  <Icon name="edit" size={16} />
+                </button>
+                <button
+                  type="button"
+                  aria-label="remove"
+                  onClick={() => remove.mutate(q.id)}
+                  className="tap"
+                  style={{ border: "none", background: "transparent", color: "var(--danger)", cursor: "pointer", display: "flex", padding: 3 }}
+                >
+                  <Icon name="x" size={16} />
+                </button>
+              </div>
             </div>
           ))}
         </div>
       )}
 
-      {!picking ? (
-        <Button variant="soft" size="sm" icon="plus" onClick={() => setPicking(true)}>
-          {t("addQuestions")}
+      {/* Create a task directly inside this module (Upcoder-style), or attach existing. */}
+      <div className="row gap-2 wrap">
+        <Button
+          size="sm"
+          icon="plus"
+          onClick={() => nav(`/teacher/questions/new?block=${block.id}&return=${RETURN}`)}
+        >
+          {t("createTaskInline")}
         </Button>
-      ) : (
+        {!picking && addable.length > 0 && (
+          <Button variant="soft" size="sm" icon="link" onClick={() => setPicking(true)}>
+            {t("addExisting")}
+          </Button>
+        )}
+        <input
+          ref={coverInput}
+          type="file"
+          accept="image/*"
+          onChange={(e) => uploadCover(e.target.files?.[0] ?? null)}
+          style={{ display: "none" }}
+        />
+        <Button variant="ghost" size="sm" icon="image" disabled={coverBusy} onClick={() => coverInput.current?.click()}>
+          {coverBusy ? t("saving") : t("uploadCover")}
+        </Button>
+      </div>
+
+      {picking && (
         <div className="col gap-2">
           <div className="g2" style={{ maxHeight: 220, overflowY: "auto", gap: 6 }}>
             {addable.map((q) => {
@@ -141,9 +212,7 @@ function BlockBody({ block }: { block: QuestionBlock }) {
                   key={q.id}
                   className="row gap-2 tap"
                   style={{
-                    cursor: "pointer",
-                    padding: "9px 12px",
-                    borderRadius: "var(--r-sm)",
+                    cursor: "pointer", padding: "9px 12px", borderRadius: "var(--r-sm)",
                     border: on ? "2px solid var(--primary)" : "2px solid var(--line)",
                     background: on ? "var(--primary-tint)" : "var(--surface)",
                   }}
@@ -217,10 +286,14 @@ function BlockBody({ block }: { block: QuestionBlock }) {
 
 export function TeacherBlocks() {
   const { t } = useI18n();
+  const { user } = useAuth();
   const qc = useQueryClient();
+  const isAdmin = user?.role === "admin";
   const [creating, setCreating] = useState(false);
   const [name, setName] = useState("");
   const [ruStyle, setRuStyle] = useState<"" | RuStyle>("");
+  // Admins can create official PUBLIC modules; teachers always create group ones.
+  const [visibility, setVisibility] = useState<"group" | "public">("group");
   const [openId, setOpenId] = useState<string | null>(null);
 
   const { data: blocks, isLoading } = useQuery({
@@ -230,11 +303,13 @@ export function TeacherBlocks() {
 
   const create = useMutation({
     mutationFn: async () =>
-      api.post("/blocks", { name: name.trim(), ru_style: ruStyle || null }),
+      api.post("/blocks", {
+        name: name.trim(),
+        ru_style: ruStyle || null,
+        visibility: isAdmin ? visibility : "group",
+      }),
     onSuccess: () => {
-      setName("");
-      setRuStyle("");
-      setCreating(false);
+      setName(""); setRuStyle(""); setVisibility("group"); setCreating(false);
       qc.invalidateQueries({ queryKey: ["blocks"] });
     },
   });
@@ -242,11 +317,15 @@ export function TeacherBlocks() {
     mutationFn: async (id: string) => api.delete(`/blocks/${id}`),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["blocks"] }),
   });
+  const togglePublish = useMutation({
+    mutationFn: async (b: QuestionBlock) =>
+      api.patch(`/blocks/${b.id}`, { is_published: !b.is_published }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["blocks"] }),
+  });
   const reorderMods = useMutation({
     mutationFn: async (ids: string[]) => api.post("/blocks/reorder", { ids }),
   });
 
-  // Local, drag-reorderable copy of the modules.
   const [mods, setMods] = useState<QuestionBlock[]>([]);
   useEffect(() => { if (blocks) setMods(blocks); }, [blocks]);
   const [dragMod, setDragMod] = useState<number | null>(null);
@@ -262,7 +341,7 @@ export function TeacherBlocks() {
     <div className="focus-wrap">
       <PageHead
         title={t("blocksTitle")}
-        sub={t("blocksHint")}
+        sub={t("moduleContentHint")}
         action={
           <Button
             icon={creating ? "x" : "plus"}
@@ -280,13 +359,23 @@ export function TeacherBlocks() {
             <Field label={t("blockName")}>
               <input value={name} onChange={(e) => setName(e.target.value)} placeholder={t("blockNamePh")} style={inp} />
             </Field>
-            <Field label={t("ruStyle")}>
-              <select value={ruStyle} onChange={(e) => setRuStyle(e.target.value as "" | RuStyle)} style={inp}>
-                <option value="">—</option>
-                <option value="regular">{t("ruRegular")}</option>
-                <option value="live">{t("ruLive")}</option>
-              </select>
-            </Field>
+            <div className="g2">
+              <Field label={t("ruStyle")}>
+                <select value={ruStyle} onChange={(e) => setRuStyle(e.target.value as "" | RuStyle)} style={inp}>
+                  <option value="">—</option>
+                  <option value="regular">{t("ruRegular")}</option>
+                  <option value="live">{t("ruLive")}</option>
+                </select>
+              </Field>
+              {isAdmin && (
+                <Field label={t("visibilityLabel")}>
+                  <select value={visibility} onChange={(e) => setVisibility(e.target.value as "group" | "public")} style={inp}>
+                    <option value="public">{t("visOfficial")}</option>
+                    <option value="group">{t("visGroup")}</option>
+                  </select>
+                </Field>
+              )}
+            </div>
             <Button full icon="check" disabled={!name.trim() || create.isPending} onClick={() => create.mutate()}>
               {create.isPending ? t("saving") : t("blockNew")}
             </Button>
@@ -317,30 +406,56 @@ export function TeacherBlocks() {
                       onDragStart={() => setDragMod(mi)}
                       onDragEnd={() => setDragMod(null)}
                       className="tap"
-                      style={{ cursor: "grab", display: "flex", color: "var(--muted)", padding: "2px 2px 2px 0" }}
+                      style={{ cursor: "grab", display: "flex", color: "var(--muted)", padding: "2px 2px 2px 0", alignSelf: "center" }}
                       title={t("reorderHint")}
                     >
                       <Icon name="menu" size={18} />
                     </span>
+                    {/* Cover thumbnail (Upcoder-style) */}
+                    <div
+                      style={{
+                        width: 46, height: 46, borderRadius: 10, flexShrink: 0, overflow: "hidden",
+                        background: "var(--surface-3)", display: "flex", alignItems: "center", justifyContent: "center",
+                        color: "var(--faint)", alignSelf: "center",
+                      }}
+                    >
+                      {b.cover_url ? (
+                        <img src={b.cover_url} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                      ) : (
+                        <Icon name="image" size={20} />
+                      )}
+                    </div>
                     <button
                       type="button"
                       onClick={() => setOpenId(open ? null : b.id)}
                       className="tap"
-                      style={{ border: "none", background: "transparent", padding: 0, cursor: "pointer", flex: 1, textAlign: "left" }}
+                      style={{ border: "none", background: "transparent", padding: 0, cursor: "pointer", flex: 1, textAlign: "left", minWidth: 0 }}
                     >
                       <div className="row gap-2 wrap" style={{ alignItems: "center" }}>
                         <Icon name="chevD" size={18} style={{ color: "var(--muted)", transform: open ? "rotate(180deg)" : "none", transition: "transform .2s" }} />
                         <span style={{ fontSize: 16, fontWeight: 800 }}>{b.name}</span>
+                        {b.visibility === "public" && <Pill hue={152} size="sm">{t("visOfficial")}</Pill>}
                         {sl && <Pill hue={305} size="sm">{sl}</Pill>}
                         <Pill hue={47} size="sm">{b.question_count} {t("blockQuestionsCount")}</Pill>
+                        {!b.is_published && <Pill hue={40} size="sm">{t("moduleDraft")}</Pill>}
                       </div>
+                    </button>
+                    <button
+                      type="button"
+                      aria-label="publish"
+                      title={b.is_published ? t("modulePublished") : t("moduleDraft")}
+                      onClick={() => togglePublish.mutate(b)}
+                      className="tap"
+                      style={{ border: "none", background: "transparent", color: b.is_published ? "var(--success)" : "var(--faint)", cursor: "pointer", display: "flex", padding: 3, alignSelf: "center" }}
+                    >
+                      <Icon name={b.is_published ? "eye" : "eyeOff"} size={17} />
                     </button>
                     <button
                       type="button"
                       aria-label="delete"
                       onClick={() => del.mutate(b.id)}
                       className="tap"
-                      style={{ border: "none", background: "transparent", color: "var(--danger)", cursor: "pointer", display: "flex", padding: 2 }}
+                      style={{ border: "none", background: "transparent", color: "var(--danger)", cursor: "pointer", display: "flex", padding: 3, alignSelf: "center" }}
                     >
                       <Icon name="trash" size={16} />
                     </button>

@@ -6,9 +6,11 @@
 import {
   useState,
   useEffect,
+  useRef,
   type CSSProperties,
   type ReactNode,
 } from "react";
+import { useI18n } from "../lib/i18n";
 
 /* ---------------- Helpers ---------------- */
 export function fmt(s: number): string {
@@ -1075,6 +1077,122 @@ export function Loading({ full }: { full?: boolean }) {
         }}
       />
       <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+    </div>
+  );
+}
+
+/* Resilient <img> for task media served over flaky/slow mobile connections.
+   While the bytes are still arriving it shows a spinner instead of the browser's
+   half-drawn "tiny pixel". If a load errors (network drop) it silently retries a
+   couple of times with a short backoff; only after `maxAttempts` failures does it
+   surface a "couldn't load — slow internet" message with a manual retry button. */
+export function MediaImage({
+  src,
+  alt = "",
+  style,
+  containerStyle,
+  maxAttempts = 3,
+}: {
+  src: string | null | undefined;
+  alt?: string;
+  style?: CSSProperties;
+  containerStyle?: CSSProperties;
+  maxAttempts?: number;
+}) {
+  const { t } = useI18n();
+  const [attempt, setAttempt] = useState(0);
+  const [status, setStatus] = useState<"loading" | "loaded" | "error">("loading");
+  const timer = useRef<number | null>(null);
+
+  // Restart the load cycle whenever the source changes.
+  useEffect(() => {
+    setAttempt(0);
+    setStatus(src ? "loading" : "error");
+    return () => { if (timer.current) clearTimeout(timer.current); };
+  }, [src]);
+
+  function retry() {
+    if (timer.current) clearTimeout(timer.current);
+    setStatus("loading");
+    // Bumping `attempt` remounts the <img> (via key) so the browser re-requests
+    // instead of reusing the failed response.
+    setAttempt((a) => a + 1);
+  }
+
+  function handleError() {
+    // attempt is 0-based; attempt+1 is how many tries we've made so far.
+    if (attempt + 1 < maxAttempts) {
+      timer.current = window.setTimeout(retry, 800 * (attempt + 1));
+    } else {
+      setStatus("error");
+    }
+  }
+
+  if (!src) return null;
+
+  const minH = 150;
+
+  if (status === "error") {
+    return (
+      <div
+        className="col center gap-3"
+        style={{
+          minHeight: minH,
+          padding: 20,
+          textAlign: "center",
+          borderRadius: "var(--r-md)",
+          background: "var(--surface-2)",
+          border: "1px dashed var(--line-2)",
+          ...containerStyle,
+        }}
+      >
+        <div
+          style={{
+            width: 46, height: 46, borderRadius: "50%",
+            display: "flex", alignItems: "center", justifyContent: "center",
+            background: "var(--surface-3)", color: "var(--muted)",
+          }}
+        >
+          <Icon name="image" size={24} />
+        </div>
+        <span style={{ fontSize: 13.5, fontWeight: 700, color: "var(--muted)", maxWidth: 260 }}>
+          {t("imageLoadFailed")}
+        </span>
+        <Button variant="soft" size="sm" icon="refresh" onClick={retry}>
+          {t("imageRetry")}
+        </Button>
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ position: "relative", ...containerStyle }}>
+      {status === "loading" && (
+        <div
+          className="row center"
+          style={{
+            minHeight: minH, width: "100%",
+            borderRadius: "var(--r-md)", background: "var(--surface-2)",
+          }}
+        >
+          <div
+            style={{
+              width: 34, height: 34, borderRadius: "50%",
+              border: "3.5px solid var(--surface-3)", borderTopColor: "var(--primary)",
+              animation: "spin 0.8s linear infinite",
+            }}
+          />
+          <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+        </div>
+      )}
+      <img
+        key={attempt}
+        src={src}
+        alt={alt}
+        onLoad={() => setStatus("loaded")}
+        onError={handleError}
+        style={{ ...style, display: status === "loaded" ? style?.display ?? "block" : "none" }}
+      />
     </div>
   );
 }

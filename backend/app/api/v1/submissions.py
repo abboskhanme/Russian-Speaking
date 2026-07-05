@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session, selectinload
 from datetime import datetime, timezone
 
 from app.api.deps import get_current_user, require_teacher_or_admin
-from app.api.v1.questions import _student_module_access, active_assignment
+from app.api.v1.questions import active_assignment
 from app.core.ratelimit import rate_limit
 from app.core.config import settings
 from app.db.session import get_db
@@ -22,7 +22,7 @@ from app.schemas.submission import (
     SubmissionOut,
     TeacherFeedback,
 )
-from app.services import llm, storage
+from app.services import access, llm, storage
 from app.services.text import html_to_text
 from app.workers.tasks import process_submission
 
@@ -99,45 +99,36 @@ def create_submission(
     if q is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Question not found")
 
-    assignment = None
-    if q.is_public:
-        # Open task → freemium gate. Only open-pool answers consume free attempts;
-        # assigned-task answers never count against the limit.
-        if student.role == UserRole.student and not student.is_premium:
-            used = db.scalar(
-                select(func.count(Submission.id))
-                .join(Question, Submission.question_id == Question.id)
-                .where(
-                    Submission.student_id == student.id,
-                    Submission.reference_text.is_(None),  # shadowing is free practice
-                    Question.is_public.is_(True),
-                )
-            ) or 0
-            if used >= settings.FREE_ATTEMPT_LIMIT:
-                raise HTTPException(
-                    status.HTTP_402_PAYMENT_REQUIRED,
-                    "Free trial limit reached. Upgrade to premium to continue.",
-                )
-    else:
-        # Assigned task → must have a still-open assignment; no freemium gate.
-        # Admin (super-user) may answer any task even without an assignment.
-        # A teacher-added review item also unlocks the task (so review works).
-        assignment = active_assignment(db, student.id, q.id)
-        if assignment is None and student.role != UserRole.admin:
-            in_review = db.scalar(
-                select(ReviewItem.id).where(
-                    ReviewItem.student_id == student.id,
-                    ReviewItem.question_id == q.id,
-                    ReviewItem.completed.is_(False),
-                )
+    # A submission counts against an assignment (for class-leaderboard scoping)
+    # when one is open for this task.
+    assignment = active_assignment(db, student.id, q.id)
+    if student.role != UserRole.admin:
+        # Reachable via its module (official public / the student's teacher's
+        # group), a still-open assignment, or a pending review item.
+        in_review = db.scalar(
+            select(ReviewItem.id).where(
+                ReviewItem.student_id == student.id,
+                ReviewItem.question_id == q.id,
+                ReviewItem.completed.is_(False),
             )
-            # A module task (in one of the student's teachers' modules) is also
-            # answerable — that's the module learning path.
-            if in_review is None and not _student_module_access(db, student.id, q):
-                raise HTTPException(
-                    status.HTTP_403_FORBIDDEN,
-                    "This task isn't assigned to you, or its deadline has passed.",
-                )
+        )
+        reachable = (
+            access.can_reach(db, student, q)
+            or assignment is not None
+            or in_review is not None
+        )
+        if not reachable:
+            raise HTTPException(
+                status.HTTP_403_FORBIDDEN,
+                "This task isn't assigned to you, or its deadline has passed.",
+            )
+        # Positional freemium: official public modules gate everything past the
+        # free preview; teacher/assigned content is never self-serve paywalled.
+        if access.needs_premium(db, student, q):
+            raise HTTPException(
+                status.HTTP_402_PAYMENT_REQUIRED,
+                "This task needs premium. Upgrade to continue this module.",
+            )
 
     sub = Submission(
         student_id=student.id,

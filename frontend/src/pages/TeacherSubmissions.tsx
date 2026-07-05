@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import { api } from "../lib/api";
 import { useI18n } from "../lib/i18n";
+import { answerScore } from "../lib/score";
 import type { Submission } from "../lib/types";
 import {
   Avatar,
@@ -19,11 +20,7 @@ import {
 } from "../components/govori";
 
 /** Effective band for a submission: teacher override > AI evaluation. */
-function subBand(s: Submission): number | null {
-  if (s.teacher_band != null) return s.teacher_band;
-  if (s.status === "done" && s.evaluation) return s.evaluation.overall_band;
-  return null;
-}
+const subBand = answerScore;
 
 /** A row showing a student's answer (used in teacher dashboard + list). */
 export function AnswerRow({ s, onClick }: { s: Submission; onClick: () => void }) {

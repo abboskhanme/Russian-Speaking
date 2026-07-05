@@ -28,6 +28,7 @@ from app.schemas.admin import (
     TeacherUpdate,
     UserAdminUpdate,
 )
+from app.services import scoring
 
 router = APIRouter(prefix="/admin", tags=["admin"])
 
@@ -212,12 +213,8 @@ def delete_student(
     db.commit()
 
 
-def _sub_band(sub: Submission) -> float | None:
-    if sub.teacher_band is not None:
-        return sub.teacher_band
-    if sub.evaluation is not None:
-        return sub.evaluation.overall_band
-    return None
+# Level-relative, stable scoring lives in app.services.scoring; alias for brevity.
+_sub_band = scoring.effective_band
 
 
 @router.get("/students/{student_id}/detail", response_model=AdminStudentDetail)
@@ -260,7 +257,6 @@ def student_detail(
             .order_by(Submission.created_at.desc())
         ).all()
     )
-    bands = [b for b in (_sub_band(x) for x in subs) if b is not None]
     submissions = [
         StudentSubmissionOut(
             id=x.id,
@@ -282,8 +278,8 @@ def student_detail(
         current_streak=s.current_streak or 0,
         longest_streak=s.longest_streak or 0,
         attempts=len(subs),
-        avg_band=round(sum(bands) / len(bands), 1) if bands else None,
-        best_band=max(bands) if bands else None,
+        avg_band=scoring.rolling_avg(subs),
+        best_band=scoring.best_band(subs),
         groups=groups,
         submissions=submissions,
     )
