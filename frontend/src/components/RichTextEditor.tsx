@@ -100,6 +100,13 @@ export function RichTextEditor({
 }) {
   const { t } = useI18n();
   const ref = useRef<HTMLDivElement>(null);
+  // Last caret/selection that lived INSIDE the editor. A <select> in the toolbar
+  // steals focus and collapses the editor selection when opened, so execCommand
+  // would have nothing to act on (formatting silently fails and the caret is
+  // lost → "can't type"). We remember the range and restore it before every
+  // command. Toolbar <button>s don't need this — they preventDefault on
+  // mousedown, keeping the selection alive.
+  const savedRange = useRef<Range | null>(null);
   const [active, setActive] = useState<Active>({});
   // Current block format at the caret ("p" | "h1" | "h2" | "h3"). Drives the
   // Format dropdown so it reflects — and defaults to Paragraph rather than a
@@ -126,9 +133,33 @@ export function RichTextEditor({
     onChange(html);
   }, [onChange]);
 
+  // Remember the current selection while it's inside the editor.
+  const saveSelection = useCallback(() => {
+    const el = ref.current;
+    const sel = window.getSelection();
+    if (el && sel && sel.rangeCount) {
+      const r = sel.getRangeAt(0);
+      if (el.contains(r.commonAncestorContainer)) savedRange.current = r.cloneRange();
+    }
+  }, []);
+
+  // Put focus + the last in-editor selection back before running a command.
+  const restoreSelection = useCallback(() => {
+    const el = ref.current;
+    if (!el) return;
+    el.focus();
+    const sel = window.getSelection();
+    const r = savedRange.current;
+    if (sel && r && el.contains(r.commonAncestorContainer)) {
+      sel.removeAllRanges();
+      sel.addRange(r);
+    }
+  }, []);
+
   const refreshActive = useCallback(() => {
     const el = ref.current;
     if (!el || document.activeElement !== el) return;
+    saveSelection();
     const q = (c: string) => {
       try { return document.queryCommandState(c); } catch { return false; }
     };
@@ -146,7 +177,7 @@ export function RichTextEditor({
       if (v === "h1" || v === "h2" || v === "h3") fmt = v;
     } catch { /* noop */ }
     setBlockFmt(fmt);
-  }, []);
+  }, [saveSelection]);
 
   useEffect(() => {
     const handler = () => refreshActive();
@@ -156,7 +187,7 @@ export function RichTextEditor({
 
   // execCommand with CSS output (so we get <span style> not legacy <font>).
   const exec = (cmd: string, arg?: string) => {
-    ref.current?.focus();
+    restoreSelection();
     try { document.execCommand("styleWithCSS", false, "true"); } catch { /* noop */ }
     const ok = document.execCommand(cmd, false, arg);
     if (!ok && cmd === "hiliteColor") document.execCommand("backColor", false, arg);
@@ -190,7 +221,7 @@ export function RichTextEditor({
   // Lists: bullet, or an ordered list whose marker (1 / a / A / i) is stored as
   // list-style-type on the <ol> so the exact choice round-trips through save.
   const setList = (kind: string) => {
-    ref.current?.focus();
+    restoreSelection();
     const state = (c: string) => { try { return document.queryCommandState(c); } catch { return false; } };
     if (kind === "none") {
       if (state("insertUnorderedList")) document.execCommand("insertUnorderedList");
