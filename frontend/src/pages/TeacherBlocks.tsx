@@ -17,6 +17,7 @@ import {
   inp,
   type IconName,
 } from "../components/govori";
+import { AdminTeacherPicker } from "../components/AdminTeacherPicker";
 
 function move<T>(arr: T[], from: number, to: number): T[] {
   const next = arr.slice();
@@ -297,6 +298,8 @@ export function TeacherBlocks() {
   const [ruStyle, setRuStyle] = useState<"" | RuStyle>("");
   // Admins can create official PUBLIC modules; teachers always create group ones.
   const [visibility, setVisibility] = useState<"group" | "public">("group");
+  // Admin-only: which teacher owns the created module.
+  const [ownerTeacherId, setOwnerTeacherId] = useState("");
   const [openId, setOpenId] = useState<string | null>(null);
 
   const { data: blocks, isLoading } = useQuery({
@@ -310,9 +313,11 @@ export function TeacherBlocks() {
         name: name.trim(),
         ru_style: ruStyle || null,
         visibility: isAdmin ? visibility : "group",
+        // Admin: attribute to the chosen teacher (backend ignores for non-admins).
+        teacher_id: ownerTeacherId || undefined,
       }),
     onSuccess: () => {
-      setName(""); setRuStyle(""); setVisibility("group"); setCreating(false);
+      setName(""); setRuStyle(""); setVisibility("group"); setOwnerTeacherId(""); setCreating(false);
       qc.invalidateQueries({ queryKey: ["blocks"] });
     },
   });
@@ -359,6 +364,8 @@ export function TeacherBlocks() {
       {creating && (
         <Card style={{ marginBottom: 20 }}>
           <div className="col gap-4">
+            {/* Admin creates the module on behalf of a chosen teacher. */}
+            <AdminTeacherPicker value={ownerTeacherId} onChange={setOwnerTeacherId} />
             <Field label={t("blockName")}>
               <input value={name} onChange={(e) => setName(e.target.value)} placeholder={t("blockNamePh")} style={inp} />
             </Field>

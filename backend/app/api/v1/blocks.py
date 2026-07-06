@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import and_, func, or_, select
 from sqlalchemy.orm import Session
 
-from app.api.deps import get_current_user, require_teacher
+from app.api.deps import get_current_user, require_teacher, resolve_content_owner
 from app.api.v1.questions import _to_out as question_to_out
 from app.db.session import get_db
 from app.models import (
@@ -250,8 +250,9 @@ def create_block(
     teacher: User = Depends(require_teacher),
     db: Session = Depends(get_db),
 ) -> BlockOut:
+    owner_id = resolve_content_owner(db, teacher, payload.teacher_id)
     block = QuestionBlock(
-        teacher_id=teacher.id,
+        teacher_id=owner_id,
         name=payload.name.strip(),
         topic=(payload.topic or "").strip() or None,
         level=(payload.level or "").strip() or None,

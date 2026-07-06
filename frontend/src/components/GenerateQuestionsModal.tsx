@@ -2,6 +2,7 @@ import { useState } from "react";
 import { api } from "../lib/api";
 import { useI18n } from "../lib/i18n";
 import { Button, Icon } from "./govori";
+import { AdminTeacherPicker } from "./AdminTeacherPicker";
 
 const LEVELS = ["A1", "A2", "B1", "B2", "C1", "C2"];
 const TYPES: { id: string; key: "typeText" | "typeImage" | "typeVideo" }[] = [
@@ -58,6 +59,8 @@ export function GenerateQuestionsModal({
   const [topicsText, setTopicsText] = useState("");
   const [count, setCount] = useState(5);
   const [custom, setCustom] = useState("");
+  // Admin-only: which teacher owns the generated questions.
+  const [ownerTeacherId, setOwnerTeacherId] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -93,6 +96,8 @@ export function GenerateQuestionsModal({
         types,
         count_per_cell: count,
         custom_instructions: custom.trim() || undefined,
+        // Admin: attribute to the chosen teacher (backend ignores for non-admins).
+        teacher_id: ownerTeacherId || undefined,
       });
       onDone(data);
       onClose();
@@ -137,6 +142,11 @@ export function GenerateQuestionsModal({
           </button>
         </div>
         <p style={{ color: "var(--muted)", fontSize: 14, marginBottom: 18 }}>{t("genSubtitle")}</p>
+
+        {/* Admin: generate under a chosen teacher (hidden for teachers). */}
+        <div style={{ marginBottom: 16 }}>
+          <AdminTeacherPicker value={ownerTeacherId} onChange={setOwnerTeacherId} />
+        </div>
 
         {/* Levels */}
         <div className="col gap-2" style={{ marginBottom: 16 }}>

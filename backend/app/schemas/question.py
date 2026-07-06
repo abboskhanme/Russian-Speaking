@@ -35,6 +35,9 @@ class QuestionCreate(BaseModel):
     # True → open task (public pool); False → assigned task (group/student only).
     is_public: bool = False
     model_answer_text: str | None = Field(default=None, max_length=10000)
+    # Admin-only: create this question under the chosen teacher. Ignored for
+    # non-admins (they always own what they create).
+    teacher_id: uuid.UUID | None = None
 
     @field_validator("ru_style")
     @classmethod
@@ -110,6 +113,8 @@ class QuestionGenerateRequest(BaseModel):
     # Free-text guidance the teacher types to steer the AI (format, tone, focus,
     # constraints). Optional — empty/None means use the default rubric only.
     custom_instructions: str | None = Field(default=None, max_length=2000)
+    # Admin-only: generate under the chosen teacher (ignored for non-admins).
+    teacher_id: uuid.UUID | None = None
 
 
 class QuestionGenerateResult(BaseModel):

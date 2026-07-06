@@ -16,6 +16,8 @@ import {
   type IconName,
 } from "../components/govori";
 import { RichTextEditor, isEmptyRich } from "../components/RichTextEditor";
+import { AdminTeacherPicker } from "../components/AdminTeacherPicker";
+import { useAuth } from "../lib/auth";
 
 const LEVELS = ["A1", "A2", "B1", "B2", "C1", "C2"];
 
@@ -40,6 +42,8 @@ export function CreateQuestion() {
 
 function CreateQuestionForm() {
   const { t } = useI18n();
+  const { user } = useAuth();
+  const isAdmin = user?.role === "admin";
   const nav = useNavigate();
   const qc = useQueryClient();
   const { id } = useParams<{ id: string }>();
@@ -58,6 +62,8 @@ function CreateQuestionForm() {
   const [topic, setTopic] = useState("");
   const [ruStyle, setRuStyle] = useState<"" | RuStyle>("");
   const [blockId, setBlockId] = useState(presetBlock);
+  // Admin-only: which teacher owns the created question.
+  const [ownerTeacherId, setOwnerTeacherId] = useState("");
   const [answerLimit, setAnswerLimit] = useState(120);
   const [modelAnswer, setModelAnswer] = useState("");
   const [file, setFile] = useState<File | null>(null);
@@ -199,6 +205,8 @@ function CreateQuestionForm() {
           model_answer_text: modelAnswer || null,
           is_published: publish,
           is_public: false,
+          // Admin: attribute to the chosen teacher (backend ignores for non-admins).
+          teacher_id: ownerTeacherId || undefined,
         });
         try {
           await uploadMedia(q.id);
@@ -348,6 +356,17 @@ function CreateQuestionForm() {
 
         <Card>
           <div className="col gap-4">
+            {/* Admin creates content on behalf of a chosen teacher. */}
+            {!isEdit && (
+              <AdminTeacherPicker
+                value={ownerTeacherId}
+                onChange={(id) => {
+                  setOwnerTeacherId(id);
+                  // Module list is teacher-scoped — drop a now-mismatched pick.
+                  setBlockId("");
+                }}
+              />
+            )}
             {type !== "text" && (
               <>
               {/* The hidden file input lives OUTSIDE <Field>'s <label>. When it sat
@@ -603,11 +622,14 @@ function CreateQuestionForm() {
               <Field label={t("navBlocks")}>
                 <select value={blockId} onChange={(e) => setBlockId(e.target.value)} style={inp}>
                   <option value="">— {t("noBlock")} —</option>
-                  {(blocks ?? []).map((b) => (
-                    <option key={b.id} value={b.id}>
-                      {b.name}
-                    </option>
-                  ))}
+                  {(blocks ?? [])
+                    // Admin picked a teacher → only show that teacher's modules.
+                    .filter((b) => !(isAdmin && ownerTeacherId) || b.teacher_id === ownerTeacherId)
+                    .map((b) => (
+                      <option key={b.id} value={b.id}>
+                        {b.name}
+                      </option>
+                    ))}
                 </select>
               </Field>
             </div>

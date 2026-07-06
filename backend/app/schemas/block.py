@@ -14,6 +14,8 @@ class BlockCreate(BaseModel):
     ru_style: str | None = Field(default=None, max_length=8)
     # "public" official module (admin only) | "group" teacher module.
     visibility: str | None = Field(default=None, max_length=8)
+    # Admin-only: create the module under the chosen teacher (ignored otherwise).
+    teacher_id: uuid.UUID | None = None
 
 
 class BlockUpdate(BaseModel):

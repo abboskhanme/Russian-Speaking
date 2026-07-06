@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.api.deps import get_current_user, require_teacher
+from app.api.deps import get_current_user, require_teacher, resolve_content_owner
 from app.core.ratelimit import rate_limit
 from app.db.session import get_db
 from app.models import (
@@ -66,7 +66,9 @@ def create_question(
     teacher: User = Depends(require_teacher),
     db: Session = Depends(get_db),
 ) -> QuestionOut:
-    q = Question(teacher_id=teacher.id, **payload.model_dump())
+    data = payload.model_dump()
+    owner_id = resolve_content_owner(db, teacher, data.pop("teacher_id", None))
+    q = Question(teacher_id=owner_id, **data)
     db.add(q)
     db.commit()
     db.refresh(q)
@@ -98,9 +100,10 @@ def generate_questions(
             status.HTTP_422_UNPROCESSABLE_ENTITY,
             f"Too many at once; max {question_gen.MAX_PER_REQUEST} per request. Lower the count.",
         )
+    owner_id = resolve_content_owner(db, teacher, payload.teacher_id)
     created, skipped = question_gen.generate_batch(
         db,
-        teacher_id=teacher.id,
+        teacher_id=owner_id,
         levels=payload.levels,
         topics=payload.topics,
         types=types,
