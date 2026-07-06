@@ -6,6 +6,7 @@ return per-criterion scores + the weakest words + a rough CEFR level — all wit
 an account. Rate-limited by IP; nothing is stored.
 """
 
+import random
 import re
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response, status
@@ -15,9 +16,23 @@ from app.services import stt, tts
 
 router = APIRouter(prefix="/guest", tags=["guest"])
 
-# The one fixed demo phrase (scripted repeat-after-me).
-DEMO_PHRASE = "Привет! Меня зовут Антон. Я хочу учить русский язык."
-_ALLOWED_WORDS = set(re.findall(r"\w+", DEMO_PHRASE.lower(), flags=re.UNICODE))
+# A pool of short A1-level demo phrases (scripted repeat-after-me); one is picked
+# at random each time so the guest check isn't the same sentence every visit.
+DEMO_PHRASES = [
+    "Привет! Меня зовут Антон. Я хочу учить русский язык.",
+    "Здравствуйте! Сегодня очень хорошая погода.",
+    "Меня зовут Мария, и я живу в Ташкенте.",
+    "Я люблю пить чай по утрам с молоком.",
+    "Извините, где находится ближайшая аптека?",
+    "Я изучаю русский язык, потому что это интересно.",
+    "На выходных я обычно гуляю в парке с друзьями.",
+    "Мой любимый город — это Санкт-Петербург.",
+    "Давай встретимся завтра в кафе после работы.",
+    "Каждое утро я делаю зарядку и завтракаю.",
+]
+_ALLOWED_WORDS: set[str] = set()
+for _p in DEMO_PHRASES:
+    _ALLOWED_WORDS |= set(re.findall(r"\w+", _p.lower(), flags=re.UNICODE))
 _MAX_AUDIO_BYTES = 10 * 1024 * 1024
 
 
@@ -47,20 +62,22 @@ def _level(overall: int | None) -> str:
 
 @router.get("/demo")
 def demo() -> dict:
-    return {"phrase": DEMO_PHRASE}
+    return {"phrase": random.choice(DEMO_PHRASES)}
 
 
 @router.post("/assess", dependencies=[Depends(rate_limit("guest_assess", 15, 3600))])
-async def assess(request: Request) -> dict:
-    """Assess a guest's spoken attempt at the demo phrase (raw audio body)."""
+async def assess(request: Request, phrase: str = Query(default="")) -> dict:
+    """Assess a guest's spoken attempt at the phrase they were shown (raw audio
+    body). `phrase` must be one we handed out — otherwise fall back to the first."""
     audio = await request.body()
     if not audio:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "No audio")
     if len(audio) > _MAX_AUDIO_BYTES:
         raise HTTPException(status.HTTP_413_REQUEST_ENTITY_TOO_LARGE, "Audio too large")
 
+    reference = phrase if phrase in DEMO_PHRASES else DEMO_PHRASES[0]
     try:
-        r = stt.transcribe(audio, filename="demo.webm", reference_text=DEMO_PHRASE)
+        r = stt.transcribe(audio, filename="demo.webm", reference_text=reference)
     except Exception:
         raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, "Speech analysis failed, try again")
 
@@ -94,14 +111,19 @@ async def assess(request: Request) -> dict:
         for w in weak
     ]
 
+    # Did they actually say the given phrase? Azure runs unscripted, so pronunciation
+    # can score high on ANY well-said Russian — gate on how much of the target was
+    # really spoken so a different/empty answer isn't reported as correct.
+    on_topic = bool(match.get("on_topic")) if match else False
     return {
         "transcript": r.get("text"),
-        "phrase": DEMO_PHRASE,
+        "phrase": reference,
         "overall": overall,
         "criteria": criteria,
         "errors": errors,
         "level": _level(overall),
-        "on_topic": match.get("on_topic", True),
+        "on_topic": on_topic,
+        "completeness": _round(completeness),
         "scored": pa != {},  # False on the Whisper fallback (no pronunciation data)
     }
 

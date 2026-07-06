@@ -31,6 +31,7 @@ interface GuestResult {
   errors: { word: string; accuracy: number; error_type: string | null }[];
   level: string;
   on_topic: boolean;
+  completeness: number | null;
   scored: boolean;
 }
 
@@ -75,9 +76,11 @@ export function GuestDemo() {
     setStep("loading");
     setError(null);
     try {
-      const { data } = await api.post<GuestResult>("/guest/assess", blob, {
-        headers: { "Content-Type": "audio/webm" },
-      });
+      const { data } = await api.post<GuestResult>(
+        `/guest/assess?phrase=${encodeURIComponent(phrase)}`,
+        blob,
+        { headers: { "Content-Type": "audio/webm" } },
+      );
       setImproved(prevOverall != null && data.overall != null && data.overall > prevOverall);
       setResult(data);
       setStep("result");
@@ -110,8 +113,10 @@ export function GuestDemo() {
   }
 
   return (
-    <div style={{ minHeight: "100vh", background: "var(--bg)", display: "flex", flexDirection: "column" }}>
-      <header className="row between" style={{ padding: "16px 20px", borderBottom: "1px solid var(--line)", background: "var(--surface)" }}>
+    // #root is a fixed 100vh with body overflow hidden, so this public page must
+    // scroll inside itself — otherwise a tall result gets clipped with no scroll.
+    <div style={{ height: "100dvh", overflowY: "auto", background: "var(--bg)", display: "flex", flexDirection: "column" }}>
+      <header className="row between" style={{ padding: "16px 20px", borderBottom: "1px solid var(--line)", background: "var(--surface)", flexShrink: 0 }}>
         <Logo />
         <Button variant="ghost" size="sm" onClick={() => nav("/login")}>{t("login")}</Button>
       </header>
@@ -152,10 +157,31 @@ export function GuestDemo() {
             </div>
           )}
 
-          {step === "result" && result && (
+          {step === "result" && result && !(result.scored && result.on_topic && result.overall != null) && (
+            // Different phrase / meaningless / unscored → don't celebrate; ask to
+            // say the shown phrase (with the correct audio to copy) and retry.
+            <Card style={{ textAlign: "center" }}>
+              <Mascot size={90} mood="thinking" float={false} />
+              <p style={{ color: "var(--ink-soft)", fontSize: 15.5, fontWeight: 700, marginTop: 10 }}>
+                {result.on_topic ? t("guestNoScore") : t("guestOffTopic")}
+              </p>
+              {result.transcript && (
+                <p style={{ fontSize: 13, color: "var(--muted)", marginTop: 6 }}>
+                  {t("guestYouSaid")}: <span style={{ fontStyle: "italic" }}>«{result.transcript}»</span>
+                </p>
+              )}
+              <div className="row center gap-3 wrap" style={{ marginTop: 18 }}>
+                <Button variant="soft" icon={playing === result.phrase ? "pause" : "headphones"} onClick={() => playTTS(result.phrase)}>
+                  {t("guestListenSample")}
+                </Button>
+                <Button icon="refresh" onClick={retry}>{t("guestRetry")}</Button>
+              </div>
+            </Card>
+          )}
+
+          {step === "result" && result && result.scored && result.on_topic && result.overall != null && (
             <div className="col gap-4">
-              {result.scored && result.overall != null ? (
-                <>
+              <>
                   {/* Hero score */}
                   {(() => {
                     const hue = bandColor(result.overall!);
@@ -213,15 +239,7 @@ export function GuestDemo() {
                       })}
                     </div>
                   </Card>
-                </>
-              ) : (
-                <Card style={{ textAlign: "center" }}>
-                  <Mascot size={80} mood="thinking" float={false} />
-                  <p style={{ color: "var(--muted)", fontSize: 15, marginTop: 8 }}>
-                    {result.on_topic ? t("guestNoScore") : t("guestOffTopic")}
-                  </p>
-                </Card>
-              )}
+              </>
 
               {/* Weakest words */}
               {result.errors.length > 0 && (
