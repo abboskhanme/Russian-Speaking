@@ -11,7 +11,6 @@ from sqlalchemy.orm import Session
 
 from app.models import Evaluation, ReviewItem, Submission, User, UserRole, XpEvent
 
-XP_BASE = 10
 # Scores are 0–100; flag a skill for review below this (≈ the old 6.0/9 band).
 REVIEW_THRESHOLD = 67.0
 # Graduated spaced-repetition intervals (days) by review round.
@@ -21,8 +20,13 @@ FREEZE_EARN_EVERY = 5
 
 
 def xp_for_band(score: float | None) -> int:
-    """10 XP per attempt + up to 18 scaled by the 0–100 score (≈10–28)."""
-    return XP_BASE + int(round((score or 0) / 100 * 18))
+    """XP scales linearly with the 0–100 score (score/4 → 25 XP at 100%), but
+    answers below 27% earn nothing — too weak to reward.
+    (100%→25, 88%→22, 72%→18, 52%→13, 28%→7, <27%→0.)"""
+    pct = score or 0
+    if pct < 27:
+        return 0
+    return int(round(pct / 4))
 
 
 def award_submission(

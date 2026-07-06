@@ -96,14 +96,26 @@ export function StudentAssignments() {
                   )}
 
                   {a.completed && a.submission_id ? (
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      icon="eye"
-                      onClick={() => nav(`/submissions/${a.submission_id}`)}
-                    >
-                      {t("result")}
-                    </Button>
+                    <div className="row gap-2">
+                      {(!a.due_at || new Date(a.due_at).getTime() >= Date.now()) && (
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          icon="mic"
+                          onClick={() => nav(`/questions/${a.question_id}/answer`)}
+                        >
+                          {t("tryAgain")}
+                        </Button>
+                      )}
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        icon="eye"
+                        onClick={() => nav(`/submissions/${a.submission_id}`)}
+                      >
+                        {t("result")}
+                      </Button>
+                    </div>
                   ) : (
                     <Button
                       size="sm"

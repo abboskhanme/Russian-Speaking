@@ -412,7 +412,7 @@ export function SubmissionResult() {
   const hue = bandColor(mainScore);
   const moodScore = mainScore;
   const good = moodScore >= 60;
-  const xp = 10 + Math.round((moodScore / 100) * 18); // mirrors backend xp_for_band
+  const xp = moodScore < 27 ? 0 : Math.round(moodScore / 4); // mirrors backend xp_for_band
   const tips = (fb?.improvements?.length ? fb.improvements : [t("tip1"), t("tip2"), t("tip3")]).slice(0, 3);
   const corrections = ev?.corrections ?? [];
   const shownCorr = showAllErrors ? corrections : corrections.slice(0, 3);

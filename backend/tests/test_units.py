@@ -15,7 +15,18 @@ from app.services.stt import _aggregate_scores, _parse_segment, _reference_match
 # ─── XP rules ────────────────────────────────────────────────────────────────
 @pytest.mark.parametrize(
     "score,expected",
-    [(None, 10), (0, 10), (50.0, 19), (100.0, 28), (67.0, 22), (90.0, 26)],
+    [
+        (None, 0),
+        (0, 0),
+        (24.0, 0),  # below 27% → no XP
+        (26.9, 0),
+        (27.0, 7),  # threshold: at/above 27% starts earning
+        (28.0, 7),
+        (52.0, 13),
+        (72.0, 18),
+        (88.0, 22),
+        (100.0, 25),
+    ],
 )
 def test_xp_for_band(score, expected):
     assert xp_for_band(score) == expected
