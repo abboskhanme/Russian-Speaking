@@ -78,6 +78,8 @@ class GroupTask(BaseModel):
     question_id: uuid.UUID
     question_title: str | None = None
     question_topic: str | None = None
+    block_id: uuid.UUID | None = None
+    block_name: str | None = None
     due_at: datetime | None = None
     created_at: datetime
     total: int = 0

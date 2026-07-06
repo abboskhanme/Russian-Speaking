@@ -384,6 +384,8 @@ export interface GroupTask {
   question_id: string;
   question_title: string | null;
   question_topic: string | null;
+  block_id: string | null;
+  block_name: string | null;
   due_at: string | null;
   created_at: string;
   total: number;

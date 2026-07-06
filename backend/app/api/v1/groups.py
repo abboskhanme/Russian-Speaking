@@ -8,7 +8,16 @@ from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_user, require_admin, require_teacher
 from app.db.session import get_db
-from app.models import Assignment, Group, GroupMember, Question, Submission, User, UserRole
+from app.models import (
+    Assignment,
+    Group,
+    GroupMember,
+    Question,
+    QuestionBlock,
+    Submission,
+    User,
+    UserRole,
+)
 from app.schemas.group import (
     AddMembers,
     GroupCreate,
@@ -258,8 +267,14 @@ def group_overview(
         q.id: q
         for q in db.scalars(select(Question).where(Question.id.in_(task_map.keys())))
     } if task_map else {}
+    block_ids = {q.block_id for q in questions.values() if q.block_id}
+    blocks = {
+        b.id: b
+        for b in db.scalars(select(QuestionBlock).where(QuestionBlock.id.in_(block_ids)))
+    } if block_ids else {}
     for qid, info in task_map.items():
         q = questions.get(qid)
+        blk = blocks.get(q.block_id) if q and q.block_id else None
         students: list[TaskStudent] = []
         done = 0
         for sid, a in info["students"].items():
@@ -285,6 +300,8 @@ def group_overview(
                 question_id=qid,
                 question_title=q.title if q else None,
                 question_topic=q.topic if q else None,
+                block_id=blk.id if blk else None,
+                block_name=blk.name if blk else None,
                 due_at=info["due_at"],
                 created_at=info["created_at"],
                 total=len(info["students"]),

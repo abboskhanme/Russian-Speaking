@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate, useParams } from "react-router-dom";
 import { api } from "../lib/api";
 import { useI18n } from "../lib/i18n";
-import type { GroupOverview, GroupTask, Question, StudentManage } from "../lib/types";
+import type { GroupOverview, GroupTask, QuestionBlock, StudentManage } from "../lib/types";
 import { useConfirm } from "../components/ConfirmDialog";
 import {
   Avatar,
@@ -199,7 +199,7 @@ export function TeacherGroupDetail() {
             onChange={(v) => setTab(v as "students" | "tasks")}
             tabs={[
               { id: "students", label: t("studentsTab"), icon: "users" },
-              { id: "tasks", label: t("tasksTab"), icon: "book" },
+              { id: "tasks", label: t("modulesTab"), icon: "book" },
             ]}
           />
         </div>
@@ -450,24 +450,25 @@ function TasksSection({
 }) {
   const { t } = useI18n();
   const [giving, setGiving] = useState(false);
-  const [questionId, setQuestionId] = useState("");
+  const [blockId, setBlockId] = useState("");
   const [dueAt, setDueAt] = useState("");
 
-  const { data: questions } = useQuery({
-    queryKey: ["questions", "mine"],
-    queryFn: async () => (await api.get<Question[]>("/questions")).data,
+  // A "module" is a QuestionBlock — attaching it assigns all of its questions.
+  const { data: blocks } = useQuery({
+    queryKey: ["blocks"],
+    queryFn: async () => (await api.get<QuestionBlock[]>("/blocks")).data,
     enabled: giving,
   });
 
   const give = useMutation({
     mutationFn: async () =>
-      api.post("/assignments", {
-        question_id: questionId,
+      api.post("/assignments/module", {
+        block_id: blockId,
         group_id: groupId,
         due_at: dueAt ? new Date(dueAt).toISOString() : null,
       }),
     onSuccess: () => {
-      setQuestionId("");
+      setBlockId("");
       setDueAt("");
       setGiving(false);
       onChange();
@@ -482,26 +483,26 @@ function TasksSection({
           icon={giving ? "x" : "plus"}
           onClick={() => setGiving((g) => !g)}
         >
-          {giving ? t("cancel") : t("giveTask")}
+          {giving ? t("cancel") : t("assignModule")}
         </Button>
       </div>
 
       {giving && (
         <Card>
           <div className="col gap-4">
-            <Field label={t("pickTask")}>
+            <Field label={t("selectModule")}>
               <select
-                value={questionId}
-                onChange={(e) => setQuestionId(e.target.value)}
+                value={blockId}
+                onChange={(e) => setBlockId(e.target.value)}
                 style={inp}
               >
                 <option value="">—</option>
-                {/* Only ASSIGNED-type, published tasks can be assigned to a group. */}
-                {questions
-                  ?.filter((q) => !q.is_public && q.is_published)
-                  .map((q) => (
-                    <option key={q.id} value={q.id}>
-                      {q.title}
+                {/* Only modules that actually contain questions can be attached. */}
+                {blocks
+                  ?.filter((b) => b.question_count > 0)
+                  .map((b) => (
+                    <option key={b.id} value={b.id}>
+                      {b.name} ({b.question_count})
                     </option>
                   ))}
               </select>
@@ -517,10 +518,10 @@ function TasksSection({
             <Button
               full
               icon="check"
-              disabled={!questionId || give.isPending}
+              disabled={!blockId || give.isPending}
               onClick={() => give.mutate()}
             >
-              {give.isPending ? t("saving") : t("giveTask")}
+              {give.isPending ? t("saving") : t("assignModule")}
             </Button>
           </div>
         </Card>
@@ -529,12 +530,174 @@ function TasksSection({
       {!ov.tasks.length ? (
         <Card style={{ textAlign: "center" }}>
           <span style={{ color: "var(--muted)", fontSize: 15 }}>
-            {t("noTasksGroup")}
+            {t("noModulesGroup")}
           </span>
         </Card>
       ) : (
-        <div className="g2">
-          {ov.tasks.map((tk) => (
+        <div className="col gap-4">
+          {groupTasksByModule(ov.tasks).map((m) => (
+            <ModuleGroupCard
+              key={m.id}
+              module={m}
+              groupId={groupId}
+              onChange={onChange}
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/** A module (or a standalone task) bundling the group tasks that belong to it. */
+type ModuleGroup = { id: string; name: string; tasks: GroupTask[] };
+
+/** Bucket the flat task list into modules. Tasks with no module become their own bucket. */
+function groupTasksByModule(tasks: GroupTask[]): ModuleGroup[] {
+  const map = new Map<string, ModuleGroup>();
+  for (const tk of tasks) {
+    const id = tk.block_id ?? `q:${tk.question_id}`;
+    const name = tk.block_name ?? tk.question_title ?? "—";
+    let g = map.get(id);
+    if (!g) {
+      g = { id, name, tasks: [] };
+      map.set(id, g);
+    }
+    g.tasks.push(tk);
+  }
+  return [...map.values()];
+}
+
+/**
+ * One card per assigned module: shows per-student analytics across the whole
+ * module. Click it open to drill into the module's individual tasks.
+ */
+function ModuleGroupCard({
+  module: m,
+  groupId,
+  onChange,
+}: {
+  module: ModuleGroup;
+  groupId: string;
+  onChange: () => void;
+}) {
+  const { t } = useI18n();
+  const confirm = useConfirm();
+  const [open, setOpen] = useState(false);
+
+  // Roll the module's per-task rows up into one row per student.
+  const students = new Map<
+    string,
+    { name: string; done: number; total: number; bands: number[] }
+  >();
+  for (const tk of m.tasks) {
+    for (const s of tk.students) {
+      let e = students.get(s.student_id);
+      if (!e) {
+        e = { name: s.full_name, done: 0, total: 0, bands: [] };
+        students.set(s.student_id, e);
+      }
+      e.total += 1;
+      if (s.completed) {
+        e.done += 1;
+        if (s.band != null) e.bands.push(s.band);
+      }
+    }
+  }
+  const rows = [...students.values()].sort(
+    (a, b) => a.done / a.total - b.done / b.total || a.name.localeCompare(b.name)
+  );
+  const totalDone = m.tasks.reduce((n, tk) => n + tk.done, 0);
+  const totalAll = m.tasks.reduce((n, tk) => n + tk.total, 0);
+  const pct = totalAll ? (totalDone / totalAll) * 100 : 0;
+
+  const removeModule = useMutation({
+    mutationFn: async () =>
+      Promise.all(
+        m.tasks.map((tk) =>
+          api.delete(`/groups/${groupId}/tasks/${tk.question_id}`)
+        )
+      ),
+    onSuccess: onChange,
+  });
+
+  return (
+    <Card>
+      {/* Header — click to expand into per-task view */}
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        className="row between tap"
+        style={{
+          width: "100%",
+          border: "none",
+          background: "transparent",
+          cursor: "pointer",
+          textAlign: "left",
+          padding: 0,
+          gap: 12,
+        }}
+      >
+        <div className="row gap-3" style={{ minWidth: 0, alignItems: "center" }}>
+          <Icon
+            name={open ? "chevD" : "chevR"}
+            size={18}
+            style={{ color: "var(--muted)", flexShrink: 0 }}
+          />
+          <div className="col" style={{ minWidth: 0 }}>
+            <h3 className="truncate" style={{ fontSize: 16 }}>
+              {m.name}
+            </h3>
+            <span style={{ fontSize: 12.5, color: "var(--muted)", fontWeight: 700 }}>
+              {m.tasks.length} · {t("tasksShort")}
+            </span>
+          </div>
+        </div>
+        <div
+          className="row gap-2"
+          style={{ alignItems: "center", flexShrink: 0 }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <span style={{ fontSize: 12.5, fontWeight: 800, color: "var(--success)" }}>
+            {totalDone}/{totalAll} {t("doneWord")}
+          </span>
+          <button
+            type="button"
+            aria-label="delete-module"
+            onClick={async () => {
+              if (
+                await confirm({
+                  message: t("deleteGroupModuleConfirm"),
+                  destructive: true,
+                })
+              )
+                removeModule.mutate();
+            }}
+            className="tap"
+            style={{
+              border: "none",
+              background: "transparent",
+              color: "var(--danger)",
+              cursor: "pointer",
+              display: "flex",
+              padding: 2,
+            }}
+          >
+            <Icon name="trash" size={16} />
+          </button>
+        </div>
+      </button>
+
+      <div className="row gap-3" style={{ marginTop: 12, alignItems: "center" }}>
+        <div className="grow">
+          <Bar value={pct} hue={152} />
+        </div>
+      </div>
+
+      {open ? (
+        /* Drilled in — the module's individual tasks */
+        <div className="g2" style={{ marginTop: 14 }}>
+          {m.tasks.map((tk) => (
             <TaskCard
               key={tk.question_id}
               tk={tk}
@@ -543,8 +706,53 @@ function TasksSection({
             />
           ))}
         </div>
+      ) : (
+        /* Collapsed — per-student analytics across the whole module */
+        <div className="g2" style={{ marginTop: 14, gap: 6 }}>
+          {rows.map((s) => {
+            const spct = s.total ? (s.done / s.total) * 100 : 0;
+            const avg = s.bands.length
+              ? s.bands.reduce((a, b) => a + b, 0) / s.bands.length
+              : null;
+            const full = s.done === s.total;
+            return (
+              <div
+                key={s.name}
+                className="row gap-2"
+                style={{
+                  padding: "8px 12px",
+                  borderRadius: "var(--r-sm)",
+                  background: full ? "var(--success-tint)" : "var(--surface-2)",
+                }}
+              >
+                <Avatar name={s.name} size={28} />
+                <div className="col grow" style={{ minWidth: 0 }}>
+                  <span
+                    className="truncate"
+                    style={{ fontSize: 13.5, fontWeight: 700 }}
+                  >
+                    {s.name}
+                  </span>
+                  <div className="row gap-2" style={{ alignItems: "center" }}>
+                    <div style={{ width: 60 }}>
+                      <Bar value={spct} hue={full ? 152 : 47} />
+                    </div>
+                    <span
+                      style={{ fontSize: 11.5, color: "var(--muted)", fontWeight: 700 }}
+                    >
+                      {s.done}/{s.total}
+                    </span>
+                  </div>
+                </div>
+                <Pill hue={bandColor(avg ?? 0)} size="sm">
+                  {avg != null ? Math.round(avg) : "—"}
+                </Pill>
+              </div>
+            );
+          })}
+        </div>
       )}
-    </div>
+    </Card>
   );
 }
 
