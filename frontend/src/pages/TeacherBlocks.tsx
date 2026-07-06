@@ -185,7 +185,7 @@ function BlockBody({ block }: { block: QuestionBlock }) {
         >
           {t("createTaskInline")}
         </Button>
-        {!picking && addable.length > 0 && (
+        {!picking && (
           <Button variant="soft" size="sm" icon="link" onClick={() => setPicking(true)}>
             {t("addExisting")}
           </Button>
@@ -204,6 +204,9 @@ function BlockBody({ block }: { block: QuestionBlock }) {
 
       {picking && (
         <div className="col gap-2">
+          {addable.length === 0 && (
+            <p style={{ fontSize: 13, color: "var(--muted)" }}>{t("noAddableTasks")}</p>
+          )}
           <div className="g2" style={{ maxHeight: 220, overflowY: "auto", gap: 6 }}>
             {addable.map((q) => {
               const on = sel.has(q.id);

@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import { api } from "../lib/api";
 import { useI18n } from "../lib/i18n";
-import type { Assignment, Group, Question, StudentManage } from "../lib/types";
+import type { Assignment, Group, Question, QuestionBlock, StudentManage } from "../lib/types";
 import {
   Avatar,
   Bar,
@@ -25,7 +25,9 @@ export function TeacherAssignments() {
   const qc = useQueryClient();
 
   const [creating, setCreating] = useState(false);
+  const [mode, setMode] = useState<"task" | "module">("task");
   const [questionId, setQuestionId] = useState("");
+  const [blockId, setBlockId] = useState("");
   const [groupId, setGroupId] = useState("");
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [dueAt, setDueAt] = useState("");
@@ -38,6 +40,10 @@ export function TeacherAssignments() {
     queryKey: ["questions", "mine"],
     queryFn: async () => (await api.get<Question[]>("/questions")).data,
   });
+  const { data: blocks } = useQuery({
+    queryKey: ["blocks"],
+    queryFn: async () => (await api.get<QuestionBlock[]>("/blocks")).data,
+  });
   const { data: students } = useQuery({
     queryKey: ["manage-students"],
     queryFn: async () => (await api.get<StudentManage[]>("/users/students")).data,
@@ -48,15 +54,27 @@ export function TeacherAssignments() {
   });
 
   const create = useMutation({
-    mutationFn: async () =>
-      api.post("/assignments", {
+    mutationFn: async () => {
+      const due_at = dueAt ? new Date(dueAt).toISOString() : null;
+      const student_ids = [...selected];
+      if (mode === "module") {
+        return api.post("/assignments/module", {
+          block_id: blockId,
+          student_ids,
+          group_id: groupId || null,
+          due_at,
+        });
+      }
+      return api.post("/assignments", {
         question_id: questionId,
-        student_ids: [...selected],
+        student_ids,
         group_id: groupId || null,
-        due_at: dueAt ? new Date(dueAt).toISOString() : null,
-      }),
+        due_at,
+      });
+    },
     onSuccess: () => {
       setQuestionId("");
+      setBlockId("");
       setGroupId("");
       setSelected(new Set());
       setDueAt("");
@@ -78,7 +96,9 @@ export function TeacherAssignments() {
     });
   }
 
-  const canSubmit = questionId && (selected.size > 0 || groupId) && !create.isPending;
+  const hasTarget = selected.size > 0 || groupId;
+  const canSubmit =
+    (mode === "task" ? !!questionId : !!blockId) && hasTarget && !create.isPending;
 
   return (
     <div className="focus-wrap">
@@ -100,23 +120,63 @@ export function TeacherAssignments() {
       {creating && (
         <Card style={{ marginBottom: 20 }}>
           <div className="col gap-4">
-            <Field label={t("selectQuestion")}>
-              <select
-                value={questionId}
-                onChange={(e) => setQuestionId(e.target.value)}
-                style={inp}
-              >
-                <option value="">—</option>
-                {/* Only ASSIGNED-type, published tasks can be assigned to a group. */}
-                {questions
-                  ?.filter((q) => !q.is_public && q.is_published)
-                  .map((q) => (
-                    <option key={q.id} value={q.id}>
-                      {q.title}
+            {/* Assign a single task, or a whole module at once. */}
+            <div className="row gap-2 wrap">
+              {[
+                { val: "task" as const, label: t("assignTypeTask") },
+                { val: "module" as const, label: t("assignTypeModule") },
+              ].map((o) => {
+                const on = mode === o.val;
+                return (
+                  <button
+                    key={o.val}
+                    type="button"
+                    onClick={() => setMode(o.val)}
+                    className="tap"
+                    style={{
+                      flex: "1 1 140px",
+                      padding: "10px 14px",
+                      borderRadius: "var(--r-sm)",
+                      fontWeight: 800,
+                      fontFamily: "var(--font-display)",
+                      fontSize: 14,
+                      cursor: "pointer",
+                      border: `2px solid ${on ? "var(--primary)" : "var(--line-2)"}`,
+                      background: on ? "var(--primary-tint)" : "var(--surface)",
+                      color: on ? "var(--primary-press)" : "var(--ink-soft)",
+                    }}
+                  >
+                    {o.label}
+                  </button>
+                );
+              })}
+            </div>
+
+            {mode === "task" ? (
+              <Field label={t("selectQuestion")}>
+                <select value={questionId} onChange={(e) => setQuestionId(e.target.value)} style={inp}>
+                  <option value="">—</option>
+                  {questions
+                    ?.filter((q) => q.is_published)
+                    .map((q) => (
+                      <option key={q.id} value={q.id}>
+                        {q.title}
+                      </option>
+                    ))}
+                </select>
+              </Field>
+            ) : (
+              <Field label={t("selectModule")}>
+                <select value={blockId} onChange={(e) => setBlockId(e.target.value)} style={inp}>
+                  <option value="">—</option>
+                  {blocks?.map((b) => (
+                    <option key={b.id} value={b.id}>
+                      {b.name} ({b.question_count})
                     </option>
                   ))}
-              </select>
-            </Field>
+                </select>
+              </Field>
+            )}
 
             <Field label={t("assignToGroup")}>
               <select

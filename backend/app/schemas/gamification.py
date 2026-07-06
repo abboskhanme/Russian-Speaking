@@ -47,6 +47,14 @@ class AssignmentCreate(BaseModel):
     due_at: datetime | None = None
 
 
+class ModuleAssignmentCreate(BaseModel):
+    """Assign a WHOLE module (all its published tasks) to a group / students."""
+    block_id: uuid.UUID
+    student_ids: list[uuid.UUID] = []
+    group_id: uuid.UUID | None = None
+    due_at: datetime | None = None
+
+
 class AssignmentOut(BaseModel):
     id: uuid.UUID
     student_id: uuid.UUID

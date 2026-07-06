@@ -12,6 +12,7 @@ from app.models import (
     Group,
     GroupMember,
     Question,
+    QuestionBlock,
     ReviewItem,
     Submission,
     User,
@@ -22,6 +23,7 @@ from app.schemas.gamification import (
     AssignmentCreate,
     AssignmentOut,
     LeaderboardEntry,
+    ModuleAssignmentCreate,
     ReviewItemCreate,
     ReviewItemOut,
 )
@@ -403,6 +405,83 @@ def create_assignments(
             type="assignment_new",
             title="Yangi topshiriq",
             body=f"Sizga yangi topshiriq berildi: «{q.title}»",
+            link="/assignments",
+            commit=False,
+        )
+    db.commit()
+    for a in created:
+        db.refresh(a)
+    return _assignments_out(db, created)
+
+
+def _resolve_students(db: Session, student_ids: list[uuid.UUID], group_id: uuid.UUID | None) -> set[uuid.UUID]:
+    target = set(student_ids)
+    if group_id is not None:
+        target.update(
+            db.scalars(select(GroupMember.student_id).where(GroupMember.group_id == group_id)).all()
+        )
+    return set(
+        db.scalars(select(User.id).where(User.id.in_(target), User.role == UserRole.student)).all()
+    )
+
+
+@router.post("/assignments/module", response_model=list[AssignmentOut], status_code=status.HTTP_201_CREATED)
+def create_module_assignments(
+    payload: ModuleAssignmentCreate,
+    teacher: User = Depends(require_teacher),
+    db: Session = Depends(get_db),
+) -> list[AssignmentOut]:
+    """Assign every published task of a module to a group / students in one go."""
+    block = db.get(QuestionBlock, payload.block_id)
+    if block is None or (teacher.role != UserRole.admin and block.teacher_id != teacher.id):
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Module not found")
+
+    tasks = list(
+        db.scalars(
+            select(Question)
+            .where(
+                Question.block_id == block.id,
+                Question.is_deleted.is_(False),
+                Question.is_published.is_(True),
+            )
+            .order_by(Question.sort_order, Question.created_at)
+        ).all()
+    )
+    if not tasks:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "Module has no published tasks")
+
+    student_ids = _resolve_students(db, payload.student_ids, payload.group_id)
+    qids = [q.id for q in tasks]
+    created: list[Assignment] = []
+    for sid in student_ids:
+        # Skip tasks this student already has an assignment for (avoid duplicates
+        # on re-assigning the same module).
+        existing = set(
+            db.scalars(
+                select(Assignment.question_id).where(
+                    Assignment.student_id == sid, Assignment.question_id.in_(qids)
+                )
+            ).all()
+        )
+        for q in tasks:
+            if q.id in existing:
+                continue
+            a = Assignment(
+                teacher_id=teacher.id,
+                student_id=sid,
+                question_id=q.id,
+                group_id=payload.group_id,
+                due_at=payload.due_at,
+            )
+            db.add(a)
+            created.append(a)
+        # One notification per student for the whole module.
+        notifications.notify(
+            db,
+            user_id=sid,
+            type="assignment_new",
+            title="Yangi modul",
+            body=f"Sizga yangi modul biriktirildi: «{block.name}»",
             link="/assignments",
             commit=False,
         )
