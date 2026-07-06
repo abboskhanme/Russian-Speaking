@@ -7,6 +7,7 @@ from app.api.v1 import (
     blocks,
     engagement,
     groups,
+    guest,
     notifications,
     questions,
     reports,
@@ -32,3 +33,4 @@ api_router.include_router(groups.router)
 api_router.include_router(reports.router)
 api_router.include_router(notifications.router)
 api_router.include_router(settings_public.router)
+api_router.include_router(guest.router)
