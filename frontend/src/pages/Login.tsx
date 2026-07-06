@@ -192,6 +192,20 @@ export function Login() {
             </Button>
           </form>
 
+          {/* Value-first funnel: try a free speech check without an account. */}
+          <button
+            onClick={() => nav("/try")}
+            className="tap row center gap-2"
+            style={{
+              width: "100%", marginTop: 14, padding: "12px 14px", cursor: "pointer",
+              borderRadius: "var(--r-md)", border: "1.5px dashed var(--primary)",
+              background: "var(--primary-tint)", color: "var(--primary-press)",
+              fontFamily: "var(--font-display)", fontWeight: 800, fontSize: 14.5,
+            }}
+          >
+            <Icon name="mic" size={17} /> {t("guestStartBtn")}
+          </button>
+
           <p style={{ textAlign: "center", fontSize: 13.5, color: "var(--muted)", marginTop: 16 }}>
             {t("noAccount")}{" "}
             <button

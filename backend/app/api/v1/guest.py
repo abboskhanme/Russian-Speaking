@@ -72,12 +72,17 @@ async def assess(request: Request) -> dict:
     grammar = completeness if completeness is not None else (
         round(match["similarity"] * 100) if match.get("similarity") is not None else None
     )
+    accuracy, fluency, prosody = pa.get("accuracy"), pa.get("fluency"), pa.get("prosody")
+    # Prosody (stress + intonation) is occasionally absent — fall back to a blend so
+    # the demo never shows a blank criterion to a first-time visitor.
+    stress = prosody if prosody is not None else _blend(accuracy, fluency)
+    intonation = _blend(prosody, fluency) if prosody is not None else _blend(fluency, accuracy)
     criteria = {
-        "pronunciation": _round(pa.get("accuracy")),                 # talaffuz
-        "stress": _round(pa.get("prosody")),                          # urg'u
-        "intonation": _blend(pa.get("prosody"), pa.get("fluency")),   # intonatsiya
-        "fluency": _round(pa.get("fluency")),                         # ravonlik
-        "grammar": _round(grammar),                                   # grammatika
+        "pronunciation": _round(accuracy),   # talaffuz
+        "stress": _round(stress),            # urg'u
+        "intonation": intonation,            # intonatsiya
+        "fluency": _round(fluency),          # ravonlik
+        "grammar": _round(grammar),          # grammatika
     }
     overall = _round(pa.get("pronunciation")) or _blend(*criteria.values())
 

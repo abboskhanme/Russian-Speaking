@@ -9,6 +9,7 @@ import { useStudentStats } from "./lib/useStats";
 import { useOutboundLinks } from "./lib/contact";
 import { Login } from "./pages/Login";
 import { Register } from "./pages/Register";
+import { GuestDemo } from "./pages/GuestDemo";
 import { CompleteProfile } from "./pages/CompleteProfile";
 import { StudentHome } from "./pages/StudentHome";
 import { StudentProgress } from "./pages/StudentProgress";
@@ -511,12 +512,13 @@ export default function App() {
     );
   }
 
-  // Unauthenticated → full-screen auth, no shell.
+  // Unauthenticated → full-screen auth / public guest demo, no shell.
   if (!user) {
     return (
       <Routes>
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
+        <Route path="/try" element={<GuestDemo />} />
         <Route path="*" element={<Navigate to="/login" replace />} />
       </Routes>
     );
