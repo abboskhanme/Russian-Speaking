@@ -1,9 +1,20 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { api } from "../lib/api";
 import { useI18n } from "../lib/i18n";
 import { AudioRecorder } from "../components/AudioRecorder";
-import { Button, Card, Icon, Loading, Logo, Mascot, Ring, Bar, bandColor } from "../components/govori";
+import {
+  Button,
+  Card,
+  Icon,
+  Loading,
+  Logo,
+  Mascot,
+  Ring,
+  Bar,
+  bandColor,
+  type IconName,
+} from "../components/govori";
 
 interface Criteria {
   pronunciation: number | null;
@@ -35,14 +46,29 @@ export function GuestDemo() {
   const [prevOverall, setPrevOverall] = useState<number | null>(null);
   const [improved, setImproved] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Single shared audio element so rapid taps replace playback instead of stacking.
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const [playing, setPlaying] = useState<string | null>(null);
 
   useEffect(() => {
     api.get<{ phrase: string }>("/guest/demo").then((r) => setPhrase(r.data.phrase)).catch(() => {});
+    return () => {
+      if (audioRef.current) audioRef.current.pause();
+    };
   }, []);
 
   function playTTS(text: string) {
+    // Stop whatever is currently playing before starting the new clip.
+    if (audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current = null;
+    }
     const a = new Audio(`/api/v1/guest/tts?text=${encodeURIComponent(text)}`);
-    a.play().catch(() => {});
+    audioRef.current = a;
+    setPlaying(text);
+    a.onended = () => setPlaying((p) => (p === text ? null : p));
+    a.onerror = () => setPlaying((p) => (p === text ? null : p));
+    a.play().catch(() => setPlaying(null));
   }
 
   async function onComplete(blob: Blob) {
@@ -68,17 +94,23 @@ export function GuestDemo() {
     setStep("record");
   }
 
-  const CRIT: { key: keyof Criteria; label: string }[] = [
-    { key: "pronunciation", label: t("crPron") },
-    { key: "stress", label: t("crStress") },
-    { key: "intonation", label: t("crIntonation") },
-    { key: "fluency", label: t("crFluency") },
-    { key: "grammar", label: t("crGrammar") },
+  const CRIT: { key: keyof Criteria; label: string; icon: IconName }[] = [
+    { key: "pronunciation", label: t("crPron"), icon: "mic" },
+    { key: "stress", label: t("crStress"), icon: "target" },
+    { key: "intonation", label: t("crIntonation"), icon: "chart" },
+    { key: "fluency", label: t("crFluency"), icon: "speak" },
+    { key: "grammar", label: t("crGrammar"), icon: "book" },
   ];
+
+  function scoreLabel(v: number): string {
+    if (v >= 85) return t("guestScoreExcellent");
+    if (v >= 70) return t("guestScoreGood");
+    if (v >= 55) return t("guestScoreOk");
+    return t("guestScoreStart");
+  }
 
   return (
     <div style={{ minHeight: "100vh", background: "var(--bg)", display: "flex", flexDirection: "column" }}>
-      {/* Top bar */}
       <header className="row between" style={{ padding: "16px 20px", borderBottom: "1px solid var(--line)", background: "var(--surface)" }}>
         <Logo />
         <Button variant="ghost" size="sm" onClick={() => nav("/login")}>{t("login")}</Button>
@@ -105,7 +137,7 @@ export function GuestDemo() {
               <p style={{ fontSize: "clamp(20px, 5vw, 26px)", fontWeight: 800, fontFamily: "var(--font-display)", margin: "10px 0 6px", lineHeight: 1.3 }}>
                 {phrase}
               </p>
-              <Button variant="ghost" size="sm" icon="play" onClick={() => playTTS(phrase)} style={{ marginBottom: 18 }}>
+              <Button variant="ghost" size="sm" icon={playing === phrase ? "pause" : "volume"} onClick={() => playTTS(phrase)} style={{ marginBottom: 18 }}>
                 {t("guestListenSample")}
               </Button>
               <AudioRecorder maxSeconds={30} onComplete={onComplete} />
@@ -122,83 +154,116 @@ export function GuestDemo() {
 
           {step === "result" && result && (
             <div className="col gap-4">
-              {improved && (
-                <Card style={{ background: "var(--success-tint)", borderColor: "var(--success)", textAlign: "center" }}>
-                  <span style={{ fontWeight: 800, fontFamily: "var(--font-display)", fontSize: 17, color: "var(--success)" }}>
-                    {t("guestImproved")}
-                  </span>
-                </Card>
-              )}
-
-              <Card style={{ textAlign: "center" }}>
-                <p style={{ fontSize: 13, fontWeight: 800, color: "var(--muted)", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 14 }}>
-                  {t("guestYourResult")}
-                </p>
-                {result.scored && result.overall != null ? (
-                  <>
-                    <div className="row center" style={{ marginBottom: 8 }}>
-                      <Ring value={result.overall} size={120} sw={12} hue={bandColor(result.overall)}>
-                        <span style={{ fontFamily: "var(--font-display)", fontWeight: 900, fontSize: 40, color: `oklch(0.5 0.15 ${bandColor(result.overall)})`, lineHeight: 1 }}>
-                          {result.overall}
-                        </span>
-                      </Ring>
-                    </div>
-                    <div className="col gap-3" style={{ marginTop: 18, textAlign: "left" }}>
-                      {CRIT.map((c) => {
-                        const v = result.criteria[c.key];
-                        return (
-                          <div key={c.key} className="col gap-1">
-                            <div className="row between">
-                              <span style={{ fontSize: 13.5, fontWeight: 700, color: "var(--ink-soft)" }}>{c.label}</span>
-                              <span style={{ fontSize: 13.5, fontWeight: 900, fontFamily: "var(--font-display)", color: v != null ? `oklch(0.5 0.15 ${bandColor(v)})` : "var(--faint)" }}>
-                                {v != null ? `${v}%` : "—"}
+              {result.scored && result.overall != null ? (
+                <>
+                  {/* Hero score */}
+                  {(() => {
+                    const hue = bandColor(result.overall!);
+                    return (
+                      <Card pad={0} style={{ overflow: "hidden", textAlign: "center" }}>
+                        <div style={{ padding: "28px 24px 24px", background: `linear-gradient(160deg, oklch(0.96 0.05 ${hue}), var(--surface))` }}>
+                          {improved && (
+                            <div className="row center" style={{ marginBottom: 14 }}>
+                              <span style={{ display: "inline-flex", alignItems: "center", gap: 6, background: "var(--success)", color: "#fff", fontWeight: 800, fontSize: 13, padding: "5px 12px", borderRadius: 999 }}>
+                                <Icon name="flame" size={14} /> {t("guestImproved")}
                               </span>
                             </div>
-                            <Bar value={v ?? 0} hue={v != null ? bandColor(v) : 47} height={7} />
+                          )}
+                          <Ring value={result.overall!} size={132} sw={13} hue={hue}>
+                            <div className="col center" style={{ gap: 0 }}>
+                              <span style={{ fontFamily: "var(--font-display)", fontWeight: 900, fontSize: 44, color: `oklch(0.48 0.16 ${hue})`, lineHeight: 1 }}>
+                                {result.overall}
+                              </span>
+                              <span style={{ fontSize: 11, fontWeight: 800, color: "var(--muted)" }}>/ 100</span>
+                            </div>
+                          </Ring>
+                          <h2 style={{ fontSize: 22, marginTop: 14 }}>{scoreLabel(result.overall!)}</h2>
+                          {result.transcript && (
+                            <p style={{ fontSize: 13.5, color: "var(--muted)", marginTop: 6 }}>
+                              {t("guestYouSaid")}: <span style={{ fontStyle: "italic", color: "var(--ink-soft)" }}>«{result.transcript}»</span>
+                            </p>
+                          )}
+                        </div>
+                      </Card>
+                    );
+                  })()}
+
+                  {/* Criteria */}
+                  <Card>
+                    <div className="col gap-3">
+                      {CRIT.map((c) => {
+                        const v = result.criteria[c.key];
+                        const hue = v != null ? bandColor(v) : 47;
+                        return (
+                          <div key={c.key} className="row gap-3" style={{ alignItems: "center" }}>
+                            <span style={{ width: 34, height: 34, borderRadius: 10, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", background: `oklch(0.95 0.05 ${hue})`, color: `oklch(0.5 0.15 ${hue})` }}>
+                              <Icon name={c.icon} size={17} />
+                            </span>
+                            <div className="col grow" style={{ gap: 5, minWidth: 0 }}>
+                              <div className="row between">
+                                <span style={{ fontSize: 13.5, fontWeight: 700, color: "var(--ink-soft)" }}>{c.label}</span>
+                                <span style={{ fontSize: 14, fontWeight: 900, fontFamily: "var(--font-display)", color: v != null ? `oklch(0.5 0.15 ${hue})` : "var(--faint)" }}>
+                                  {v != null ? `${v}%` : "—"}
+                                </span>
+                              </div>
+                              <Bar value={v ?? 0} hue={hue} height={7} />
+                            </div>
                           </div>
                         );
                       })}
                     </div>
-                  </>
-                ) : (
-                  <p style={{ color: "var(--muted)", fontSize: 15 }}>{result.on_topic ? t("guestNoScore") : t("guestOffTopic")}</p>
-                )}
+                  </Card>
+                </>
+              ) : (
+                <Card style={{ textAlign: "center" }}>
+                  <Mascot size={80} mood="thinking" float={false} />
+                  <p style={{ color: "var(--muted)", fontSize: 15, marginTop: 8 }}>
+                    {result.on_topic ? t("guestNoScore") : t("guestOffTopic")}
+                  </p>
+                </Card>
+              )}
 
-                <div className="row center gap-3 wrap" style={{ marginTop: 22 }}>
-                  <Button variant="soft" icon="play" onClick={() => playTTS(result.phrase)}>{t("guestHearCorrect")}</Button>
-                  <Button variant="ghost" icon="refresh" onClick={retry}>{t("guestRetry")}</Button>
-                </div>
-              </Card>
-
+              {/* Weakest words */}
               {result.errors.length > 0 && (
                 <Card>
-                  <p style={{ fontSize: 12.5, fontWeight: 800, color: "var(--danger)", textTransform: "uppercase", letterSpacing: "0.04em", marginBottom: 10 }}>
+                  <p style={{ fontSize: 12.5, fontWeight: 800, color: "var(--danger)", textTransform: "uppercase", letterSpacing: "0.04em", marginBottom: 12 }}>
                     {t("guestErrorsTitle")}
                   </p>
-                  <div className="col gap-2">
+                  <div className="row gap-2 wrap">
                     {result.errors.map((e, i) => (
-                      <div key={i} className="row between gap-2" style={{ padding: "10px 12px", background: "var(--surface-2)", borderRadius: "var(--r-sm)" }}>
+                      <button
+                        key={i}
+                        type="button"
+                        onClick={() => playTTS(e.word)}
+                        className="tap row gap-2"
+                        style={{
+                          alignItems: "center", padding: "9px 13px", cursor: "pointer",
+                          borderRadius: 999, border: "1.5px solid var(--line-2)", background: "var(--surface-2)",
+                        }}
+                      >
+                        <Icon name={playing === e.word ? "pause" : "volume"} size={15} style={{ color: "var(--primary-press)" }} />
                         <span style={{ fontSize: 15, fontWeight: 800 }}>{e.word}</span>
-                        <button
-                          type="button"
-                          onClick={() => playTTS(e.word)}
-                          className="tap row gap-1"
-                          style={{ border: "none", background: "transparent", color: "var(--primary-press)", fontWeight: 800, fontSize: 13, cursor: "pointer" }}
-                        >
-                          <Icon name="play" size={14} /> {e.accuracy}%
-                        </button>
-                      </div>
+                        <span style={{ fontSize: 12, fontWeight: 800, color: `oklch(0.55 0.15 ${bandColor(e.accuracy)})` }}>{e.accuracy}%</span>
+                      </button>
                     ))}
                   </div>
                 </Card>
               )}
 
-              {/* Level + course + soft CTA (value first, then sell) */}
-              <Card style={{ background: "linear-gradient(135deg, oklch(0.97 0.03 250), var(--surface))" }}>
-                <div className="col center" style={{ textAlign: "center", gap: 6 }}>
+              {/* Actions */}
+              <div className="row gap-3 wrap" style={{ justifyContent: "center" }}>
+                <Button variant="soft" icon={playing === result.phrase ? "pause" : "headphones"} onClick={() => playTTS(result.phrase)}>
+                  {t("guestHearCorrect")}
+                </Button>
+                <Button variant="ghost" icon="refresh" onClick={retry}>{t("guestRetry")}</Button>
+              </div>
+
+              {/* Level + course + soft CTA */}
+              <Card style={{ background: "linear-gradient(135deg, oklch(0.96 0.04 285), var(--surface))" }}>
+                <div className="col center" style={{ textAlign: "center", gap: 4 }}>
                   <span style={{ fontSize: 13, color: "var(--muted)", fontWeight: 700 }}>{t("guestLevelLabel")}</span>
-                  <span style={{ fontSize: 30, fontWeight: 900, fontFamily: "var(--font-display)", color: "var(--grape)" }}>{result.level}</span>
-                  <span style={{ fontSize: 14, color: "var(--ink-soft)", fontWeight: 700, marginTop: 2 }}>{t("guestCourse")}</span>
+                  <span style={{ fontSize: 34, fontWeight: 900, fontFamily: "var(--font-display)", color: "var(--grape)", lineHeight: 1.1 }}>{result.level}</span>
+                  <span style={{ fontSize: 14, color: "var(--ink-soft)", fontWeight: 700, marginTop: 4 }}>{t("guestCourse")}</span>
                 </div>
                 <div className="col gap-2" style={{ marginTop: 18 }}>
                   <Button full size="lg" icon="star" onClick={() => nav("/register")}>{t("guestUnlockFull")}</Button>
