@@ -18,6 +18,8 @@ const MEDAL: Record<number, number> = { 1: 80, 2: 248, 3: 28 }; // medal hues
 export function Leaderboard() {
   const { t } = useI18n();
   const [scope, setScope] = useState<"global" | "group">("global");
+  // Rank by this week's XP or by all-time XP. Both scopes (global/group) honour it.
+  const [period, setPeriod] = useState<"weekly" | "all">("weekly");
 
   // The student's own groups — drives the group tab (and selector if in several).
   const { data: groups } = useQuery({
@@ -31,11 +33,12 @@ export function Leaderboard() {
   const hasGroups = (groups?.length ?? 0) > 0;
   const inGroupView = hasGroups && scope === "group";
   const { data, isLoading } = useQuery({
-    queryKey: ["leaderboard", inGroupView ? activeGroupId : "global"],
+    queryKey: ["leaderboard", inGroupView ? activeGroupId : "global", period],
     enabled: !inGroupView || !!activeGroupId,
     queryFn: async () => {
-      const url = inGroupView ? `/leaderboard?group_id=${activeGroupId}` : "/leaderboard";
-      return (await api.get<LeaderboardEntry[]>(url)).data;
+      const params = new URLSearchParams({ period });
+      if (inGroupView) params.set("group_id", activeGroupId!);
+      return (await api.get<LeaderboardEntry[]>(`/leaderboard?${params}`)).data;
     },
   });
 
@@ -56,6 +59,16 @@ export function Leaderboard() {
             />
           ) : undefined
         }
+      />
+
+      {/* Period toggle — weekly vs all-time XP. Always available. */}
+      <SegTabs
+        value={period}
+        onChange={(id) => setPeriod(id as "weekly" | "all")}
+        tabs={[
+          { id: "weekly", label: t("periodWeekly"), icon: "flame" },
+          { id: "all", label: t("periodAllTime"), icon: "trophy" },
+        ]}
       />
 
       {/* Group selector — only when the student belongs to more than one group. */}
@@ -154,7 +167,8 @@ export function Leaderboard() {
                     </span>
                     <span>·</span>
                     <span>
-                      {e.xp} {t("xp")} {t("allTimeXp").toLowerCase()}
+                      {period === "all" ? e.weekly_xp : e.xp} {t("xp")}{" "}
+                      {(period === "all" ? t("weeklyXp") : t("allTimeXp")).toLowerCase()}
                     </span>
                   </span>
                 </div>
@@ -167,10 +181,10 @@ export function Leaderboard() {
                       color: "var(--primary-press)",
                     }}
                   >
-                    {e.weekly_xp}
+                    {period === "all" ? e.xp : e.weekly_xp}
                   </span>
                   <span style={{ fontSize: 11, color: "var(--faint)", fontWeight: 700 }}>
-                    {t("weeklyXp")}
+                    {period === "all" ? t("allTimeXp") : t("weeklyXp")}
                   </span>
                 </div>
               </div>

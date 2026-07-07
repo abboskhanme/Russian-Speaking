@@ -535,6 +535,8 @@ const uz: Dict = {
   leaderboardHint: "Bu hafta eng faol o'quvchilar",
   weeklyXp: "Hafta",
   allTimeXp: "Jami",
+  periodWeekly: "Haftalik",
+  periodAllTime: "Umumiy XP",
   you: "Siz",
 
   // review (SRS)
@@ -1262,6 +1264,8 @@ const ru: Dict = {
   leaderboardHint: "Самые активные студенты за неделю",
   weeklyXp: "За неделю",
   allTimeXp: "Всего",
+  periodWeekly: "За неделю",
+  periodAllTime: "Всё время",
   you: "Вы",
 
   // review (SRS)
@@ -1989,6 +1993,8 @@ const en: Dict = {
   leaderboardHint: "Most active students this week",
   weeklyXp: "This week",
   allTimeXp: "All time",
+  periodWeekly: "Weekly",
+  periodAllTime: "All-time XP",
   you: "You",
 
   // review (SRS)

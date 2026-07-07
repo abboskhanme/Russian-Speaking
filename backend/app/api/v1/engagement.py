@@ -36,14 +36,19 @@ router = APIRouter(tags=["engagement"])
 @router.get("/leaderboard", response_model=list[LeaderboardEntry])
 def leaderboard(
     group_id: uuid.UUID | None = Query(default=None),
+    period: str = Query(default="weekly"),
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> list[LeaderboardEntry]:
-    """Ranked by weekly XP then all-time XP.
+    """Ranked by the chosen period's XP, with the other period as a tiebreak.
+
+    period="weekly" (default): rank by XP earned in the last 7 days, then all-time.
+    period="all": rank by all-time XP, then this week's.
 
     Global (no group_id): every student, ranked by ALL their XP (open tasks,
     assigned tasks and practice mixed). Group/class (group_id): only that group's
     members, ranked by XP earned on this group's ASSIGNED (internal) tasks only."""
+    all_time = period == "all"
     week_ago = datetime.now(timezone.utc) - timedelta(days=7)
 
     # ── Group/class leaderboard: scored from this group's ASSIGNED tasks only ──
@@ -76,9 +81,12 @@ def leaderboard(
             total[sid] = total.get(sid, 0) + (amt or 0)
             if created and created >= week_ago:
                 weekly[sid] = weekly.get(sid, 0) + (amt or 0)
-        ranked = sorted(
-            members, key=lambda s: (weekly.get(s.id, 0), total.get(s.id, 0)), reverse=True
+        key = (
+            (lambda s: (total.get(s.id, 0), weekly.get(s.id, 0)))
+            if all_time
+            else (lambda s: (weekly.get(s.id, 0), total.get(s.id, 0)))
         )
+        ranked = sorted(members, key=key, reverse=True)
         return [
             LeaderboardEntry(
                 rank=i,
@@ -103,11 +111,16 @@ def leaderboard(
     )
     weekly_col = func.coalesce(weekly_sq.c.weekly_xp, 0)
     xp_col = func.coalesce(User.xp, 0)
+    order_by = (
+        (xp_col.desc(), weekly_col.desc())
+        if all_time
+        else (weekly_col.desc(), xp_col.desc())
+    )
     ranked_q = (
         select(User, weekly_col.label("weekly_xp"))
         .outerjoin(weekly_sq, weekly_sq.c.student_id == User.id)
         .where(*scope)
-        .order_by(weekly_col.desc(), xp_col.desc())
+        .order_by(*order_by)
         .limit(50)
     )
     rows = db.execute(ranked_q).all()
@@ -133,15 +146,17 @@ def leaderboard(
             or 0
         )
         # rank = students (within scope) strictly ahead of me + 1
+        my_xp = user.xp or 0
+        ahead = (
+            (xp_col > my_xp) | ((xp_col == my_xp) & (weekly_col > my_weekly))
+            if all_time
+            else (weekly_col > my_weekly) | ((weekly_col == my_weekly) & (xp_col > my_xp))
+        )
         better = db.scalar(
             select(func.count())
             .select_from(User)
             .outerjoin(weekly_sq, weekly_sq.c.student_id == User.id)
-            .where(
-                *scope,
-                (weekly_col > my_weekly)
-                | ((weekly_col == my_weekly) & (xp_col > (user.xp or 0))),
-            )
+            .where(*scope, ahead)
         )
         top.append(
             LeaderboardEntry(
