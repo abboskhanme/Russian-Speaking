@@ -106,7 +106,58 @@ export function Leaderboard() {
       ) : !data?.length ? (
         <EmptyState text={t("noActivity")} />
       ) : (
-        <Card>
+        <>
+          {/* Pinned summary of the student's own standing — shown up top even when
+              their row also appears further down (or off-screen) in the full list. */}
+          {(() => {
+            const me = data.find((e) => e.is_me);
+            if (!me) return null;
+            return (
+              <Card style={{ border: "2px solid var(--primary)", background: "var(--primary-tint)" }}>
+                <div className="row gap-3" style={{ padding: "4px 2px" }}>
+                  <span
+                    style={{
+                      width: 30,
+                      display: "flex",
+                      justifyContent: "center",
+                      flexShrink: 0,
+                      fontFamily: "var(--font-display)",
+                      fontWeight: 900,
+                      fontSize: 15,
+                      color: "var(--primary-press)",
+                    }}
+                  >
+                    {me.rank}
+                  </span>
+                  <Avatar name={me.full_name} size={42} />
+                  <div className="col grow" style={{ minWidth: 0 }}>
+                    <span style={{ fontSize: 11, color: "var(--primary-press)", fontWeight: 800, textTransform: "uppercase" }}>
+                      {t("yourRank")}
+                    </span>
+                    <span className="truncate" style={{ fontSize: 15, fontWeight: 800 }}>
+                      {me.full_name}
+                    </span>
+                  </div>
+                  <div className="col" style={{ alignItems: "flex-end", flexShrink: 0 }}>
+                    <span
+                      style={{
+                        fontFamily: "var(--font-display)",
+                        fontWeight: 900,
+                        fontSize: 18,
+                        color: "var(--primary-press)",
+                      }}
+                    >
+                      {period === "all" ? me.xp : me.weekly_xp}
+                    </span>
+                    <span style={{ fontSize: 11, color: "var(--faint)", fontWeight: 700 }}>
+                      {period === "all" ? t("allTimeXp") : t("weeklyXp")}
+                    </span>
+                  </div>
+                </div>
+              </Card>
+            );
+          })()}
+          <Card>
           <div className="col gap-1">
             {data.map((e) => (
               <div
@@ -190,7 +241,8 @@ export function Leaderboard() {
               </div>
             ))}
           </div>
-        </Card>
+          </Card>
+        </>
       )}
     </div>
   );

@@ -538,6 +538,7 @@ const uz: Dict = {
   periodWeekly: "Haftalik",
   periodAllTime: "Umumiy XP",
   you: "Siz",
+  yourRank: "Sizning o'rningiz",
 
   // review (SRS)
   reviewTitle: "Takrorlash",
@@ -1267,6 +1268,7 @@ const ru: Dict = {
   periodWeekly: "За неделю",
   periodAllTime: "Всё время",
   you: "Вы",
+  yourRank: "Ваша позиция",
 
   // review (SRS)
   reviewTitle: "Повторение",
@@ -1996,6 +1998,7 @@ const en: Dict = {
   periodWeekly: "Weekly",
   periodAllTime: "All-time XP",
   you: "You",
+  yourRank: "Your rank",
 
   // review (SRS)
   reviewTitle: "Review",
