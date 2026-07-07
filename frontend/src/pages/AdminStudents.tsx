@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "../lib/api";
 import { friendlyError } from "../lib/errors";
 import { useI18n } from "../lib/i18n";
+import { formatUzPhone } from "../lib/phone";
 import type { AdminStudent } from "../lib/types";
 import {
   Avatar,
@@ -83,7 +84,7 @@ export function AdminStudents() {
     );
   }, [data, q]);
 
-  const cols = "2.2fr 1fr 1.1fr 1.6fr";
+  const cols = "260px 150px 210px 130px 120px 150px 360px";
 
   return (
     <div className="focus-wrap">
@@ -171,123 +172,142 @@ export function AdminStudents() {
       ) : !list.length ? (
         <EmptyState text={t("noStudents")} />
       ) : (
-        <Card pad={0}>
-          <div
-            className="t-head"
-            style={{
-              display: "grid",
-              gridTemplateColumns: cols,
-              padding: "14px 20px",
-              borderBottom: "1px solid var(--line)",
-              fontSize: 12,
-              fontWeight: 800,
-              color: "var(--muted)",
-              textTransform: "uppercase",
-              letterSpacing: "0.04em",
-            }}
-          >
-            <span>{t("colName")}</span>
-            <span>{t("submissionsCount")}</span>
-            <span>{t("colStatus")}</span>
-            <span style={{ textAlign: "right" }}>{t("colActions")}</span>
-          </div>
-          {list.map((s, i) => (
+        // A real table, not a responsive grid that hides columns: below `cols`'
+        // total width the whole thing scrolls horizontally instead, so every
+        // field stays visible and the action buttons never get squeezed.
+        <Card pad={0} style={{ overflowX: "auto" }}>
+          <div style={{ minWidth: 1450 }}>
             <div
-              key={s.id}
-              className="t-row"
               style={{
                 display: "grid",
                 gridTemplateColumns: cols,
-                padding: "12px 20px",
-                borderBottom: i < list.length - 1 ? "1px solid var(--line)" : "none",
-                alignItems: "center",
+                columnGap: 12,
+                padding: "14px 20px",
+                borderBottom: "1px solid var(--line)",
+                fontSize: 12,
+                fontWeight: 800,
+                color: "var(--muted)",
+                textTransform: "uppercase",
+                letterSpacing: "0.04em",
               }}
             >
-              <div
-                className="row gap-3 tap"
-                style={{ minWidth: 0, cursor: "pointer" }}
-                onClick={() => nav(`/admin/students/${s.id}`)}
-                title={t("manage")}
-              >
-                <Avatar name={s.full_name} size={38} />
-                <div className="col" style={{ minWidth: 0 }}>
-                  <span style={{ fontWeight: 700, fontSize: 14.5 }} className="truncate">
-                    {s.full_name}
-                  </span>
-                  <span style={{ fontSize: 12.5, color: "var(--muted)" }} className="truncate">
-                    {s.email}
-                  </span>
-                </div>
-              </div>
-              <span className="t-hide-sm mono" style={{ fontSize: 13.5, color: "var(--muted)" }}>
-                {s.submission_count} {t("submissionsCount")}
-              </span>
-              <span className="t-hide-sm">
-                <span className="row gap-2 wrap">
-                  <span
-                    className="row gap-2"
-                    style={{
-                      fontSize: 13,
-                      fontWeight: 600,
-                      color: s.is_active ? "var(--success)" : "var(--faint)",
-                    }}
-                  >
-                    <span
-                      style={{
-                        width: 8,
-                        height: 8,
-                        borderRadius: "50%",
-                        background: s.is_active ? "var(--success)" : "var(--faint)",
-                      }}
-                    />
-                    {s.is_active ? t("active") : t("inactive")}
-                  </span>
-                  {s.is_premium && (
-                    <Pill hue={70} size="sm" icon="sparkles">
-                      {t("premium")}
-                    </Pill>
-                  )}
-                </span>
-              </span>
-              <div className="row gap-2 wrap" style={{ justifyContent: "flex-end" }}>
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  icon="sparkles"
-                  style={{ color: s.is_premium ? "var(--muted)" : "oklch(0.55 0.14 70)" }}
-                  onClick={() => premium.mutate(s)}
-                >
-                  {s.is_premium ? t("revokePremium") : t("grantPremium")}
-                </Button>
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  icon={s.is_active ? "x" : "check"}
-                  onClick={() => toggle.mutate(s)}
-                >
-                  {s.is_active ? t("deactivate") : t("activate")}
-                </Button>
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  icon="trash"
-                  style={{ color: "var(--danger)" }}
-                  onClick={async () => {
-                    if (
-                      await ask({
-                        message: t("deleteStudentConfirm"),
-                        confirmText: t("delete"),
-                        destructive: true,
-                      })
-                    )
-                      remove.mutate(s.id);
+              <span>{t("colName")}</span>
+              <span>{t("colPhone")}</span>
+              <span>{t("colAddress")}</span>
+              <span>{t("colRegistered")}</span>
+              <span>{t("submissionsCount")}</span>
+              <span>{t("colStatus")}</span>
+              <span style={{ textAlign: "right" }}>{t("colActions")}</span>
+            </div>
+            {list.map((s, i) => {
+              const address = [s.region, s.district].filter(Boolean).join(", ");
+              return (
+                <div
+                  key={s.id}
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns: cols,
+                    columnGap: 12,
+                    padding: "12px 20px",
+                    borderBottom: i < list.length - 1 ? "1px solid var(--line)" : "none",
+                    alignItems: "center",
                   }}
                 >
-                  {t("delete")}
-                </Button>
-              </div>
-            </div>
-          ))}
+                  <div
+                    className="row gap-3 tap"
+                    style={{ minWidth: 0, cursor: "pointer" }}
+                    onClick={() => nav(`/admin/students/${s.id}`)}
+                    title={t("manage")}
+                  >
+                    <Avatar name={s.full_name} size={38} />
+                    <div className="col" style={{ minWidth: 0 }}>
+                      <span style={{ fontWeight: 700, fontSize: 14.5 }} className="truncate">
+                        {s.full_name}
+                      </span>
+                      <span style={{ fontSize: 12.5, color: "var(--muted)" }} className="truncate">
+                        {s.email}
+                      </span>
+                    </div>
+                  </div>
+                  <span className="mono truncate" style={{ fontSize: 13, color: "var(--ink-soft)" }}>
+                    {s.phone ? formatUzPhone(s.phone) : "—"}
+                  </span>
+                  <span className="truncate" style={{ fontSize: 13, color: "var(--ink-soft)" }}>
+                    {address || "—"}
+                  </span>
+                  <span style={{ fontSize: 13, color: "var(--muted)", whiteSpace: "nowrap" }}>
+                    {new Date(s.created_at).toLocaleDateString()}
+                  </span>
+                  <span className="mono" style={{ fontSize: 13.5, color: "var(--muted)", whiteSpace: "nowrap" }}>
+                    {s.submission_count} {t("submissionsCount")}
+                  </span>
+                  <span className="row gap-2 wrap">
+                    <span
+                      className="row gap-2"
+                      style={{
+                        fontSize: 13,
+                        fontWeight: 600,
+                        color: s.is_active ? "var(--success)" : "var(--faint)",
+                        whiteSpace: "nowrap",
+                      }}
+                    >
+                      <span
+                        style={{
+                          width: 8,
+                          height: 8,
+                          borderRadius: "50%",
+                          background: s.is_active ? "var(--success)" : "var(--faint)",
+                        }}
+                      />
+                      {s.is_active ? t("active") : t("inactive")}
+                    </span>
+                    {s.is_premium && (
+                      <Pill hue={70} size="sm" icon="sparkles">
+                        {t("premium")}
+                      </Pill>
+                    )}
+                  </span>
+                  <div className="row gap-2" style={{ justifyContent: "flex-end", whiteSpace: "nowrap" }}>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      icon="sparkles"
+                      style={{ color: s.is_premium ? "var(--muted)" : "oklch(0.55 0.14 70)" }}
+                      onClick={() => premium.mutate(s)}
+                    >
+                      {s.is_premium ? t("revokePremium") : t("grantPremium")}
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      icon={s.is_active ? "x" : "check"}
+                      onClick={() => toggle.mutate(s)}
+                    >
+                      {s.is_active ? t("deactivate") : t("activate")}
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      icon="trash"
+                      style={{ color: "var(--danger)" }}
+                      onClick={async () => {
+                        if (
+                          await ask({
+                            message: t("deleteStudentConfirm"),
+                            confirmText: t("delete"),
+                            destructive: true,
+                          })
+                        )
+                          remove.mutate(s.id);
+                      }}
+                    >
+                      {t("delete")}
+                    </Button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
         </Card>
       )}
     </div>

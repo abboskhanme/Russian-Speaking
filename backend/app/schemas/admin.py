@@ -46,6 +46,10 @@ class StudentOut(BaseModel):
     id: uuid.UUID
     email: EmailStr
     full_name: str
+    phone: str | None = None
+    region: str | None = None
+    district: str | None = None
+    age: int | None = None
     is_active: bool
     is_premium: bool = False
     created_at: datetime
@@ -71,6 +75,11 @@ class AdminStudentDetail(BaseModel):
     id: uuid.UUID
     full_name: str
     email: EmailStr
+    phone: str | None = None
+    region: str | None = None
+    district: str | None = None
+    age: int | None = None
+    created_at: datetime
     is_active: bool
     is_premium: bool = False
     xp: int = 0

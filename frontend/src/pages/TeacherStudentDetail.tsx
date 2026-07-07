@@ -6,19 +6,19 @@ import type { AdminStudentDetail as Detail } from "../lib/types";
 import { EmptyState, Loading } from "../components/govori";
 import { StudentDetailView } from "../components/StudentDetailView";
 
-/** Admin drill-down into one student: contact info, groups + their teacher,
- *  tests solved with results, and progress stats. */
-export function AdminStudentDetail() {
+/** Teacher drill-down into one of their own students: contact info, groups +
+ *  their teacher, tests solved with results, and progress stats. */
+export function TeacherStudentDetail() {
   const { id = "" } = useParams<{ id: string }>();
   const { t } = useI18n();
 
   const { data: s, isLoading } = useQuery({
-    queryKey: ["admin-student-detail", id],
-    queryFn: async () => (await api.get<Detail>(`/admin/students/${id}/detail`)).data,
+    queryKey: ["teacher-student-detail", id],
+    queryFn: async () => (await api.get<Detail>(`/users/students/${id}/detail`)).data,
   });
 
   if (isLoading) return <Loading full />;
   if (!s) return <EmptyState text={t("noStudents")} />;
 
-  return <StudentDetailView s={s} backTo="/admin/students" backLabel={t("tabStudents")} />;
+  return <StudentDetailView s={s} backTo="/teacher/students" backLabel={t("tabStudents")} />;
 }

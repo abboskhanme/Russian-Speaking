@@ -103,6 +103,10 @@ export interface StudentManage {
   id: string;
   email: string;
   full_name: string;
+  phone: string | null;
+  region: string | null;
+  district: string | null;
+  age: number | null;
   is_active: boolean;
   is_premium: boolean;
   created_at: string;
@@ -137,6 +141,11 @@ export interface AdminStudentDetail {
   id: string;
   full_name: string;
   email: string;
+  phone: string | null;
+  region: string | null;
+  district: string | null;
+  age: number | null;
+  created_at: string;
   is_active: boolean;
   is_premium: boolean;
   xp: number;
@@ -186,6 +195,10 @@ export interface AdminStudent {
   id: string;
   email: string;
   full_name: string;
+  phone: string | null;
+  region: string | null;
+  district: string | null;
+  age: number | null;
   is_active: boolean;
   is_premium: boolean;
   created_at: string;

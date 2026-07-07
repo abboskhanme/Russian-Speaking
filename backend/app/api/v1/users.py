@@ -7,8 +7,10 @@ from sqlalchemy.orm import Session
 from app.api.deps import get_current_user, require_teacher_or_admin
 from app.db.session import get_db
 from app.models import Group, GroupMember, Submission, User, UserRole
+from app.schemas.admin import AdminStudentDetail
 from app.schemas.user import PremiumUpdate, StudentManageOut, TeacherContactOut
 from app.services import notifications
+from app.services.students import build_student_detail
 
 router = APIRouter(prefix="/users", tags=["users"])
 
@@ -118,3 +120,26 @@ def set_premium(
         select(func.count(Submission.id)).where(Submission.student_id == student.id)
     ) or 0
     return _student_out(student, count)
+
+
+@router.get("/students/{student_id}/detail", response_model=AdminStudentDetail)
+def student_detail(
+    student_id: uuid.UUID,
+    caller: User = Depends(require_teacher_or_admin),
+    db: Session = Depends(get_db),
+) -> AdminStudentDetail:
+    """Full picture of one student for the management table's drill-down. A
+    teacher may only view their own students (members of their groups); admin
+    may view anyone."""
+    student = db.get(User, student_id)
+    if student is None or student.role != UserRole.student:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Student not found")
+    if caller.role != UserRole.admin:
+        in_roster = db.scalar(
+            select(GroupMember.id)
+            .join(Group, GroupMember.group_id == Group.id)
+            .where(Group.teacher_id == caller.id, GroupMember.student_id == student.id)
+        )
+        if not in_roster:
+            raise HTTPException(status.HTTP_403_FORBIDDEN, "This student is not in your group")
+    return build_student_detail(db, student)

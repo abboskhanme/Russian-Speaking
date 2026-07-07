@@ -12,6 +12,10 @@ class StudentManageOut(BaseModel):
     id: uuid.UUID
     email: EmailStr
     full_name: str
+    phone: str | None = None
+    region: str | None = None
+    district: str | None = None
+    age: int | None = None
     is_active: bool
     is_premium: bool
     created_at: datetime

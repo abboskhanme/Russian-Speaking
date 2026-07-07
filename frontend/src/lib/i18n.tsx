@@ -354,6 +354,10 @@ const uz: Dict = {
   colDate: "Sana",
   colTeacher: "O'qituvchi",
   colActions: "Amallar",
+  colPhone: "Telefon",
+  colAddress: "Manzil",
+  colRegistered: "Ro'yxatdan o'tgan",
+  contactInfo: "Aloqa ma'lumotlari",
   searchPh: "Qidirish…",
 
   // settings
@@ -1085,6 +1089,10 @@ const ru: Dict = {
   colDate: "Дата",
   colTeacher: "Учитель",
   colActions: "Действия",
+  colPhone: "Телефон",
+  colAddress: "Адрес",
+  colRegistered: "Дата регистрации",
+  contactInfo: "Контактная информация",
   searchPh: "Поиск…",
 
   settings: "Настройки",
@@ -1815,6 +1823,10 @@ const en: Dict = {
   colDate: "Date",
   colTeacher: "Teacher",
   colActions: "Actions",
+  colPhone: "Phone",
+  colAddress: "Address",
+  colRegistered: "Registered",
+  contactInfo: "Contact info",
   searchPh: "Search…",
 
   settings: "Settings",

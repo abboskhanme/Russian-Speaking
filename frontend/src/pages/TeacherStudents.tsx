@@ -1,7 +1,9 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "../lib/api";
 import { useI18n } from "../lib/i18n";
+import { formatUzPhone } from "../lib/phone";
 import type { StudentManage } from "../lib/types";
 import {
   Avatar,
@@ -14,10 +16,11 @@ import {
   Pill,
 } from "../components/govori";
 
-const COLS = "2fr 0.8fr 1.3fr 1fr 1.1fr";
+const COLS = "260px 150px 210px 130px 130px 150px 160px";
 
 export function TeacherStudents() {
   const { t } = useI18n();
+  const nav = useNavigate();
   const qc = useQueryClient();
   const [q, setQ] = useState("");
 
@@ -76,121 +79,116 @@ export function TeacherStudents() {
       ) : !list.length ? (
         <EmptyState text={t("noStudents")} />
       ) : (
-        <Card pad={0}>
-          <div
-            className="t-head"
-            style={{
-              display: "grid",
-              gridTemplateColumns: COLS,
-              columnGap: 12,
-              padding: "14px 20px",
-              borderBottom: "1px solid var(--line)",
-              fontSize: 12,
-              fontWeight: 800,
-              color: "var(--muted)",
-              textTransform: "uppercase",
-              letterSpacing: "0.04em",
-            }}
-          >
-            <span>{t("colName")}</span>
-            <span className="t-hide-sm">{t("colLevel")}</span>
-            <span className="t-hide-sm">{t("trialAttempts")}</span>
-            <span className="t-hide-sm">{t("premiumBadge")}</span>
-            <span style={{ textAlign: "right" }}>{t("colActions")}</span>
-          </div>
+        // A real table, not a responsive grid that hides columns: below `COLS`'
+        // total width the whole thing scrolls horizontally instead, so every
+        // field stays visible and the action button never gets squeezed.
+        <Card pad={0} style={{ overflowX: "auto" }}>
+          <div style={{ minWidth: 1290 }}>
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: COLS,
+                columnGap: 12,
+                padding: "14px 20px",
+                borderBottom: "1px solid var(--line)",
+                fontSize: 12,
+                fontWeight: 800,
+                color: "var(--muted)",
+                textTransform: "uppercase",
+                letterSpacing: "0.04em",
+              }}
+            >
+              <span>{t("colName")}</span>
+              <span>{t("colPhone")}</span>
+              <span>{t("colAddress")}</span>
+              <span>{t("colRegistered")}</span>
+              <span>{t("trialAttempts")}</span>
+              <span>{t("colStatus")}</span>
+              <span style={{ textAlign: "right" }}>{t("colActions")}</span>
+            </div>
 
-          {list.map((s, i) => {
-            const busy =
-              setPremium.isPending && setPremium.variables?.id === s.id;
-            const used = s.submission_count;
-            return (
-              <div
-                key={s.id}
-                className="t-row"
-                style={{
-                  display: "grid",
-                  gridTemplateColumns: COLS,
-                  columnGap: 12,
-                  padding: "12px 20px",
-                  borderBottom:
-                    i < list.length - 1 ? "1px solid var(--line)" : "none",
-                  alignItems: "center",
-                }}
-              >
-                <div className="row gap-3" style={{ minWidth: 0 }}>
-                  <Avatar name={s.full_name} size={38} />
-                  <div className="col" style={{ minWidth: 0 }}>
-                    <span
-                      className="truncate"
-                      style={{ fontWeight: 700, fontSize: 14.5 }}
-                    >
-                      {s.full_name}
-                    </span>
-                    <span
-                      className="truncate"
-                      style={{ fontSize: 12.5, color: "var(--muted)" }}
-                    >
-                      {s.email}
-                    </span>
+            {list.map((s, i) => {
+              const busy = setPremium.isPending && setPremium.variables?.id === s.id;
+              const address = [s.region, s.district].filter(Boolean).join(", ");
+              return (
+                <div
+                  key={s.id}
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns: COLS,
+                    columnGap: 12,
+                    padding: "12px 20px",
+                    borderBottom: i < list.length - 1 ? "1px solid var(--line)" : "none",
+                    alignItems: "center",
+                  }}
+                >
+                  <div
+                    className="row gap-3 tap"
+                    style={{ minWidth: 0, cursor: "pointer" }}
+                    onClick={() => nav(`/teacher/students/${s.id}`)}
+                  >
+                    <Avatar name={s.full_name} size={38} />
+                    <div className="col" style={{ minWidth: 0 }}>
+                      <span className="truncate" style={{ fontWeight: 700, fontSize: 14.5 }}>
+                        {s.full_name}
+                      </span>
+                      <span className="truncate" style={{ fontSize: 12.5, color: "var(--muted)" }}>
+                        {s.email}
+                      </span>
+                    </div>
+                  </div>
+
+                  <span className="mono truncate" style={{ fontSize: 13, color: "var(--ink-soft)" }}>
+                    {s.phone ? formatUzPhone(s.phone) : "—"}
+                  </span>
+                  <span className="truncate" style={{ fontSize: 13, color: "var(--ink-soft)" }}>
+                    {address || "—"}
+                  </span>
+                  <span style={{ fontSize: 13, color: "var(--muted)", whiteSpace: "nowrap" }}>
+                    {new Date(s.created_at).toLocaleDateString()}
+                  </span>
+                  <span className="mono" style={{ fontSize: 13, fontWeight: 700, color: "var(--ink-soft)", whiteSpace: "nowrap" }}>
+                    {s.submission_count}
+                  </span>
+                  <span>
+                    {s.is_premium ? (
+                      <Pill hue={47} size="sm" icon="star">
+                        {t("premiumBadge")}
+                      </Pill>
+                    ) : (
+                      <Pill hue={248} size="sm">
+                        {t("freeBadge")}
+                      </Pill>
+                    )}
+                  </span>
+
+                  <div style={{ justifySelf: "end", whiteSpace: "nowrap" }}>
+                    {s.is_premium ? (
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        icon="x"
+                        disabled={busy}
+                        onClick={() => setPremium.mutate({ id: s.id, value: false })}
+                      >
+                        {busy ? "…" : t("revokePremium")}
+                      </Button>
+                    ) : (
+                      <Button
+                        size="sm"
+                        variant="soft"
+                        icon="star"
+                        disabled={busy}
+                        onClick={() => setPremium.mutate({ id: s.id, value: true })}
+                      >
+                        {busy ? "…" : t("grantPremium")}
+                      </Button>
+                    )}
                   </div>
                 </div>
-
-                <span className="t-hide-sm">
-                  {s.is_premium ? (
-                    <Pill hue={47} size="sm" icon="star">
-                      {t("premiumBadge")}
-                    </Pill>
-                  ) : (
-                    <Pill hue={248} size="sm">
-                      {t("freeBadge")}
-                    </Pill>
-                  )}
-                </span>
-
-                <div className="row gap-2 t-hide-sm" style={{ minWidth: 0, alignItems: "center" }}>
-                  <span
-                    className="mono"
-                    style={{ fontSize: 13, fontWeight: 700, color: "var(--ink-soft)", whiteSpace: "nowrap" }}
-                  >
-                    {used}
-                  </span>
-                  <span style={{ fontSize: 12.5, color: "var(--muted)" }}>{t("trialAttempts")}</span>
-                </div>
-
-                <span className="t-hide-sm" style={{ fontSize: 13, color: "var(--muted)" }}>
-                  {s.is_premium ? t("premiumBadge") : t("freeBadge")}
-                </span>
-
-                <div style={{ justifySelf: "end" }}>
-                  {s.is_premium ? (
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      icon="x"
-                      disabled={busy}
-                      onClick={() =>
-                        setPremium.mutate({ id: s.id, value: false })
-                      }
-                    >
-                      {busy ? "…" : t("revokePremium")}
-                    </Button>
-                  ) : (
-                    <Button
-                      size="sm"
-                      variant="soft"
-                      icon="star"
-                      disabled={busy}
-                      onClick={() =>
-                        setPremium.mutate({ id: s.id, value: true })
-                      }
-                    >
-                      {busy ? "…" : t("grantPremium")}
-                    </Button>
-                  )}
-                </div>
-              </div>
-            );
-          })}
+              );
+            })}
+          </div>
         </Card>
       )}
     </div>

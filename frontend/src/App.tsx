@@ -27,6 +27,7 @@ import { TeacherDashboard } from "./pages/TeacherDashboard";
 import { TeacherQuestions } from "./pages/TeacherQuestions";
 import { TeacherSubmissions } from "./pages/TeacherSubmissions";
 import { TeacherStudents } from "./pages/TeacherStudents";
+import { TeacherStudentDetail } from "./pages/TeacherStudentDetail";
 import { TeacherAssignments } from "./pages/TeacherAssignments";
 import { TeacherGroups } from "./pages/TeacherGroups";
 import { TeacherGroupDetail } from "./pages/TeacherGroupDetail";
@@ -481,6 +482,7 @@ function AppRoutes() {
       <Route path="/teacher/groups/:id" element={<TeacherGroupDetail />} />
       <Route path="/teacher/gradebook" element={<TeacherGradebook />} />
       <Route path="/teacher/students" element={<TeacherStudents />} />
+      <Route path="/teacher/students/:id" element={<TeacherStudentDetail />} />
       <Route path="/teacher/questions" element={<TeacherQuestions />} />
       <Route path="/teacher/questions/new" element={<CreateQuestion />} />
       <Route path="/teacher/questions/:id/edit" element={<CreateQuestion />} />
