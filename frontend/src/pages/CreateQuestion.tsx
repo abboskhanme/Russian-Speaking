@@ -217,10 +217,20 @@ function CreateQuestionForm() {
           throw err;
         }
       }
-      qc.invalidateQueries({ queryKey: ["questions"] });
-      // Assigning/changing block_id shifts a block's question_count.
-      qc.invalidateQueries({ queryKey: ["blocks"] });
-      qc.invalidateQueries({ queryKey: ["block-questions"] });
+      // Refresh every view that could show this question BEFORE navigating back,
+      // so the list/detail we return to reflects the save instead of stale cache.
+      // refetchType "all" also refetches queries that are currently inactive
+      // (the destination list isn't mounted yet), and awaiting lets the fresh
+      // data land while the busy overlay is still up.
+      await Promise.all([
+        qc.invalidateQueries({ queryKey: ["questions"], refetchType: "all" }),
+        // Assigning/changing block_id shifts a block's question_count.
+        qc.invalidateQueries({ queryKey: ["blocks"], refetchType: "all" }),
+        qc.invalidateQueries({ queryKey: ["block-questions"], refetchType: "all" }),
+        // The edit form itself prefills from this detail query — drop it so
+        // reopening the editor doesn't show the pre-save state.
+        isEdit ? qc.invalidateQueries({ queryKey: ["question", id], refetchType: "all" }) : null,
+      ]);
       nav(returnTo);
     } catch (err) {
       // A 413 from the upload proxy means the file exceeded the size limit.
