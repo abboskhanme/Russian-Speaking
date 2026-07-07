@@ -36,7 +36,8 @@ function TaskRow({
   const seqLocked = task.locked && !task.done;
   const premiumLocked = task.premium_locked && !task.done && !seqLocked;
   const state = task.done ? "done" : seqLocked ? "locked" : premiumLocked ? "premium" : "open";
-  const clickable = state === "open" || state === "premium";
+  // A completed task stays reopenable so students can practise it again.
+  const clickable = state === "open" || state === "premium" || state === "done";
   const bg =
     state === "open" ? "var(--primary-tint)" : state === "premium" ? "var(--amber-tint)" : "var(--surface)";
   const border =
@@ -59,7 +60,7 @@ function TaskRow({
     <button
       type="button"
       disabled={!clickable}
-      onClick={state === "premium" ? onPremium : state === "open" ? onOpen : undefined}
+      onClick={state === "premium" ? onPremium : clickable ? onOpen : undefined}
       title={state === "locked" ? t("moduleLocked") : state === "premium" ? t("premiumTaskHint") : undefined}
       className={clickable ? "tap" : undefined}
       style={{

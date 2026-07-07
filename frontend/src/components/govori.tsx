@@ -824,12 +824,25 @@ export const inp: CSSProperties = {
   fontFamily: "inherit",
 };
 
-export function Field({ label, children }: { label: ReactNode; children: ReactNode }) {
+export function Field({
+  label,
+  children,
+  as,
+}: {
+  label: ReactNode;
+  children: ReactNode;
+  // Defaults to <label> so clicking the caption focuses the input. Pass "div"
+  // for children that aren't native form controls (e.g. a contentEditable rich
+  // editor) — otherwise the <label> forwards clicks to its first real control
+  // (a toolbar <select>), stealing focus and making the surface unclickable.
+  as?: "label" | "div";
+}) {
+  const Wrap = as ?? "label";
   return (
-    <label className="col gap-2">
+    <Wrap className="col gap-2">
       <span style={{ fontSize: 13, fontWeight: 800, color: "var(--ink-soft)" }}>{label}</span>
       {children}
-    </label>
+    </Wrap>
   );
 }
 

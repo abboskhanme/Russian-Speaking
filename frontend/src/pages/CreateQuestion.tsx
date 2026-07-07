@@ -483,7 +483,7 @@ function CreateQuestionForm() {
               />
             </Field>
 
-            <Field label={t("taskText")}>
+            <Field label={t("taskText")} as="div">
               <RichTextEditor
                 value={prompt}
                 onChange={setPrompt}
