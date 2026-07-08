@@ -4,9 +4,11 @@ import logging
 import time
 import uuid
 
+from celery.exceptions import SoftTimeLimitExceeded
 from sqlalchemy import delete, select
 from datetime import datetime, timedelta, timezone
 
+from app.core.breaker import CircuitOpenError
 from app.core.config import settings
 from app.db.session import SessionLocal
 from app.models import (
@@ -20,7 +22,7 @@ from app.models import (
     User,
     UserRole,
 )
-from app.services import gamification, llm, notifications, stt, storage
+from app.services import app_settings, gamification, llm, notifications, stt, storage
 from app.services.text import html_to_text
 from app.workers.celery_app import celery
 
@@ -99,32 +101,59 @@ def process_submission(self, submission_id: str) -> str:
         sub.status = SubmissionStatus.processing
         db.commit()
 
-        # 1. Download audio from object storage
-        audio = storage.download_bytes(sub.audio_key)
+        orthoepy_on = app_settings.orthoepy_enabled()
         filename = sub.audio_key.rsplit("/", 1)[-1]
+        # Audio bytes are downloaded lazily — a retry that already has a transcript
+        # skips STT entirely (no re-billing Azure), and only re-fetches the bytes if
+        # the best-effort orthoepy pass genuinely needs them.
+        audio: bytes | None = None
 
-        # 2. Speech-to-text + pronunciation assessment (Russian, Azure).
-        # Shadowing passes the target sentence for scripted (reference) scoring.
-        _t_stt = time.monotonic()
-        stt_result = stt.transcribe(
-            audio, filename=filename, reference_text=sub.reference_text
-        )
-        stt_secs = time.monotonic() - _t_stt
-        logger.info(
-            "stt done", extra={"submission_id": submission_id, "stt_secs": round(stt_secs, 2)}
-        )
-        transcript = Transcript(
-            submission_id=sub.id,
-            text=stt_result["text"],
-            language=stt_result.get("language"),
-            word_timestamps=stt_result.get("words"),
-            pronunciation=stt_result.get("pronunciation"),
-            stt_model=stt_result.get("model") or settings.STT_MODEL,
-        )
-        db.add(transcript)
-        if stt_result.get("duration") and not sub.audio_duration_sec:
-            sub.audio_duration_sec = stt_result["duration"]
-        db.commit()
+        def _load_audio() -> bytes:
+            nonlocal audio
+            if audio is None:
+                audio = storage.download_bytes(sub.audio_key)
+            return audio
+
+        # RESUME-FROM-TRANSCRIPT: on a retry the STT step may have already run and
+        # persisted a Transcript. Reuse it instead of downloading + re-transcribing
+        # (Azure STT is billed per call), rebuilding the stt_result-equivalent data.
+        transcript = db.scalar(select(Transcript).where(Transcript.submission_id == sub.id))
+        if transcript is not None:
+            stt_result = {
+                "text": transcript.text,
+                "language": transcript.language,
+                "words": transcript.word_timestamps,
+                "pronunciation": transcript.pronunciation,
+                "model": transcript.stt_model,
+                "duration": sub.audio_duration_sec,
+            }
+            logger.info("reusing persisted transcript", extra={"submission_id": submission_id})
+        else:
+            # 1. Download audio from object storage
+            audio = _load_audio()
+
+            # 2. Speech-to-text + pronunciation assessment (Russian, Azure).
+            # Shadowing passes the target sentence for scripted (reference) scoring.
+            _t_stt = time.monotonic()
+            stt_result = stt.transcribe(
+                audio, filename=filename, reference_text=sub.reference_text
+            )
+            stt_secs = time.monotonic() - _t_stt
+            logger.info(
+                "stt done", extra={"submission_id": submission_id, "stt_secs": round(stt_secs, 2)}
+            )
+            transcript = Transcript(
+                submission_id=sub.id,
+                text=stt_result["text"],
+                language=stt_result.get("language"),
+                word_timestamps=stt_result.get("words"),
+                pronunciation=stt_result.get("pronunciation"),
+                stt_model=stt_result.get("model") or settings.STT_MODEL,
+            )
+            db.add(transcript)
+            if stt_result.get("duration") and not sub.audio_duration_sec:
+                sub.audio_duration_sec = stt_result["duration"]
+            db.commit()
 
         # Shadowing: pronunciation-only. No LLM, no academic Evaluation (keeps the
         # gradebook clean); just a small fixed engagement reward — but only when the
@@ -132,19 +161,21 @@ def process_submission(self, submission_id: str) -> str:
         # else) fails the content check and earns no reward.
         if sub.reference_text:
             # Orthoepy check: flag words read AS SPELLED (written ≠ spoken).
-            # Best-effort — must never break the (free) shadowing flow.
-            try:
-                oe = llm.detect_orthoepy(
-                    audio_bytes=stt.to_mp3_bytes(audio),
-                    reference_text=sub.reference_text,
-                    transcript_text=stt_result.get("text"),
-                )
-                if oe:
-                    pron = dict(transcript.pronunciation or {})
-                    pron["orthoepy_errors"] = [e.model_dump() for e in oe]
-                    transcript.pronunciation = pron
-            except Exception:  # noqa: BLE001
-                logger.warning("orthoepy check failed", extra={"submission_id": submission_id})
+            # Best-effort — must never break the (free) shadowing flow — and gated
+            # behind the admin `orthoepy_enabled` setting (an extra Gemini call).
+            if orthoepy_on:
+                try:
+                    oe = llm.detect_orthoepy(
+                        audio_bytes=stt.to_mp3_bytes(_load_audio()),
+                        reference_text=sub.reference_text,
+                        transcript_text=stt_result.get("text"),
+                    )
+                    if oe:
+                        pron = dict(transcript.pronunciation or {})
+                        pron["orthoepy_errors"] = [e.model_dump() for e in oe]
+                        transcript.pronunciation = pron
+                except Exception:  # noqa: BLE001
+                    logger.warning("orthoepy check failed", extra={"submission_id": submission_id})
             sub.status = SubmissionStatus.done
             sub.completed_at = datetime.now(timezone.utc)
             db.commit()
@@ -186,14 +217,17 @@ def process_submission(self, submission_id: str) -> str:
 
         # Orthoepy (separate AUDIO pass — the text analysis above can't hear it).
         # Reading words AS SPELLED lowers the overall band and, in turn, the XP.
+        # Best-effort and gated behind the admin `orthoepy_enabled` setting; runs on
+        # its own circuit so a failure here can never open the grader's breaker.
         orthoepy_errors: list = []
-        try:
-            orthoepy_errors = llm.detect_orthoepy(
-                audio_bytes=stt.to_mp3_bytes(audio),
-                transcript_text=stt_result["text"],
-            )
-        except Exception:  # noqa: BLE001
-            logger.warning("orthoepy check failed", extra={"submission_id": submission_id})
+        if orthoepy_on:
+            try:
+                orthoepy_errors = llm.detect_orthoepy(
+                    audio_bytes=stt.to_mp3_bytes(_load_audio()),
+                    transcript_text=stt_result["text"],
+                )
+            except Exception:  # noqa: BLE001
+                logger.warning("orthoepy check failed", extra={"submission_id": submission_id})
         oe_penalty = min(len(orthoepy_errors) * ORTHOEPY_PENALTY_PER_ERROR, ORTHOEPY_PENALTY_CAP)
         overall_band = max(0.0, result.scores.overall - oe_penalty)
         level_score = max(0.0, result.scores.level_overall - oe_penalty)
@@ -216,23 +250,15 @@ def process_submission(self, submission_id: str) -> str:
             corrections=[c.model_dump() for c in result.corrections],
             llm_model=settings.GEMINI_MODEL,
         )
+        # On a retry an Evaluation from a prior partial run may already exist
+        # (submission_id is unique); replace it so the insert can't collide.
+        db.execute(delete(Evaluation).where(Evaluation.submission_id == sub.id))
         db.add(evaluation)
 
-        # Fresh exemplar answer for THIS attempt (a new variant each time),
-        # adapted to the task and its Russian style. Best-effort — a failure here
-        # must never fail the whole submission; the UI falls back to the question's
-        # stored model answer.
-        try:
-            sub.model_answer_text = llm.generate_model_answer(
-                question_prompt=html_to_text(question.prompt_text),
-                question_title=question.title,
-                level=question.level,
-                topic=question.topic,
-                ru_style=question.ru_style,
-                variant_hint=str(sub.id),
-            ) or None
-        except Exception:  # noqa: BLE001
-            sub.model_answer_text = None
+        # NOTE: the fresh per-attempt exemplar answer is no longer generated here.
+        # It cost a 3rd Gemini call on every submission (exhausting the free tier);
+        # it's now produced lazily on demand via POST /submissions/{id}/model-answer,
+        # and the UI falls back to the question's stored model answer meanwhile.
 
         sub.status = SubmissionStatus.done
         sub.completed_at = datetime.now(timezone.utc)
@@ -260,11 +286,24 @@ def process_submission(self, submission_id: str) -> str:
 
     except Exception as exc:  # noqa: BLE001
         db.rollback()
+        # A soft time-limit or an open circuit is NOT transient — retrying just
+        # re-runs the whole (billed) pipeline and hits the same wall. Fail such
+        # submissions TERMINALLY with a helpful message and don't retry. Only
+        # genuinely transient errors go through self.retry (max_retries=3).
+        terminal = isinstance(exc, (SoftTimeLimitExceeded, CircuitOpenError))
         sub = db.get(Submission, uuid.UUID(submission_id))
         if sub is not None:
             sub.status = SubmissionStatus.failed
-            sub.error_message = str(exc)[:1000]
+            if terminal:
+                sub.error_message = (
+                    "The AI grader is temporarily overloaded or rate-limited. "
+                    "Please try again in a few minutes."
+                )
+            else:
+                sub.error_message = str(exc)[:1000]
             db.commit()
+        if terminal:
+            return "failed"
         raise self.retry(exc=exc)
     finally:
         db.close()
@@ -272,15 +311,28 @@ def process_submission(self, submission_id: str) -> str:
 
 @celery.task(name="fail_stuck_submissions")
 def fail_stuck_submissions() -> int:
-    """Mark submissions stuck in 'processing' for >15 min as failed so students
-    aren't left staring at a spinner after a worker crash."""
-    cutoff = datetime.now(timezone.utc) - timedelta(minutes=15)
+    """Recover submissions that a worker never finished so students aren't left
+    staring at a spinner. Covers two cases:
+
+    * stuck in 'processing' for >15 min — a worker crashed mid-task;
+    * stuck in 'pending' for >20 min — the task was lost before it ever started
+      (e.g. the worker died between enqueue and pickup).
+    """
+    now = datetime.now(timezone.utc)
+    processing_cutoff = now - timedelta(minutes=15)
+    pending_cutoff = now - timedelta(minutes=20)
     db = SessionLocal()
     try:
         stuck = db.scalars(
             select(Submission).where(
-                Submission.status == SubmissionStatus.processing,
-                Submission.updated_at < cutoff,
+                (
+                    (Submission.status == SubmissionStatus.processing)
+                    & (Submission.updated_at < processing_cutoff)
+                )
+                | (
+                    (Submission.status == SubmissionStatus.pending)
+                    & (Submission.updated_at < pending_cutoff)
+                )
             )
         ).all()
         for sub in stuck:

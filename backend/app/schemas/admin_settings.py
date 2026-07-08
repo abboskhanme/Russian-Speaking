@@ -9,6 +9,14 @@ class SecretState(BaseModel):
     hint: str = ""
 
 
+class KnownModel(BaseModel):
+    """One entry in the curated Gemini-model dropdown shown to admins."""
+
+    id: str
+    label: str
+    note: str = ""
+
+
 class AiSettingsOut(BaseModel):
     llm_provider: str  # auto | azure | gemini
     gemini_model: str
@@ -17,6 +25,10 @@ class AiSettingsOut(BaseModel):
     azure_openai_api_version: str
     gemini_api_key: SecretState
     azure_openai_api_key: SecretState
+    # Best-effort orthoepy AUDIO pass — an extra Gemini call per graded submission.
+    orthoepy_enabled: bool
+    # Curated Gemini models for the dropdown (custom free-text is still allowed).
+    known_gemini_models: list[KnownModel] = []
     # Derived, read-only status for the UI.
     azure_ready: bool         # Azure fully configured (endpoint + key + deployment)
     active_provider: str      # which provider will actually handle grading now
@@ -56,6 +68,7 @@ class AiSettingsUpdate(BaseModel):
     llm_provider: str | None = None
     gemini_model: str | None = None
     gemini_api_key: str | None = None
+    orthoepy_enabled: str | None = None  # "true" | "false"
     azure_openai_endpoint: str | None = None
     azure_openai_api_key: str | None = None
     azure_openai_deployment: str | None = None
@@ -66,3 +79,13 @@ class AiSettingsUpdate(BaseModel):
     whisper_model: str | None = None
     azure_speech_key: str | None = None
     openai_api_key: str | None = None
+
+
+class AiTestResult(BaseModel):
+    """Outcome of a live grader test call (POST /admin/settings/ai/test)."""
+
+    ok: bool
+    provider: str          # which provider actually handled the test call
+    model: str             # the deployment / model id used
+    latency_ms: int
+    error: str | None = None

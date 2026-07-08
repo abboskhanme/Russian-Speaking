@@ -10,6 +10,19 @@ interface Props {
 type Phase = "idle" | "recording" | "recorded";
 const BARS = 70;
 
+// iOS Safari throws on `new MediaRecorder(stream, { mimeType: "audio/webm" })`
+// because it can't produce WebM. Pick the first container the browser actually
+// supports; fall back to the browser default (no options) if none match.
+function pickMimeType(): string | undefined {
+  const candidates = ["audio/webm", "audio/mp4", "audio/ogg"];
+  if (typeof MediaRecorder !== "undefined" && typeof MediaRecorder.isTypeSupported === "function") {
+    for (const type of candidates) {
+      if (MediaRecorder.isTypeSupported(type)) return type;
+    }
+  }
+  return undefined; // let the browser choose its default
+}
+
 /** Records mic audio (Opus/WebM) with a live waveform, volume meter, and a
  *  record → preview → send flow matching the product design. */
 export function AudioRecorder({ maxSeconds, onComplete }: Props) {
@@ -115,6 +128,12 @@ export function AudioRecorder({ maxSeconds, onComplete }: Props) {
       setError(t(window.isSecureContext ? "micError" : "micInsecure"));
       return;
     }
+    // No MediaRecorder at all (very old / restricted browser) → recording is
+    // genuinely unsupported; that's distinct from a denied mic permission.
+    if (typeof MediaRecorder === "undefined") {
+      setError(t("micUnsupported"));
+      return;
+    }
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       streamRef.current = stream;
@@ -129,13 +148,31 @@ export function AudioRecorder({ maxSeconds, onComplete }: Props) {
       analyserRef.current = analyser;
       barsRef.current = new Array(BARS).fill(0.06);
 
-      const recorder = new MediaRecorder(stream, { mimeType: "audio/webm" });
+      const mimeType = pickMimeType();
+      let recorder: MediaRecorder;
+      try {
+        recorder = mimeType ? new MediaRecorder(stream, { mimeType }) : new MediaRecorder(stream);
+      } catch {
+        // Constructor can still throw on some engines even after isTypeSupported
+        // checks — treat that as "recording not supported here".
+        cleanup();
+        setError(t("micUnsupported"));
+        return;
+      }
       chunksRef.current = [];
       recorder.ondataavailable = (e) => {
         if (e.data.size > 0) chunksRef.current.push(e.data);
       };
+      recorder.onerror = () => {
+        cleanup();
+        setError(t("micError"));
+        setPhase("idle");
+      };
       recorder.onstop = () => {
-        const blob = new Blob(chunksRef.current, { type: "audio/webm" });
+        // Use the recorder's ACTUAL mime type (webm/mp4/ogg per browser) so the
+        // blob and the eventual upload content-type match what was captured.
+        const type = recorder.mimeType || mimeType || chunksRef.current[0]?.type || "audio/webm";
+        const blob = new Blob(chunksRef.current, { type });
         blobRef.current = blob;
         durationRef.current = (Date.now() - startedAtRef.current) / 1000;
         setStaticBars([...barsRef.current]);

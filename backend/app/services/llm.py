@@ -24,7 +24,7 @@ from google.genai import types
 from openai import AzureOpenAI
 from pydantic import BaseModel, Field
 
-from app.core.breaker import azure_llm_breaker, gemini_breaker
+from app.core.breaker import azure_llm_breaker, gemini_besteffort_breaker, gemini_breaker
 from app.services import app_settings as _cfg
 
 log = logging.getLogger(__name__)
@@ -113,10 +113,10 @@ def _azure_text(c, system, user_text, temperature):
     return (completion.choices[0].message.content or "").strip()
 
 
-@gemini_breaker
-def _gemini_generate(*, api_key, model, contents, system, schema=None, temperature=None):
+def _gemini_generate_impl(*, api_key, model, contents, system, schema=None, temperature=None):
     """One Gemini call with retry/backoff on transient errors. Returns the raw
-    response object (caller reads .parsed / .text)."""
+    response object (caller reads .parsed / .text). Not circuit-guarded itself —
+    call one of the breaker-wrapped aliases below instead."""
     cfg_kwargs: dict = {
         "system_instruction": system,
         "thinking_config": types.ThinkingConfig(thinking_budget=0),
@@ -138,6 +138,13 @@ def _gemini_generate(*, api_key, model, contents, system, schema=None, temperatu
                 continue
             raise
     raise RuntimeError("unreachable")
+
+
+# The grader (analyze) runs on the MAIN circuit — its health decides whether the
+# next student can be graded. Best-effort extras (orthoepy, exemplar answers) run
+# on a SEPARATE circuit so their rate-limit failures can never open the grader's.
+_gemini_generate = gemini_breaker(_gemini_generate_impl)
+_gemini_generate_besteffort = gemini_besteffort_breaker(_gemini_generate_impl)
 
 
 # ─── Structured output schema ──────────────────────────────────────────────
@@ -450,8 +457,9 @@ def generate_model_answer(
             return _azure_text(c, _MODEL_ANSWER_SYSTEM, user_content, 1.0)
         except Exception as e:
             log.warning("Azure OpenAI model-answer failed; falling back to Gemini: %s", e)
-    # Higher temperature → a fresh variant each attempt.
-    response = _gemini_generate(
+    # Higher temperature → a fresh variant each attempt. Best-effort circuit: a
+    # rate-limit here must never open the grader's breaker.
+    response = _gemini_generate_besteffort(
         api_key=c["gemini_api_key"],
         model=c["gemini_model"],
         contents=user_content,
@@ -647,9 +655,10 @@ def detect_orthoepy(
         user_content,
     ]
     # Orthoepy needs the AUDIO, so it always runs on Gemini (the Azure chat
-    # grader is text/image-only); provider selection doesn't apply here.
+    # grader is text/image-only); provider selection doesn't apply here. Runs on
+    # the best-effort circuit so a failure never opens the grader's breaker.
     c = _cfg.resolve_llm()
-    response = _gemini_generate(
+    response = _gemini_generate_besteffort(
         api_key=c["gemini_api_key"],
         model=c["gemini_model"],
         contents=parts,

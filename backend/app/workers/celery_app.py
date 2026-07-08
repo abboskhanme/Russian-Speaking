@@ -26,6 +26,12 @@ celery.conf.update(
     task_track_started=True,
     task_time_limit=300,
     task_soft_time_limit=270,  # raises SoftTimeLimitExceeded -> submission marked failed
+    # Reliability: only ack a task after it finishes (so a worker killed mid-task
+    # requeues it instead of losing it), requeue on worker loss, and never prefetch
+    # extra tasks — one heavy STT+LLM job per worker at a time keeps latency honest.
+    task_acks_late=True,
+    task_reject_on_worker_lost=True,
+    worker_prefetch_multiplier=1,
     beat_schedule={
         # Recover submissions stuck in "processing" (e.g. worker killed mid-task).
         "fail-stuck-submissions": {

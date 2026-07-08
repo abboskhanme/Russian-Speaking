@@ -1,3 +1,4 @@
+import logging
 import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
@@ -11,7 +12,16 @@ from app.api.v1.questions import active_assignment
 from app.core.ratelimit import rate_limit
 from app.core.config import settings
 from app.db.session import get_db
-from app.models import Group, GroupMember, Question, ReviewItem, Submission, User, UserRole
+from app.models import (
+    Group,
+    GroupMember,
+    Question,
+    ReviewItem,
+    Submission,
+    SubmissionStatus,
+    User,
+    UserRole,
+)
 from app.schemas.gamification import ExplainOut
 from app.schemas.submission import (
     AudioUploadURL,
@@ -25,6 +35,8 @@ from app.schemas.submission import (
 from app.services import access, llm, storage
 from app.services.text import html_to_text
 from app.workers.tasks import process_submission
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/submissions", tags=["submissions"])
 
@@ -293,6 +305,88 @@ def explain_submission(
     }
     db.commit()
     return ExplainOut(explanation=result.explanation, improved_sentence=result.improved_sentence)
+
+
+@router.post("/{submission_id}/model-answer", response_model=SubmissionOut)
+def submission_model_answer(
+    submission_id: uuid.UUID,
+    refresh: bool = Query(default=False),
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> SubmissionOut:
+    """Lazily generate a fresh exemplar answer for THIS attempt, on demand.
+
+    Grading no longer produces an exemplar on every submission (it cost a 3rd
+    Gemini call and burned the free tier); the UI asks for one here only when the
+    student opens it. The result is cached on the submission; ``?refresh=true``
+    forces a new variant. A generation failure is swallowed — the response falls
+    back to the question's stored model answer."""
+    sub = db.get(Submission, submission_id)
+    if sub is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Submission not found")
+    if user.role == UserRole.student and sub.student_id != user.id:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Submission not found")
+    if user.role == UserRole.teacher and _teacher_denied(db, user.id, sub):
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Submission not found")
+
+    q = sub.question
+    if q is None:
+        raise HTTPException(
+            status.HTTP_400_BAD_REQUEST, "This submission has no question to model."
+        )
+    # Return the cached exemplar unless a fresh variant was explicitly requested.
+    if sub.model_answer_text and not refresh:
+        return _to_out(sub)
+
+    variant_hint = str(sub.id)
+    if refresh:
+        variant_hint = f"{sub.id}-{int(datetime.now(timezone.utc).timestamp())}"
+    try:
+        text = llm.generate_model_answer(
+            question_prompt=html_to_text(q.prompt_text),
+            question_title=q.title,
+            level=q.level,
+            topic=q.topic,
+            ru_style=q.ru_style,
+            variant_hint=variant_hint,
+        ) or None
+    except Exception:  # noqa: BLE001 — best-effort; UI falls back to the stored answer
+        logger.warning("model-answer generation failed", extra={"submission_id": str(sub.id)})
+        text = None
+    if text:
+        sub.model_answer_text = text
+        db.commit()
+        db.refresh(sub)
+    return _to_out(sub)
+
+
+@router.post("/{submission_id}/retry", response_model=SubmissionOut)
+def retry_submission(
+    submission_id: uuid.UUID,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> SubmissionOut:
+    """Re-run the pipeline for a FAILED submission (used by the failed-result
+    screen). Resets it to pending, clears the error, and re-enqueues processing.
+    The worker resumes from the persisted transcript when one exists, so a retry
+    doesn't re-bill speech-to-text."""
+    sub = db.get(Submission, submission_id)
+    if sub is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Submission not found")
+    if user.role == UserRole.student and sub.student_id != user.id:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Submission not found")
+    if user.role == UserRole.teacher and _teacher_denied(db, user.id, sub):
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Submission not found")
+    if sub.status != SubmissionStatus.failed:
+        raise HTTPException(
+            status.HTTP_400_BAD_REQUEST, "Only a failed submission can be retried."
+        )
+    sub.status = SubmissionStatus.pending
+    sub.error_message = None
+    db.commit()
+    db.refresh(sub)
+    process_submission.delay(str(sub.id))
+    return _to_out(sub)
 
 
 @router.patch("/{submission_id}/feedback", response_model=SubmissionOut)

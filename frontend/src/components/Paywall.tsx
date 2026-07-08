@@ -1,9 +1,11 @@
+import { useNavigate } from "react-router-dom";
 import { useI18n } from "../lib/i18n";
 import { Button, Card, Icon, Mascot } from "./govori";
 
 /** Shown when a free student has used all their free attempts. */
 export function Paywall() {
   const { t } = useI18n();
+  const nav = useNavigate();
   const perks = [
     t("perkUnlimited"),
     t("perkAnalysis"),
@@ -58,7 +60,7 @@ export function Paywall() {
       </Card>
 
       <div className="col gap-2" style={{ marginTop: 18 }}>
-        <Button full size="lg" icon="message">
+        <Button full size="lg" icon="message" onClick={() => nav("/contact")}>
           {t("contactTeacher")}
         </Button>
       </div>

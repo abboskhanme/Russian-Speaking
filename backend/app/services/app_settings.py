@@ -22,6 +22,9 @@ _SPEC: dict[str, tuple[str, bool]] = {
     "llm_provider": ("LLM_PROVIDER", False),
     "gemini_api_key": ("GEMINI_API_KEY", True),
     "gemini_model": ("GEMINI_MODEL", False),
+    # Best-effort orthoepy AUDIO pass — an extra Gemini call per graded submission.
+    # Stored as the string "true"/"false"; toggle off to save free-tier quota.
+    "orthoepy_enabled": ("ORTHOEPY_ENABLED", False),
     "azure_openai_endpoint": ("AZURE_OPENAI_ENDPOINT", False),
     "azure_openai_api_key": ("AZURE_OPENAI_API_KEY", True),
     "azure_openai_deployment": ("AZURE_OPENAI_DEPLOYMENT", False),
@@ -39,6 +42,37 @@ _SPEC: dict[str, tuple[str, bool]] = {
 
 KEYS: list[str] = list(_SPEC)
 SECRET_KEYS: set[str] = {k for k, (_, sec) in _SPEC.items() if sec}
+
+# Curated Gemini models an admin can pick from in the UI. `gemini_model` stays
+# free text on the backend (a custom id can always be stored) — this list is only
+# a convenience dropdown with free-tier guidance. Ordered best-first.
+KNOWN_MODELS: list[dict[str, str]] = [
+    {
+        "id": "gemini-3.1-flash-lite",
+        "label": "Gemini 3.1 Flash Lite (recommended)",
+        "note": "Fast and cheap; ~500 requests/day on the free tier.",
+    },
+    {
+        "id": "gemini-2.5-flash-lite",
+        "label": "Gemini 2.5 Flash Lite",
+        "note": "Light and quick; generous free-tier limits.",
+    },
+    {
+        "id": "gemini-2.5-flash",
+        "label": "Gemini 2.5 Flash (avoid on free tier)",
+        "note": "Higher quality but only ~20 requests/day free — exhausts quickly.",
+    },
+    {
+        "id": "gemini-2.0-flash",
+        "label": "Gemini 2.0 Flash",
+        "note": "Previous-gen flash; solid free-tier limits.",
+    },
+    {
+        "id": "gemini-1.5-flash",
+        "label": "Gemini 1.5 Flash",
+        "note": "Legacy fallback; widely available.",
+    },
+]
 
 _CACHE_TTL = 30.0
 _cache: dict[str, str | None] = {}
@@ -112,6 +146,13 @@ def masked_state() -> dict[str, object]:
         else:
             out[key] = val
     return out
+
+
+def orthoepy_enabled() -> bool:
+    """Whether the best-effort orthoepy AUDIO pass runs on graded submissions.
+    Enabled unless an admin has explicitly stored "false" (the env default is a
+    bool, so accept "True"/"1"/"yes" too)."""
+    return get("orthoepy_enabled", "true").strip().lower() in ("true", "1", "yes", "on")
 
 
 def resolve_links() -> dict[str, str]:

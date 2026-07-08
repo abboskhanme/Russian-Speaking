@@ -63,6 +63,12 @@ class Settings(BaseSettings):
     GEMINI_API_KEY: str = ""
     GEMINI_MODEL: str = "gemini-2.5-flash"
 
+    # AI — Orthoepy check (separate best-effort AUDIO pass that flags words read
+    # AS SPELLED). Each graded submission it runs costs an extra Gemini call, so on
+    # a rate-limited free tier an admin can turn it off. Env DEFAULT only — an admin
+    # can override at runtime from the AI settings page.
+    ORTHOEPY_ENABLED: bool = True
+
     # AI — Azure OpenAI (preferred grader when configured). The deployment must be
     # a structured-output-capable chat model (e.g. a gpt-4o deployment).
     AZURE_OPENAI_ENDPOINT: str = ""       # https://<resource>.openai.azure.com

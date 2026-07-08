@@ -56,6 +56,10 @@ class CircuitBreaker:
 
 azure_speech_breaker = CircuitBreaker("Azure Speech")
 gemini_breaker = CircuitBreaker("Gemini")
+# Best-effort Gemini calls (orthoepy, exemplar answers) run on a SEPARATE circuit
+# so their failures can never open the grader's circuit and fail the next
+# student's analyze(). The grader must stay healthy even when these extras don't.
+gemini_besteffort_breaker = CircuitBreaker("Gemini (best-effort)")
 # LLM grader on Azure OpenAI — kept separate from Gemini's breaker so that when
 # Azure is down (and its circuit is open) the grader can still fall back to
 # Gemini, and vice-versa.

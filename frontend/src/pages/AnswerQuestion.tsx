@@ -10,6 +10,7 @@ import { AudioRecorder } from "../components/AudioRecorder";
 import { Paywall } from "../components/Paywall";
 import { RichText } from "../components/RichTextEditor";
 import {
+  Bar,
   Button,
   Card,
   Pill,
@@ -25,8 +26,12 @@ export function AnswerQuestion() {
   const { user } = useAuth();
   const nav = useNavigate();
   const [uploading, setUploading] = useState(false);
+  const [progress, setProgress] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [serverLocked, setServerLocked] = useState(false);
+  // The recorded blob is held here so a failed upload/submit NEVER loses it —
+  // the student can hit "Retry send" and re-upload the SAME audio, no re-record.
+  const [pending, setPending] = useState<{ blob: Blob; durationSec: number } | null>(null);
 
   const isPremium = !!user?.is_premium;
 
@@ -41,32 +46,51 @@ export function AnswerQuestion() {
   // server rejected the submit with 402.
   const locked = serverLocked || (!isPremium && !!q.locked);
 
-  async function handleComplete(blob: Blob, durationSec: number) {
+  // Store the blob first, THEN attempt the send. On any failure the blob stays
+  // in `pending` so it can be re-sent without re-recording.
+  function handleComplete(blob: Blob, durationSec: number) {
+    setPending({ blob, durationSec });
+    void doSend(blob, durationSec);
+  }
+
+  async function doSend(blob: Blob, durationSec: number) {
     setUploading(true);
     setError(null);
+    setProgress(0);
+    // Use the recorder's actual container (webm on Chrome, mp4 on iOS Safari…)
+    // rather than assuming webm, so the presigned upload content-type matches.
+    const contentType = blob.type || "audio/webm";
     try {
       const { data: up } = await postWithRetry<{ upload_url: string; audio_key: string }>(
         "/submissions/upload-url",
-        { question_id: q!.id, content_type: "audio/webm" },
+        { question_id: q!.id, content_type: contentType },
       );
-      await uploadToPresigned(up.upload_url, blob, "audio/webm");
+      await uploadToPresigned(up.upload_url, blob, contentType, setProgress);
       const { data: sub } = await postWithRetry<Submission>("/submissions", {
         question_id: q!.id,
         audio_key: up.audio_key,
         audio_duration_sec: durationSec,
       });
+      setPending(null);
       nav(`/submissions/${sub.id}`);
     } catch (e) {
       const status = (e as { response?: { status?: number } }).response?.status;
       // 402 = free-trial exhausted → show the paywall, not an error message.
       // 403 = task not assigned / deadline passed → specific message, not a
       // generic "couldn't send" (which reads as a technical failure to retry).
-      // 5xx / rate-limit → friendly "server problem"; anything else → send error.
-      if (status === 402) setServerLocked(true);
-      else if (status === 403) setError(t("notAssignedError"));
+      // 429 = busy → friendly "wait a moment"; 5xx → "server problem".
+      if (status === 402) {
+        setPending(null);
+        setServerLocked(true);
+      } else if (status === 403) setError(t("notAssignedError"));
       else setError(friendlyError(e, t, t("sendError")));
       setUploading(false);
     }
+  }
+
+  function discardPending() {
+    setPending(null);
+    setError(null);
   }
 
   // Topic gives the card its accent hue; falls back to the Govori orange.
@@ -171,16 +195,31 @@ export function AnswerQuestion() {
               <Loading />
               <p style={{ fontSize: 15, fontWeight: 800, color: "var(--primary-press)" }}>
                 {t("sending")}
+                {progress > 0 && ` · ${progress}%`}
               </p>
+              <div style={{ width: "100%", maxWidth: 320 }}>
+                <Bar value={progress} hue={47} />
+              </div>
+            </div>
+          ) : pending ? (
+            /* Send failed — the recording is preserved, offer a re-send that
+               re-uploads the SAME blob (no re-recording). */
+            <div className="col center gap-3" style={{ padding: "8px 0" }}>
+              {error && (
+                <p style={{ fontSize: 14, fontWeight: 700, color: "var(--danger)" }}>{error}</p>
+              )}
+              <p style={{ fontSize: 13.5, color: "var(--muted)" }}>{t("sendKeptHint")}</p>
+              <div className="row gap-3 wrap" style={{ justifyContent: "center" }}>
+                <Button variant="ghost" icon="trash" onClick={discardPending}>
+                  {t("deleteRecording")}
+                </Button>
+                <Button icon="refresh" onClick={() => doSend(pending.blob, pending.durationSec)}>
+                  {t("retrySend")}
+                </Button>
+              </div>
             </div>
           ) : (
             <AudioRecorder maxSeconds={q.answer_time_limit_sec} onComplete={handleComplete} />
-          )}
-
-          {error && (
-            <p style={{ marginTop: 14, fontSize: 14, fontWeight: 700, color: "var(--danger)" }}>
-              {error}
-            </p>
           )}
         </Card>
       )}

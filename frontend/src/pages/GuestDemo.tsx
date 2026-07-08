@@ -47,6 +47,8 @@ export function GuestDemo() {
   const [prevOverall, setPrevOverall] = useState<number | null>(null);
   const [improved, setImproved] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Preserve the recorded blob so a failed assess can be re-sent, not re-recorded.
+  const [pending, setPending] = useState<Blob | null>(null);
   // Single shared audio element so rapid taps replace playback instead of stacking.
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const [playing, setPlaying] = useState<string | null>(null);
@@ -72,19 +74,27 @@ export function GuestDemo() {
     a.play().catch(() => setPlaying(null));
   }
 
-  async function onComplete(blob: Blob) {
+  function onComplete(blob: Blob) {
+    setPending(blob);
+    void doAssess(blob);
+  }
+
+  async function doAssess(blob: Blob) {
     setStep("loading");
     setError(null);
     try {
       const { data } = await api.post<GuestResult>(
         `/guest/assess?phrase=${encodeURIComponent(phrase)}`,
         blob,
-        { headers: { "Content-Type": "audio/webm" } },
+        // Use the recorder's actual container (iOS Safari records mp4, not webm).
+        { headers: { "Content-Type": blob.type || "audio/webm" } },
       );
       setImproved(prevOverall != null && data.overall != null && data.overall > prevOverall);
+      setPending(null);
       setResult(data);
       setStep("result");
     } catch {
+      // Keep the blob in `pending` so it can be re-sent without re-recording.
       setError(t("guestNoScore"));
       setStep("record");
     }
@@ -93,6 +103,8 @@ export function GuestDemo() {
   function retry() {
     if (result?.overall != null) setPrevOverall(result.overall);
     setResult(null);
+    setPending(null);
+    setError(null);
     setImproved(false);
     setStep("record");
   }
@@ -145,8 +157,26 @@ export function GuestDemo() {
               <Button variant="ghost" size="sm" icon={playing === phrase ? "pause" : "volume"} onClick={() => playTTS(phrase)} style={{ marginBottom: 18 }}>
                 {t("guestListenSample")}
               </Button>
-              <AudioRecorder maxSeconds={30} onComplete={onComplete} />
-              {error && <p style={{ marginTop: 14, color: "var(--danger)", fontWeight: 700, fontSize: 14 }}>{error}</p>}
+              {pending ? (
+                /* Assess failed — recording preserved; re-send the SAME blob. */
+                <div className="col center gap-3">
+                  {error && <p style={{ color: "var(--danger)", fontWeight: 700, fontSize: 14 }}>{error}</p>}
+                  <p style={{ fontSize: 13.5, color: "var(--muted)" }}>{t("sendKeptHint")}</p>
+                  <div className="row center gap-3 wrap">
+                    <Button variant="ghost" icon="mic" onClick={() => { setPending(null); setError(null); }}>
+                      {t("guestRetry")}
+                    </Button>
+                    <Button icon="refresh" onClick={() => doAssess(pending)}>
+                      {t("retrySend")}
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <>
+                  <AudioRecorder maxSeconds={30} onComplete={onComplete} />
+                  {error && <p style={{ marginTop: 14, color: "var(--danger)", fontWeight: 700, fontSize: 14 }}>{error}</p>}
+                </>
+              )}
             </Card>
           )}
 

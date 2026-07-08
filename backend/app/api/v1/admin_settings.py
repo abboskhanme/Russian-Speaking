@@ -5,6 +5,8 @@ the DB, not the .env file) and choose which provider grades answers. Secrets are
 never returned to the client — only masked.
 """
 
+import time
+
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
@@ -14,17 +16,21 @@ from app.models import User
 from app.schemas.admin_settings import (
     AiSettingsOut,
     AiSettingsUpdate,
+    AiTestResult,
+    KnownModel,
     LinksOut,
     LinksUpdate,
     RevealOut,
     SecretState,
 )
-from app.services import app_settings
+from app.services import app_settings, llm
 
 router = APIRouter(prefix="/admin/settings", tags=["admin"])
 
 _PROVIDERS = {"auto", "azure", "gemini"}
 _STT_PROVIDERS = {"auto", "azure", "whisper"}
+_TRUE = {"true", "1", "yes", "on"}
+_FALSE = {"false", "0", "no", "off"}
 
 
 def _current() -> AiSettingsOut:
@@ -54,6 +60,8 @@ def _current() -> AiSettingsOut:
     return AiSettingsOut(
         llm_provider=provider,
         gemini_model=str(st["gemini_model"]),
+        orthoepy_enabled=app_settings.orthoepy_enabled(),
+        known_gemini_models=[KnownModel(**m) for m in app_settings.KNOWN_MODELS],
         azure_openai_endpoint=str(st["azure_openai_endpoint"]),
         azure_openai_deployment=str(st["azure_openai_deployment"]),
         azure_openai_api_version=str(st["azure_openai_api_version"]),
@@ -93,8 +101,45 @@ def update_ai_settings(
             status.HTTP_400_BAD_REQUEST,
             f"stt_provider must be one of {sorted(_STT_PROVIDERS)}",
         )
+    if "orthoepy_enabled" in vals and vals["orthoepy_enabled"] is not None:
+        norm = str(vals["orthoepy_enabled"]).strip().lower()
+        if norm not in _TRUE and norm not in _FALSE:
+            raise HTTPException(
+                status.HTTP_400_BAD_REQUEST,
+                "orthoepy_enabled must be 'true' or 'false'",
+            )
+        vals["orthoepy_enabled"] = "true" if norm in _TRUE else "false"
     app_settings.set_many(db, vals)
     return _current()
+
+
+@router.post("/ai/test", response_model=AiTestResult)
+def test_ai_connection(_: User = Depends(require_admin)) -> AiTestResult:
+    """Run a TINY real grader call to diagnose credential/quota problems.
+
+    Grades a 2-word dummy transcript through the live grader path (the same
+    provider selection real submissions use) and reports latency or the exact
+    error — the key tool for chasing down free-tier rate-limit failures."""
+    c = app_settings.resolve_llm()
+    azure_ready = bool(c["azure_endpoint"] and c["azure_api_key"] and c["azure_deployment"])
+    use_azure = azure_ready and c["provider"] in ("azure", "auto")
+    provider = "azure" if use_azure else "gemini"
+    model = c["azure_deployment"] if use_azure else c["gemini_model"]
+
+    t0 = time.monotonic()
+    try:
+        llm.analyze(
+            question_prompt="Тест",
+            transcript_text="привет мир",
+            level="A1",
+        )
+        latency_ms = int((time.monotonic() - t0) * 1000)
+        return AiTestResult(ok=True, provider=provider, model=model, latency_ms=latency_ms)
+    except Exception as exc:  # noqa: BLE001 — surface the raw error to the admin
+        latency_ms = int((time.monotonic() - t0) * 1000)
+        return AiTestResult(
+            ok=False, provider=provider, model=model, latency_ms=latency_ms, error=str(exc)[:500]
+        )
 
 
 @router.get("/reveal/{key}", response_model=RevealOut)

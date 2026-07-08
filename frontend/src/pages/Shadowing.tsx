@@ -8,6 +8,7 @@ import { useI18n } from "../lib/i18n";
 import type { Submission } from "../lib/types";
 import { AudioRecorder } from "../components/AudioRecorder";
 import {
+  Bar,
   Card,
   Button,
   Pill,
@@ -68,8 +69,11 @@ export function Shadowing() {
   const [groupIdx, setGroupIdx] = useState(0);
   const [phrase, setPhrase] = useState<string>("");
   const [uploading, setUploading] = useState(false);
+  const [progress, setProgress] = useState(0);
   const [speaking, setSpeaking] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Preserve the recorded blob across a failed send so it can be re-sent.
+  const [pending, setPending] = useState<{ blob: Blob; durationSec: number } | null>(null);
 
   // Teacher/admin: add a new sentence (via modal).
   const [showAdd, setShowAdd] = useState(false);
@@ -94,26 +98,40 @@ export function Shadowing() {
     phrase && group?.items.some((i) => i.text === phrase) ? phrase : group?.items[0]?.text ?? "";
   const recorderKey = useMemo(() => activePhrase, [activePhrase]); // remount per phrase
 
-  async function handleComplete(blob: Blob, durationSec: number) {
+  function handleComplete(blob: Blob, durationSec: number) {
+    setPending({ blob, durationSec });
+    void doSend(blob, durationSec);
+  }
+
+  async function doSend(blob: Blob, durationSec: number) {
     setUploading(true);
     setError(null);
+    setProgress(0);
+    const contentType = blob.type || "audio/webm";
     try {
       const { data: up } = await postWithRetry<{ upload_url: string; audio_key: string }>(
         "/submissions/shadow/upload-url",
-        { content_type: "audio/webm" },
+        { content_type: contentType },
       );
-      await uploadToPresigned(up.upload_url, blob, "audio/webm");
+      await uploadToPresigned(up.upload_url, blob, contentType, setProgress);
       const { data: sub } = await postWithRetry<Submission>("/submissions/shadow", {
         audio_key: up.audio_key,
         reference_text: activePhrase,
         audio_duration_sec: durationSec,
       });
+      setPending(null);
       nav(`/submissions/${sub.id}`);
     } catch (e) {
-      // 5xx / rate-limit → calm "server problem"; anything else → send error.
+      // 429 → "busy"; 5xx → "server problem"; anything else → send error.
+      // The blob stays in `pending` so the student can re-send it.
       setError(friendlyError(e, t, t("sendError")));
       setUploading(false);
     }
+  }
+
+  function discardPending() {
+    setPending(null);
+    setError(null);
   }
 
   function handleListen() {
@@ -122,7 +140,7 @@ export function Shadowing() {
     window.setTimeout(() => setSpeaking(false), 1800);
   }
 
-  if (uploading || isLoading) return <Loading full />;
+  if (isLoading) return <Loading full />;
 
   return (
     <div className="col gap-5 focus-wrap">
@@ -291,14 +309,37 @@ export function Shadowing() {
                 <Icon name="mic" size={16} />
                 {t("shadowRepeat")}
               </p>
-              <AudioRecorder key={recorderKey} maxSeconds={30} onComplete={handleComplete} />
+              {uploading ? (
+                <div className="col center gap-3" style={{ padding: "16px 0" }}>
+                  <Loading />
+                  <p style={{ fontSize: 15, fontWeight: 800, color: "var(--primary-press)" }}>
+                    {t("sending")}
+                    {progress > 0 && ` · ${progress}%`}
+                  </p>
+                  <div style={{ width: "100%", maxWidth: 320 }}>
+                    <Bar value={progress} hue={47} />
+                  </div>
+                </div>
+              ) : pending ? (
+                /* Send failed — recording preserved; re-send the SAME blob. */
+                <div className="col center gap-3" style={{ padding: "8px 0" }}>
+                  {error && (
+                    <p style={{ fontSize: 14, fontWeight: 700, color: "var(--danger)" }}>{error}</p>
+                  )}
+                  <p style={{ fontSize: 13.5, color: "var(--muted)" }}>{t("sendKeptHint")}</p>
+                  <div className="row gap-3 wrap" style={{ justifyContent: "center" }}>
+                    <Button variant="ghost" icon="trash" onClick={discardPending}>
+                      {t("deleteRecording")}
+                    </Button>
+                    <Button icon="refresh" onClick={() => doSend(pending.blob, pending.durationSec)}>
+                      {t("retrySend")}
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <AudioRecorder key={recorderKey} maxSeconds={30} onComplete={handleComplete} />
+              )}
             </div>
-
-            {error && (
-              <p style={{ marginTop: 12, fontSize: 14, fontWeight: 700, color: "var(--danger)" }}>
-                {error}
-              </p>
-            )}
           </Card>
         ) : (
           <Card style={{ textAlign: "center", color: "var(--muted)" }}>{t("shadowNoPhrases")}</Card>

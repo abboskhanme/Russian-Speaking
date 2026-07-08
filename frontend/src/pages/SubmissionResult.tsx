@@ -25,6 +25,10 @@ import { RichText } from "../components/RichTextEditor";
 
 const BAND_OPTIONS = Array.from({ length: 21 }, (_, i) => i * 5); // 0, 5 … 100
 
+// Cap the pending/processing poll so a stuck submission doesn't spin forever
+// behind a fake progress bar — after this we show a "taking longer" state.
+const POLL_TIMEOUT_MS = 3 * 60 * 1000; // ~90 polls at 2s
+
 // Hue per correction type so each tag reads at a glance.
 function corrHue(type: string): number {
   switch (type) {
@@ -221,18 +225,26 @@ export function SubmissionResult() {
   const [celebrate, setCelebrate] = useState(false);
   const celebratedRef = useRef(false);
   const [explanation, setExplanation] = useState<ExplainResult | null>(null);
+  // Polling watchdog: stop the 2s poll after POLL_TIMEOUT_MS and surface a
+  // manual refresh instead of an endless spinner. `pollNonce` restarts the
+  // window on a manual refresh / retry.
+  const [timedOut, setTimedOut] = useState(false);
+  const [pollNonce, setPollNonce] = useState(0);
 
   // Teacher feedback local state
   const [comment, setComment] = useState("");
   const [bandStr, setBandStr] = useState("");
   const [savedFlash, setSavedFlash] = useState(false);
 
-  const { data: sub } = useQuery({
+  const { data: sub, refetch } = useQuery({
     queryKey: ["submission", id],
     queryFn: async () => (await api.get<Submission>(`/submissions/${id}`)).data,
     refetchInterval: (q) => {
       const s = q.state.data?.status;
-      return s === "pending" || s === "processing" ? 2000 : false;
+      const processing = s === "pending" || s === "processing";
+      // Stop polling once the watchdog has fired — the UI switches to a manual
+      // "refresh" state rather than polling indefinitely.
+      return processing && !timedOut ? 2000 : false;
     },
   });
 
@@ -247,6 +259,38 @@ export function SubmissionResult() {
       (await api.post<ExplainResult>(`/submissions/${sub!.id}/explain`)).data,
     onSuccess: (data) => setExplanation(data),
   });
+
+  // Re-run a FAILED submission through the pipeline. Returns the submission with
+  // status back to pending/processing, so polling picks up again.
+  const retryMut = useMutation({
+    mutationFn: async () => (await api.post<Submission>(`/submissions/${sub!.id}/retry`)).data,
+    onSuccess: (data) => {
+      qc.setQueryData(["submission", id], data);
+      setTimedOut(false);
+      setPollNonce((n) => n + 1); // restart the poll watchdog window
+    },
+  });
+
+  // Manual "refresh" for the timeout state: reset the watchdog and refetch once.
+  function manualRefresh() {
+    setTimedOut(false);
+    setPollNonce((n) => n + 1);
+    refetch();
+  }
+
+  // Watchdog: while processing, arm a one-shot timer; when it fires we flip
+  // `timedOut` which stops polling and shows the "taking longer" UI. Re-arms on
+  // status change or a manual refresh/retry (pollNonce).
+  useEffect(() => {
+    const st = sub?.status;
+    const isProc = st === "pending" || st === "processing";
+    if (!isProc) {
+      setTimedOut(false);
+      return;
+    }
+    const tmr = window.setTimeout(() => setTimedOut(true), POLL_TIMEOUT_MS);
+    return () => window.clearTimeout(tmr);
+  }, [sub?.status, pollNonce]);
 
   // Initialize feedback fields once the submission loads.
   useEffect(() => {
@@ -295,12 +339,30 @@ export function SubmissionResult() {
         style={{ maxWidth: 520, marginInline: "auto", paddingTop: 24 }}
       >
         <Card style={{ textAlign: "center", padding: 40 }}>
-          <Mascot size={96} mood="thinking" />
-          <h3 style={{ fontSize: 21, marginTop: 10 }}>{t("analyzing")}</h3>
-          <p style={{ color: "var(--muted)", fontSize: 14, marginTop: 6 }}>{t("analyzingHint")}</p>
-          <div style={{ maxWidth: 280, margin: "22px auto 0" }}>
-            <Bar value={66} hue={47} />
-          </div>
+          {timedOut ? (
+            <>
+              <Mascot size={96} mood="sleepy" float={false} />
+              <h3 style={{ fontSize: 21, marginTop: 10 }}>{t("takingLong")}</h3>
+              <p style={{ color: "var(--muted)", fontSize: 14, marginTop: 6 }}>{t("takingLongHint")}</p>
+              <div className="row center gap-3 wrap" style={{ marginTop: 22 }}>
+                <Button variant="ghost" icon="chevL" onClick={() => nav(-1)}>
+                  {t("back")}
+                </Button>
+                <Button icon="refresh" onClick={manualRefresh}>
+                  {t("refresh")}
+                </Button>
+              </div>
+            </>
+          ) : (
+            <>
+              <Mascot size={96} mood="thinking" />
+              <h3 style={{ fontSize: 21, marginTop: 10 }}>{t("analyzing")}</h3>
+              <p style={{ color: "var(--muted)", fontSize: 14, marginTop: 6 }}>{t("analyzingHint")}</p>
+              <div style={{ maxWidth: 280, margin: "22px auto 0" }}>
+                <Bar value={66} hue={47} />
+              </div>
+            </>
+          )}
         </Card>
       </div>
     );
@@ -321,12 +383,29 @@ export function SubmissionResult() {
           {/* Never surface the raw backend exception (e.g. AI quota / upstream
               error) — show a calm "server problem, contact admin" note instead. */}
           <p style={{ fontSize: 14, color: "var(--muted)", marginTop: 4 }}>{t("serverError")}</p>
-          <div style={{ marginTop: 18 }}>
+          {retryMut.isError && (
+            <p style={{ fontSize: 13.5, fontWeight: 700, color: "var(--danger)", marginTop: 8 }}>
+              {t("retryError")}
+            </p>
+          )}
+          <div className="row center gap-3 wrap" style={{ marginTop: 18 }}>
             <Button variant="ghost" icon="chevL" onClick={() => nav(-1)}>
               {t("back")}
             </Button>
+            {/* Re-run the pipeline; on success polling resumes automatically. */}
+            <Button icon="refresh" onClick={() => retryMut.mutate()} disabled={retryMut.isPending}>
+              {retryMut.isPending ? "…" : t("tryAgain")}
+            </Button>
           </div>
         </Card>
+
+        {/* STT may have succeeded even though the LLM step failed — keep the
+            transcript visible instead of throwing the student's words away. */}
+        {sub.transcript?.text && (
+          <div style={{ marginTop: 16 }}>
+            <TranscriptCard transcript={sub.transcript} />
+          </div>
+        )}
       </div>
     );
   }
@@ -455,13 +534,23 @@ export function SubmissionResult() {
       {!ev && processing && (
         <Card style={{ marginBottom: 18 }}>
           <div className="row gap-4" style={{ alignItems: "center" }}>
-            <Mascot size={56} mood="thinking" float={false} />
+            <Mascot size={56} mood={timedOut ? "sleepy" : "thinking"} float={false} />
             <div className="col gap-1" style={{ flex: 1 }}>
-              <h3 style={{ fontSize: 18 }}>{t("analyzing")}</h3>
-              <p style={{ color: "var(--muted)", fontSize: 14, margin: 0 }}>{t("analyzingFeedback")}</p>
-              <div style={{ maxWidth: 320, marginTop: 10 }}>
-                <Bar value={66} hue={47} />
-              </div>
+              <h3 style={{ fontSize: 18 }}>{timedOut ? t("takingLong") : t("analyzing")}</h3>
+              <p style={{ color: "var(--muted)", fontSize: 14, margin: 0 }}>
+                {timedOut ? t("takingLongHint") : t("analyzingFeedback")}
+              </p>
+              {timedOut ? (
+                <div style={{ marginTop: 12 }}>
+                  <Button size="sm" icon="refresh" onClick={manualRefresh}>
+                    {t("refresh")}
+                  </Button>
+                </div>
+              ) : (
+                <div style={{ maxWidth: 320, marginTop: 10 }}>
+                  <Bar value={66} hue={47} />
+                </div>
+              )}
             </div>
           </div>
         </Card>
