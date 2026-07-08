@@ -1219,3 +1219,231 @@ export function EmptyState({ text, mood = "sleepy" }: { text: string; mood?: Moo
     </Card>
   );
 }
+
+/* ============================================================
+   MANAGEMENT PRIMITIVES — neutral, minimal, professional.
+   Shared by every admin & teacher screen so the back-office
+   reads as one calm, consistent system (no color noise, no
+   mascots): StatTile, Toolbar, SearchInput, DataTable.
+   ============================================================ */
+
+/* ---------------- Stat tile (monochrome KPI) ----------------
+   Low-noise metric card: big ink number, faint outline icon, a
+   muted caption, and an optional trend delta. Neutral by design
+   — use `accent` only to flag a number that needs attention. */
+export function StatTile({
+  value,
+  label,
+  icon,
+  hint,
+  delta,
+  accent = "neutral",
+  onClick,
+}: {
+  value: ReactNode;
+  label: ReactNode;
+  icon?: IconName;
+  hint?: ReactNode;
+  delta?: { dir: "up" | "down"; text: ReactNode };
+  accent?: "neutral" | "warn" | "danger" | "success";
+  onClick?: () => void;
+}) {
+  const accents: Record<string, string> = {
+    neutral: "var(--ink)",
+    warn: "oklch(0.55 0.15 60)",
+    danger: "var(--danger)",
+    success: "var(--success)",
+  };
+  const dColor = delta?.dir === "down" ? "var(--danger)" : "var(--success)";
+  return (
+    <Card pad={20} hover={!!onClick} onClick={onClick}>
+      <div className="row between" style={{ alignItems: "flex-start" }}>
+        <div
+          style={{
+            fontFamily: "var(--font-display)",
+            fontWeight: 800,
+            fontSize: 30,
+            lineHeight: 1,
+            color: accents[accent],
+          }}
+        >
+          {value}
+        </div>
+        {icon && <Icon name={icon} size={20} style={{ color: "var(--faint)" }} />}
+      </div>
+      <div className="row between" style={{ marginTop: 10, alignItems: "center", gap: 8 }}>
+        <div style={{ fontSize: 13, color: "var(--muted)", fontWeight: 600 }}>{label}</div>
+        {delta && (
+          <span className="row" style={{ gap: 3, fontSize: 12, fontWeight: 800, color: dColor }}>
+            <Icon name={delta.dir === "down" ? "arrowDown" : "arrowUp"} size={13} sw={2.6} />
+            {delta.text}
+          </span>
+        )}
+      </div>
+      {hint && <div style={{ fontSize: 12, color: "var(--faint)", marginTop: 4 }}>{hint}</div>}
+    </Card>
+  );
+}
+
+/* ---------------- Search input ---------------- */
+export function SearchInput({
+  value,
+  onChange,
+  placeholder,
+  width = 260,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  placeholder?: string;
+  width?: number | string;
+}) {
+  return (
+    <div style={{ position: "relative", width, maxWidth: "100%" }}>
+      <Icon
+        name="search"
+        size={17}
+        style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", color: "var(--faint)" }}
+      />
+      <input
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={placeholder}
+        style={{ ...inp, paddingLeft: 36, height: 40 }}
+      />
+      {value && (
+        <button
+          type="button"
+          onClick={() => onChange("")}
+          aria-label="clear"
+          className="tap"
+          style={{ position: "absolute", right: 6, top: "50%", transform: "translateY(-50%)", border: "none", background: "transparent", cursor: "pointer", color: "var(--faint)", padding: 6, display: "flex" }}
+        >
+          <Icon name="x" size={15} sw={2.4} />
+        </button>
+      )}
+    </div>
+  );
+}
+
+/* ---------------- Toolbar (list-page header row) ----------------
+   A left cluster (usually a search box + filters) and a right
+   cluster (primary actions), wrapping cleanly on narrow screens. */
+export function Toolbar({ left, right }: { left?: ReactNode; right?: ReactNode }) {
+  return (
+    <div className="row between wrap gap-3" style={{ marginBottom: 16, alignItems: "center" }}>
+      <div className="row wrap gap-2" style={{ alignItems: "center", minWidth: 0 }}>{left}</div>
+      <div className="row wrap gap-2" style={{ alignItems: "center" }}>{right}</div>
+    </div>
+  );
+}
+
+/* ---------------- Data table ----------------
+   One professional table used across the whole back-office so
+   every list reads the same: quiet uppercase header, comfortable
+   row rhythm, right-aligned numerics, hover + click affordance,
+   and horizontal scroll instead of a broken layout on mobile.
+   Columns render straight from typed rows. */
+export interface Column<T> {
+  /** Stable id; also the default cell value key when `render` is omitted. */
+  key: string;
+  header: ReactNode;
+  render?: (row: T, index: number) => ReactNode;
+  align?: "left" | "center" | "right";
+  width?: number | string;
+  /** Collapse this column on small screens to keep the table readable. */
+  hideSm?: boolean;
+}
+
+export function DataTable<T>({
+  columns,
+  rows,
+  rowKey,
+  onRowClick,
+  empty,
+  dense,
+  minWidth = 640,
+}: {
+  columns: Column<T>[];
+  rows: T[];
+  rowKey: (row: T, index: number) => string;
+  onRowClick?: (row: T) => void;
+  empty?: ReactNode;
+  dense?: boolean;
+  minWidth?: number;
+}) {
+  const cellPad = dense ? "9px 12px" : "13px 14px";
+  if (!rows.length) {
+    return (
+      <Card pad={0}>
+        <div className="col center" style={{ padding: 40, color: "var(--muted)", fontSize: 14.5, textAlign: "center" }}>
+          {empty ?? "—"}
+        </div>
+      </Card>
+    );
+  }
+  return (
+    <Card pad={0} style={{ overflow: "hidden" }}>
+      <div style={{ overflowX: "auto" }}>
+        <table style={{ width: "100%", borderCollapse: "collapse", minWidth }}>
+          <thead>
+            <tr>
+              {columns.map((c) => (
+                <th
+                  key={c.key}
+                  className={c.hideSm ? "hide-sm" : undefined}
+                  style={{
+                    textAlign: c.align ?? "left",
+                    padding: cellPad,
+                    width: c.width,
+                    fontSize: 11.5,
+                    fontWeight: 800,
+                    letterSpacing: "0.04em",
+                    textTransform: "uppercase",
+                    color: "var(--faint)",
+                    borderBottom: "1px solid var(--line)",
+                    whiteSpace: "nowrap",
+                    background: "var(--surface-2)",
+                  }}
+                >
+                  {c.header}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((row, i) => (
+              <tr
+                key={rowKey(row, i)}
+                onClick={onRowClick ? () => onRowClick(row) : undefined}
+                className={onRowClick ? "tap" : undefined}
+                style={{
+                  cursor: onRowClick ? "pointer" : "default",
+                  transition: "background .12s",
+                }}
+                onMouseEnter={(e) => onRowClick && (e.currentTarget.style.background = "var(--surface-2)")}
+                onMouseLeave={(e) => (e.currentTarget.style.background = "")}
+              >
+                {columns.map((c) => (
+                  <td
+                    key={c.key}
+                    className={c.hideSm ? "hide-sm" : undefined}
+                    style={{
+                      textAlign: c.align ?? "left",
+                      padding: cellPad,
+                      fontSize: 14,
+                      color: "var(--ink)",
+                      borderBottom: i === rows.length - 1 ? "none" : "1px solid var(--line)",
+                      verticalAlign: "middle",
+                    }}
+                  >
+                    {c.render ? c.render(row, i) : (row as Record<string, ReactNode>)[c.key]}
+                  </td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </Card>
+  );
+}
