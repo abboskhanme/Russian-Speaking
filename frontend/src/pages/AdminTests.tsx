@@ -2,7 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { api } from "../lib/api";
 import { useI18n } from "../lib/i18n";
 import type { Question } from "../lib/types";
-import { EmptyState, Loading, PageHead } from "../components/govori";
+import { Loading, PageHead } from "../components/govori";
 import { TestsTable } from "../components/TestsTable";
 
 export function AdminTests() {
@@ -15,15 +15,9 @@ export function AdminTests() {
 
   return (
     <div className="focus-wrap">
-      <PageHead title={t("allTestsTitle")} />
+      <PageHead title={t("allTestsTitle")} sub={t("allTestsHint")} />
 
-      {isLoading ? (
-        <Loading />
-      ) : !data?.length ? (
-        <EmptyState text={t("noTests")} />
-      ) : (
-        <TestsTable questions={data} showTeacher />
-      )}
+      {isLoading ? <Loading /> : <TestsTable questions={data ?? []} showTeacher />}
     </div>
   );
 }

@@ -10,20 +10,10 @@ import {
   PageHead,
   Pill,
   SectionTitle,
+  StatTile,
   bandColor,
   type IconName,
 } from "./govori";
-
-function Stat({ label, value, color = "var(--ink)" }: { label: string; value: string; color?: string }) {
-  return (
-    <Card style={{ textAlign: "center", padding: "14px 10px" }}>
-      <div style={{ fontFamily: "var(--font-display)", fontWeight: 800, fontSize: 24, color }}>
-        {value}
-      </div>
-      <div style={{ fontSize: 12, color: "var(--muted)", fontWeight: 600, marginTop: 2 }}>{label}</div>
-    </Card>
-  );
-}
 
 function ContactRow({ icon, label, value }: { icon: IconName; label: string; value: string }) {
   return (
@@ -98,20 +88,20 @@ export function StudentDetailView({
         }
       />
 
-      {/* Stats — neutral; only the score is tinted by performance */}
+      {/* Stats — neutral, monochrome KPIs (consistent with the rest of the back-office) */}
       <div className="g4" style={{ marginBottom: 20 }}>
-        <Stat label={t("attempts")} value={String(s.attempts)} />
-        <Stat
+        <StatTile label={t("attempts")} value={s.attempts} icon="mic" />
+        <StatTile
           label={t("avgScore")}
-          value={s.avg_band != null ? String(Math.round(s.avg_band)) : "—"}
-          color={s.avg_band != null ? `oklch(0.5 0.15 ${bandColor(s.avg_band)})` : "var(--ink)"}
+          value={s.avg_band != null ? Math.round(s.avg_band) : "—"}
+          icon="chart"
         />
-        <Stat
+        <StatTile
           label={t("bestScore")}
-          value={s.best_band != null ? String(Math.round(s.best_band)) : "—"}
-          color={s.best_band != null ? `oklch(0.5 0.15 ${bandColor(s.best_band)})` : "var(--ink)"}
+          value={s.best_band != null ? Math.round(s.best_band) : "—"}
+          icon="star"
         />
-        <Stat label="XP" value={String(s.xp)} />
+        <StatTile label="XP" value={s.xp} icon="flame" />
       </div>
 
       <div className="col gap-5">

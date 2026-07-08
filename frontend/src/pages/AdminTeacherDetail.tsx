@@ -6,13 +6,13 @@ import type { AdminTeacher, Group, Question, StudentManage } from "../lib/types"
 import {
   Avatar,
   Button,
-  Card,
-  EmptyState,
+  DataTable,
   Icon,
   Loading,
   PageHead,
   Pill,
   SectionTitle,
+  type Column,
 } from "../components/govori";
 
 /** Admin drill-down into one teacher: their groups, students and tests —
@@ -48,6 +48,101 @@ export function AdminTeacherDetail() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ["admin-teacher-students", id] }),
   });
 
+  const groupCols: Column<Group>[] = [
+    {
+      key: "name",
+      header: t("colName"),
+      render: (g) => <span style={{ fontWeight: 800, fontSize: 15 }}>{g.name}</span>,
+    },
+    {
+      key: "join",
+      header: t("joinCode"),
+      hideSm: true,
+      render: (g) => <span className="mono" style={{ color: "var(--ink-soft)" }}>{g.join_code}</span>,
+    },
+    {
+      key: "members",
+      header: t("members"),
+      align: "right",
+      render: (g) => (
+        <span className="row gap-2" style={{ justifyContent: "flex-end", color: "var(--muted)" }}>
+          <span className="mono">{g.member_count}</span>
+          <Icon name="chevR" size={16} style={{ color: "var(--muted)" }} />
+        </span>
+      ),
+    },
+  ];
+
+  const studentCols: Column<StudentManage>[] = [
+    {
+      key: "name",
+      header: t("colName"),
+      render: (s) => (
+        <div className="row gap-3" style={{ minWidth: 0 }}>
+          <Avatar name={s.full_name} size={34} />
+          <div className="col" style={{ minWidth: 0 }}>
+            <span className="truncate" style={{ fontWeight: 700, fontSize: 14 }}>
+              {s.full_name}
+            </span>
+            <span className="truncate" style={{ fontSize: 12, color: "var(--muted)" }}>
+              {s.email}
+            </span>
+          </div>
+        </div>
+      ),
+    },
+    {
+      key: "actions",
+      header: t("colActions"),
+      align: "right",
+      render: (s) => (
+        <div
+          className="row gap-2 wrap"
+          style={{ justifyContent: "flex-end", alignItems: "center" }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          {s.is_premium && (
+            <Pill hue={70} size="sm" icon="sparkles">
+              {t("premium")}
+            </Pill>
+          )}
+          <Button size="sm" variant="ghost" icon="sparkles" onClick={() => premium.mutate(s)}>
+            {s.is_premium ? t("revokePremium") : t("grantPremium")}
+          </Button>
+        </div>
+      ),
+    },
+  ];
+
+  const testCols: Column<Question>[] = [
+    {
+      key: "title",
+      header: t("colName"),
+      render: (q) => <span className="truncate" style={{ fontWeight: 700, fontSize: 14 }}>{q.title}</span>,
+    },
+    {
+      key: "visibility",
+      header: t("colStatus"),
+      render: (q) => (
+        <Pill hue={q.is_public ? 200 : 305} size="sm">
+          {q.is_public ? t("taskOpenShort") : t("taskAssignedShort")}
+        </Pill>
+      ),
+    },
+    {
+      key: "actions",
+      header: t("colActions"),
+      align: "right",
+      render: (q) => (
+        <div className="row" style={{ justifyContent: "flex-end" }} onClick={(e) => e.stopPropagation()}>
+          <Button size="sm" variant="ghost" icon="edit" onClick={() => nav(`/teacher/questions/${q.id}/edit`)}>
+            {t("edit")}
+          </Button>
+        </div>
+      ),
+    },
+  ];
+
   return (
     <div className="focus-wrap">
       <div className="row" style={{ marginBottom: 16 }}>
@@ -72,134 +167,40 @@ export function AdminTeacherDetail() {
         <Loading />
       ) : (
         <div className="col gap-5">
-          {/* Groups */}
-          <Card>
+          <section className="col gap-3">
             <SectionTitle>{t("navGroups")}</SectionTitle>
-            {!groups?.length ? (
-              <EmptyState text={t("noGroups")} />
-            ) : (
-              <div className="col gap-2">
-                {groups.map((g) => (
-                  <button
-                    key={g.id}
-                    className="tap row between"
-                    onClick={() => nav(`/teacher/groups/${g.id}`)}
-                    style={{
-                      width: "100%",
-                      textAlign: "left",
-                      padding: "12px 14px",
-                      borderRadius: "var(--r-sm)",
-                      border: "1px solid var(--line)",
-                      background: "var(--surface)",
-                      cursor: "pointer",
-                    }}
-                  >
-                    <div className="col" style={{ minWidth: 0 }}>
-                      <span style={{ fontWeight: 800, fontSize: 15 }}>{g.name}</span>
-                      <span style={{ fontSize: 12.5, color: "var(--muted)" }}>
-                        {t("joinCode")}: {g.join_code} · {g.member_count} {t("members")}
-                      </span>
-                    </div>
-                    <Icon name="chevR" size={18} style={{ color: "var(--muted)" }} />
-                  </button>
-                ))}
-              </div>
-            )}
-          </Card>
+            <DataTable
+              columns={groupCols}
+              rows={groups ?? []}
+              rowKey={(g) => g.id}
+              onRowClick={(g) => nav(`/teacher/groups/${g.id}`)}
+              minWidth={480}
+              empty={t("noGroups")}
+            />
+          </section>
 
-          {/* Students (roster) */}
-          <Card>
+          <section className="col gap-3">
             <SectionTitle>{t("tabStudents")}</SectionTitle>
-            {!students?.length ? (
-              <EmptyState text={t("noStudents")} />
-            ) : (
-              <div className="col gap-2">
-                {students.map((s) => (
-                  <div
-                    key={s.id}
-                    className="tap row between gap-3"
-                    onClick={() => nav(`/admin/students/${s.id}`)}
-                    style={{
-                      padding: "10px 12px",
-                      borderRadius: "var(--r-sm)",
-                      border: "1px solid var(--line)",
-                      background: "var(--surface)",
-                      cursor: "pointer",
-                    }}
-                  >
-                    <div className="row gap-3" style={{ minWidth: 0 }}>
-                      <Avatar name={s.full_name} size={34} />
-                      <div className="col" style={{ minWidth: 0 }}>
-                        <span className="truncate" style={{ fontWeight: 700, fontSize: 14 }}>
-                          {s.full_name}
-                        </span>
-                        <span className="truncate" style={{ fontSize: 12, color: "var(--muted)" }}>
-                          {s.email}
-                        </span>
-                      </div>
-                    </div>
-                    <div className="row gap-2" style={{ alignItems: "center" }}>
-                      <div
-                        className="row gap-2 wrap"
-                        style={{ justifyContent: "flex-end" }}
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        {s.is_premium && (
-                          <Pill hue={70} size="sm" icon="sparkles">
-                            {t("premium")}
-                          </Pill>
-                        )}
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          icon="sparkles"
-                          onClick={() => premium.mutate(s)}
-                        >
-                          {s.is_premium ? t("revokePremium") : t("grantPremium")}
-                        </Button>
-                      </div>
-                      <Icon name="chevR" size={18} style={{ color: "var(--muted)" }} />
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </Card>
+            <DataTable
+              columns={studentCols}
+              rows={students ?? []}
+              rowKey={(s) => s.id}
+              onRowClick={(s) => nav(`/admin/students/${s.id}`)}
+              minWidth={480}
+              empty={t("noStudents")}
+            />
+          </section>
 
-          {/* Tests */}
-          <Card>
+          <section className="col gap-3">
             <SectionTitle>{t("navTests")}</SectionTitle>
-            {!tests?.length ? (
-              <EmptyState text={t("noTests")} />
-            ) : (
-              <div className="col gap-2">
-                {tests.map((q) => (
-                  <div
-                    key={q.id}
-                    className="row between gap-3"
-                    style={{ padding: "8px 4px", borderBottom: "1px solid var(--line)" }}
-                  >
-                    <span className="truncate" style={{ fontWeight: 700, fontSize: 14 }}>
-                      {q.title}
-                    </span>
-                    <div className="row gap-2 wrap" style={{ justifyContent: "flex-end" }}>
-                      <Pill hue={q.is_public ? 200 : 305} size="sm">
-                        {q.is_public ? t("taskOpenShort") : t("taskAssignedShort")}
-                      </Pill>
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        icon="edit"
-                        onClick={() => nav(`/teacher/questions/${q.id}/edit`)}
-                      >
-                        {t("edit")}
-                      </Button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </Card>
+            <DataTable
+              columns={testCols}
+              rows={tests ?? []}
+              rowKey={(q) => q.id}
+              minWidth={480}
+              empty={t("noTests")}
+            />
+          </section>
         </div>
       )}
     </div>

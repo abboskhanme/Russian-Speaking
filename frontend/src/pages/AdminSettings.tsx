@@ -1,10 +1,10 @@
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "../lib/api";
 import { useI18n } from "../lib/i18n";
-import type { AiSettings, SecretState } from "../lib/types";
+import type { AiSettings, AiTestResult, SecretState } from "../lib/types";
 import type { OutboundLinks } from "../lib/contact";
-import { Button, Card, Field, Icon, Loading, PageHead, inp } from "../components/govori";
+import { Button, Card, Field, Icon, Loading, PageHead, SectionTitle, Toggle, inp } from "../components/govori";
 
 export function AdminSettings() {
   const { t } = useI18n();
@@ -125,6 +125,11 @@ function StatusBadge({ ok, label }: { ok: boolean; label: string }) {
   );
 }
 
+/** A short hint line under a field. */
+function Hint({ children }: { children: ReactNode }) {
+  return <span style={{ fontSize: 12.5, color: "var(--faint)", lineHeight: 1.5 }}>{children}</span>;
+}
+
 function SaveRow({ dirty, pending, saved, error, t }: { dirty: boolean; pending: boolean; saved: boolean; error: boolean; t: (k: string) => string }) {
   return (
     <div className="row gap-3" style={{ alignItems: "center" }}>
@@ -133,6 +138,73 @@ function SaveRow({ dirty, pending, saved, error, t }: { dirty: boolean; pending:
       </Button>
       {saved && <span style={{ color: "var(--primary-press)", fontWeight: 700 }}>{t("savedOk")}</span>}
       {error && <span style={{ color: "var(--danger)", fontWeight: 700 }}>{t("registerError")}</span>}
+    </div>
+  );
+}
+
+/** Live grader connectivity test — the key diagnostic for rate-limit problems. */
+function TestConnection() {
+  const { t } = useI18n();
+  const test = useMutation({
+    mutationFn: async () => (await api.post<AiTestResult>("/admin/settings/ai/test")).data,
+  });
+  const r = test.data;
+
+  return (
+    <div className="col gap-3">
+      <div className="row between wrap gap-3" style={{ alignItems: "center" }}>
+        <span style={{ fontSize: 15, fontWeight: 800 }}>{t("testConn")}</span>
+        <Button variant="soft" icon="refresh" onClick={() => test.mutate()} disabled={test.isPending}>
+          {test.isPending ? t("testConnRunning") : t("testConn")}
+        </Button>
+      </div>
+
+      {r && (
+        <div
+          className="col gap-2"
+          style={{
+            padding: "12px 14px",
+            borderRadius: "var(--r-sm)",
+            border: `1px solid ${r.ok ? "var(--success)" : "var(--danger)"}`,
+            background: r.ok ? "oklch(0.95 0.05 152 / 0.5)" : "var(--danger-tint)",
+          }}
+        >
+          <div className="row gap-2 wrap" style={{ alignItems: "center" }}>
+            <span
+              className="row gap-1"
+              style={{
+                alignItems: "center",
+                fontSize: 13,
+                fontWeight: 800,
+                padding: "4px 10px",
+                borderRadius: 999,
+                color: "#fff",
+                background: r.ok ? "var(--success)" : "var(--danger)",
+              }}
+            >
+              <Icon name={r.ok ? "check" : "x"} size={14} sw={2.6} />
+              {r.ok ? t("testConnOk") : t("testConnFail")}
+            </span>
+            <span style={{ fontSize: 13, color: "var(--ink-soft)" }}>
+              <b>{t("testConnProvider")}:</b> {r.provider || "—"}
+            </span>
+            <span style={{ fontSize: 13, color: "var(--ink-soft)" }}>
+              <b>{t("testConnModel")}:</b> {r.model || "—"}
+            </span>
+            <span className="mono" style={{ fontSize: 13, color: "var(--ink-soft)" }}>
+              <b>{t("testConnLatency")}:</b> {r.latency_ms} ms
+            </span>
+          </div>
+          {!r.ok && r.error && (
+            <span className="mono" style={{ fontSize: 12.5, color: "var(--danger)", wordBreak: "break-word" }}>
+              {r.error}
+            </span>
+          )}
+        </div>
+      )}
+      {test.isError && (
+        <span style={{ fontSize: 13, fontWeight: 700, color: "var(--danger)" }}>{t("testConnFail")}</span>
+      )}
     </div>
   );
 }
@@ -146,6 +218,7 @@ interface AiForm {
   azure_openai_deployment: string;
   azure_openai_api_version: string;
   azure_openai_api_key: string;
+  orthoepy_enabled: boolean;
   stt_provider: string;
   azure_speech_region: string;
   whisper_model: string;
@@ -158,6 +231,7 @@ type SecretKey = "gemini_api_key" | "azure_openai_api_key" | "azure_speech_key" 
 function AiSection({ data }: { data: AiSettings }) {
   const { t } = useI18n();
   const qc = useQueryClient();
+  const known = data.known_gemini_models ?? [];
   const [form, setForm] = useState<AiForm>({
     llm_provider: data.llm_provider,
     gemini_model: data.gemini_model,
@@ -166,12 +240,15 @@ function AiSection({ data }: { data: AiSettings }) {
     azure_openai_deployment: data.azure_openai_deployment,
     azure_openai_api_version: data.azure_openai_api_version,
     azure_openai_api_key: "",
+    orthoepy_enabled: data.orthoepy_enabled,
     stt_provider: data.stt_provider,
     azure_speech_region: data.azure_speech_region,
     whisper_model: data.whisper_model,
     azure_speech_key: "",
     openai_api_key: "",
   });
+  // Model picker: "custom" reveals the free-text input for any new/unknown id.
+  const [customModel, setCustomModel] = useState(() => !known.some((m) => m.id === data.gemini_model));
   // Baseline for each secret: "" normally, or the revealed value (so a reveal
   // isn't treated as an edit). A secret is "changed" iff form !== baseline.
   const [baseline, setBaseline] = useState<Record<SecretKey, string>>({
@@ -188,6 +265,7 @@ function AiSection({ data }: { data: AiSettings }) {
     form.azure_openai_endpoint !== data.azure_openai_endpoint ||
     form.azure_openai_deployment !== data.azure_openai_deployment ||
     form.azure_openai_api_version !== data.azure_openai_api_version ||
+    form.orthoepy_enabled !== data.orthoepy_enabled ||
     form.stt_provider !== data.stt_provider ||
     form.azure_speech_region !== data.azure_speech_region ||
     form.whisper_model !== data.whisper_model;
@@ -206,6 +284,7 @@ function AiSection({ data }: { data: AiSettings }) {
       if (form.azure_openai_endpoint !== data.azure_openai_endpoint) p.azure_openai_endpoint = form.azure_openai_endpoint;
       if (form.azure_openai_deployment !== data.azure_openai_deployment) p.azure_openai_deployment = form.azure_openai_deployment;
       if (form.azure_openai_api_version !== data.azure_openai_api_version) p.azure_openai_api_version = form.azure_openai_api_version;
+      if (form.orthoepy_enabled !== data.orthoepy_enabled) p.orthoepy_enabled = form.orthoepy_enabled ? "true" : "false";
       if (form.stt_provider !== data.stt_provider) p.stt_provider = form.stt_provider;
       if (form.azure_speech_region !== data.azure_speech_region) p.azure_speech_region = form.azure_speech_region;
       if (form.whisper_model !== data.whisper_model) p.whisper_model = form.whisper_model;
@@ -224,10 +303,23 @@ function AiSection({ data }: { data: AiSettings }) {
     },
   });
 
-  const set = (k: keyof AiForm, v: string) => setForm((f) => ({ ...f, [k]: v }));
+  const set = (k: keyof AiForm, v: string | boolean) => setForm((f) => ({ ...f, [k]: v }));
   const reveal = (k: SecretKey, raw: string) => {
     setForm((f) => ({ ...f, [k]: raw }));
     setBaseline((b) => ({ ...b, [k]: raw }));
+  };
+
+  // Currently selected known model (for the note hint under the picker).
+  const selectedKnown = known.find((m) => m.id === form.gemini_model);
+  const pickerValue = customModel ? "__custom__" : form.gemini_model;
+
+  const onPickModel = (v: string) => {
+    if (v === "__custom__") {
+      setCustomModel(true);
+    } else {
+      setCustomModel(false);
+      set("gemini_model", v);
+    }
   };
 
   return (
@@ -238,18 +330,22 @@ function AiSection({ data }: { data: AiSettings }) {
         if (dirty && !save.isPending) save.mutate();
       }}
     >
-      {/* ── AI grader ── */}
+      {/* ── AI grader: active provider + live connection test ── */}
       <Card>
-        <div className="row gap-4 wrap" style={{ alignItems: "center" }}>
-          <div className="col gap-1">
-            <span style={{ fontSize: 12, fontWeight: 800, color: "var(--faint)", textTransform: "uppercase", letterSpacing: "0.05em" }}>
-              {t("aiActiveNow")}
-            </span>
-            <span style={{ fontSize: 20, fontWeight: 800 }}>
-              {data.active_provider === "azure" ? "Azure OpenAI" : "Gemini"}
-            </span>
+        <div className="col gap-4">
+          <div className="row between wrap gap-4" style={{ alignItems: "center" }}>
+            <div className="col gap-1">
+              <span style={{ fontSize: 12, fontWeight: 800, color: "var(--faint)", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                {t("aiActiveNow")}
+              </span>
+              <span style={{ fontSize: 20, fontWeight: 800 }}>
+                {data.active_provider === "azure" ? "Azure OpenAI" : "Gemini"}
+              </span>
+            </div>
+            <StatusBadge ok={data.azure_ready} label={data.azure_ready ? t("aiAzureReady") : t("aiAzureNotReady")} />
           </div>
-          <StatusBadge ok={data.azure_ready} label={data.azure_ready ? t("aiAzureReady") : t("aiAzureNotReady")} />
+          <div style={{ height: 1, background: "var(--line)" }} />
+          <TestConnection />
         </div>
       </Card>
 
@@ -264,7 +360,37 @@ function AiSection({ data }: { data: AiSettings }) {
       </Card>
 
       <Card>
-        <h3 style={{ fontSize: 16, marginBottom: 14 }}>Azure OpenAI</h3>
+        <SectionTitle>Google Gemini</SectionTitle>
+        <div className="col gap-4">
+          <Field label={t("geminiModel")}>
+            <div className="col gap-2">
+              <select value={pickerValue} onChange={(e) => onPickModel(e.target.value)} style={inp}>
+                {known.map((m) => (
+                  <option key={m.id} value={m.id}>
+                    {m.label}
+                  </option>
+                ))}
+                <option value="__custom__">{t("geminiModelCustom")}</option>
+              </select>
+              {customModel && (
+                <input
+                  value={form.gemini_model}
+                  onChange={(e) => set("gemini_model", e.target.value)}
+                  placeholder="gemini-2.5-flash"
+                  style={inp}
+                />
+              )}
+              {!customModel && selectedKnown?.note && <Hint>{selectedKnown.note}</Hint>}
+            </div>
+          </Field>
+          <Field label={t("geminiApiKey")}>
+            <SecretInput settingKey="gemini_api_key" state={data.gemini_api_key} value={form.gemini_api_key} onChange={(v) => set("gemini_api_key", v)} onReveal={(r) => reveal("gemini_api_key", r)} />
+          </Field>
+        </div>
+      </Card>
+
+      <Card>
+        <SectionTitle>Azure OpenAI</SectionTitle>
         <div className="col gap-4">
           <Field label={t("azureEndpoint")}>
             <input value={form.azure_openai_endpoint} onChange={(e) => set("azure_openai_endpoint", e.target.value)} placeholder="https://<resource>.openai.azure.com" style={inp} />
@@ -281,21 +407,20 @@ function AiSection({ data }: { data: AiSettings }) {
         </div>
       </Card>
 
+      {/* ── Orthoepy toggle — one fewer AI call per answer when off ── */}
       <Card>
-        <h3 style={{ fontSize: 16, marginBottom: 14 }}>Google Gemini</h3>
-        <div className="col gap-4">
-          <Field label={t("geminiModel")}>
-            <input value={form.gemini_model} onChange={(e) => set("gemini_model", e.target.value)} placeholder="gemini-2.5-flash" style={inp} />
-          </Field>
-          <Field label={t("geminiApiKey")}>
-            <SecretInput settingKey="gemini_api_key" state={data.gemini_api_key} value={form.gemini_api_key} onChange={(v) => set("gemini_api_key", v)} onReveal={(r) => reveal("gemini_api_key", r)} />
-          </Field>
+        <div className="row between gap-4" style={{ alignItems: "flex-start" }}>
+          <div className="col gap-1" style={{ minWidth: 0 }}>
+            <span style={{ fontSize: 14.5, fontWeight: 800, color: "var(--ink-soft)" }}>{t("orthoepyLabel")}</span>
+            <Hint>{t("orthoepyToggleHint")}</Hint>
+          </div>
+          <Toggle on={form.orthoepy_enabled} set={(v) => set("orthoepy_enabled", v)} />
         </div>
       </Card>
 
       {/* ── Speech-to-text ── */}
       <div style={{ marginTop: 10 }}>
-        <h2 style={{ fontSize: 20 }}>{t("sttTitle")}</h2>
+        <SectionTitle>{t("sttTitle")}</SectionTitle>
       </div>
       <Card>
         <div className="row gap-4 wrap" style={{ alignItems: "center" }}>
@@ -322,7 +447,7 @@ function AiSection({ data }: { data: AiSettings }) {
       </Card>
 
       <Card>
-        <h3 style={{ fontSize: 16, marginBottom: 14 }}>Azure Speech</h3>
+        <SectionTitle>Azure Speech</SectionTitle>
         <div className="col gap-4">
           <Field label={t("azureSpeechRegion")}>
             <input value={form.azure_speech_region} onChange={(e) => set("azure_speech_region", e.target.value)} placeholder="eastus" style={inp} />
@@ -334,7 +459,7 @@ function AiSection({ data }: { data: AiSettings }) {
       </Card>
 
       <Card>
-        <h3 style={{ fontSize: 16, marginBottom: 14 }}>OpenAI Whisper</h3>
+        <SectionTitle>OpenAI Whisper</SectionTitle>
         <div className="col gap-4">
           <Field label={t("whisperModel")}>
             <input value={form.whisper_model} onChange={(e) => set("whisper_model", e.target.value)} placeholder="whisper-1" style={inp} />
@@ -379,8 +504,8 @@ function LinksSection({ data }: { data: OutboundLinks }) {
       }}
     >
       <div>
-        <h2 style={{ fontSize: 22 }}>{t("linksTitle")}</h2>
-        <p style={{ color: "var(--muted)", fontSize: 14, margin: "4px 0 0" }}>{t("linksHint")}</p>
+        <SectionTitle>{t("linksTitle")}</SectionTitle>
+        <p style={{ color: "var(--muted)", fontSize: 14, margin: "-8px 0 0" }}>{t("linksHint")}</p>
       </div>
       <Card>
         <div className="col gap-4">

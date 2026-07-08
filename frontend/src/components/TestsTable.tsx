@@ -1,12 +1,19 @@
-import { useMemo, useState, type CSSProperties } from "react";
+import { useMemo, useState } from "react";
 import { useI18n } from "../lib/i18n";
 import type { Question, QuestionType } from "../lib/types";
-import { Card, Pill, Icon, iconBtn, inp, type IconName } from "./govori";
+import {
+  DataTable,
+  Pill,
+  Icon,
+  SearchInput,
+  Toolbar,
+  iconBtn,
+  type Column,
+  type IconName,
+} from "./govori";
 import { stripHtml } from "./RichTextEditor";
 import { Dropdown, type DropdownOption } from "./Dropdown";
 import { useConfirm } from "./ConfirmDialog";
-
-const TYPE_EMOJI: Record<QuestionType, string> = { text: "📝", image: "🖼️", video: "🎬" };
 
 interface Props {
   questions: Question[];
@@ -68,166 +75,95 @@ export function TestsTable({ questions, showTeacher, onEdit, onTogglePublish, on
     ...list.map((v) => ({ value: v, label: v })),
   ];
 
-  // Grid columns: name first (flexes), actions last (auto) — to match the
-  // mobile `.t-row { 1fr auto }` override; middle cells carry `t-hide-sm`.
-  const cols = [
-    "minmax(180px, 2fr)", // name
-    "minmax(120px, 1fr)", // type
-    ...(showTeacher ? ["minmax(120px, 1fr)"] : []), // teacher
-    "minmax(110px, 1fr)", // topic
-    "minmax(90px, auto)", // level
-    "minmax(110px, auto)", // status
-    "minmax(110px, auto)", // date
-    ...(hasActions ? ["auto"] : []), // actions
-  ].join(" ");
-
-  const gridStyle: CSSProperties = {
-    display: "grid",
-    gridTemplateColumns: cols,
-    alignItems: "center",
-    gap: 12,
-    padding: "12px 18px",
-  };
-
-  const cellMuted: CSSProperties = { color: "var(--muted)", fontSize: 14, whiteSpace: "nowrap" };
-
-  return (
-    <div>
-      {/* Toolbar */}
-      <div className="row wrap" style={{ gap: 10, marginBottom: 16 }}>
-        <div
-          className="row"
-          style={{
-            gap: 8,
-            flex: "1 1 240px",
-            maxWidth: 320,
-            background: "var(--surface-2)",
-            border: "1px solid var(--line-2)",
-            borderRadius: "var(--r-sm)",
-            padding: "0 12px",
-          }}
-        >
-          <Icon name="search" size={18} style={{ color: "var(--muted)", flexShrink: 0 }} />
-          <input
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder={t("searchPh")}
-            style={{ ...inp, border: "none", background: "transparent", padding: "11px 0" }}
-          />
+  const columns: Column<Question>[] = [
+    {
+      key: "name",
+      header: t("colName"),
+      width: "34%",
+      render: (q) => (
+        <div className="col" style={{ gap: 2, minWidth: 0 }}>
+          <span style={{ fontWeight: 700, color: "var(--ink)" }}>{q.title}</span>
+          <span className="truncate" style={{ fontSize: 13, color: "var(--muted)" }}>
+            {stripHtml(q.prompt_text)}
+          </span>
         </div>
-        <Dropdown value={level} onChange={setLevel} options={opt(t("allLevels"), levels)} className="w-40" />
-        <Dropdown value={topic} onChange={setTopic} options={opt(t("allTopics"), topics)} className="w-44" />
-        {showTeacher && (
-          <Dropdown value={teacher} onChange={setTeacher} options={opt(t("all"), teachers)} className="w-48" />
-        )}
-        <span style={{ marginLeft: "auto", fontSize: 14, fontWeight: 800, color: "var(--muted)" }}>{rows.length}</span>
-      </div>
-
-      {/* Table */}
-      <Card pad={0} style={{ overflow: "hidden" }}>
-        {/* Header */}
-        <div
-          className="t-head"
-          style={{
-            ...gridStyle,
-            background: "var(--surface-2)",
-            borderBottom: "1px solid var(--line)",
-            fontSize: 12,
-            fontWeight: 800,
-            textTransform: "uppercase",
-            letterSpacing: "0.04em",
-            color: "var(--muted)",
-          }}
-        >
-          <span>{t("colName")}</span>
-          <span>{t("colType")}</span>
-          {showTeacher && <span>{t("colTeacher")}</span>}
-          <span>{t("colTopic")}</span>
-          <span>{t("colLevel")}</span>
-          <span>{t("colStatus")}</span>
-          <span>{t("colDate")}</span>
-          {hasActions && <span style={{ textAlign: "right" }}>{t("colActions")}</span>}
-        </div>
-
-        {/* Body */}
-        {rows.map((q) => (
-          <div
-            key={q.id}
-            className="t-row"
-            style={{ ...gridStyle, borderBottom: "1px solid var(--line)" }}
+      ),
+    },
+    {
+      key: "type",
+      header: t("colType"),
+      hideSm: true,
+      render: (q) => <span style={{ color: "var(--ink-soft)", whiteSpace: "nowrap" }}>{typeLabel[q.type]}</span>,
+    },
+    ...(showTeacher
+      ? [
+          {
+            key: "teacher",
+            header: t("colTeacher"),
+            hideSm: true,
+            render: (q: Question) => (
+              <span style={{ color: "var(--muted)", whiteSpace: "nowrap" }}>{q.teacher_name ?? "—"}</span>
+            ),
+          } as Column<Question>,
+        ]
+      : []),
+    {
+      key: "topic",
+      header: t("colTopic"),
+      hideSm: true,
+      render: (q) => <span style={{ color: "var(--ink-soft)", whiteSpace: "nowrap" }}>{q.topic || "—"}</span>,
+    },
+    {
+      key: "level",
+      header: t("colLevel"),
+      hideSm: true,
+      render: (q) => (q.level ? <Pill hue={47} size="sm">{q.level}</Pill> : <span>—</span>),
+    },
+    {
+      key: "status",
+      header: t("colStatus"),
+      render: (q) =>
+        q.is_published ? (
+          <Pill hue={152} size="sm">
+            {t("published")}
+          </Pill>
+        ) : (
+          <span
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              background: "var(--surface-3)",
+              color: "var(--muted)",
+              borderRadius: "var(--r-pill)",
+              fontWeight: 700,
+              fontFamily: "var(--font-display)",
+              fontSize: 11.5,
+              padding: "3px 9px",
+            }}
           >
-            <div className="col" style={{ gap: 2, minWidth: 0 }}>
-              <span style={{ fontWeight: 700, color: "var(--ink)" }}>{q.title}</span>
-              <span
-                style={{
-                  fontSize: 13,
-                  color: "var(--muted)",
-                  overflow: "hidden",
-                  textOverflow: "ellipsis",
-                  whiteSpace: "nowrap",
-                }}
-              >
-                {stripHtml(q.prompt_text)}
-              </span>
-            </div>
-
-            <span className="t-hide-sm" style={{ whiteSpace: "nowrap", color: "var(--ink-soft)" }}>
-              {TYPE_EMOJI[q.type]} {typeLabel[q.type]}
-            </span>
-
-            {showTeacher && (
-              <span className="t-hide-sm" style={cellMuted}>
-                {q.teacher_name ?? "—"}
-              </span>
-            )}
-
-            <span className="t-hide-sm" style={{ whiteSpace: "nowrap", color: "var(--ink-soft)" }}>
-              {q.topic || "—"}
-            </span>
-
-            <span className="t-hide-sm" style={{ whiteSpace: "nowrap" }}>
-              {q.level ? (
-                <Pill hue={47} size="sm">
-                  {q.level}
-                </Pill>
-              ) : (
-                "—"
-              )}
-            </span>
-
-            <span className="t-hide-sm" style={{ whiteSpace: "nowrap" }}>
-              {q.is_published ? (
-                <Pill hue={152} size="sm">
-                  {t("published")}
-                </Pill>
-              ) : (
-                <span
-                  style={{
-                    display: "inline-flex",
-                    alignItems: "center",
-                    background: "var(--surface-3)",
-                    color: "var(--muted)",
-                    borderRadius: "var(--r-pill)",
-                    fontWeight: 700,
-                    fontFamily: "var(--font-display)",
-                    fontSize: 11.5,
-                    padding: "3px 9px",
-                  }}
-                >
-                  {t("draft")}
-                </span>
-              )}
-            </span>
-
-            <span className="t-hide-sm" style={cellMuted}>
-              {new Date(q.created_at).toLocaleDateString()}
-            </span>
-
-            {hasActions && (
+            {t("draft")}
+          </span>
+        ),
+    },
+    {
+      key: "date",
+      header: t("colDate"),
+      hideSm: true,
+      render: (q) => (
+        <span style={{ color: "var(--muted)", whiteSpace: "nowrap" }}>
+          {new Date(q.created_at).toLocaleDateString()}
+        </span>
+      ),
+    },
+    ...(hasActions
+      ? [
+          {
+            key: "actions",
+            header: t("colActions"),
+            align: "right",
+            render: (q: Question) => (
               <div className="row" style={{ gap: 2, justifyContent: "flex-end" }}>
-                {onEdit && (
-                  <ActionBtn icon="edit" title={t("edit")} onClick={() => onEdit(q.id)} />
-                )}
+                {onEdit && <ActionBtn icon="edit" title={t("edit")} onClick={() => onEdit(q.id)} />}
                 {onTogglePublish && (
                   <ActionBtn
                     icon="check"
@@ -235,9 +171,7 @@ export function TestsTable({ questions, showTeacher, onEdit, onTogglePublish, on
                     onClick={() => onTogglePublish(q)}
                   />
                 )}
-                {onDuplicate && (
-                  <ActionBtn icon="layers" title={t("duplicate")} onClick={() => onDuplicate(q.id)} />
-                )}
+                {onDuplicate && <ActionBtn icon="layers" title={t("duplicate")} onClick={() => onDuplicate(q.id)} />}
                 {onDelete && (
                   <ActionBtn
                     icon="trash"
@@ -250,10 +184,36 @@ export function TestsTable({ questions, showTeacher, onEdit, onTogglePublish, on
                   />
                 )}
               </div>
+            ),
+          } as Column<Question>,
+        ]
+      : []),
+  ];
+
+  return (
+    <div>
+      <Toolbar
+        left={
+          <>
+            <SearchInput value={search} onChange={setSearch} placeholder={t("searchPh")} width={280} />
+            <Dropdown value={level} onChange={setLevel} options={opt(t("allLevels"), levels)} className="w-40" />
+            <Dropdown value={topic} onChange={setTopic} options={opt(t("allTopics"), topics)} className="w-44" />
+            {showTeacher && (
+              <Dropdown value={teacher} onChange={setTeacher} options={opt(t("all"), teachers)} className="w-48" />
             )}
-          </div>
-        ))}
-      </Card>
+          </>
+        }
+        right={<span style={{ fontSize: 14, fontWeight: 800, color: "var(--muted)" }}>{rows.length}</span>}
+      />
+
+      <DataTable
+        columns={columns}
+        rows={rows}
+        rowKey={(q) => q.id}
+        onRowClick={onEdit ? (q) => onEdit(q.id) : undefined}
+        minWidth={showTeacher ? 900 : 760}
+        empty={t("noTests")}
+      />
     </div>
   );
 }
@@ -275,7 +235,10 @@ function ActionBtn({
       type="button"
       title={title}
       aria-label={title}
-      onClick={onClick}
+      onClick={(e) => {
+        e.stopPropagation();
+        onClick();
+      }}
       className="tap"
       style={{ ...iconBtn, width: 36, height: 36, color: danger ? "var(--danger)" : "var(--ink-soft)" }}
       onMouseEnter={(e) => (e.currentTarget.style.background = "var(--surface-2)")}

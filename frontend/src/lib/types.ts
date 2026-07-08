@@ -171,6 +171,12 @@ export interface SecretState {
   hint: string;
 }
 
+export interface KnownGeminiModel {
+  id: string;
+  label: string;
+  note: string;
+}
+
 export interface AiSettings {
   llm_provider: string; // auto | azure | gemini
   gemini_model: string;
@@ -181,6 +187,10 @@ export interface AiSettings {
   azure_openai_api_key: SecretState;
   azure_ready: boolean;
   active_provider: string;
+  // Orthoepy (stress/pronunciation) check — an extra AI call per answer.
+  orthoepy_enabled: boolean;
+  // Curated list of Gemini models the admin can pick from (id + label + note).
+  known_gemini_models: KnownGeminiModel[];
   // Speech-to-text
   stt_provider: string; // auto | azure | whisper
   azure_speech_region: string;
@@ -189,6 +199,15 @@ export interface AiSettings {
   openai_api_key: SecretState;
   azure_speech_ready: boolean;
   stt_active_provider: string;
+}
+
+/** Result of a live grader connectivity test (POST /admin/settings/ai/test). */
+export interface AiTestResult {
+  ok: boolean;
+  provider: string;
+  model: string;
+  latency_ms: number;
+  error: string | null;
 }
 
 export interface AdminStudent {

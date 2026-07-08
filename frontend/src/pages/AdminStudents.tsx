@@ -10,12 +10,14 @@ import {
   Avatar,
   Button,
   Card,
-  EmptyState,
+  DataTable,
   Field,
-  Icon,
   Loading,
   PageHead,
   Pill,
+  SearchInput,
+  Toolbar,
+  type Column,
   inp,
 } from "../components/govori";
 import { useConfirm } from "../components/ConfirmDialog";
@@ -84,14 +86,155 @@ export function AdminStudents() {
     );
   }, [data, q]);
 
-  const cols = "260px 150px 210px 130px 120px 150px 360px";
+  const columns: Column<AdminStudent>[] = [
+    {
+      key: "name",
+      header: t("colName"),
+      width: 260,
+      render: (s) => (
+        <div className="row gap-3" style={{ minWidth: 0 }}>
+          <Avatar name={s.full_name} size={36} />
+          <div className="col" style={{ minWidth: 0 }}>
+            <span style={{ fontWeight: 700, fontSize: 14.5 }} className="truncate">
+              {s.full_name}
+            </span>
+            <span style={{ fontSize: 12.5, color: "var(--muted)" }} className="truncate">
+              {s.email}
+            </span>
+          </div>
+        </div>
+      ),
+    },
+    {
+      key: "phone",
+      header: t("colPhone"),
+      hideSm: true,
+      render: (s) => (
+        <span className="mono" style={{ color: "var(--ink-soft)" }}>
+          {s.phone ? formatUzPhone(s.phone) : "—"}
+        </span>
+      ),
+    },
+    {
+      key: "address",
+      header: t("colAddress"),
+      hideSm: true,
+      render: (s) => (
+        <span className="truncate" style={{ color: "var(--ink-soft)" }}>
+          {[s.region, s.district].filter(Boolean).join(", ") || "—"}
+        </span>
+      ),
+    },
+    {
+      key: "registered",
+      header: t("colRegistered"),
+      hideSm: true,
+      render: (s) => (
+        <span style={{ color: "var(--muted)", whiteSpace: "nowrap" }}>
+          {new Date(s.created_at).toLocaleDateString()}
+        </span>
+      ),
+    },
+    {
+      key: "submissions",
+      header: t("submissionsCount"),
+      align: "right",
+      hideSm: true,
+      render: (s) => (
+        <span className="mono" style={{ color: "var(--muted)" }}>
+          {s.submission_count}
+        </span>
+      ),
+    },
+    {
+      key: "status",
+      header: t("colStatus"),
+      render: (s) => (
+        <span className="row gap-2 wrap">
+          <span
+            className="row gap-2"
+            style={{
+              fontSize: 13,
+              fontWeight: 600,
+              color: s.is_active ? "var(--success)" : "var(--faint)",
+              whiteSpace: "nowrap",
+            }}
+          >
+            <span
+              style={{
+                width: 8,
+                height: 8,
+                borderRadius: "50%",
+                background: s.is_active ? "var(--success)" : "var(--faint)",
+              }}
+            />
+            {s.is_active ? t("active") : t("inactive")}
+          </span>
+          {s.is_premium && (
+            <Pill hue={70} size="sm" icon="sparkles">
+              {t("premium")}
+            </Pill>
+          )}
+        </span>
+      ),
+    },
+    {
+      key: "actions",
+      header: t("colActions"),
+      align: "right",
+      render: (s) => (
+        <div
+          className="row gap-2"
+          style={{ justifyContent: "flex-end", whiteSpace: "nowrap" }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <Button
+            size="sm"
+            variant="ghost"
+            icon="sparkles"
+            style={{ color: s.is_premium ? "var(--muted)" : "oklch(0.55 0.14 70)" }}
+            onClick={() => premium.mutate(s)}
+          >
+            {s.is_premium ? t("revokePremium") : t("grantPremium")}
+          </Button>
+          <Button
+            size="sm"
+            variant="ghost"
+            icon={s.is_active ? "x" : "check"}
+            onClick={() => toggle.mutate(s)}
+          >
+            {s.is_active ? t("deactivate") : t("activate")}
+          </Button>
+          <Button
+            size="sm"
+            variant="ghost"
+            icon="trash"
+            style={{ color: "var(--danger)" }}
+            onClick={async () => {
+              if (
+                await ask({
+                  message: t("deleteStudentConfirm"),
+                  confirmText: t("delete"),
+                  destructive: true,
+                })
+              )
+                remove.mutate(s.id);
+            }}
+          >
+            {t("delete")}
+          </Button>
+        </div>
+      ),
+    },
+  ];
 
   return (
     <div className="focus-wrap">
-      <PageHead
-        title={t("studentsTitle")}
-        sub={t("studentsHint")}
-        action={
+      <PageHead title={t("studentsTitle")} sub={t("studentsHint")} />
+
+      <Toolbar
+        left={<SearchInput value={q} onChange={setQ} placeholder={t("searchPh")} />}
+        right={
           <Button icon="plus" onClick={() => setOpen((o) => !o)}>
             {t("addStudent")}
           </Button>
@@ -140,175 +283,17 @@ export function AdminStudents() {
         </Card>
       )}
 
-      <div
-        className="row gap-2"
-        style={{
-          background: "var(--surface)",
-          border: "1px solid var(--line-2)",
-          borderRadius: "var(--r-pill)",
-          padding: "9px 16px",
-          marginBottom: 18,
-          maxWidth: 360,
-        }}
-      >
-        <Icon name="search" size={18} style={{ color: "var(--muted)" }} />
-        <input
-          value={q}
-          onChange={(e) => setQ(e.target.value)}
-          placeholder={t("searchPh")}
-          style={{
-            border: "none",
-            background: "transparent",
-            outline: "none",
-            flex: 1,
-            fontSize: 14,
-            color: "var(--ink)",
-          }}
-        />
-      </div>
-
       {isLoading ? (
         <Loading />
-      ) : !list.length ? (
-        <EmptyState text={t("noStudents")} />
       ) : (
-        // A real table, not a responsive grid that hides columns: below `cols`'
-        // total width the whole thing scrolls horizontally instead, so every
-        // field stays visible and the action buttons never get squeezed.
-        <Card pad={0} style={{ overflowX: "auto" }}>
-          <div style={{ minWidth: 1450 }}>
-            <div
-              style={{
-                display: "grid",
-                gridTemplateColumns: cols,
-                columnGap: 12,
-                padding: "14px 20px",
-                borderBottom: "1px solid var(--line)",
-                fontSize: 12,
-                fontWeight: 800,
-                color: "var(--muted)",
-                textTransform: "uppercase",
-                letterSpacing: "0.04em",
-              }}
-            >
-              <span>{t("colName")}</span>
-              <span>{t("colPhone")}</span>
-              <span>{t("colAddress")}</span>
-              <span>{t("colRegistered")}</span>
-              <span>{t("submissionsCount")}</span>
-              <span>{t("colStatus")}</span>
-              <span style={{ textAlign: "right" }}>{t("colActions")}</span>
-            </div>
-            {list.map((s, i) => {
-              const address = [s.region, s.district].filter(Boolean).join(", ");
-              return (
-                <div
-                  key={s.id}
-                  style={{
-                    display: "grid",
-                    gridTemplateColumns: cols,
-                    columnGap: 12,
-                    padding: "12px 20px",
-                    borderBottom: i < list.length - 1 ? "1px solid var(--line)" : "none",
-                    alignItems: "center",
-                  }}
-                >
-                  <div
-                    className="row gap-3 tap"
-                    style={{ minWidth: 0, cursor: "pointer" }}
-                    onClick={() => nav(`/admin/students/${s.id}`)}
-                    title={t("manage")}
-                  >
-                    <Avatar name={s.full_name} size={38} />
-                    <div className="col" style={{ minWidth: 0 }}>
-                      <span style={{ fontWeight: 700, fontSize: 14.5 }} className="truncate">
-                        {s.full_name}
-                      </span>
-                      <span style={{ fontSize: 12.5, color: "var(--muted)" }} className="truncate">
-                        {s.email}
-                      </span>
-                    </div>
-                  </div>
-                  <span className="mono truncate" style={{ fontSize: 13, color: "var(--ink-soft)" }}>
-                    {s.phone ? formatUzPhone(s.phone) : "—"}
-                  </span>
-                  <span className="truncate" style={{ fontSize: 13, color: "var(--ink-soft)" }}>
-                    {address || "—"}
-                  </span>
-                  <span style={{ fontSize: 13, color: "var(--muted)", whiteSpace: "nowrap" }}>
-                    {new Date(s.created_at).toLocaleDateString()}
-                  </span>
-                  <span className="mono" style={{ fontSize: 13.5, color: "var(--muted)", whiteSpace: "nowrap" }}>
-                    {s.submission_count} {t("submissionsCount")}
-                  </span>
-                  <span className="row gap-2 wrap">
-                    <span
-                      className="row gap-2"
-                      style={{
-                        fontSize: 13,
-                        fontWeight: 600,
-                        color: s.is_active ? "var(--success)" : "var(--faint)",
-                        whiteSpace: "nowrap",
-                      }}
-                    >
-                      <span
-                        style={{
-                          width: 8,
-                          height: 8,
-                          borderRadius: "50%",
-                          background: s.is_active ? "var(--success)" : "var(--faint)",
-                        }}
-                      />
-                      {s.is_active ? t("active") : t("inactive")}
-                    </span>
-                    {s.is_premium && (
-                      <Pill hue={70} size="sm" icon="sparkles">
-                        {t("premium")}
-                      </Pill>
-                    )}
-                  </span>
-                  <div className="row gap-2" style={{ justifyContent: "flex-end", whiteSpace: "nowrap" }}>
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      icon="sparkles"
-                      style={{ color: s.is_premium ? "var(--muted)" : "oklch(0.55 0.14 70)" }}
-                      onClick={() => premium.mutate(s)}
-                    >
-                      {s.is_premium ? t("revokePremium") : t("grantPremium")}
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      icon={s.is_active ? "x" : "check"}
-                      onClick={() => toggle.mutate(s)}
-                    >
-                      {s.is_active ? t("deactivate") : t("activate")}
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      icon="trash"
-                      style={{ color: "var(--danger)" }}
-                      onClick={async () => {
-                        if (
-                          await ask({
-                            message: t("deleteStudentConfirm"),
-                            confirmText: t("delete"),
-                            destructive: true,
-                          })
-                        )
-                          remove.mutate(s.id);
-                      }}
-                    >
-                      {t("delete")}
-                    </Button>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </Card>
+        <DataTable
+          columns={columns}
+          rows={list}
+          rowKey={(s) => s.id}
+          onRowClick={(s) => nav(`/admin/students/${s.id}`)}
+          minWidth={1000}
+          empty={t("noStudents")}
+        />
       )}
     </div>
   );

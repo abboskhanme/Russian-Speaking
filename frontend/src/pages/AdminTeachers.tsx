@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "../lib/api";
@@ -8,10 +8,13 @@ import {
   Avatar,
   Button,
   Card,
-  EmptyState,
+  DataTable,
   Field,
   Loading,
   PageHead,
+  SearchInput,
+  Toolbar,
+  type Column,
   inp,
 } from "../components/govori";
 import { useConfirm } from "../components/ConfirmDialog";
@@ -21,6 +24,7 @@ export function AdminTeachers() {
   const nav = useNavigate();
   const ask = useConfirm();
   const qc = useQueryClient();
+  const [q, setQ] = useState("");
   const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -57,14 +61,118 @@ export function AdminTeachers() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ["admin-teachers"] }),
   });
 
-  const cols = "2.2fr 1fr 1fr 1.4fr";
+  const list = useMemo(() => {
+    const s = q.trim().toLowerCase();
+    if (!data) return [];
+    if (!s) return data;
+    return data.filter(
+      (u) => u.full_name.toLowerCase().includes(s) || u.email.toLowerCase().includes(s),
+    );
+  }, [data, q]);
+
+  const columns: Column<AdminTeacher>[] = [
+    {
+      key: "name",
+      header: t("colName"),
+      render: (tch) => (
+        <div className="row gap-3" style={{ minWidth: 0 }}>
+          <Avatar name={tch.full_name} size={36} />
+          <div className="col" style={{ minWidth: 0 }}>
+            <span style={{ fontWeight: 700, fontSize: 14.5 }} className="truncate">
+              {tch.full_name}
+            </span>
+            <span style={{ fontSize: 12.5, color: "var(--muted)" }} className="truncate">
+              {tch.email}
+            </span>
+          </div>
+        </div>
+      ),
+    },
+    {
+      key: "tests",
+      header: t("testsCount"),
+      align: "right",
+      hideSm: true,
+      render: (tch) => (
+        <span className="mono" style={{ color: "var(--muted)" }}>
+          {tch.question_count}
+        </span>
+      ),
+    },
+    {
+      key: "status",
+      header: t("colStatus"),
+      hideSm: true,
+      render: (tch) => (
+        <span
+          className="row gap-2"
+          style={{
+            fontSize: 13,
+            fontWeight: 600,
+            color: tch.is_active ? "var(--success)" : "var(--faint)",
+            whiteSpace: "nowrap",
+          }}
+        >
+          <span
+            style={{
+              width: 8,
+              height: 8,
+              borderRadius: "50%",
+              background: tch.is_active ? "var(--success)" : "var(--faint)",
+            }}
+          />
+          {tch.is_active ? t("active") : t("inactive")}
+        </span>
+      ),
+    },
+    {
+      key: "actions",
+      header: t("colActions"),
+      align: "right",
+      render: (tch) => (
+        <div
+          className="row gap-2 wrap"
+          style={{ justifyContent: "flex-end" }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <Button
+            size="sm"
+            variant="ghost"
+            icon={tch.is_active ? "x" : "check"}
+            onClick={() => toggle.mutate(tch)}
+          >
+            {tch.is_active ? t("deactivate") : t("activate")}
+          </Button>
+          <Button
+            size="sm"
+            variant="ghost"
+            icon="trash"
+            style={{ color: "var(--danger)" }}
+            onClick={async () => {
+              if (
+                await ask({
+                  message: t("deleteTeacherConfirm"),
+                  confirmText: t("delete"),
+                  destructive: true,
+                })
+              )
+                remove.mutate(tch.id);
+            }}
+          >
+            {t("delete")}
+          </Button>
+        </div>
+      ),
+    },
+  ];
 
   return (
     <div className="focus-wrap">
-      <PageHead
-        title={t("teachersTitle")}
-        sub={t("teachersHint")}
-        action={
+      <PageHead title={t("teachersTitle")} sub={t("teachersHint")} />
+
+      <Toolbar
+        left={<SearchInput value={q} onChange={setQ} placeholder={t("searchPh")} />}
+        right={
           <Button icon="plus" onClick={() => setOpen((o) => !o)}>
             {t("addTeacher")}
           </Button>
@@ -120,114 +228,15 @@ export function AdminTeachers() {
 
       {isLoading ? (
         <Loading />
-      ) : !data?.length ? (
-        <EmptyState text={t("noTeachers")} />
       ) : (
-        <Card pad={0}>
-          <div
-            className="t-head"
-            style={{
-              display: "grid",
-              gridTemplateColumns: cols,
-              padding: "14px 20px",
-              borderBottom: "1px solid var(--line)",
-              fontSize: 12,
-              fontWeight: 800,
-              color: "var(--muted)",
-              textTransform: "uppercase",
-              letterSpacing: "0.04em",
-            }}
-          >
-            <span>{t("colName")}</span>
-            <span>{t("testsCount")}</span>
-            <span>{t("colStatus")}</span>
-            <span style={{ textAlign: "right" }}>{t("colActions")}</span>
-          </div>
-          {data.map((tch, i) => (
-            <div
-              key={tch.id}
-              className="t-row"
-              style={{
-                display: "grid",
-                gridTemplateColumns: cols,
-                padding: "12px 20px",
-                borderBottom: i < data.length - 1 ? "1px solid var(--line)" : "none",
-                alignItems: "center",
-              }}
-            >
-              <div
-                className="row gap-3 tap"
-                style={{ minWidth: 0, cursor: "pointer" }}
-                onClick={() => nav(`/admin/teachers/${tch.id}`)}
-                title={t("manage")}
-              >
-                <Avatar name={tch.full_name} size={38} />
-                <div className="col" style={{ minWidth: 0 }}>
-                  <span style={{ fontWeight: 700, fontSize: 14.5 }} className="truncate">
-                    {tch.full_name}
-                  </span>
-                  <span style={{ fontSize: 12.5, color: "var(--muted)" }} className="truncate">
-                    {tch.email}
-                  </span>
-                </div>
-              </div>
-              <span
-                className="t-hide-sm mono"
-                style={{ fontSize: 13.5, color: "var(--muted)" }}
-              >
-                {tch.question_count} {t("testsCount")}
-              </span>
-              <span className="t-hide-sm">
-                <span
-                  className="row gap-2"
-                  style={{
-                    fontSize: 13,
-                    fontWeight: 600,
-                    color: tch.is_active ? "var(--success)" : "var(--faint)",
-                  }}
-                >
-                  <span
-                    style={{
-                      width: 8,
-                      height: 8,
-                      borderRadius: "50%",
-                      background: tch.is_active ? "var(--success)" : "var(--faint)",
-                    }}
-                  />
-                  {tch.is_active ? t("active") : t("inactive")}
-                </span>
-              </span>
-              <div className="row gap-2 wrap" style={{ justifyContent: "flex-end" }}>
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  icon={tch.is_active ? "x" : "check"}
-                  onClick={() => toggle.mutate(tch)}
-                >
-                  {tch.is_active ? t("deactivate") : t("activate")}
-                </Button>
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  icon="trash"
-                  style={{ color: "var(--danger)" }}
-                  onClick={async () => {
-                    if (
-                      await ask({
-                        message: t("deleteTeacherConfirm"),
-                        confirmText: t("delete"),
-                        destructive: true,
-                      })
-                    )
-                      remove.mutate(tch.id);
-                  }}
-                >
-                  {t("delete")}
-                </Button>
-              </div>
-            </div>
-          ))}
-        </Card>
+        <DataTable
+          columns={columns}
+          rows={list}
+          rowKey={(tch) => tch.id}
+          onRowClick={(tch) => nav(`/admin/teachers/${tch.id}`)}
+          minWidth={640}
+          empty={t("noTeachers")}
+        />
       )}
     </div>
   );
