@@ -161,7 +161,7 @@ def shadow_upload_url(
     "/shadow",
     response_model=SubmissionOut,
     status_code=status.HTTP_201_CREATED,
-    dependencies=[Depends(rate_limit("submit", 30, 600))],
+    dependencies=[Depends(rate_limit("submit_shadow", 30, 600))],
 )
 def create_shadow(
     payload: ShadowCreate,

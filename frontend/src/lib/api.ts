@@ -61,6 +61,26 @@ api.interceptors.response.use(
   },
 );
 
+// Retry a plain JSON POST on transient failures (network drop / 5xx) — same
+// idea as uploadToPresigned below, but for the thin `/submissions/upload-url`
+// and `/submissions` calls that bracket it. Those had no retry at all, so a
+// blip on either one (weak signal, brief server hiccup) surfaced immediately
+// as "Javobni yuborib bo'lmadi" even though the recording itself uploaded
+// fine. A real 4xx (403/404/402/409) is permanent — don't retry those.
+export async function postWithRetry<T>(url: string, body: unknown): Promise<{ data: T }> {
+  const MAX_ATTEMPTS = 3;
+  for (let attempt = 1; ; attempt++) {
+    try {
+      return await api.post<T>(url, body);
+    } catch (err) {
+      const status = (err as { response?: { status?: number } })?.response?.status;
+      const retriable = status === undefined || status >= 500;
+      if (attempt >= MAX_ATTEMPTS || !retriable) throw err;
+      await new Promise((r) => setTimeout(r, 800 * attempt));
+    }
+  }
+}
+
 // Upload bytes directly to a presigned S3/MinIO URL (bypasses the API).
 // `onProgress` reports 0–100 as the bytes go up so callers can show a real
 // progress bar (important for large videos on slow connections). `timeout: 0`

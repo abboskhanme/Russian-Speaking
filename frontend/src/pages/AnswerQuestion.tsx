@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useNavigate, useParams } from "react-router-dom";
-import { api, uploadToPresigned } from "../lib/api";
+import { api, postWithRetry, uploadToPresigned } from "../lib/api";
 import { useAuth } from "../lib/auth";
 import { useI18n } from "../lib/i18n";
 import { friendlyError } from "../lib/errors";
@@ -45,12 +45,12 @@ export function AnswerQuestion() {
     setUploading(true);
     setError(null);
     try {
-      const { data: up } = await api.post("/submissions/upload-url", {
-        question_id: q!.id,
-        content_type: "audio/webm",
-      });
+      const { data: up } = await postWithRetry<{ upload_url: string; audio_key: string }>(
+        "/submissions/upload-url",
+        { question_id: q!.id, content_type: "audio/webm" },
+      );
       await uploadToPresigned(up.upload_url, blob, "audio/webm");
-      const { data: sub } = await api.post<Submission>("/submissions", {
+      const { data: sub } = await postWithRetry<Submission>("/submissions", {
         question_id: q!.id,
         audio_key: up.audio_key,
         audio_duration_sec: durationSec,
@@ -59,8 +59,11 @@ export function AnswerQuestion() {
     } catch (e) {
       const status = (e as { response?: { status?: number } }).response?.status;
       // 402 = free-trial exhausted → show the paywall, not an error message.
+      // 403 = task not assigned / deadline passed → specific message, not a
+      // generic "couldn't send" (which reads as a technical failure to retry).
       // 5xx / rate-limit → friendly "server problem"; anything else → send error.
       if (status === 402) setServerLocked(true);
+      else if (status === 403) setError(t("notAssignedError"));
       else setError(friendlyError(e, t, t("sendError")));
       setUploading(false);
     }

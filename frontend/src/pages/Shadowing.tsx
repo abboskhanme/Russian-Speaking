@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
-import { api, uploadToPresigned } from "../lib/api";
+import { api, postWithRetry, uploadToPresigned } from "../lib/api";
 import { friendlyError } from "../lib/errors";
 import { useAuth } from "../lib/auth";
 import { useI18n } from "../lib/i18n";
@@ -98,11 +98,12 @@ export function Shadowing() {
     setUploading(true);
     setError(null);
     try {
-      const { data: up } = await api.post("/submissions/shadow/upload-url", {
-        content_type: "audio/webm",
-      });
+      const { data: up } = await postWithRetry<{ upload_url: string; audio_key: string }>(
+        "/submissions/shadow/upload-url",
+        { content_type: "audio/webm" },
+      );
       await uploadToPresigned(up.upload_url, blob, "audio/webm");
-      const { data: sub } = await api.post<Submission>("/submissions/shadow", {
+      const { data: sub } = await postWithRetry<Submission>("/submissions/shadow", {
         audio_key: up.audio_key,
         reference_text: activePhrase,
         audio_duration_sec: durationSec,
