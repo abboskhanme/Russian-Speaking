@@ -19,13 +19,6 @@ import {
   inp,
 } from "../components/govori";
 
-/** Stable hue per group id, for the gradient icon. */
-function groupHue(id: string): number {
-  let h = 0;
-  for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) % 360;
-  return h;
-}
-
 export function TeacherGroupDetail() {
   const { id = "" } = useParams<{ id: string }>();
   const { t } = useI18n();
@@ -62,8 +55,6 @@ export function TeacherGroupDetail() {
 
   if (isLoading || !ov) return <Loading full />;
 
-  const hue = groupHue(ov.id);
-
   return (
     <div className="focus-wrap">
       <Button
@@ -85,8 +76,8 @@ export function TeacherGroupDetail() {
                 width: 54,
                 height: 54,
                 borderRadius: 16,
-                background: `linear-gradient(135deg, oklch(0.76 0.13 ${hue}), oklch(0.64 0.17 ${hue}))`,
-                color: "#fff",
+                background: "var(--surface-3)",
+                color: "var(--muted)",
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",

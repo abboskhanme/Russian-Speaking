@@ -15,13 +15,6 @@ import {
 } from "../components/govori";
 import { useConfirm } from "../components/ConfirmDialog";
 
-/** Stable hue per topic so each card gets a distinct gradient icon. */
-function topicHue(seed: string): number {
-  let h = 0;
-  for (let i = 0; i < seed.length; i++) h = (h * 31 + seed.charCodeAt(i)) % 9973;
-  return [47, 152, 248, 305, 80, 28][h % 6];
-}
-
 export function TeacherTopics() {
   const { t } = useI18n();
   const ask = useConfirm();
@@ -115,7 +108,6 @@ function TopicCard({
   const [name, setName] = useState(topic.name);
   const [uploading, setUploading] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
-  const hue = topicHue(topic.id);
 
   const rename = useMutation({
     mutationFn: async () => api.patch(`/topics/${topic.id}`, { name: name.trim() }),
@@ -162,8 +154,8 @@ function TopicCard({
             width: 50,
             height: 50,
             borderRadius: 15,
-            background: `linear-gradient(135deg, oklch(0.78 0.11 ${hue}), oklch(0.65 0.16 ${hue}))`,
-            color: "#fff",
+            background: "var(--surface-3)",
+            color: "var(--muted)",
             display: "flex",
             alignItems: "center",
             justifyContent: "center",

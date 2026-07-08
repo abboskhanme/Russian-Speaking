@@ -6,10 +6,9 @@ import { useI18n } from "../lib/i18n";
 import type { Assignment, Group, Question, QuestionBlock, StudentManage } from "../lib/types";
 import {
   Avatar,
-  Bar,
   Button,
   Card,
-  EmptyState,
+  DataTable,
   Field,
   Icon,
   Loading,
@@ -17,6 +16,7 @@ import {
   Pill,
   bandColor,
   inp,
+  type Column,
 } from "../components/govori";
 
 export function TeacherAssignments() {
@@ -100,6 +100,66 @@ export function TeacherAssignments() {
   const canSubmit =
     (mode === "task" ? !!questionId : !!blockId) && hasTarget && !create.isPending;
 
+  const columns: Column<Assignment>[] = [
+    {
+      key: "student",
+      header: t("colStudent"),
+      render: (a) => (
+        <div className="row gap-3" style={{ minWidth: 0 }}>
+          <Avatar name={a.student_name ?? "?"} size={34} />
+          <div className="col" style={{ minWidth: 0 }}>
+            <span className="truncate" style={{ fontWeight: 700, fontSize: 14 }}>
+              {a.student_name}
+            </span>
+            <span className="truncate" style={{ fontSize: 12, color: "var(--muted)" }}>
+              {a.question_title}
+              {a.question_topic ? ` · ${a.question_topic}` : ""}
+            </span>
+          </div>
+        </div>
+      ),
+    },
+    {
+      key: "due",
+      header: t("colDue"),
+      hideSm: true,
+      render: (a) =>
+        a.due_at ? (
+          <span className="row gap-1" style={{ fontSize: 13, color: "var(--muted)", whiteSpace: "nowrap" }}>
+            <Icon name="calendar" size={14} />
+            {new Date(a.due_at).toLocaleDateString()}
+          </span>
+        ) : (
+          <span style={{ color: "var(--faint)" }}>—</span>
+        ),
+    },
+    {
+      key: "status",
+      header: t("colStatus"),
+      align: "right",
+      render: (a) =>
+        a.completed ? (
+          <Pill hue={bandColor(a.overall_band ?? 70)} size="sm" icon="check">
+            {a.overall_band != null ? Math.round(a.overall_band) : "✓"}
+          </Pill>
+        ) : (
+          <Pill hue={28} size="sm">{t("notCompleted")}</Pill>
+        ),
+    },
+    {
+      key: "actions",
+      header: t("colActions"),
+      align: "right",
+      render: (a) => (
+        <div className="row" style={{ justifyContent: "flex-end" }} onClick={(e) => e.stopPropagation()}>
+          <Button size="sm" variant="ghost" icon="trash" style={{ color: "var(--danger)" }} onClick={() => del.mutate(a.id)}>
+            {t("delete")}
+          </Button>
+        </div>
+      ),
+    },
+  ];
+
   return (
     <div className="focus-wrap">
       <PageHead
@@ -179,11 +239,7 @@ export function TeacherAssignments() {
             )}
 
             <Field label={t("assignToGroup")}>
-              <select
-                value={groupId}
-                onChange={(e) => setGroupId(e.target.value)}
-                style={inp}
-              >
+              <select value={groupId} onChange={(e) => setGroupId(e.target.value)} style={inp}>
                 <option value="">—</option>
                 {groups?.map((g) => (
                   <option key={g.id} value={g.id}>
@@ -194,10 +250,7 @@ export function TeacherAssignments() {
             </Field>
 
             <Field label={t("selectStudents")}>
-              <div
-                className="g2"
-                style={{ maxHeight: 208, overflowY: "auto", gap: 6 }}
-              >
+              <div className="g2" style={{ maxHeight: 208, overflowY: "auto", gap: 6 }}>
                 {students?.map((s) => {
                   const on = selected.has(s.id);
                   return (
@@ -208,9 +261,7 @@ export function TeacherAssignments() {
                         cursor: "pointer",
                         padding: "9px 12px",
                         borderRadius: "var(--r-sm)",
-                        border: on
-                          ? "2px solid var(--primary)"
-                          : "2px solid var(--line)",
+                        border: on ? "2px solid var(--primary)" : "2px solid var(--line)",
                         background: on ? "var(--primary-tint)" : "var(--surface)",
                       }}
                     >
@@ -218,17 +269,10 @@ export function TeacherAssignments() {
                         type="checkbox"
                         checked={on}
                         onChange={() => toggle(s.id)}
-                        style={{
-                          width: 18,
-                          height: 18,
-                          accentColor: "var(--primary)",
-                        }}
+                        style={{ width: 18, height: 18, accentColor: "var(--primary)" }}
                       />
                       <Avatar name={s.full_name} size={28} />
-                      <span
-                        className="truncate"
-                        style={{ fontSize: 14, fontWeight: 700 }}
-                      >
+                      <span className="truncate" style={{ fontSize: 14, fontWeight: 700 }}>
                         {s.full_name}
                       </span>
                     </label>
@@ -238,20 +282,10 @@ export function TeacherAssignments() {
             </Field>
 
             <Field label={t("dueDate")}>
-              <input
-                type="date"
-                value={dueAt}
-                onChange={(e) => setDueAt(e.target.value)}
-                style={inp}
-              />
+              <input type="date" value={dueAt} onChange={(e) => setDueAt(e.target.value)} style={inp} />
             </Field>
 
-            <Button
-              full
-              icon="check"
-              disabled={!canSubmit}
-              onClick={() => create.mutate()}
-            >
+            <Button full icon="check" disabled={!canSubmit} onClick={() => create.mutate()}>
               {create.isPending ? t("saving") : t("assign")}
             </Button>
           </div>
@@ -261,99 +295,15 @@ export function TeacherAssignments() {
       {/* Existing assignments */}
       {isLoading ? (
         <Loading />
-      ) : !assignments?.length ? (
-        <EmptyState text={t("noAssignments")} />
       ) : (
-        <div className="g3">
-          {assignments.map((a) => (
-            <Card key={a.id} hover>
-              <div className="row between" style={{ marginBottom: 12 }}>
-                {a.question_topic ? (
-                  <Pill hue={47} size="sm">
-                    {a.question_topic}
-                  </Pill>
-                ) : (
-                  <span />
-                )}
-                {a.due_at && (
-                  <span
-                    className="row gap-1"
-                    style={{ fontSize: 12, color: "var(--muted)" }}
-                  >
-                    <Icon name="calendar" size={14} />
-                    {new Date(a.due_at).toLocaleDateString()}
-                  </span>
-                )}
-              </div>
-
-              <div className="row gap-3" style={{ marginBottom: 12 }}>
-                <Avatar name={a.student_name ?? "?"} size={38} />
-                <div className="col grow" style={{ minWidth: 0 }}>
-                  <span
-                    className="truncate"
-                    style={{ fontWeight: 800, fontSize: 14.5 }}
-                  >
-                    {a.student_name}
-                  </span>
-                  <span
-                    className="truncate"
-                    style={{ fontSize: 12.5, color: "var(--muted)" }}
-                  >
-                    {a.question_title}
-                  </span>
-                </div>
-              </div>
-
-              <Bar value={a.completed ? 100 : 0} hue={a.completed ? 152 : 47} />
-
-              <div className="row between" style={{ marginTop: 10 }}>
-                {a.completed ? (
-                  <button
-                    type="button"
-                    onClick={() =>
-                      a.submission_id && nav(`/submissions/${a.submission_id}`)
-                    }
-                    className="tap"
-                    style={{
-                      border: "none",
-                      background: "transparent",
-                      padding: 0,
-                      cursor: a.submission_id ? "pointer" : "default",
-                    }}
-                  >
-                    <Pill
-                      hue={bandColor(a.overall_band ?? 70)}
-                      size="sm"
-                      icon="check"
-                    >
-                      {a.overall_band != null ? Math.round(a.overall_band) : "✓"}
-                    </Pill>
-                  </button>
-                ) : (
-                  <Pill hue={28} size="sm">
-                    {t("notCompleted")}
-                  </Pill>
-                )}
-                <button
-                  type="button"
-                  aria-label="delete"
-                  onClick={() => del.mutate(a.id)}
-                  className="tap"
-                  style={{
-                    border: "none",
-                    background: "transparent",
-                    color: "var(--danger)",
-                    cursor: "pointer",
-                    display: "flex",
-                    padding: 2,
-                  }}
-                >
-                  <Icon name="trash" size={16} />
-                </button>
-              </div>
-            </Card>
-          ))}
-        </div>
+        <DataTable
+          columns={columns}
+          rows={assignments ?? []}
+          rowKey={(a) => a.id}
+          onRowClick={(a) => a.completed && a.submission_id && nav(`/submissions/${a.submission_id}`)}
+          minWidth={560}
+          empty={t("noAssignments")}
+        />
       )}
     </div>
   );

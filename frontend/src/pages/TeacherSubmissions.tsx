@@ -8,15 +8,16 @@ import type { Submission } from "../lib/types";
 import {
   Avatar,
   Button,
-  Card,
-  EmptyState,
+  DataTable,
   Icon,
   Loading,
   PageHead,
   Pill,
   SegTabs,
+  Toolbar,
   bandColor,
   fmt,
+  type Column,
 } from "../components/govori";
 
 /** Effective band for a submission: teacher override > AI evaluation. */
@@ -94,67 +95,107 @@ export function TeacherSubmissions() {
     filter === "all" ? true : filter === "pending" ? isPending(s) : isReviewed(s),
   );
 
+  const columns: Column<Submission>[] = [
+    {
+      key: "student",
+      header: t("colStudent"),
+      render: (s) => (
+        <div className="row gap-3" style={{ minWidth: 0 }}>
+          <Avatar name={s.student_name} size={36} />
+          <div className="col" style={{ minWidth: 0 }}>
+            <span className="truncate" style={{ fontWeight: 700, fontSize: 14.5 }}>
+              {s.student_name ?? "—"}
+            </span>
+            <span className="truncate" style={{ fontSize: 12.5, color: "var(--muted)" }}>
+              {s.question_title ?? "—"}
+              {s.question_topic ? ` · ${s.question_topic}` : ""}
+            </span>
+          </div>
+        </div>
+      ),
+    },
+    {
+      key: "duration",
+      header: t("duration"),
+      align: "right",
+      hideSm: true,
+      render: (s) =>
+        s.audio_duration_sec != null ? (
+          <span className="mono" style={{ color: "var(--muted)" }}>
+            {fmt(s.audio_duration_sec)}
+          </span>
+        ) : (
+          <span style={{ color: "var(--faint)" }}>—</span>
+        ),
+    },
+    {
+      key: "status",
+      header: t("colScore"),
+      align: "right",
+      render: (s) => {
+        const band = subBand(s);
+        const reviewed = isReviewed(s);
+        return reviewed && band != null ? (
+          <Pill hue={bandColor(band)} size="sm" icon="check">
+            {Math.round(band)}
+          </Pill>
+        ) : s.status === "failed" ? (
+          <Pill hue={28} size="sm">
+            {t("failed")}
+          </Pill>
+        ) : (
+          <Pill hue={28} size="sm">
+            {t("pendingReview")}
+          </Pill>
+        );
+      },
+    },
+    {
+      key: "actions",
+      header: t("colActions"),
+      align: "right",
+      render: (s) => {
+        const reviewed = isReviewed(s);
+        return (
+          <div className="row" style={{ justifyContent: "flex-end" }} onClick={(e) => e.stopPropagation()}>
+            <Button size="sm" variant="ghost" icon={reviewed ? "eye" : "play"} onClick={() => nav(`/submissions/${s.id}`)}>
+              {reviewed ? t("viewAnswer") : t("open")}
+            </Button>
+          </div>
+        );
+      },
+    },
+  ];
+
   return (
     <div className="focus-wrap">
       <PageHead title={t("studentAnswers")} />
 
-      <div style={{ marginBottom: 18 }}>
-        <SegTabs
-          value={filter}
-          onChange={(id) => setFilter(id as Filter)}
-          tabs={[
-            { id: "pending", label: t("pendingReview"), badge: pendingCount },
-            { id: "reviewed", label: t("colScore"), badge: reviewedCount },
-            { id: "all", label: t("all") },
-          ]}
-        />
-      </div>
+      <Toolbar
+        left={
+          <SegTabs
+            value={filter}
+            onChange={(id) => setFilter(id as Filter)}
+            tabs={[
+              { id: "pending", label: t("pendingReview"), badge: pendingCount },
+              { id: "reviewed", label: t("colScore"), badge: reviewedCount },
+              { id: "all", label: t("all") },
+            ]}
+          />
+        }
+      />
 
       {isLoading ? (
         <Loading />
-      ) : !list.length ? (
-        <EmptyState text={t("noAnswers")} />
       ) : (
-        <div className="col gap-3">
-          {list.map((s) => {
-            const reviewed = isReviewed(s);
-            const band = subBand(s);
-            return (
-              <Card key={s.id} hover pad={16} onClick={() => nav(`/submissions/${s.id}`)}>
-                <div className="row gap-4 wrap">
-                  <Avatar name={s.student_name} size={48} />
-                  <div className="col grow" style={{ minWidth: 150, gap: 3 }}>
-                    <span style={{ fontWeight: 800, fontSize: 15.5 }}>
-                      {s.student_name ?? "—"}
-                    </span>
-                    <span style={{ fontSize: 13, color: "var(--muted)" }}>
-                      {s.question_title ?? "—"}
-                      {s.question_topic ? ` · ${s.question_topic}` : ""}
-                    </span>
-                  </div>
-                  {s.audio_duration_sec != null && (
-                    <span className="row gap-1 hide-sm" style={{ fontSize: 13, color: "var(--muted)" }}>
-                      <Icon name="clock" size={14} />
-                      {fmt(s.audio_duration_sec)}
-                    </span>
-                  )}
-                  {reviewed && band != null ? (
-                    <Pill hue={bandColor(band)} icon="check">
-                      {Math.round(band)}
-                    </Pill>
-                  ) : s.status === "failed" ? (
-                    <Pill hue={28}>{t("failed")}</Pill>
-                  ) : (
-                    <Pill hue={28}>{t("pendingReview")}</Pill>
-                  )}
-                  <Button size="sm" icon={reviewed ? "eye" : "play"}>
-                    {reviewed ? t("viewAnswer") : t("open")}
-                  </Button>
-                </div>
-              </Card>
-            );
-          })}
-        </div>
+        <DataTable
+          columns={columns}
+          rows={list}
+          rowKey={(s) => s.id}
+          onRowClick={(s) => nav(`/submissions/${s.id}`)}
+          minWidth={640}
+          empty={t("noAnswers")}
+        />
       )}
     </div>
   );

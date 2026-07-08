@@ -9,21 +9,16 @@ import { useConfirm } from "../components/ConfirmDialog";
 import {
   Avatar,
   Button,
-  Card,
-  EmptyState,
+  DataTable,
   Icon,
   Loading,
   PageHead,
   Pill,
+  Toolbar,
   inp,
+  type Column,
 } from "../components/govori";
-
-/** Stable hue per group id, for the gradient icon. */
-function groupHue(id: string): number {
-  let h = 0;
-  for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) % 360;
-  return h;
-}
+import { Dropdown, type DropdownOption } from "../components/Dropdown";
 
 export function TeacherGroups() {
   const { t } = useI18n();
@@ -71,12 +66,88 @@ export function TeacherGroups() {
       remove.mutate(g.id);
   }
 
+  const teacherOptions: DropdownOption<string>[] = [
+    { value: "", label: t("assignTeacher") },
+    ...(teachers ?? []).map((tt) => ({ value: tt.id, label: tt.full_name })),
+  ];
+
+  const columns: Column<Group>[] = [
+    {
+      key: "name",
+      header: t("colName"),
+      render: (g) => (
+        <div className="row gap-3" style={{ minWidth: 0 }}>
+          <Icon name="users" size={18} style={{ color: "var(--faint)", flexShrink: 0 }} />
+          <span className="truncate" style={{ fontWeight: 700, fontSize: 15 }}>{g.name}</span>
+        </div>
+      ),
+    },
+    {
+      key: "join",
+      header: t("joinCode"),
+      hideSm: true,
+      render: (g) => (
+        <span className="mono" style={{ color: "var(--ink-soft)" }}>{g.join_code}</span>
+      ),
+    },
+    {
+      key: "members",
+      header: t("members"),
+      align: "right",
+      render: (g) => (
+        <span className="mono" style={{ color: "var(--muted)" }}>{g.member_count}</span>
+      ),
+    },
+    // Admin-only: reassign the group to a real teacher.
+    ...(isAdmin
+      ? [
+          {
+            key: "teacher",
+            header: t("colGroup"),
+            width: 260,
+            render: (g: Group) => (
+              <div className="col gap-2" style={{ minWidth: 0 }} onClick={(e) => e.stopPropagation()}>
+                {g.teacher_name ? (
+                  <span className="row gap-2" style={{ minWidth: 0, alignItems: "center" }}>
+                    <Avatar name={g.teacher_name} size={22} />
+                    <span className="truncate" style={{ fontSize: 13, fontWeight: 700, color: "var(--ink-soft)" }}>
+                      {g.teacher_name}
+                    </span>
+                  </span>
+                ) : (
+                  <Pill hue={28} size="sm">{t("noTeacher")}</Pill>
+                )}
+                <Dropdown
+                  value={teachers?.some((tt) => tt.id === g.teacher_id) ? g.teacher_id ?? "" : ""}
+                  onChange={(v) => v && assign.mutate({ groupId: g.id, teacherId: v })}
+                  options={teacherOptions}
+                  placeholder={t("assignTeacher")}
+                />
+              </div>
+            ),
+          } as Column<Group>,
+        ]
+      : []),
+    {
+      key: "actions",
+      header: t("colActions"),
+      align: "right",
+      render: (g) => (
+        <div className="row" style={{ justifyContent: "flex-end" }} onClick={(e) => e.stopPropagation()}>
+          <Button size="sm" variant="ghost" icon="trash" style={{ color: "var(--danger)" }} onClick={() => onDelete(g)}>
+            {t("delete")}
+          </Button>
+        </div>
+      ),
+    },
+  ];
+
   return (
     <div className="focus-wrap">
-      <PageHead
-        title={t("navGroups")}
-        sub={t("groupsHint")}
-        action={
+      <PageHead title={t("navGroups")} sub={t("groupsHint")} />
+
+      <Toolbar
+        right={
           <form
             className="row gap-2 wrap"
             onSubmit={(e) => {
@@ -88,13 +159,9 @@ export function TeacherGroups() {
               placeholder={t("groupNamePh")}
               value={name}
               onChange={(e) => setName(e.target.value)}
-              style={{ ...inp, width: 220, minWidth: 0, maxWidth: "100%" }}
+              style={{ ...inp, width: 220, minWidth: 0, maxWidth: "100%", height: 40 }}
             />
-            <Button
-              type="submit"
-              icon="plus"
-              disabled={!name.trim() || create.isPending}
-            >
+            <Button type="submit" icon="plus" disabled={!name.trim() || create.isPending}>
               {create.isPending ? "…" : t("newGroup")}
             </Button>
           </form>
@@ -103,116 +170,15 @@ export function TeacherGroups() {
 
       {isLoading ? (
         <Loading />
-      ) : !groups?.length ? (
-        <EmptyState text={t("noGroups")} />
       ) : (
-        <div className="g3">
-          {groups.map((g) => {
-            const hue = groupHue(g.id);
-            return (
-              <Card key={g.id} hover onClick={() => nav(`/teacher/groups/${g.id}`)}>
-                <div className="row between" style={{ marginBottom: 14 }}>
-                  <div
-                    style={{
-                      width: 50,
-                      height: 50,
-                      borderRadius: 15,
-                      background: `linear-gradient(135deg, oklch(0.76 0.13 ${hue}), oklch(0.64 0.17 ${hue}))`,
-                      color: "#fff",
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                    }}
-                  >
-                    <Icon name="users" size={24} />
-                  </div>
-                  <button
-                    type="button"
-                    aria-label="delete"
-                    className="tap"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onDelete(g);
-                    }}
-                    style={{
-                      border: "none",
-                      background: "transparent",
-                      color: "var(--danger)",
-                      cursor: "pointer",
-                      display: "flex",
-                      padding: 4,
-                    }}
-                  >
-                    <Icon name="trash" size={18} />
-                  </button>
-                </div>
-                <h3 style={{ fontSize: 17 }}>{g.name}</h3>
-                <div
-                  className="row gap-4"
-                  style={{ marginTop: 10, color: "var(--muted)", fontSize: 13 }}
-                >
-                  <span className="row gap-1">
-                    <Icon name="user" size={15} />
-                    {g.member_count} {t("members")}
-                  </span>
-                </div>
-
-                {/* Admin: (re)assign this group to a real teacher */}
-                {isAdmin && (
-                  <div
-                    onClick={(e) => e.stopPropagation()}
-                    style={{ marginTop: 14, paddingTop: 14, borderTop: "1px solid var(--line)" }}
-                  >
-                    <div className="row between" style={{ alignItems: "center", marginBottom: 8, gap: 8 }}>
-                      <span style={{ fontSize: 11, fontWeight: 800, color: "var(--faint)", textTransform: "uppercase", letterSpacing: "0.05em" }}>
-                        {t("groupTeacher")}
-                      </span>
-                      {g.teacher_name ? (
-                        <span className="row gap-2" style={{ minWidth: 0, alignItems: "center" }}>
-                          <Avatar name={g.teacher_name} size={22} />
-                          <span className="truncate" style={{ fontSize: 13, fontWeight: 700, color: "var(--ink-soft)" }}>
-                            {g.teacher_name}
-                          </span>
-                        </span>
-                      ) : (
-                        <Pill hue={28} size="sm">{t("noTeacher")}</Pill>
-                      )}
-                    </div>
-                    <div style={{ position: "relative" }}>
-                      <select
-                        value={teachers?.some((tt) => tt.id === g.teacher_id) ? g.teacher_id ?? "" : ""}
-                        disabled={assign.isPending}
-                        onChange={(e) => {
-                          if (e.target.value) assign.mutate({ groupId: g.id, teacherId: e.target.value });
-                        }}
-                        style={{
-                          ...inp,
-                          appearance: "none",
-                          WebkitAppearance: "none",
-                          MozAppearance: "none",
-                          paddingRight: 38,
-                          fontSize: 13.5,
-                          fontWeight: 700,
-                          cursor: "pointer",
-                        }}
-                      >
-                        <option value="">{t("assignTeacher")}</option>
-                        {(teachers ?? []).map((tt) => (
-                          <option key={tt.id} value={tt.id}>{tt.full_name}</option>
-                        ))}
-                      </select>
-                      <Icon
-                        name="chevD"
-                        size={16}
-                        style={{ position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)", pointerEvents: "none", color: "var(--muted)" }}
-                      />
-                    </div>
-                  </div>
-                )}
-              </Card>
-            );
-          })}
-        </div>
+        <DataTable
+          columns={columns}
+          rows={groups ?? []}
+          rowKey={(g) => g.id}
+          onRowClick={(g) => nav(`/teacher/groups/${g.id}`)}
+          minWidth={isAdmin ? 900 : 560}
+          empty={t("noGroups")}
+        />
       )}
     </div>
   );
