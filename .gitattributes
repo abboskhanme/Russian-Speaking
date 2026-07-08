@@ -1,0 +1,4 @@
+# Shell scripts must stay LF so they run on the Linux VM even when authored on
+# Windows (a CRLF in the shebang breaks `#!/usr/bin/env bash`).
+*.sh text eol=lf
+deploy/** text eol=lf
