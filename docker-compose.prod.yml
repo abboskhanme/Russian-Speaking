@@ -56,7 +56,6 @@ services:
 
   # Run migrations once, then exit.
   migrate:
-    image: ghcr.io/abboskhanme/russian-speaking-backend:${IMAGE_TAG:-latest}
     build: ./backend
     command: alembic upgrade head
     env_file: .env
@@ -65,7 +64,6 @@ services:
         condition: service_healthy
 
   backend:
-    image: ghcr.io/abboskhanme/russian-speaking-backend:${IMAGE_TAG:-latest}
     build: ./backend
     command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers ${BACKEND_WORKERS:-2}
     env_file: .env
@@ -89,7 +87,6 @@ services:
     restart: unless-stopped
 
   worker:
-    image: ghcr.io/abboskhanme/russian-speaking-backend:${IMAGE_TAG:-latest}
     build: ./backend
     command: celery -A app.workers.celery_app.celery worker -B --loglevel=info --concurrency=${WORKER_CONCURRENCY:-4}
     env_file: .env
@@ -107,7 +104,6 @@ services:
     restart: unless-stopped
 
   web:
-    image: ghcr.io/abboskhanme/russian-speaking-web:${IMAGE_TAG:-latest}
     build:
       context: .
       dockerfile: frontend/Dockerfile.prod

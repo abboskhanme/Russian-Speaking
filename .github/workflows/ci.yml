@@ -1,8 +1,8 @@
 name: CI
 
-# Pull-request checks. Pushes to main are tested + built + deployed by deploy.yml
-# (so tests don't run twice on a merge).
 on:
+  push:
+    branches: [main]
   pull_request:
     branches: [main]
 
