@@ -64,3 +64,7 @@ gemini_besteffort_breaker = CircuitBreaker("Gemini (best-effort)")
 # Azure is down (and its circuit is open) the grader can still fall back to
 # Gemini, and vice-versa.
 azure_llm_breaker = CircuitBreaker("Azure OpenAI")
+# LLM grader on OpenAI (api.openai.com) — the BACKUP used when Gemini fails
+# (e.g. quota). Its own circuit so an OpenAI outage never opens Gemini's, and
+# vice-versa.
+openai_llm_breaker = CircuitBreaker("OpenAI")

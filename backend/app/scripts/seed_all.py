@@ -139,6 +139,15 @@ def main() -> None:
     db = SessionLocal()
     now = datetime.now(timezone.utc)
     try:
+        # ── Canonical simple logins (all password: test1234) ──────────────────
+        _get_or_create_user(db, email="admin@test.uz", full_name="Admin",
+                            role=UserRole.admin)
+        _get_or_create_user(db, email="teacher@test.uz", full_name="Teacher",
+                            role=UserRole.teacher)
+        _get_or_create_user(db, email="student@test.uz", full_name="Student",
+                            role=UserRole.student)
+        db.commit()
+
         for ti, (t_name, t_email, t_tg, t_phone) in enumerate(TEACHERS):
             teacher = _get_or_create_user(db, email=t_email, full_name=t_name,
                                           role=UserRole.teacher, telegram=t_tg, phone=t_phone)
@@ -252,7 +261,9 @@ def main() -> None:
             print(f"  ✓ {t_name}: 5 students, 1 group, {len(blocks)} modules, {len(questions)} tasks")
 
         print("Demo data seeded: 5 teachers × (5 students, 1 group, 2 modules, 5 tasks) + submissions.")
-        print("Login: teacher1@demo.uz / student1@demo.uz … password: test1234")
+        print("Simple logins (password: test1234):")
+        print("  admin@test.uz  ·  teacher@test.uz  ·  student@test.uz")
+        print("Demo logins: teacher1@demo.uz / student1@demo.uz … password: test1234")
     finally:
         db.close()
 

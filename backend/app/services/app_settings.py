@@ -35,6 +35,8 @@ _SPEC: dict[str, tuple[str, bool]] = {
     "azure_speech_region": ("AZURE_SPEECH_REGION", False),
     "openai_api_key": ("OPENAI_API_KEY", True),
     "whisper_model": ("WHISPER_MODEL", False),
+    # OpenAI as the grader BACKUP (used when Gemini fails). Reuses openai_api_key.
+    "openai_grader_model": ("OPENAI_GRADER_MODEL", False),
     # Outbound links (sidebar contact menu) — managed at runtime.
     "tg_support_url": ("TG_SUPPORT_URL", False),
     "tg_channel_url": ("TG_CHANNEL_URL", False),
@@ -184,4 +186,7 @@ def resolve_llm() -> dict[str, str]:
         "azure_api_key": get("azure_openai_api_key"),
         "azure_deployment": get("azure_openai_deployment"),
         "azure_api_version": get("azure_openai_api_version", "2024-10-21"),
+        # OpenAI grader backup (used when Gemini fails). Reuses the Whisper key.
+        "openai_api_key": get("openai_api_key"),
+        "openai_grader_model": get("openai_grader_model", "gpt-4o-mini"),
     }

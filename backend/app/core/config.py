@@ -53,6 +53,10 @@ class Settings(BaseSettings):
     # OpenAI Whisper (fallback — transcription only)
     OPENAI_API_KEY: str = ""
     WHISPER_MODEL: str = "whisper-1"
+    # OpenAI (api.openai.com) as the grader BACKUP — used when Gemini fails
+    # (e.g. free-tier quota exhausted). Reuses OPENAI_API_KEY above. Must be a
+    # structured-output-capable chat model.
+    OPENAI_GRADER_MODEL: str = "gpt-4o-mini"
 
     # AI — LLM grader provider. "auto" (Azure OpenAI when fully configured, else
     # Gemini), or force "azure" / "gemini". These are env DEFAULTS only — an admin

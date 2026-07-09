@@ -21,10 +21,15 @@ import time
 from google import genai
 from google.genai import errors as genai_errors
 from google.genai import types
-from openai import AzureOpenAI
+from openai import AzureOpenAI, OpenAI
 from pydantic import BaseModel, Field
 
-from app.core.breaker import azure_llm_breaker, gemini_besteffort_breaker, gemini_breaker
+from app.core.breaker import (
+    azure_llm_breaker,
+    gemini_besteffort_breaker,
+    gemini_breaker,
+    openai_llm_breaker,
+)
 from app.services import app_settings as _cfg
 
 log = logging.getLogger(__name__)
@@ -50,6 +55,7 @@ def _llm_conf() -> tuple[dict, bool]:
 
 _gemini_clients: dict[str, genai.Client] = {}
 _azure_clients: dict[tuple, AzureOpenAI] = {}
+_openai_clients: dict[str, OpenAI] = {}
 
 
 def _gemini_client(api_key: str) -> genai.Client:
@@ -107,6 +113,57 @@ def _azure_text(c, system, user_text, temperature):
     """One plain-text Azure OpenAI chat call → str."""
     completion = _azure_client(c).chat.completions.create(
         model=c["azure_deployment"],
+        messages=[{"role": "system", "content": system}, {"role": "user", "content": user_text}],
+        temperature=temperature,
+    )
+    return (completion.choices[0].message.content or "").strip()
+
+
+# ─── OpenAI (api.openai.com) — the grader BACKUP used when Gemini fails ──────
+def _openai_client(api_key: str) -> OpenAI:
+    """Cached OpenAI client per API key. Same structured-parse API as Azure."""
+    cli = _openai_clients.get(api_key)
+    if cli is None:
+        cli = OpenAI(api_key=api_key)
+        _openai_clients[api_key] = cli
+    return cli
+
+
+def _openai_ready(c: dict) -> bool:
+    return bool(c.get("openai_api_key") and c.get("openai_grader_model"))
+
+
+@openai_llm_breaker
+def _openai_structured(
+    c, system, user_text, schema, *, image_bytes=None, image_mime=None, temperature=0.4
+):
+    """One structured (schema-validated) OpenAI chat call → pydantic model."""
+    content: list = [{"type": "text", "text": user_text}]
+    if image_bytes:
+        b64 = base64.b64encode(image_bytes).decode()
+        content.append(
+            {
+                "type": "image_url",
+                "image_url": {"url": f"data:{image_mime or 'image/jpeg'};base64,{b64}"},
+            }
+        )
+    completion = _openai_client(c["openai_api_key"]).beta.chat.completions.parse(
+        model=c["openai_grader_model"],
+        messages=[{"role": "system", "content": system}, {"role": "user", "content": content}],
+        response_format=schema,
+        temperature=temperature,
+    )
+    parsed = completion.choices[0].message.parsed
+    if parsed is None:
+        raise ValueError("OpenAI returned no parseable content")
+    return parsed
+
+
+@openai_llm_breaker
+def _openai_text(c, system, user_text, temperature):
+    """One plain-text OpenAI chat call → str."""
+    completion = _openai_client(c["openai_api_key"]).chat.completions.create(
+        model=c["openai_grader_model"],
         messages=[{"role": "system", "content": system}, {"role": "user", "content": user_text}],
         temperature=temperature,
     )
@@ -346,17 +403,29 @@ def analyze(
         except Exception as e:
             log.warning("Azure OpenAI grader failed; falling back to Gemini: %s", e)
 
-    response = _gemini_generate(
-        api_key=c["gemini_api_key"],
-        model=c["gemini_model"],
-        contents=contents,
-        system=RUBRIC_SYSTEM,
-        schema=EvaluationResult,
-    )
-    result = response.parsed
-    if not isinstance(result, EvaluationResult):
-        raise ValueError("LLM did not return a parseable evaluation")
-    return _drop_cosmetic_corrections(result)
+    try:
+        response = _gemini_generate(
+            api_key=c["gemini_api_key"],
+            model=c["gemini_model"],
+            contents=contents,
+            system=RUBRIC_SYSTEM,
+            schema=EvaluationResult,
+        )
+        result = response.parsed
+        if not isinstance(result, EvaluationResult):
+            raise ValueError("LLM did not return a parseable evaluation")
+        return _drop_cosmetic_corrections(result)
+    except Exception as e:
+        # Gemini failed (quota, overload, breaker open) — fall back to OpenAI.
+        if not _openai_ready(c):
+            raise
+        log.warning("Gemini grader failed; falling back to OpenAI: %s", e)
+        return _drop_cosmetic_corrections(
+            _openai_structured(
+                c, RUBRIC_SYSTEM, user_content, EvaluationResult,
+                image_bytes=image_bytes, image_mime=image_mime, temperature=0.3,
+            )
+        )
 
 
 # ─── Explain my answer ─────────────────────────────────────────────────────
@@ -393,17 +462,23 @@ def explain_answer(*, question_prompt: str, transcript_text: str) -> ExplainResu
             return _azure_structured(c, _EXPLAIN_SYSTEM, user_content, ExplainResult, temperature=0.4)
         except Exception as e:
             log.warning("Azure OpenAI explain failed; falling back to Gemini: %s", e)
-    response = _gemini_generate(
-        api_key=c["gemini_api_key"],
-        model=c["gemini_model"],
-        contents=user_content,
-        system=_EXPLAIN_SYSTEM,
-        schema=ExplainResult,
-    )
-    result = response.parsed
-    if not isinstance(result, ExplainResult):
-        raise ValueError("LLM did not return a parseable explanation")
-    return result
+    try:
+        response = _gemini_generate(
+            api_key=c["gemini_api_key"],
+            model=c["gemini_model"],
+            contents=user_content,
+            system=_EXPLAIN_SYSTEM,
+            schema=ExplainResult,
+        )
+        result = response.parsed
+        if not isinstance(result, ExplainResult):
+            raise ValueError("LLM did not return a parseable explanation")
+        return result
+    except Exception as e:
+        if not _openai_ready(c):
+            raise
+        log.warning("Gemini explain failed; falling back to OpenAI: %s", e)
+        return _openai_structured(c, _EXPLAIN_SYSTEM, user_content, ExplainResult, temperature=0.4)
 
 
 # ─── Model (exemplar) answer ───────────────────────────────────────────────
@@ -459,14 +534,20 @@ def generate_model_answer(
             log.warning("Azure OpenAI model-answer failed; falling back to Gemini: %s", e)
     # Higher temperature → a fresh variant each attempt. Best-effort circuit: a
     # rate-limit here must never open the grader's breaker.
-    response = _gemini_generate_besteffort(
-        api_key=c["gemini_api_key"],
-        model=c["gemini_model"],
-        contents=user_content,
-        system=_MODEL_ANSWER_SYSTEM,
-        temperature=1.1,
-    )
-    return (response.text or "").strip()
+    try:
+        response = _gemini_generate_besteffort(
+            api_key=c["gemini_api_key"],
+            model=c["gemini_model"],
+            contents=user_content,
+            system=_MODEL_ANSWER_SYSTEM,
+            temperature=1.1,
+        )
+        return (response.text or "").strip()
+    except Exception as e:
+        if not _openai_ready(c):
+            raise
+        log.warning("Gemini model-answer failed; falling back to OpenAI: %s", e)
+        return _openai_text(c, _MODEL_ANSWER_SYSTEM, user_content, 1.0)
 
 
 # ─── Bulk question generation ──────────────────────────────────────────────
@@ -557,16 +638,23 @@ def _generate_chunk(
                 return batch.questions
         except Exception as e:
             log.warning("Azure OpenAI question-gen failed; falling back to Gemini: %s", e)
-    response = _gemini_generate(
-        api_key=c["gemini_api_key"],
-        model=c["gemini_model"],
-        contents=user_content,
-        system=_GEN_SYSTEM,
-        schema=_GeneratedBatch,
-        temperature=1.1,  # higher temperature → more variety across the library
-    )
-    parsed = _GeneratedBatch.model_validate_json(response.text or '{"questions": []}')
-    return parsed.questions
+    try:
+        response = _gemini_generate(
+            api_key=c["gemini_api_key"],
+            model=c["gemini_model"],
+            contents=user_content,
+            system=_GEN_SYSTEM,
+            schema=_GeneratedBatch,
+            temperature=1.1,  # higher temperature → more variety across the library
+        )
+        parsed = _GeneratedBatch.model_validate_json(response.text or '{"questions": []}')
+        return parsed.questions
+    except Exception as e:
+        if not _openai_ready(c):
+            raise
+        log.warning("Gemini question-gen failed; falling back to OpenAI: %s", e)
+        batch = _openai_structured(c, _GEN_SYSTEM, user_content, _GeneratedBatch, temperature=1.0)
+        return batch.questions if isinstance(batch, _GeneratedBatch) else []
 
 
 def generate_questions(

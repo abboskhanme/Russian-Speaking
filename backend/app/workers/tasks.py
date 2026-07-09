@@ -197,8 +197,9 @@ def process_submission(self, submission_id: str) -> str:
                 image_mime = _image_mime(question.media_key)
             except Exception:  # noqa: BLE001 — fall back to text-only analysis
                 image_bytes = image_mime = None
-        # Text-only analysis: delivery (pronunciation, pace, intonation) is no
-        # longer scored, so the recording is not sent to the LLM.
+        # Text-only analysis: the LLM judges the transcript. Delivery is graded
+        # separately — Azure's pronunciation score is folded into the final band
+        # below (5th criterion), so the recording itself is not sent to the LLM.
         _t_llm = time.monotonic()
         result = llm.analyze(
             question_prompt=html_to_text(question.prompt_text),
@@ -229,8 +230,21 @@ def process_submission(self, submission_id: str) -> str:
             except Exception:  # noqa: BLE001
                 logger.warning("orthoepy check failed", extra={"submission_id": submission_id})
         oe_penalty = min(len(orthoepy_errors) * ORTHOEPY_PENALTY_PER_ERROR, ORTHOEPY_PENALTY_CAP)
-        overall_band = max(0.0, result.scores.overall - oe_penalty)
-        level_score = max(0.0, result.scores.level_overall - oe_penalty)
+
+        # Azure pronunciation (PronScore, 0–100) becomes a 5th, equally-weighted
+        # criterion alongside the LLM's four text criteria. The LLM `overall`/
+        # `level_overall` are the aggregate of those four, so blending pronunciation
+        # in as (text*4 + pron) / 5 makes it one of five equal parts. Falls back to
+        # the text-only score when Azure reports no pronunciation (e.g. Whisper path).
+        pron_score = (stt_result.get("pronunciation") or {}).get("pronunciation")
+
+        def _with_pron(text_score: float) -> float:
+            if pron_score is None:
+                return text_score
+            return (text_score * 4 + pron_score) / 5
+
+        overall_band = max(0.0, _with_pron(result.scores.overall) - oe_penalty)
+        level_score = max(0.0, _with_pron(result.scores.level_overall) - oe_penalty)
 
         evaluation = Evaluation(
             submission_id=sub.id,
@@ -238,6 +252,7 @@ def process_submission(self, submission_id: str) -> str:
             lexical_score=result.scores.lexical,
             grammar_score=result.scores.grammar,
             relevance_score=result.scores.relevance,
+            pronunciation_score=round(pron_score, 1) if pron_score is not None else None,
             overall_band=overall_band,
             level_score=level_score,
             feedback={
