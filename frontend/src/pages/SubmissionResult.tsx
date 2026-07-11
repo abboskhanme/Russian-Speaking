@@ -4,7 +4,14 @@ import { useNavigate, useParams } from "react-router-dom";
 import { api } from "../lib/api";
 import { useAuth } from "../lib/auth";
 import { useI18n } from "../lib/i18n";
-import type { ExplainResult, OrthoepyError, Question, Submission, Transcript } from "../lib/types";
+import type {
+  ExplainResult,
+  OrthoepyError,
+  Question,
+  StudentModule,
+  Submission,
+  Transcript,
+} from "../lib/types";
 import {
   Avatar,
   Bar,
@@ -254,6 +261,15 @@ export function SubmissionResult() {
     queryFn: async () => (await api.get<Question>(`/questions/${sub!.question_id}`)).data,
   });
 
+  // Modules the student is working through — used so "Continue" advances to the
+  // next task in the SAME module instead of dumping the student on the practice
+  // list. Shares the cache key with StudentModules, so it's usually already warm.
+  const { data: studentModules } = useQuery({
+    queryKey: ["student-modules"],
+    enabled: isStudent && !!question?.block_id,
+    queryFn: async () => (await api.get<StudentModule[]>("/blocks/student")).data,
+  });
+
   const explainMut = useMutation({
     mutationFn: async () =>
       (await api.post<ExplainResult>(`/submissions/${sub!.id}/explain`)).data,
@@ -328,6 +344,28 @@ export function SubmissionResult() {
   if (!sub) return <Loading full />;
 
   const processing = sub.status === "pending" || sub.status === "processing";
+
+  // "Continue" → advance within the module the answered question belongs to.
+  // Falls back to the practice list for standalone questions or if the module
+  // can't be resolved. When the module is finished, land on the modules page.
+  function handleContinue() {
+    const blockId = question?.block_id;
+    const mod = blockId ? studentModules?.find((m) => m.id === blockId) : undefined;
+    if (mod) {
+      const idx = mod.tasks.findIndex((task) => task.id === sub!.question_id);
+      const next = idx >= 0 ? mod.tasks[idx + 1] : undefined;
+      if (next) {
+        // The task just answered is now done, so the next one is sequentially
+        // unlocked; only the premium gate can still block it.
+        nav(next.premium_locked ? "/premium" : `/questions/${next.id}/answer`);
+        return;
+      }
+      // No task after this one → module complete. Show progress on /modules.
+      nav("/modules");
+      return;
+    }
+    nav("/questions");
+  }
 
   /* ── Analyzing (Mascot thinking) — only until the transcript (STT) is ready.
      Once STT is done we fall through and show the transcript immediately while
@@ -1110,7 +1148,7 @@ export function SubmissionResult() {
           ) : (
             <span />
           )}
-          <Button iconR="chevR" onClick={() => nav("/questions")}>
+          <Button iconR="chevR" onClick={handleContinue}>
             {t("continueBtn")}
           </Button>
         </div>
