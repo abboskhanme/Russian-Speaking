@@ -1415,7 +1415,9 @@ export function DataTable<T>({
               <tr
                 key={rowKey(row, i)}
                 onClick={onRowClick ? () => onRowClick(row) : undefined}
-                className={onRowClick ? "tap" : undefined}
+                // NB: no `.tap` press-scale here. Scaling a full-width row shifts
+                // its right-edge action buttons ~20px out from under the cursor
+                // between mousedown and mouseup, so their click never fires.
                 style={{
                   cursor: onRowClick ? "pointer" : "default",
                   transition: "background .12s",
