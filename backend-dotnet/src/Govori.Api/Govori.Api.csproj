@@ -4,6 +4,7 @@
     <ProjectReference Include="..\Govori.Contracts\Govori.Contracts.csproj" />
     <ProjectReference Include="..\Govori.Infrastructure\Govori.Infrastructure.csproj" />
     <ProjectReference Include="..\Modules\Govori.Identity\Govori.Identity.csproj" />
+    <ProjectReference Include="..\Modules\Govori.Catalog\Govori.Catalog.csproj" />
   </ItemGroup>
 
   <ItemGroup>

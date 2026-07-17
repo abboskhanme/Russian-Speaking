@@ -30,6 +30,8 @@
   <ItemGroup>
     <ProjectReference Include="..\..\src\Govori.Api\Govori.Api.csproj" />
     <ProjectReference Include="..\..\src\Govori.Infrastructure\Govori.Infrastructure.csproj" />
+    <!-- Construct CatalogService directly to drive TaskIndex/NeedsPremium through real EF/SQL. -->
+    <ProjectReference Include="..\..\src\Modules\Govori.Catalog\Govori.Catalog.csproj" />
   </ItemGroup>
 
 </Project>

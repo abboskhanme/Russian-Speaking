@@ -1,6 +1,7 @@
 using System.Reflection;
 using System.Text;
 using System.Text.Json;
+using Govori.Catalog;
 using Govori.Identity;
 using Govori.Identity.Providers;
 using Govori.Identity.Security;
@@ -110,6 +111,15 @@ try
     builder.Services.AddSingleton<TokenService>();
     builder.Services.AddScoped<AuthService>();
 
+    // ── Catalog / student read path (docs/07 §7.2, Faza 3.2) ────────────────
+    // FreeTasksPerModule ← FREE_TASKS_PER_MODULE (Python config.py:35, default 3): the positional
+    // freemium threshold for official public modules. CatalogService owns the two-layer lock.
+    builder.Services.AddSingleton(new CatalogOptions
+    {
+        FreeTasksPerModule = builder.Configuration.GetValue("FREE_TASKS_PER_MODULE", 3),
+    });
+    builder.Services.AddScoped<CatalogService>();
+
     // ── Identity providers + config (docs/07 §7.5, Faza 3.1) ────────────────
     // OTP / email-verification config — mirrors Python EMAIL_OTP_* + email_enabled.
     builder.Services.AddSingleton(new OtpOptions
@@ -204,6 +214,11 @@ try
     // the MODULAR-ENDPOINT PATTERN every future domain (Catalog, Practice, …) copies — the
     // composition root wires one call per domain, no inline route bodies here.
     app.MapIdentityEndpoints();
+
+    // ── Catalog endpoints (docs/07 §7.2, Faza 3.2) ──────────────────────────
+    // The student read path (GET /api/blocks/student — the two-layer sequence+freemium lock)
+    // lives in the Catalog module's MapCatalogEndpoints extension, one call per domain.
+    app.MapCatalogEndpoints();
 
     app.Run();
 }
