@@ -2,6 +2,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\Govori.Contracts\Govori.Contracts.csproj" />
+    <ProjectReference Include="..\..\Govori.Infrastructure\Govori.Infrastructure.csproj" />
     <ProjectReference Include="..\..\Govori.Platform\Govori.Platform.csproj" />
   </ItemGroup>
 
