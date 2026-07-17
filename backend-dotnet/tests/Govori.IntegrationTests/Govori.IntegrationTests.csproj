@@ -32,6 +32,8 @@
     <ProjectReference Include="..\..\src\Govori.Infrastructure\Govori.Infrastructure.csproj" />
     <!-- Construct CatalogService directly to drive TaskIndex/NeedsPremium through real EF/SQL. -->
     <ProjectReference Include="..\..\src\Modules\Govori.Catalog\Govori.Catalog.csproj" />
+    <!-- Construct MinioObjectStorage directly against govori-net MinIO (object-storage round-trip). -->
+    <ProjectReference Include="..\..\src\Govori.Platform\Govori.Platform.csproj" />
   </ItemGroup>
 
 </Project>
