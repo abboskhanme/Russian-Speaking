@@ -1,0 +1,138 @@
+/* Text — typographic primitive bound to the type scale (docs/03 §3.4, §3.6).
+ * One class per role; each pulls size / line / weight / tracking from tokens. */
+
+.text {
+  margin: 0;
+  font-family: var(--font-sans);
+  color: var(--ink);
+}
+
+/* ---- Roles ---- */
+.score {
+  font-size: var(--t-score-size);
+  line-height: var(--t-score-line);
+  font-weight: var(--t-score-weight);
+  letter-spacing: var(--t-score-tracking);
+  font-variant-numeric: tabular-nums;
+}
+.display {
+  font-size: var(--t-display-size);
+  line-height: var(--t-display-line);
+  font-weight: var(--t-display-weight);
+  letter-spacing: var(--t-display-tracking);
+}
+.titleL {
+  font-size: var(--t-title-l-size);
+  line-height: var(--t-title-l-line);
+  font-weight: var(--t-title-l-weight);
+  letter-spacing: var(--t-title-l-tracking);
+}
+.titleM {
+  font-size: var(--t-title-m-size);
+  line-height: var(--t-title-m-line);
+  font-weight: var(--t-title-m-weight);
+  letter-spacing: var(--t-title-m-tracking);
+}
+.titleS {
+  font-size: var(--t-title-s-size);
+  line-height: var(--t-title-s-line);
+  font-weight: var(--t-title-s-weight);
+  letter-spacing: var(--t-title-s-tracking);
+}
+.bodyL {
+  font-size: var(--t-body-l-size);
+  line-height: var(--t-body-l-line);
+  font-weight: var(--t-body-l-weight);
+}
+.body {
+  font-size: var(--t-body-size);
+  line-height: var(--t-body-line);
+  font-weight: var(--t-body-weight);
+}
+.bodyS {
+  font-size: var(--t-body-s-size);
+  line-height: var(--t-body-s-line);
+  font-weight: var(--t-body-s-weight);
+}
+.label {
+  font-size: var(--t-label-size);
+  line-height: var(--t-label-line);
+  font-weight: var(--t-label-weight);
+  letter-spacing: var(--t-label-tracking);
+  text-transform: uppercase;
+}
+.mono {
+  font-family: var(--font-mono);
+  font-size: var(--t-mono-size);
+  line-height: var(--t-mono-line);
+  font-weight: var(--t-mono-weight);
+}
+
+/* ---- Colours ---- */
+.cInk {
+  color: var(--ink);
+}
+.cInkSoft {
+  color: var(--ink-soft);
+}
+.cMuted {
+  color: var(--muted);
+}
+.cFaint {
+  color: var(--faint);
+}
+.cPrimary {
+  color: var(--primary);
+}
+.cAccent {
+  color: var(--accent);
+}
+.cSuccess {
+  color: var(--success);
+}
+.cWarn {
+  /* amber is illegible as text on a light surface → dedicated ink token */
+  color: var(--warn-ink);
+}
+.cDanger {
+  color: var(--danger);
+}
+.cInfo {
+  color: var(--info);
+}
+
+/* ---- Weight overrides ---- */
+.wRegular {
+  font-weight: var(--fw-regular);
+}
+.wMedium {
+  font-weight: var(--fw-medium);
+}
+.wSemibold {
+  font-weight: var(--fw-semibold);
+}
+.wBold {
+  font-weight: var(--fw-bold);
+}
+.wBlack {
+  font-weight: var(--fw-black);
+}
+
+/* ---- Modifiers ---- */
+.taStart {
+  text-align: start;
+}
+.taCenter {
+  text-align: center;
+}
+.taEnd {
+  text-align: end;
+}
+.numeric {
+  font-variant-numeric: tabular-nums;
+}
+.truncate {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

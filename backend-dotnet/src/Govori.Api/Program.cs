@@ -1,9 +1,8 @@
 using System.Reflection;
-using System.Security.Claims;
 using System.Text;
 using System.Text.Json;
-using Govori.Contracts;
 using Govori.Identity;
+using Govori.Identity.Providers;
 using Govori.Identity.Security;
 using Govori.Infrastructure;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -19,6 +18,7 @@ using OpenTelemetry.Resources;
 using OpenTelemetry.Trace;
 using Serilog;
 using Serilog.Formatting.Compact;
+using StackExchange.Redis;
 
 // ── Bootstrap logger ────────────────────────────────────────────────────────
 // docs/07 §7.9 (Kuzatuv) + §2.8: Serilog is the logging backbone. This throwaway
@@ -110,6 +110,39 @@ try
     builder.Services.AddSingleton<TokenService>();
     builder.Services.AddScoped<AuthService>();
 
+    // ── Identity providers + config (docs/07 §7.5, Faza 3.1) ────────────────
+    // OTP / email-verification config — mirrors Python EMAIL_OTP_* + email_enabled.
+    builder.Services.AddSingleton(new OtpOptions
+    {
+        CodeLength = builder.Configuration.GetValue("EMAIL_OTP_LENGTH", 6),
+        TtlSeconds = builder.Configuration.GetValue("EMAIL_OTP_TTL_SEC", 600),
+        MaxAttempts = builder.Configuration.GetValue("EMAIL_OTP_MAX_ATTEMPTS", 5),
+        // Python derives email_enabled from SMTP config; SMTP isn't wired here yet, so this
+        // is an explicit flag (default false → sign-up works without email verification).
+        EmailVerificationEnabled = builder.Configuration.GetValue("EMAIL_VERIFICATION_ENABLED", false),
+    });
+    builder.Services.AddSingleton(new GoogleAuthOptions
+    {
+        ClientId = builder.Configuration["GOOGLE_CLIENT_ID"] ?? string.Empty,
+    });
+
+    // Redis (StackExchange.Redis) for OTP storage. LAZY factory — connects on first use, so
+    // host boot never hard-requires Redis (tests swap a fake IOtpStore and never resolve
+    // this). AbortOnConnectFail=false survives a transient blip instead of latching dead.
+    var redisConfiguration = builder.Configuration["GOVORI_REDIS"] ?? "govori-redis:6379";
+    builder.Services.AddSingleton<IConnectionMultiplexer>(_ =>
+    {
+        var options = ConfigurationOptions.Parse(redisConfiguration);
+        options.AbortOnConnectFail = false;
+        return ConnectionMultiplexer.Connect(options);
+    });
+
+    // External providers behind interfaces — real impls here; integration tests swap fakes
+    // via ConfigureTestServices so they never hit real Redis/Google/SMS/email.
+    builder.Services.AddSingleton<IOtpStore, RedisOtpStore>();      // Redis-backed, FAIL-CLOSED
+    builder.Services.AddSingleton<IOtpSender, LoggingOtpSender>();  // TODO: real SMTP/SMS provider
+    builder.Services.AddHttpClient<IGoogleTokenVerifier, GoogleTokenVerifier>(); // Google tokeninfo
+
     // JSON: snake_case in/out to match the Python API shape (access_token, full_name, ...).
     builder.Services.ConfigureHttpJsonOptions(o =>
         o.SerializerOptions.PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower);
@@ -166,32 +199,11 @@ try
     api.MapGet("/ping", () => Results.Ok(new { status = "ok" }));
 
     // ── Identity endpoints (docs/07 §7.5, Faza 3.1) ─────────────────────────
-    // Thin by design (§7.2): parse → AuthService → serialize. All logic in AuthService.
-    var auth = api.MapGroup("/auth");
-
-    // POST /api/auth/login → 200 TokenResponse, or 401 on ANY failure. Never leak which of
-    // email/password was wrong — single message, mirroring Python's "Incorrect email or password".
-    auth.MapPost("/login", async (LoginRequest request, AuthService authService, CancellationToken ct) =>
-    {
-        var tokens = await authService.LoginAsync(request.Email, request.Password, ct);
-        return tokens is null
-            ? Results.Json(new { detail = "Incorrect email or password" }, statusCode: StatusCodes.Status401Unauthorized)
-            : Results.Ok(tokens);
-    });
-
-    // GET /api/auth/me → the authenticated user. role/is_active come from the DB, never the
-    // token (§7.5). Requires a valid *access* token (a refresh token is rejected, per deps.py).
-    auth.MapGet("/me", async (ClaimsPrincipal principal, AuthService authService, CancellationToken ct) =>
-    {
-        if (principal.FindFirstValue("type") != "access"
-            || !Guid.TryParse(principal.FindFirstValue("sub"), out var userId))
-        {
-            return Results.Unauthorized();
-        }
-
-        var me = await authService.GetMeAsync(userId, ct);
-        return me is null ? Results.Unauthorized() : Results.Ok(me);
-    }).RequireAuthorization();
+    // The whole auth surface (login, register, refresh, logout, me, OTP request/verify,
+    // Google, config) lives in the Identity module's MapIdentityEndpoints extension. This is
+    // the MODULAR-ENDPOINT PATTERN every future domain (Catalog, Practice, …) copies — the
+    // composition root wires one call per domain, no inline route bodies here.
+    app.MapIdentityEndpoints();
 
     app.Run();
 }

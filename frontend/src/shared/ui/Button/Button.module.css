@@ -1,0 +1,155 @@
+/* Button — Ovoz DS (docs/03 §3.6 Actions).
+ * Variants: primary · secondary · ghost · danger · success  ×  sizes sm/md/lg.
+ * All colour / radius / shadow / motion comes from tokens.css — no raw values.
+ * The "feel": every :active scales by var(--tap-scale). */
+
+.button {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-sans);
+  font-weight: var(--fw-bold);
+  line-height: 1;
+  text-align: center;
+  text-decoration: none;
+  white-space: nowrap;
+  border: 1.5px solid transparent;
+  border-radius: var(--r-sm);
+  cursor: pointer;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  transition:
+    transform var(--m-fast),
+    background-color var(--m-instant),
+    border-color var(--m-instant),
+    box-shadow var(--m-instant),
+    filter var(--m-instant);
+}
+
+.content {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--s-2);
+}
+
+.button:focus-visible {
+  outline: var(--focus-ring-width) solid var(--focus-ring);
+  outline-offset: var(--focus-ring-offset);
+}
+
+.button:active:not(:disabled):not([aria-disabled="true"]) {
+  transform: scale(var(--tap-scale));
+}
+
+.button:disabled,
+.button[aria-disabled="true"] {
+  opacity: 0.5;
+  cursor: not-allowed;
+  box-shadow: none;
+  filter: none;
+  pointer-events: none;
+}
+
+/* ---- Sizes (≥40px tall keeps the 44px touch-target rule, §3.9) ---- */
+.sm {
+  min-height: 40px;
+  padding: 0 var(--s-4);
+  font-size: var(--t-body-s-size);
+  border-radius: var(--r-xs);
+}
+.md {
+  min-height: 46px;
+  padding: 0 var(--s-5);
+  font-size: var(--t-body-size);
+  border-radius: var(--r-sm);
+}
+.lg {
+  min-height: 54px;
+  padding: 0 var(--s-6);
+  font-size: var(--t-body-l-size);
+  border-radius: var(--r-md);
+}
+
+.full {
+  width: 100%;
+}
+
+/* ---- Variants ---- */
+.primary {
+  background: var(--primary);
+  color: var(--primary-on);
+  box-shadow: var(--e-primary);
+}
+.primary:hover:not(:disabled):not([aria-disabled="true"]) {
+  filter: brightness(1.04);
+}
+.primary:active:not(:disabled):not([aria-disabled="true"]) {
+  background: var(--primary-press);
+}
+
+.danger {
+  background: var(--danger);
+  color: var(--primary-on);
+  box-shadow: var(--e-danger);
+}
+.danger:hover:not(:disabled):not([aria-disabled="true"]) {
+  filter: brightness(1.04);
+}
+.danger:active:not(:disabled):not([aria-disabled="true"]) {
+  filter: brightness(0.94);
+}
+
+.success {
+  background: var(--success);
+  color: var(--primary-on);
+  box-shadow: var(--e-1);
+}
+.success:hover:not(:disabled):not([aria-disabled="true"]) {
+  filter: brightness(1.04);
+}
+.success:active:not(:disabled):not([aria-disabled="true"]) {
+  filter: brightness(0.94);
+}
+
+.secondary {
+  background: var(--surface);
+  color: var(--ink);
+  border-color: var(--line-2);
+}
+.secondary:hover:not(:disabled):not([aria-disabled="true"]) {
+  background: var(--surface-2);
+  border-color: var(--primary);
+}
+.secondary:active:not(:disabled):not([aria-disabled="true"]) {
+  background: var(--surface-3);
+}
+
+.ghost {
+  background: transparent;
+  color: var(--ink-soft);
+}
+.ghost:hover:not(:disabled):not([aria-disabled="true"]) {
+  background: var(--surface-3);
+  color: var(--ink);
+}
+.ghost:active:not(:disabled):not([aria-disabled="true"]) {
+  background: var(--surface-3);
+}
+
+/* ---- Loading: hide the label, overlay a centred spinner (width stays put) --- */
+.loading {
+  cursor: progress;
+}
+.loading .content {
+  visibility: hidden;
+}
+.spinner {
+  position: absolute;
+  inset: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: inherit;
+}

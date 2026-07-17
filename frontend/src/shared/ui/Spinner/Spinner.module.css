@@ -1,0 +1,45 @@
+/* Spinner — a rotating ring built from a bordered circle.
+ * Colour is `currentColor`, so it inherits from its context (e.g. inside a
+ * primary Button it picks up --primary-on). Track is the same colour faded via
+ * color-mix (token-derived, no hard-coded value). */
+.root {
+  display: inline-block;
+  flex: none;
+  vertical-align: middle;
+  border-style: solid;
+  border-color: color-mix(in oklab, currentColor 22%, transparent);
+  border-top-color: currentColor;
+  border-radius: var(--r-pill);
+  animation: ovoz-spin var(--dur-slow, 380ms) linear infinite;
+}
+
+/* Sizes: box + stroke width. */
+.sm {
+  width: 16px;
+  height: 16px;
+  border-width: 2px;
+}
+.md {
+  width: 22px;
+  height: 22px;
+  border-width: 2.5px;
+}
+.lg {
+  width: 32px;
+  height: 32px;
+  border-width: 3px;
+}
+
+@keyframes ovoz-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* A spinner is essential feedback, so it keeps turning under reduced-motion —
+ * just slower and gentler, never fully frozen (that would read as "stuck"). */
+@media (prefers-reduced-motion: reduce) {
+  .root {
+    animation-duration: 1.2s;
+  }
+}

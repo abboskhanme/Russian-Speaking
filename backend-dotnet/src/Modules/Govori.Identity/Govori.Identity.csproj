@@ -9,6 +9,15 @@
   <ItemGroup>
     <PackageReference Include="BCrypt.Net-Next" Version="4.2.0" />
     <PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="8.19.2" />
+    <!-- Redis-backed OTP store (docs/07 §7.5, Faza 3.1) — real IOtpStore impl. -->
+    <PackageReference Include="StackExchange.Redis" Version="2.8.16" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- This module defines its own minimal-API endpoint group (MapIdentityEndpoints) and
+         uses ILogger — the shared ASP.NET Core framework provides those types to a class
+         library. This is the modular-endpoint pattern every future domain copies. -->
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
   </ItemGroup>
 
   <PropertyGroup>

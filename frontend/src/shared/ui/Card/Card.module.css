@@ -1,0 +1,70 @@
+/* Card — containment surface (docs/03 §3.6).
+ * Variants: flat · raised · outline · tint. Padding scale via a modifier.
+ * Nesting rule (§3.5): inner_radius = outer_radius − padding; a card is r-lg. */
+
+.card {
+  display: block;
+  background: var(--surface);
+  border: 1.5px solid transparent;
+  border-radius: var(--r-lg);
+  color: var(--ink);
+  transition:
+    transform var(--m-fast),
+    box-shadow var(--m-instant),
+    border-color var(--m-instant),
+    background-color var(--m-instant);
+}
+
+/* ---- Variants ---- */
+.flat {
+  background: var(--surface);
+  border-color: var(--line);
+  box-shadow: var(--e-0);
+}
+.raised {
+  background: var(--surface);
+  box-shadow: var(--e-1);
+}
+.outline {
+  background: transparent;
+  border-color: var(--line-2);
+  box-shadow: var(--e-0);
+}
+.tint {
+  background: var(--primary-tint);
+  border-color: var(--primary-tint-2);
+  box-shadow: var(--e-0);
+}
+
+/* ---- Padding scale ---- */
+.pad-none {
+  padding: 0;
+}
+.pad-sm {
+  padding: var(--s-3);
+}
+.pad-md {
+  padding: var(--s-4);
+}
+.pad-lg {
+  padding: var(--s-6);
+}
+
+/* ---- Interactive (whole card is a button/link) ---- */
+.interactive {
+  cursor: pointer;
+  text-align: inherit;
+  width: 100%;
+  font: inherit;
+}
+.interactive:hover {
+  box-shadow: var(--e-2);
+  transform: translateY(-1px);
+}
+.interactive:active {
+  transform: scale(var(--tap-scale));
+}
+.interactive:focus-visible {
+  outline: var(--focus-ring-width) solid var(--focus-ring);
+  outline-offset: var(--focus-ring-offset);
+}
