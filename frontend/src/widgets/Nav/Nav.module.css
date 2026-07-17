@@ -1,0 +1,224 @@
+/* Nav — student navigation (docs/03 §3.6, §3.8).
+ * One component, two skins: `sidebar` (vertical rail) and `bottom` (mobile bar).
+ * Tokens only for colour / radius / shadow / motion; px is used for structural
+ * geometry (icon box, FAB, bar height) — consistent with the shared/ui tier. */
+
+.nav {
+  font-family: var(--font-sans);
+}
+
+.list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+}
+
+.li {
+  display: flex;
+}
+
+/* Shared item chrome ------------------------------------------------------- */
+.item,
+.fab {
+  -webkit-tap-highlight-color: transparent;
+  cursor: pointer;
+  border: none;
+  background: none;
+  font: inherit;
+  text-decoration: none;
+  color: var(--muted);
+}
+
+.item:focus-visible,
+.fab:focus-visible {
+  outline: var(--focus-ring-width) solid var(--focus-ring);
+  outline-offset: var(--focus-ring-offset);
+}
+
+.icon {
+  position: relative;
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+}
+.icon svg {
+  width: 23px;
+  height: 23px;
+}
+
+.badgeDot {
+  position: absolute;
+  top: -2px;
+  right: -2px;
+  width: 8px;
+  height: 8px;
+  border-radius: var(--r-pill);
+  background: var(--primary);
+  box-shadow: 0 0 0 2px var(--surface);
+}
+
+/* =========================================================================
+ * SIDEBAR (vertical rail)
+ * ====================================================================== */
+.sidebar .list {
+  flex-direction: column;
+  gap: var(--s-1);
+}
+.sidebar .li {
+  width: 100%;
+}
+.sidebar .item {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  width: 100%;
+  min-height: 46px;
+  padding: var(--s-2) var(--s-3);
+  border-radius: var(--r-sm);
+  color: var(--ink-soft);
+  font-size: var(--t-body-size);
+  font-weight: var(--fw-semibold);
+  transition:
+    background-color var(--m-instant),
+    color var(--m-instant),
+    transform var(--m-fast);
+}
+.sidebar .item:hover {
+  background: var(--surface-3);
+  color: var(--ink);
+}
+.sidebar .item:active {
+  transform: scale(var(--tap-scale));
+}
+.sidebar .item[aria-current="page"] {
+  background: var(--primary-tint);
+  color: var(--primary-press);
+  font-weight: var(--fw-bold);
+}
+.sidebar .item.emphasized:not([aria-current="page"]) {
+  color: var(--primary);
+}
+
+.sidebar .label {
+  white-space: nowrap;
+}
+.sidebar .badge {
+  margin-left: auto;
+  padding: 2px var(--s-2);
+  border-radius: var(--r-xs);
+  background: var(--primary);
+  color: var(--primary-on);
+  font-size: var(--t-label-size);
+  font-weight: var(--fw-bold);
+  line-height: 1.4;
+}
+
+/* Responsive collapse: icon-only by default (md, 72px rail), labels ≥1080px
+ * (lg, 250px rail). `forceCollapsed` / `forceExpanded` pin it either way. */
+.sidebar .item {
+  justify-content: center;
+}
+.sidebar .label,
+.sidebar .badge {
+  display: none;
+}
+@media (min-width: 1080px) {
+  .sidebar:not(.forceCollapsed) .item {
+    justify-content: flex-start;
+  }
+  .sidebar:not(.forceCollapsed) .label {
+    display: inline;
+  }
+  .sidebar:not(.forceCollapsed) .badge {
+    display: inline-block;
+  }
+}
+.sidebar.forceExpanded .item {
+  justify-content: flex-start;
+}
+.sidebar.forceExpanded .label {
+  display: inline;
+}
+.sidebar.forceExpanded .badge {
+  display: inline-block;
+}
+
+/* =========================================================================
+ * BOTTOM BAR (mobile)
+ * ====================================================================== */
+.bottom {
+  height: 78px;
+  background: color-mix(in oklab, var(--surface) 92%, transparent);
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+  border-top: 1px solid var(--line);
+}
+.bottom .list {
+  flex-direction: row;
+  align-items: flex-start;
+  justify-content: space-around;
+  height: 100%;
+  padding: 9px 10px 0;
+  gap: var(--s-1);
+}
+.bottom .item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  width: 54px;
+  padding: var(--s-1) 0;
+  border-radius: var(--r-sm);
+  transition:
+    color var(--m-instant),
+    transform var(--m-fast);
+}
+.bottom .item:active {
+  transform: scale(var(--tap-scale));
+}
+.bottom .item[aria-current="page"] {
+  color: var(--primary);
+}
+.bottom .label {
+  font-size: var(--t-label-size);
+  font-weight: var(--fw-semibold);
+  letter-spacing: 0;
+  text-transform: none;
+  line-height: 1;
+}
+.bottom .item[aria-current="page"] .label {
+  font-weight: var(--fw-bold);
+}
+
+/* Centre FAB — the AI Suhbat CTA (mockup: raised, overlaps the top border). */
+.bottom .fab {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 56px;
+  height: 56px;
+  margin-top: -16px;
+  border-radius: var(--r-pill);
+  background: var(--primary);
+  color: var(--primary-on);
+  box-shadow: var(--e-primary);
+  transition:
+    filter var(--m-instant),
+    transform var(--m-fast);
+}
+.bottom .fab:hover {
+  filter: brightness(1.04);
+}
+.bottom .fab:active {
+  transform: scale(var(--tap-scale));
+}
+.bottom .fab .icon svg {
+  width: 26px;
+  height: 26px;
+}

@@ -1,0 +1,165 @@
+/* AppShell — responsive student frame (docs/03 §3.8).
+ * Breakpoints (from the spec): sm <720 · md 720–1079 · lg 1080–1439 · xl ≥1440.
+ * Media queries can't read tokens, so the px values live here; every colour /
+ * spacing / radius / shadow inside them is a token. */
+
+.shell {
+  display: flex;
+  min-height: 100vh;
+  min-height: 100dvh;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-sans);
+}
+
+/* =========================================================================
+ * SIDEBAR — hidden on mobile; icon-only at md, full at lg. `display:none`
+ * removes it (and its nav landmark) from the a11y tree below 720px.
+ * ====================================================================== */
+.sidebar {
+  display: none;
+}
+@media (min-width: 720px) {
+  .sidebar {
+    display: flex;
+    flex-direction: column;
+    flex: none;
+    width: 72px;
+    height: 100vh;
+    height: 100dvh;
+    position: sticky;
+    top: 0;
+    padding: var(--s-4) var(--s-3);
+    gap: var(--s-4);
+    background: var(--surface);
+    border-right: 1px solid var(--line);
+    overflow: hidden;
+  }
+}
+@media (min-width: 1080px) {
+  .sidebar {
+    width: 250px;
+    padding: var(--s-5) var(--s-4);
+  }
+}
+
+.brandSidebar {
+  display: flex;
+  align-items: center;
+  min-height: 40px;
+  padding: 0 var(--s-1);
+}
+/* Hide the wordmark while the rail is icon-only (md); show it at lg. */
+.brandSidebar [data-gv-wordmark] {
+  display: none;
+}
+@media (min-width: 1080px) {
+  .brandSidebar [data-gv-wordmark] {
+    display: inline;
+  }
+}
+
+.sidebarNav {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+/* =========================================================================
+ * MAIN COLUMN
+ * ====================================================================== */
+.main {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+}
+
+.topbar {
+  position: sticky;
+  top: 0;
+  z-index: var(--z-sticky);
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  min-height: 60px;
+  padding: var(--s-2) var(--s-4);
+  background: color-mix(in oklab, var(--surface) 92%, transparent);
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--line);
+}
+.brandTopbar {
+  display: flex;
+  align-items: center;
+}
+@media (min-width: 720px) {
+  /* On desktop the brand lives in the sidebar. */
+  .brandTopbar {
+    display: none;
+  }
+}
+.headerStart {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  min-width: 0;
+}
+.spacer {
+  flex: 1;
+}
+.headerEnd {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+}
+
+.body {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+}
+.content {
+  flex: 1;
+  min-width: 0;
+  padding: var(--s-5) var(--s-4);
+  /* Clear the fixed mobile bottom bar (78px). */
+  padding-bottom: calc(78px + var(--s-5));
+}
+@media (min-width: 720px) {
+  .content {
+    padding: var(--s-6);
+    padding-bottom: var(--s-6);
+  }
+}
+
+/* xl-only contextual right rail. */
+.aside {
+  display: none;
+}
+@media (min-width: 1440px) {
+  .aside {
+    display: block;
+    flex: none;
+    width: 320px;
+    padding: var(--s-6) var(--s-5);
+    background: var(--surface);
+    border-left: 1px solid var(--line);
+  }
+}
+
+/* =========================================================================
+ * BOTTOM BAR — fixed on mobile; removed from the a11y tree ≥720px.
+ * ====================================================================== */
+.bottomBar {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: var(--z-sticky);
+}
+@media (min-width: 720px) {
+  .bottomBar {
+    display: none;
+  }
+}

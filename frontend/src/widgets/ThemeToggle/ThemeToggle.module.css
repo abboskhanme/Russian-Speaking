@@ -1,0 +1,42 @@
+/* ThemeToggle — icon toggle button (docs/03 §3.6 Actions, §3.10 dark mode).
+ * 44×44 keeps the touch-target rule (§3.9). Tokens only. */
+
+.toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 44px;
+  height: 44px;
+  border-radius: var(--r-sm);
+  border: 1.5px solid var(--line-2);
+  background: var(--surface);
+  color: var(--ink-soft);
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition:
+    background-color var(--m-instant),
+    color var(--m-instant),
+    border-color var(--m-instant),
+    transform var(--m-fast);
+}
+.toggle:hover {
+  background: var(--surface-2);
+  color: var(--ink);
+  border-color: var(--primary);
+}
+.toggle:active {
+  transform: scale(var(--tap-scale));
+}
+.toggle:focus-visible {
+  outline: var(--focus-ring-width) solid var(--focus-ring);
+  outline-offset: var(--focus-ring-offset);
+}
+
+.icon {
+  display: inline-flex;
+}
+.icon svg {
+  width: 20px;
+  height: 20px;
+}
