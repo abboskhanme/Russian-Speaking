@@ -1,0 +1,15 @@
+/* Waveform — canvas voice bars (docs/03 §3.6).
+ * Bar colour is driven by `color: var(--primary)` and read back in JS via
+ * getComputedStyle, so the token (and its light/dark value) is the source of
+ * truth — the canvas only decides bar *heights* (dynamic geometry). */
+.root {
+  display: block;
+  width: 100%;
+  color: var(--primary);
+}
+
+.canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}

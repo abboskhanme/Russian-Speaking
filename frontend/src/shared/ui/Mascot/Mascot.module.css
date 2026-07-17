@@ -1,0 +1,169 @@
+/* Mascot — Govo (docs/03 §3.2).
+ * Built from tokens: the body tracks --primary (and therefore the theme /
+ * dark-mode). Two colours are illustration-intrinsic and deliberately
+ * theme-INDEPENDENT — Govo's dark facial ink and near-white eyes must stay
+ * legible on the always-saturated body in BOTH light and dark, and no DS token
+ * is "always dark" / "always white". Values are verbatim from docs/03 §3.2 /
+ * the Govo mockup. Everything else is a token or a token-derived color-mix. */
+.root {
+  /* Themeable — defaults to the brand token, overridable via the `color` prop. */
+  --govo-body: var(--primary);
+  /* Token-derived accents (track the palette). */
+  --govo-shade: color-mix(in oklab, var(--primary-press) 38%, transparent);
+  --govo-antenna: var(--warn);
+  --govo-cheek: color-mix(in oklab, var(--danger) 78%, var(--warn));
+  /* Illustration-intrinsic (theme-independent — see file header). */
+  --govo-eye: oklch(0.99 0.012 95);
+  --govo-face: oklch(0.3 0.04 40);
+
+  display: inline-flex;
+  line-height: 0;
+}
+
+.svg {
+  overflow: visible;
+}
+
+/* ---- Parts (colour only from the mascot vars above) ---- */
+.antennaStalk {
+  stroke: var(--govo-body);
+  stroke-width: 3.4;
+  stroke-linecap: round;
+}
+.antennaCap {
+  fill: var(--govo-antenna);
+}
+.foot {
+  fill: var(--govo-shade);
+}
+.body {
+  fill: var(--govo-body);
+}
+.cheek {
+  fill: var(--govo-cheek);
+  opacity: 0.55;
+}
+.eyeWhite {
+  fill: var(--govo-eye);
+}
+.pupil {
+  fill: var(--govo-face);
+}
+.glint {
+  fill: var(--govo-eye);
+}
+.eyeStroke {
+  fill: none;
+  stroke: var(--govo-eye);
+  stroke-width: 4.6;
+  stroke-linecap: round;
+}
+.mouth {
+  fill: none;
+  stroke: var(--govo-face);
+  stroke-width: 3.8;
+  stroke-linecap: round;
+}
+.mouthSleepy {
+  fill: none;
+  stroke: var(--govo-face);
+  stroke-width: 3.4;
+  stroke-linecap: round;
+}
+.mouthFill {
+  fill: var(--govo-face);
+}
+.waveMouth rect {
+  fill: var(--govo-face);
+}
+.dots circle {
+  fill: var(--govo-body);
+}
+
+/* ---- Motion (token easing; characterful durations are illustration-local) ---- */
+@keyframes govoBreathe {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.035);
+  }
+}
+@keyframes govoAnt {
+  0%,
+  100% {
+    transform: rotate(-7deg);
+  }
+  50% {
+    transform: rotate(7deg);
+  }
+}
+@keyframes govoWave {
+  0%,
+  100% {
+    transform: scaleY(0.3);
+  }
+  50% {
+    transform: scaleY(1);
+  }
+}
+@keyframes govoDot {
+  0%,
+  100% {
+    opacity: 0.2;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+.breathe {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: govoBreathe 4s var(--ease-standard) infinite;
+}
+.antenna {
+  transform-box: fill-box;
+  transform-origin: 50px 30px;
+  animation: govoAnt 3.4s var(--ease-standard) infinite;
+}
+.waveMouth rect {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: govoWave 0.9s var(--ease-standard) infinite;
+}
+.waveMouth rect:nth-child(1) {
+  animation-delay: 0s;
+}
+.waveMouth rect:nth-child(2) {
+  animation-delay: 0.16s;
+}
+.waveMouth rect:nth-child(3) {
+  animation-delay: 0.32s;
+}
+.waveMouth rect:nth-child(4) {
+  animation-delay: 0.12s;
+}
+.dots circle {
+  animation: govoDot 1.2s var(--ease-standard) infinite;
+}
+.dots circle:nth-child(1) {
+  animation-delay: 0s;
+}
+.dots circle:nth-child(2) {
+  animation-delay: 0.2s;
+}
+.dots circle:nth-child(3) {
+  animation-delay: 0.4s;
+}
+
+/* Govo goes completely still (never frozen mid-pose) under reduced motion. */
+@media (prefers-reduced-motion: reduce) {
+  .breathe,
+  .antenna,
+  .waveMouth rect,
+  .dots circle {
+    animation: none;
+  }
+}

@@ -1,0 +1,220 @@
+/* Recorder — audio capture (docs/03 §3.6, docs/08 §4.6).
+ * Every colour / radius / shadow / motion value is a token. The only inline
+ * styles the component sets are dynamic geometry (progress width, ring dash-
+ * offset, live sizes) — the sanctioned exception in docs/03 §3.10. */
+
+.root {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--s-4);
+  width: 100%;
+}
+
+.stage {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--s-3);
+  width: 100%;
+  text-align: center;
+}
+
+.controls {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--s-3);
+  margin-top: var(--s-2);
+}
+
+/* ---- The big round mic / stop button ---- */
+.recordButton {
+  width: 84px;
+  height: 84px;
+  border: none;
+  border-radius: var(--r-pill);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  transition:
+    transform var(--m-fast),
+    filter var(--m-instant),
+    box-shadow var(--m-instant);
+}
+.recordButton:focus-visible {
+  outline: var(--focus-ring-width) solid var(--focus-ring);
+  outline-offset: var(--focus-ring-offset);
+}
+.recordButton:hover:not(:disabled) {
+  filter: brightness(1.04);
+}
+.recordButton:active:not(:disabled) {
+  transform: scale(var(--tap-scale));
+}
+.recordButton:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+.record {
+  background: var(--primary);
+  box-shadow: var(--e-primary);
+}
+.stop {
+  background: var(--danger);
+  box-shadow: var(--e-danger);
+}
+.stopIcon {
+  display: block;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--r-xs);
+  background: var(--primary-on);
+}
+
+/* ---- Timer + recording indicator ---- */
+.timer {
+  font-family: var(--font-mono);
+  font-size: 32px;
+  font-weight: var(--fw-black);
+  line-height: 1;
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+}
+.recIndicator {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-2);
+}
+.pulseDot {
+  width: 8px;
+  height: 8px;
+  border-radius: var(--r-pill);
+  background: var(--danger);
+  animation: recPulse 1.2s ease-in-out infinite;
+}
+@keyframes recPulse {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.35;
+    transform: scale(1.35);
+  }
+}
+
+/* ---- Waveform sizing (component draws itself; here we only size the box) ---- */
+.wave {
+  width: min(260px, 100%);
+}
+
+/* ---- Progress toward the max duration ---- */
+.progressTrack {
+  width: min(190px, 70%);
+  height: 5px;
+  border-radius: var(--r-pill);
+  background: var(--surface-3);
+  overflow: hidden;
+}
+.progressFill {
+  height: 100%;
+  border-radius: var(--r-pill);
+  background: var(--primary);
+  transition: width var(--m-base);
+}
+
+/* ---- Review: playback ---- */
+.playRow {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  width: min(320px, 100%);
+}
+.playRow .wave {
+  flex: 1;
+  width: auto;
+  min-width: 0;
+}
+.playTime {
+  flex: none;
+  font-family: var(--font-mono);
+  font-size: var(--t-mono-size);
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.playButton {
+  flex: none;
+  width: 44px;
+  height: 44px;
+  border: none;
+  border-radius: var(--r-pill);
+  background: var(--primary);
+  box-shadow: var(--e-primary);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition:
+    transform var(--m-fast),
+    filter var(--m-instant);
+}
+.playButton:focus-visible {
+  outline: var(--focus-ring-width) solid var(--focus-ring);
+  outline-offset: var(--focus-ring-offset);
+}
+.playButton:hover {
+  filter: brightness(1.04);
+}
+.playButton:active {
+  transform: scale(var(--tap-scale));
+}
+.audio {
+  display: none;
+}
+.reviewActions {
+  display: flex;
+  gap: var(--s-2);
+  width: min(320px, 100%);
+  margin-top: var(--s-2);
+}
+
+/* ---- Prep countdown ring ---- */
+.ring {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.ringSvg {
+  transform: rotate(-90deg);
+}
+.ringNum {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-mono);
+  font-size: 44px;
+  font-weight: var(--fw-black);
+  line-height: 1;
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Essential-feedback dot goes still (not mid-blink) under reduced motion. */
+@media (prefers-reduced-motion: reduce) {
+  .pulseDot {
+    animation: none;
+  }
+  .progressFill {
+    transition: none;
+  }
+}

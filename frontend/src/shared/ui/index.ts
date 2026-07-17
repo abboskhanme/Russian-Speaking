@@ -44,5 +44,15 @@ export type {
 export { VisuallyHidden } from "./VisuallyHidden";
 export type { VisuallyHiddenProps } from "./VisuallyHidden";
 
+/* Domain-specific — the core interaction (docs/03 §3.6, docs/08 §4.6) */
+export { Mascot } from "./Mascot";
+export type { MascotProps, MascotMood } from "./Mascot";
+
+export { Waveform } from "./Waveform";
+export type { WaveformProps, WaveformMode } from "./Waveform";
+
+export { Recorder } from "./Recorder";
+export type { RecorderProps, RecorderLabels } from "./Recorder";
+
 export { cx } from "./utils/cx";
 export type { ClassValue } from "./utils/cx";
