@@ -1,0 +1,60 @@
+{
+  "_doc": "normalize_uz_phone → canonical +998XXXXXXXXX, or raises.",
+  "cases": [
+    {
+      "input": "901234567",
+      "output": "+998901234567",
+      "raises": false
+    },
+    {
+      "input": "+998901234567",
+      "output": "+998901234567",
+      "raises": false
+    },
+    {
+      "input": "998901234567",
+      "output": "+998901234567",
+      "raises": false
+    },
+    {
+      "input": "90 123 45 67",
+      "output": "+998901234567",
+      "raises": false
+    },
+    {
+      "input": "+998 90 123-45-67",
+      "output": "+998901234567",
+      "raises": false
+    },
+    {
+      "input": "8901234567",
+      "output": null,
+      "raises": true,
+      "error": "ValueError"
+    },
+    {
+      "input": "123",
+      "output": null,
+      "raises": true,
+      "error": "ValueError"
+    },
+    {
+      "input": "abcdefghi",
+      "output": null,
+      "raises": true,
+      "error": "ValueError"
+    },
+    {
+      "input": "",
+      "output": null,
+      "raises": true,
+      "error": "ValueError"
+    },
+    {
+      "input": "+9989012345678",
+      "output": null,
+      "raises": true,
+      "error": "ValueError"
+    }
+  ]
+}

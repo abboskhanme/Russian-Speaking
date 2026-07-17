@@ -1,0 +1,100 @@
+{
+  "_doc": "C# BCrypt.Net-Next must verify every hash here. Truncation is on BYTES.",
+  "algorithm": "bcrypt",
+  "prefix": "$2b$",
+  "cost": 12,
+  "truncate_bytes": 72,
+  "cases": [
+    {
+      "password": "password123",
+      "password_utf8_bytes": 11,
+      "hash": "$2b$12$AECIkdKNmlwZXRstVsRnbOcENtIb6bok3SGCj.zsEG6aQnaSy2nQK",
+      "verifies": true,
+      "wrong_password_verifies": false
+    },
+    {
+      "password": "P@ssw0rd!",
+      "password_utf8_bytes": 9,
+      "hash": "$2b$12$kaHMpdlHUgRVtZoO8CF4PuqFCdlwNuibZJsAdEHNvYWtrSOLEGoTG",
+      "verifies": true,
+      "wrong_password_verifies": false
+    },
+    {
+      "password": "parol",
+      "password_utf8_bytes": 5,
+      "hash": "$2b$12$1UCM/PnUb3xLhvkApUETs.ounyywOJ9.31s3JeQG6DHHG5p6EeNyC",
+      "verifies": true,
+      "wrong_password_verifies": false
+    },
+    {
+      "password": "Тест1234",
+      "password_utf8_bytes": 12,
+      "hash": "$2b$12$M2qCEhqpdbIAwADRXHgz2OAobNSzvbYnCBHUbzL1o031Ni92RujbS",
+      "verifies": true,
+      "wrong_password_verifies": false
+    },
+    {
+      "password": "паролпаролпаролпаролпаролпаролпаролпаролпаролпарол",
+      "password_utf8_bytes": 100,
+      "hash": "$2b$12$p2R1DteTyl2tFtAe/4evn.0Ea8IVyeYxZsQRKyeNKKw0wRxB8xc8y",
+      "verifies": true,
+      "wrong_password_verifies": true
+    },
+    {
+      "password": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "password_utf8_bytes": 71,
+      "hash": "$2b$12$Xpru2y6tmE51jPvpzBoCtuK6hrlLzqfcXo.KijlQtuZLzEzk.2z0m",
+      "verifies": true,
+      "wrong_password_verifies": false
+    },
+    {
+      "password": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "password_utf8_bytes": 72,
+      "hash": "$2b$12$mZr4mhAAylBHYcYS7BulVO7ZOQ9X8XD60DgJXYQ8y64XDryc9hM4a",
+      "verifies": true,
+      "wrong_password_verifies": true
+    },
+    {
+      "password": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "password_utf8_bytes": 73,
+      "hash": "$2b$12$ysSFhngMec5AHIbUVtcJye32z8BmfjeXv.AFwOYq3qEV3JHPU7k3O",
+      "verifies": true,
+      "wrong_password_verifies": true
+    },
+    {
+      "password": "яяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяя",
+      "password_utf8_bytes": 72,
+      "hash": "$2b$12$wyCCocyO6Oa1FPEiWCbwCeMVTPkoieKdDBpQGbuSRfzjtJ9TJAOQe",
+      "verifies": true,
+      "wrong_password_verifies": true
+    },
+    {
+      "password": "яяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяяя",
+      "password_utf8_bytes": 74,
+      "hash": "$2b$12$/9rok8GVuZYs/cRfwxpQZeNp4iaqDoT1acrRTkdd1/RSskmD4W292",
+      "verifies": true,
+      "wrong_password_verifies": true
+    },
+    {
+      "password": "🎤🎤🎤🎤🎤🎤🎤🎤🎤🎤🎤🎤🎤🎤🎤🎤🎤🎤🎤🎤",
+      "password_utf8_bytes": 80,
+      "hash": "$2b$12$LxWb4bkUo51NJxaqo/IRi.cxgS7tHSiF02W.Lks6MStRGJxbRzssm",
+      "verifies": true,
+      "wrong_password_verifies": true
+    },
+    {
+      "password": "",
+      "password_utf8_bytes": 0,
+      "hash": "$2b$12$O/Iz6g/9aM9vtxUIkzATceHD/V/BGE8NtHZE6erTd08yzOQ7j.lQ6",
+      "verifies": true,
+      "wrong_password_verifies": false
+    },
+    {
+      "password": " leading and trailing ",
+      "password_utf8_bytes": 22,
+      "hash": "$2b$12$aeyW9jF.mAj.4Dq/wjcrS.ZgQNZCbP1Ar4rlFizADLFXIPMY16is.",
+      "verifies": true,
+      "wrong_password_verifies": false
+    }
+  ]
+}

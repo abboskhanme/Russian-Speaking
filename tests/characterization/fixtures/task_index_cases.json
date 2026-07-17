@@ -1,0 +1,359 @@
+{
+  "_doc": "services/access.py:54-75 (task_index). DB-bound: the count is a Postgres COUNT(*) and cannot run without a database. We characterize the ordering PREDICATE it delegates to SQL (transcribed from access.py:61-71): among same-module, published, non-deleted siblings, count those strictly before the target in (sort_order, created_at). block_id absent → 0. created_at is an integer tick (ordering only).",
+  "cases": [
+    {
+      "name": "empty_block",
+      "block_id": "block-A",
+      "target": {
+        "sort_order": 0,
+        "created_at": 100,
+        "block_id": "block-A",
+        "block_id_present": true
+      },
+      "siblings": [
+        {
+          "sort_order": 0,
+          "created_at": 100,
+          "block_id": "block-A",
+          "is_published": true,
+          "is_deleted": false
+        }
+      ],
+      "expected_index": 0
+    },
+    {
+      "name": "target_first",
+      "block_id": "block-A",
+      "target": {
+        "sort_order": 0,
+        "created_at": 100,
+        "block_id": "block-A",
+        "block_id_present": true
+      },
+      "siblings": [
+        {
+          "sort_order": 0,
+          "created_at": 100,
+          "block_id": "block-A",
+          "is_published": true,
+          "is_deleted": false
+        },
+        {
+          "sort_order": 1,
+          "created_at": 50,
+          "block_id": "block-A",
+          "is_published": true,
+          "is_deleted": false
+        },
+        {
+          "sort_order": 2,
+          "created_at": 50,
+          "block_id": "block-A",
+          "is_published": true,
+          "is_deleted": false
+        }
+      ],
+      "expected_index": 0
+    },
+    {
+      "name": "target_last",
+      "block_id": "block-A",
+      "target": {
+        "sort_order": 3,
+        "created_at": 100,
+        "block_id": "block-A",
+        "block_id_present": true
+      },
+      "siblings": [
+        {
+          "sort_order": 0,
+          "created_at": 10,
+          "block_id": "block-A",
+          "is_published": true,
+          "is_deleted": false
+        },
+        {
+          "sort_order": 1,
+          "created_at": 20,
+          "block_id": "block-A",
+          "is_published": true,
+          "is_deleted": false
+        },
+        {
+          "sort_order": 2,
+          "created_at": 30,
+          "block_id": "block-A",
+          "is_published": true,
+          "is_deleted": false
+        },
+        {
+          "sort_order": 3,
+          "created_at": 100,
+          "block_id": "block-A",
+          "is_published": true,
+          "is_deleted": false
+        }
+      ],
+      "expected_index": 3
+    },
+    {
+      "name": "sort_order_tie_broken_by_created_at",
+      "block_id": "block-A",
+      "target": {
+        "sort_order": 1,
+        "created_at": 100,
+        "block_id": "block-A",
+        "block_id_present": true
+      },
+      "siblings": [
+        {
+          "sort_order": 1,
+          "created_at": 50,
+          "block_id": "block-A",
+          "is_published": true,
+          "is_deleted": false
+        },
+        {
+          "sort_order": 1,
+          "created_at": 150,
+          "block_id": "block-A",
+          "is_published": true,
+          "is_deleted": false
+        },
+        {
+          "sort_order": 0,
+          "created_at": 999,
+          "block_id": "block-A",
+          "is_published": true,
+          "is_deleted": false
+        },
+        {
+          "sort_order": 1,
+          "created_at": 100,
+          "block_id": "block-A",
+          "is_published": true,
+          "is_deleted": false
+        }
+      ],
+      "expected_index": 2
+    },
+    {
+      "name": "exact_tie_not_counted",
+      "block_id": "block-A",
+      "target": {
+        "sort_order": 1,
+        "created_at": 100,
+        "block_id": "block-A",
+        "block_id_present": true
+      },
+      "siblings": [
+        {
+          "sort_order": 1,
+          "created_at": 99,
+          "block_id": "block-A",
+          "is_published": true,
+          "is_deleted": false
+        },
+        {
+          "sort_order": 1,
+          "created_at": 100,
+          "block_id": "block-A",
+          "is_published": true,
+          "is_deleted": false
+        },
+        {
+          "sort_order": 1,
+          "created_at": 100,
+          "block_id": "block-A",
+          "is_published": true,
+          "is_deleted": false
+        }
+      ],
+      "expected_index": 1
+    },
+    {
+      "name": "excludes_deleted",
+      "block_id": "block-A",
+      "target": {
+        "sort_order": 2,
+        "created_at": 100,
+        "block_id": "block-A",
+        "block_id_present": true
+      },
+      "siblings": [
+        {
+          "sort_order": 0,
+          "created_at": 10,
+          "block_id": "block-A",
+          "is_published": true,
+          "is_deleted": false
+        },
+        {
+          "sort_order": 1,
+          "created_at": 20,
+          "block_id": "block-A",
+          "is_published": true,
+          "is_deleted": true
+        },
+        {
+          "sort_order": 2,
+          "created_at": 100,
+          "block_id": "block-A",
+          "is_published": true,
+          "is_deleted": false
+        }
+      ],
+      "expected_index": 1
+    },
+    {
+      "name": "excludes_unpublished",
+      "block_id": "block-A",
+      "target": {
+        "sort_order": 2,
+        "created_at": 100,
+        "block_id": "block-A",
+        "block_id_present": true
+      },
+      "siblings": [
+        {
+          "sort_order": 0,
+          "created_at": 10,
+          "block_id": "block-A",
+          "is_published": true,
+          "is_deleted": false
+        },
+        {
+          "sort_order": 1,
+          "created_at": 20,
+          "block_id": "block-A",
+          "is_published": false,
+          "is_deleted": false
+        },
+        {
+          "sort_order": 2,
+          "created_at": 100,
+          "block_id": "block-A",
+          "is_published": true,
+          "is_deleted": false
+        }
+      ],
+      "expected_index": 1
+    },
+    {
+      "name": "excludes_other_block",
+      "block_id": "block-A",
+      "target": {
+        "sort_order": 2,
+        "created_at": 100,
+        "block_id": "block-A",
+        "block_id_present": true
+      },
+      "siblings": [
+        {
+          "sort_order": 0,
+          "created_at": 10,
+          "block_id": "block-A",
+          "is_published": true,
+          "is_deleted": false
+        },
+        {
+          "sort_order": 1,
+          "created_at": 20,
+          "block_id": "block-B",
+          "is_published": true,
+          "is_deleted": false
+        },
+        {
+          "sort_order": 2,
+          "created_at": 100,
+          "block_id": "block-A",
+          "is_published": true,
+          "is_deleted": false
+        }
+      ],
+      "expected_index": 1
+    },
+    {
+      "name": "no_block_returns_zero",
+      "block_id": "block-A",
+      "target": {
+        "sort_order": 2,
+        "created_at": 100,
+        "block_id": null,
+        "block_id_present": false
+      },
+      "siblings": [
+        {
+          "sort_order": 0,
+          "created_at": 10,
+          "block_id": "block-A",
+          "is_published": true,
+          "is_deleted": false
+        },
+        {
+          "sort_order": 1,
+          "created_at": 20,
+          "block_id": "block-A",
+          "is_published": true,
+          "is_deleted": false
+        }
+      ],
+      "expected_index": 0
+    },
+    {
+      "name": "mixed_realistic",
+      "block_id": "block-A",
+      "target": {
+        "sort_order": 5,
+        "created_at": 500,
+        "block_id": "block-A",
+        "block_id_present": true
+      },
+      "siblings": [
+        {
+          "sort_order": 1,
+          "created_at": 10,
+          "block_id": "block-A",
+          "is_published": true,
+          "is_deleted": false
+        },
+        {
+          "sort_order": 3,
+          "created_at": 999,
+          "block_id": "block-A",
+          "is_published": true,
+          "is_deleted": false
+        },
+        {
+          "sort_order": 2,
+          "created_at": 20,
+          "block_id": "block-A",
+          "is_published": true,
+          "is_deleted": true
+        },
+        {
+          "sort_order": 4,
+          "created_at": 30,
+          "block_id": "block-A",
+          "is_published": false,
+          "is_deleted": false
+        },
+        {
+          "sort_order": 6,
+          "created_at": 5,
+          "block_id": "block-A",
+          "is_published": true,
+          "is_deleted": false
+        },
+        {
+          "sort_order": 5,
+          "created_at": 500,
+          "block_id": "block-A",
+          "is_published": true,
+          "is_deleted": false
+        }
+      ],
+      "expected_index": 2
+    }
+  ]
+}

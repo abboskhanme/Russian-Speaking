@@ -1,0 +1,373 @@
+{
+  "_doc": "services/scoring.py:26-55. PURE functions of Submission objects — characterized by feeding the REAL effective_band/rolling_avg/best_band duck-typed stand-ins. effective_band = teacher_band if not None else (level_score if not None else overall_band); None if ungraded. rolling_avg = round(mean of newest `window` effective bands, 2), None if none graded. best_band = round(max effective band, 2), None if none graded. created_at is an integer tick (ordering only). Ties keep original list order (stable sort).",
+  "recent_window": 10,
+  "cases": [
+    {
+      "name": "empty",
+      "window": 10,
+      "submissions": [],
+      "rolling_avg": null,
+      "best_band": null
+    },
+    {
+      "name": "all_ungraded",
+      "window": 10,
+      "submissions": [
+        {
+          "created_at": 1,
+          "teacher_band": null,
+          "has_evaluation": false,
+          "level_score": null,
+          "overall_band": null,
+          "effective_band": null
+        },
+        {
+          "created_at": 2,
+          "teacher_band": null,
+          "has_evaluation": false,
+          "level_score": null,
+          "overall_band": null,
+          "effective_band": null
+        },
+        {
+          "created_at": 3,
+          "teacher_band": null,
+          "has_evaluation": false,
+          "level_score": null,
+          "overall_band": null,
+          "effective_band": null
+        }
+      ],
+      "rolling_avg": null,
+      "best_band": null
+    },
+    {
+      "name": "teacher_override_zero",
+      "window": 10,
+      "submissions": [
+        {
+          "created_at": 1,
+          "teacher_band": 0.0,
+          "has_evaluation": true,
+          "level_score": 90.0,
+          "overall_band": null,
+          "effective_band": 0.0
+        }
+      ],
+      "rolling_avg": 0.0,
+      "best_band": 0.0
+    },
+    {
+      "name": "teacher_override_wins",
+      "window": 10,
+      "submissions": [
+        {
+          "created_at": 1,
+          "teacher_band": 95.0,
+          "has_evaluation": true,
+          "level_score": 40.0,
+          "overall_band": 88.0,
+          "effective_band": 95.0
+        }
+      ],
+      "rolling_avg": 95.0,
+      "best_band": 95.0
+    },
+    {
+      "name": "level_score_used",
+      "window": 10,
+      "submissions": [
+        {
+          "created_at": 1,
+          "teacher_band": null,
+          "has_evaluation": true,
+          "level_score": 74.0,
+          "overall_band": 88.0,
+          "effective_band": 74.0
+        }
+      ],
+      "rolling_avg": 74.0,
+      "best_band": 74.0
+    },
+    {
+      "name": "legacy_overall_fallback",
+      "window": 10,
+      "submissions": [
+        {
+          "created_at": 1,
+          "teacher_band": null,
+          "has_evaluation": true,
+          "level_score": null,
+          "overall_band": 61.0,
+          "effective_band": 61.0
+        }
+      ],
+      "rolling_avg": 61.0,
+      "best_band": 61.0
+    },
+    {
+      "name": "mixed_graded_ungraded",
+      "window": 10,
+      "submissions": [
+        {
+          "created_at": 1,
+          "teacher_band": null,
+          "has_evaluation": true,
+          "level_score": 40.0,
+          "overall_band": null,
+          "effective_band": 40.0
+        },
+        {
+          "created_at": 2,
+          "teacher_band": null,
+          "has_evaluation": false,
+          "level_score": null,
+          "overall_band": null,
+          "effective_band": null
+        },
+        {
+          "created_at": 3,
+          "teacher_band": null,
+          "has_evaluation": true,
+          "level_score": 80.0,
+          "overall_band": null,
+          "effective_band": 80.0
+        }
+      ],
+      "rolling_avg": 60.0,
+      "best_band": 80.0
+    },
+    {
+      "name": "rolling_window_truncation",
+      "window": 10,
+      "submissions": [
+        {
+          "created_at": 1,
+          "teacher_band": null,
+          "has_evaluation": true,
+          "level_score": 100.0,
+          "overall_band": null,
+          "effective_band": 100.0
+        },
+        {
+          "created_at": 2,
+          "teacher_band": null,
+          "has_evaluation": true,
+          "level_score": 0.0,
+          "overall_band": null,
+          "effective_band": 0.0
+        },
+        {
+          "created_at": 3,
+          "teacher_band": null,
+          "has_evaluation": true,
+          "level_score": 50.0,
+          "overall_band": null,
+          "effective_band": 50.0
+        },
+        {
+          "created_at": 4,
+          "teacher_band": null,
+          "has_evaluation": true,
+          "level_score": 50.0,
+          "overall_band": null,
+          "effective_band": 50.0
+        },
+        {
+          "created_at": 5,
+          "teacher_band": null,
+          "has_evaluation": true,
+          "level_score": 50.0,
+          "overall_band": null,
+          "effective_band": 50.0
+        },
+        {
+          "created_at": 6,
+          "teacher_band": null,
+          "has_evaluation": true,
+          "level_score": 50.0,
+          "overall_band": null,
+          "effective_band": 50.0
+        },
+        {
+          "created_at": 7,
+          "teacher_band": null,
+          "has_evaluation": true,
+          "level_score": 50.0,
+          "overall_band": null,
+          "effective_band": 50.0
+        },
+        {
+          "created_at": 8,
+          "teacher_band": null,
+          "has_evaluation": true,
+          "level_score": 50.0,
+          "overall_band": null,
+          "effective_band": 50.0
+        },
+        {
+          "created_at": 9,
+          "teacher_band": null,
+          "has_evaluation": true,
+          "level_score": 50.0,
+          "overall_band": null,
+          "effective_band": 50.0
+        },
+        {
+          "created_at": 10,
+          "teacher_band": null,
+          "has_evaluation": true,
+          "level_score": 50.0,
+          "overall_band": null,
+          "effective_band": 50.0
+        },
+        {
+          "created_at": 11,
+          "teacher_band": null,
+          "has_evaluation": true,
+          "level_score": 50.0,
+          "overall_band": null,
+          "effective_band": 50.0
+        },
+        {
+          "created_at": 12,
+          "teacher_band": null,
+          "has_evaluation": true,
+          "level_score": 50.0,
+          "overall_band": null,
+          "effective_band": 50.0
+        }
+      ],
+      "rolling_avg": 50.0,
+      "best_band": 100.0
+    },
+    {
+      "name": "window_tie_break_stable_order",
+      "window": 2,
+      "submissions": [
+        {
+          "created_at": 5,
+          "teacher_band": null,
+          "has_evaluation": true,
+          "level_score": 100.0,
+          "overall_band": null,
+          "effective_band": 100.0
+        },
+        {
+          "created_at": 5,
+          "teacher_band": null,
+          "has_evaluation": true,
+          "level_score": 60.0,
+          "overall_band": null,
+          "effective_band": 60.0
+        },
+        {
+          "created_at": 5,
+          "teacher_band": null,
+          "has_evaluation": true,
+          "level_score": 20.0,
+          "overall_band": null,
+          "effective_band": 20.0
+        }
+      ],
+      "rolling_avg": 80.0,
+      "best_band": 100.0
+    },
+    {
+      "name": "rolling_avg_rounds_two_decimals",
+      "window": 10,
+      "submissions": [
+        {
+          "created_at": 1,
+          "teacher_band": null,
+          "has_evaluation": true,
+          "level_score": 74.0,
+          "overall_band": null,
+          "effective_band": 74.0
+        },
+        {
+          "created_at": 2,
+          "teacher_band": null,
+          "has_evaluation": true,
+          "level_score": 74.0,
+          "overall_band": null,
+          "effective_band": 74.0
+        },
+        {
+          "created_at": 3,
+          "teacher_band": null,
+          "has_evaluation": true,
+          "level_score": 75.0,
+          "overall_band": null,
+          "effective_band": 75.0
+        }
+      ],
+      "rolling_avg": 74.33,
+      "best_band": 75.0
+    },
+    {
+      "name": "rolling_avg_midpoint_half_even",
+      "window": 10,
+      "submissions": [
+        {
+          "created_at": 1,
+          "teacher_band": null,
+          "has_evaluation": true,
+          "level_score": 74.0,
+          "overall_band": null,
+          "effective_band": 74.0
+        },
+        {
+          "created_at": 2,
+          "teacher_band": null,
+          "has_evaluation": true,
+          "level_score": 74.25,
+          "overall_band": null,
+          "effective_band": 74.25
+        }
+      ],
+      "rolling_avg": 74.12,
+      "best_band": 74.25
+    },
+    {
+      "name": "best_band_basic",
+      "window": 10,
+      "submissions": [
+        {
+          "created_at": 1,
+          "teacher_band": null,
+          "has_evaluation": true,
+          "level_score": 40.0,
+          "overall_band": null,
+          "effective_band": 40.0
+        },
+        {
+          "created_at": 2,
+          "teacher_band": null,
+          "has_evaluation": true,
+          "level_score": 88.0,
+          "overall_band": null,
+          "effective_band": 88.0
+        },
+        {
+          "created_at": 3,
+          "teacher_band": null,
+          "has_evaluation": true,
+          "level_score": 61.0,
+          "overall_band": null,
+          "effective_band": 61.0
+        },
+        {
+          "created_at": 4,
+          "teacher_band": null,
+          "has_evaluation": true,
+          "level_score": 74.0,
+          "overall_band": null,
+          "effective_band": 74.0
+        }
+      ],
+      "rolling_avg": 65.75,
+      "best_band": 88.0
+    }
+  ]
+}

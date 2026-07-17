@@ -1,0 +1,351 @@
+/* =============================================================================
+ * Ovoz Design System — Design Tokens
+ * -----------------------------------------------------------------------------
+ * SINGLE SOURCE OF TRUTH for every color, type, space, radius, shadow, z and
+ * motion value in the Govori (govorim.uz) frontend.
+ *
+ * Extracted FAITHFULLY from:
+ *   - docs/03-DESIGN-SYSTEM.md            (normative spec: §3.3 color, §3.4 type,
+ *                                          §3.5 space/radius/elevation/motion)
+ *   - RussianDesign/Govori/Govorim - Student.dc.html   (rendered :root + JS
+ *                                          renderVals() dark palette + shadows)
+ *
+ * Rules baked in here:
+ *   - All color is OKLCH (perceptual uniformity; dark mode derived mechanically).
+ *   - Dark mode is NEVER pure black — warm charcoal (chroma ~0.012, hue 60).
+ *   - Values are tokens only; components must never inline #hex / rgb().
+ *
+ * Dark-mode strategy (exactly as prescribed in docs/03 §3.10):
+ *   1. :root                         → light defaults.
+ *   2. :root[data-theme="light"]     → explicit light override (manual toggle).
+ *   3. :root[data-theme="dark"]      → explicit dark override  (manual toggle).
+ *   4. @media (prefers-color-scheme: dark) :root:not([data-theme="light"])
+ *                                    → follow the OS, unless the user forced light.
+ *   A manual toggle ALWAYS wins over the OS preference.
+ * ========================================================================== */
+
+/* -----------------------------------------------------------------------------
+ * 1. LIGHT DEFAULTS + all theme-independent tokens
+ * -------------------------------------------------------------------------- */
+:root {
+  color-scheme: light dark;
+
+  /* ---- Brand ------------------------------------------------------------ */
+  --primary:        oklch(0.665 0.185 40);   /* single action color */
+  --primary-press:  oklch(0.595 0.180 38);   /* :active */
+  --primary-tint:   oklch(0.945 0.038 48);   /* selected nav / chip bg */
+  --primary-tint-2: oklch(0.905 0.068 46);   /* border over tint */
+  --primary-on:     oklch(0.995 0.004 60);   /* text on primary */
+  --accent:         oklch(0.545 0.155 272);  /* progress / premium / data viz */
+  --accent-tint:    oklch(0.945 0.035 272);
+
+  /* ---- Surfaces & ink --------------------------------------------------- */
+  --bg:        oklch(0.973 0.010 72);
+  --surface:   oklch(0.998 0.003 80);
+  --surface-2: oklch(0.978 0.008 76);
+  --surface-3: oklch(0.958 0.013 74);
+  --ink:       oklch(0.270 0.024 55);
+  --ink-soft:  oklch(0.450 0.020 58);
+  --muted:     oklch(0.600 0.018 62);
+  --faint:     oklch(0.745 0.014 68);
+  --line:      oklch(0.910 0.011 72);
+  --line-2:    oklch(0.862 0.016 70);
+
+  /* ---- Semantic --------------------------------------------------------- */
+  --success:      oklch(0.640 0.140 155);
+  --warn:         oklch(0.760 0.135 82);
+  --danger:       oklch(0.605 0.170 20);
+  --info:         oklch(0.600 0.115 245);
+
+  /* Tints (mockup uses these exact values; light = L~0.95, low chroma) */
+  --success-tint: oklch(0.945 0.038 155);
+  --warn-tint:    oklch(0.955 0.036 82);
+  --danger-tint:  oklch(0.952 0.040 20);
+  --info-tint:    oklch(0.945 0.029 245);
+  /* Amber reads poorly as text on light tint — dedicated ink (from mockup). */
+  --warn-ink:     oklch(0.550 0.110 82);
+
+  /* ---- Pronunciation scale (per-word) ----------------------------------- *
+   * A11y: color is NEVER the only signal. Pair each with an underline style:
+   *   good = solid · mid = dotted · low = wavy + warning icon · neutral = none.
+   * (See docs/03 §3.3 "Talaffuz shkalasi".) */
+  --pron-good:    var(--success);
+  --pron-mid:     var(--warn);       /* text: --warn-ink */
+  --pron-low:     var(--danger);
+  --pron-neutral: var(--muted);
+
+  /* ---- Focus ring (docs/03 §3.3: always visible on :focus-visible) ------ */
+  --focus-ring:        var(--primary);
+  --focus-ring-width:  2.5px;
+  --focus-ring-offset: 2px;
+
+  /* =========================================================================
+   * TYPOGRAPHY  (docs/03 §3.4)
+   * Onest = Display + UI (400/500/600/700/800). JetBrains Mono = transcript/
+   * timecodes/phonemes (400/500). Nunito only as a migration fallback.
+   * ====================================================================== */
+  --font-display: "Onest", "Nunito", system-ui, sans-serif;
+  --font-sans:    var(--font-display);
+  --font-mono:    "JetBrains Mono", ui-monospace, monospace;
+
+  --fw-regular:  400;
+  --fw-medium:   500;
+  --fw-semibold: 600;
+  --fw-bold:     700;
+  --fw-black:    800;
+
+  /* Type scale — one role per group: size / line-height / weight / tracking.
+   * Tracking percentages from the spec are converted to em. */
+  --t-score-size: 56px;   --t-score-line: 56px;   --t-score-weight: 800;  --t-score-tracking: -0.03em;   /* ball raqami, tabular-nums */
+  --t-display-size: 40px; --t-display-line: 44px;  --t-display-weight: 800; --t-display-tracking: -0.025em; /* onboarding, marketing */
+  --t-title-l-size: 26px; --t-title-l-line: 32px;  --t-title-l-weight: 800; --t-title-l-tracking: -0.02em;  /* page title */
+  --t-title-m-size: 20px; --t-title-m-line: 26px;  --t-title-m-weight: 700; --t-title-m-tracking: -0.015em; /* card title */
+  --t-title-s-size: 17px; --t-title-s-line: 24px;  --t-title-s-weight: 700; --t-title-s-tracking: -0.01em;  /* list title */
+  --t-body-l-size: 16px;  --t-body-l-line: 25px;   --t-body-l-weight: 500; --t-body-l-tracking: 0;         /* task text, transcript */
+  --t-body-size: 15px;    --t-body-line: 22px;     --t-body-weight: 500;   --t-body-tracking: 0;           /* STANDARD */
+  --t-body-s-size: 13.5px;--t-body-s-line: 19px;   --t-body-s-weight: 500; --t-body-s-tracking: 0;         /* secondary */
+  --t-label-size: 11.5px; --t-label-line: 14px;    --t-label-weight: 800;  --t-label-tracking: 0.06em;     /* SECTION LABEL, uppercase */
+  --t-mono-size: 13.5px;  --t-mono-line: 21px;     --t-mono-weight: 400;   --t-mono-tracking: 0;           /* transcript, phoneme */
+
+  /* =========================================================================
+   * SPACE — 4px base  (docs/03 §3.5)
+   * ====================================================================== */
+  --s-1:  4px;
+  --s-2:  8px;
+  --s-3:  12px;
+  --s-4:  16px;
+  --s-5:  20px;
+  --s-6:  24px;
+  --s-8:  32px;
+  --s-10: 40px;
+  --s-12: 48px;
+  --s-16: 64px;
+
+  /* Density: compact (teacher tables) scales vertical padding ×0.75. */
+  --density-scale: 1;
+
+  /* =========================================================================
+   * RADIUS  (docs/03 §3.5)
+   * Nesting rule: inner_radius = outer_radius − padding.
+   * ====================================================================== */
+  --r-xs:   10px;
+  --r-sm:   14px;
+  --r-md:   18px;
+  --r-lg:   24px;
+  --r-xl:   32px;
+  --r-pill: 999px;
+
+  /* =========================================================================
+   * ELEVATION — warm-tinted shadows, never cold grey  (docs/03 §3.5)
+   * Values taken from the Student mockup's rendered box-shadows.
+   * ====================================================================== */
+  --e-0:       none;
+  --e-1:       0 1px 3px rgba(60, 40, 20, 0.08), 0 2px 10px rgba(60, 40, 20, 0.06); /* card */
+  --e-2:       0 4px 12px rgba(60, 40, 20, 0.10), 0 10px 24px rgba(60, 40, 20, 0.08); /* dropdown, popover */
+  --e-3:       0 30px 60px -22px rgba(40, 25, 10, 0.40); /* modal, sheet */
+  --e-sheet:   0 -12px 40px rgba(0, 0, 0, 0.14);         /* bottom sheet lip */
+  --e-primary: 0 6px 18px oklch(0.665 0.185 40 / 0.30);  /* primary button */
+  --e-danger:  0 8px 22px oklch(0.605 0.170 20 / 0.38);  /* danger button */
+
+  /* =========================================================================
+   * Z-INDEX
+   * NOTE: docs/03 does not specify a z scale — this is a conventional ladder,
+   * to be confirmed by the architect.
+   * ====================================================================== */
+  --z-base:     0;
+  --z-raised:   10;
+  --z-dropdown: 1000;
+  --z-sticky:   1100;
+  --z-drawer:   1200;
+  --z-overlay:  1300;
+  --z-modal:    1400;
+  --z-popover:  1500;
+  --z-toast:    1600;
+  --z-tooltip:  1700;
+
+  /* =========================================================================
+   * MOTION  (docs/03 §3.5)
+   * Each --m-* is a "duration timing-function" pair usable directly in a
+   * transition shorthand: `transition: transform var(--m-fast);`
+   * Raw --dur-* / --ease-* are exposed for JS (count-up) and fine control.
+   * ====================================================================== */
+  --ease-out:        ease-out;
+  --ease-standard:   cubic-bezier(0.2, 0.7, 0.3, 1);
+  --ease-emphasized: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-spring:     cubic-bezier(0.2, 0.9, 0.25, 1.15);
+
+  --dur-instant: 90ms;
+  --dur-fast:    140ms;
+  --dur-base:    220ms;
+  --dur-slow:    380ms;
+  --dur-spring:  520ms;
+  --dur-countup: 900ms;   /* score count-up 0→N (docs/03 §3.5) */
+
+  --m-instant: 90ms  var(--ease-out);        /* hover, tint */
+  --m-fast:    140ms var(--ease-standard);   /* button press, toggle */
+  --m-base:    220ms var(--ease-standard);   /* page / card enter */
+  --m-slow:    380ms var(--ease-emphasized); /* modal, sheet */
+  --m-spring:  520ms var(--ease-spring);     /* SCORE reveal only */
+
+  --tap-scale: 0.96;  /* every :active scales to this ("the feel") */
+}
+
+/* -----------------------------------------------------------------------------
+ * 2. EXPLICIT LIGHT (manual toggle) — mirrors :root theme-varying tokens so a
+ *    forced-light toggle wins even if the OS is dark.
+ * -------------------------------------------------------------------------- */
+:root[data-theme="light"] {
+  --primary:        oklch(0.665 0.185 40);
+  --primary-press:  oklch(0.595 0.180 38);
+  --primary-tint:   oklch(0.945 0.038 48);
+  --primary-tint-2: oklch(0.905 0.068 46);
+  --primary-on:     oklch(0.995 0.004 60);
+  --accent:         oklch(0.545 0.155 272);
+  --accent-tint:    oklch(0.945 0.035 272);
+
+  --bg:        oklch(0.973 0.010 72);
+  --surface:   oklch(0.998 0.003 80);
+  --surface-2: oklch(0.978 0.008 76);
+  --surface-3: oklch(0.958 0.013 74);
+  --ink:       oklch(0.270 0.024 55);
+  --ink-soft:  oklch(0.450 0.020 58);
+  --muted:     oklch(0.600 0.018 62);
+  --faint:     oklch(0.745 0.014 68);
+  --line:      oklch(0.910 0.011 72);
+  --line-2:    oklch(0.862 0.016 70);
+
+  --success:      oklch(0.640 0.140 155);
+  --warn:         oklch(0.760 0.135 82);
+  --danger:       oklch(0.605 0.170 20);
+  --info:         oklch(0.600 0.115 245);
+  --success-tint: oklch(0.945 0.038 155);
+  --warn-tint:    oklch(0.955 0.036 82);
+  --danger-tint:  oklch(0.952 0.040 20);
+  --info-tint:    oklch(0.945 0.029 245);
+  --warn-ink:     oklch(0.550 0.110 82);
+
+  --e-1:       0 1px 3px rgba(60, 40, 20, 0.08), 0 2px 10px rgba(60, 40, 20, 0.06);
+  --e-2:       0 4px 12px rgba(60, 40, 20, 0.10), 0 10px 24px rgba(60, 40, 20, 0.08);
+  --e-3:       0 30px 60px -22px rgba(40, 25, 10, 0.40);
+  --e-sheet:   0 -12px 40px rgba(0, 0, 0, 0.14);
+  --e-primary: 0 6px 18px oklch(0.665 0.185 40 / 0.30);
+  --e-danger:  0 8px 22px oklch(0.605 0.170 20 / 0.38);
+}
+
+/* -----------------------------------------------------------------------------
+ * 3. EXPLICIT DARK (manual toggle). Warm charcoal, never #000.
+ *    Palette from docs/03 §3.3 + mockup renderVals() (theme === 'dark').
+ * -------------------------------------------------------------------------- */
+:root[data-theme="dark"] {
+  --primary:        oklch(0.720 0.170 42);
+  --primary-press:  oklch(0.660 0.165 40);
+  --primary-tint:   oklch(0.300 0.055 42);
+  --primary-tint-2: oklch(0.360 0.070 42);
+  --primary-on:     oklch(0.180 0.020 45);
+  --accent:         oklch(0.680 0.140 272);
+  --accent-tint:    oklch(0.300 0.055 272);
+
+  --bg:        oklch(0.190 0.012 60);
+  --surface:   oklch(0.235 0.014 60);
+  --surface-2: oklch(0.275 0.016 60);
+  --surface-3: oklch(0.315 0.018 60);
+  --ink:       oklch(0.965 0.008 75);
+  --ink-soft:  oklch(0.830 0.012 72);
+  --muted:     oklch(0.680 0.014 68);
+  --faint:     oklch(0.520 0.012 64);
+  --line:      oklch(0.320 0.014 60);
+  --line-2:    oklch(0.400 0.016 60);
+
+  --success:      oklch(0.720 0.130 155);
+  --warn:         oklch(0.800 0.125 82);
+  --danger:       oklch(0.680 0.160 20);
+  --info:         oklch(0.700 0.105 245);
+  /* Dark tints: L 0.300, chroma ÷2.5 (docs/03 §3.3). */
+  --success-tint: oklch(0.300 0.056 155);
+  --warn-tint:    oklch(0.300 0.054 82);
+  --danger-tint:  oklch(0.300 0.068 20);
+  --info-tint:    oklch(0.300 0.046 245);
+  --warn-ink:     oklch(0.800 0.125 82);  /* derived: light warn-ink is too dark on a dark tint */
+
+  /* Shadows weaken in dark; surface brightness carries the elevation instead. */
+  --e-1:       0 1px 3px rgba(0, 0, 0, 0.30), 0 2px 10px rgba(0, 0, 0, 0.22);
+  --e-2:       0 4px 12px rgba(0, 0, 0, 0.34), 0 10px 24px rgba(0, 0, 0, 0.28);
+  --e-3:       0 30px 60px -22px rgba(0, 0, 0, 0.55);
+  --e-sheet:   0 -12px 40px rgba(0, 0, 0, 0.45);
+  --e-primary: 0 6px 18px oklch(0.720 0.170 42 / 0.35);
+  --e-danger:  0 8px 22px oklch(0.680 0.160 20 / 0.40);
+}
+
+/* -----------------------------------------------------------------------------
+ * 4. OS PREFERENCE — follow dark mode unless the user forced light.
+ *    Identical palette to block 3 (plain CSS can't share declarations).
+ * -------------------------------------------------------------------------- */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --primary:        oklch(0.720 0.170 42);
+    --primary-press:  oklch(0.660 0.165 40);
+    --primary-tint:   oklch(0.300 0.055 42);
+    --primary-tint-2: oklch(0.360 0.070 42);
+    --primary-on:     oklch(0.180 0.020 45);
+    --accent:         oklch(0.680 0.140 272);
+    --accent-tint:    oklch(0.300 0.055 272);
+
+    --bg:        oklch(0.190 0.012 60);
+    --surface:   oklch(0.235 0.014 60);
+    --surface-2: oklch(0.275 0.016 60);
+    --surface-3: oklch(0.315 0.018 60);
+    --ink:       oklch(0.965 0.008 75);
+    --ink-soft:  oklch(0.830 0.012 72);
+    --muted:     oklch(0.680 0.014 68);
+    --faint:     oklch(0.520 0.012 64);
+    --line:      oklch(0.320 0.014 60);
+    --line-2:    oklch(0.400 0.016 60);
+
+    --success:      oklch(0.720 0.130 155);
+    --warn:         oklch(0.800 0.125 82);
+    --danger:       oklch(0.680 0.160 20);
+    --info:         oklch(0.700 0.105 245);
+    --success-tint: oklch(0.300 0.056 155);
+    --warn-tint:    oklch(0.300 0.054 82);
+    --danger-tint:  oklch(0.300 0.068 20);
+    --info-tint:    oklch(0.300 0.046 245);
+    --warn-ink:     oklch(0.800 0.125 82);
+
+    --e-1:       0 1px 3px rgba(0, 0, 0, 0.30), 0 2px 10px rgba(0, 0, 0, 0.22);
+    --e-2:       0 4px 12px rgba(0, 0, 0, 0.34), 0 10px 24px rgba(0, 0, 0, 0.28);
+    --e-3:       0 30px 60px -22px rgba(0, 0, 0, 0.55);
+    --e-sheet:   0 -12px 40px rgba(0, 0, 0, 0.45);
+    --e-primary: 0 6px 18px oklch(0.720 0.170 42 / 0.35);
+    --e-danger:  0 8px 22px oklch(0.680 0.160 20 / 0.40);
+  }
+}
+
+/* -----------------------------------------------------------------------------
+ * 5. DENSITY — compact (teacher tables): vertical padding ×0.75  (docs/03 §3.5)
+ * -------------------------------------------------------------------------- */
+:root[data-density="compact"] {
+  --density-scale: 0.75;
+}
+
+/* -----------------------------------------------------------------------------
+ * 6. REDUCED MOTION — collapse all durations to ~instant  (docs/03 §3.5)
+ *    Any consumer using var(--m-*) / var(--dur-*) inherits this automatically.
+ * -------------------------------------------------------------------------- */
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --dur-instant: 0.001ms;
+    --dur-fast:    0.001ms;
+    --dur-base:    0.001ms;
+    --dur-slow:    0.001ms;
+    --dur-spring:  0.001ms;
+    --dur-countup: 0.001ms;
+
+    --m-instant: 0.001ms linear;
+    --m-fast:    0.001ms linear;
+    --m-base:    0.001ms linear;
+    --m-slow:    0.001ms linear;
+    --m-spring:  0.001ms linear;
+
+    --tap-scale: 1;
+  }
+}

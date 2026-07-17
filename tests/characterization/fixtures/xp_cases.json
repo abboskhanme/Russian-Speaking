@@ -1,0 +1,61 @@
+{
+  "_doc": "xp_for_band: 0 if pct < 27 else round(pct/4). None → 0.",
+  "cases": [
+    {
+      "band": null,
+      "xp": 0
+    },
+    {
+      "band": 0,
+      "xp": 0
+    },
+    {
+      "band": 10,
+      "xp": 0
+    },
+    {
+      "band": 26.9,
+      "xp": 0
+    },
+    {
+      "band": 27,
+      "xp": 7
+    },
+    {
+      "band": 28,
+      "xp": 7
+    },
+    {
+      "band": 40,
+      "xp": 10
+    },
+    {
+      "band": 52,
+      "xp": 13
+    },
+    {
+      "band": 60,
+      "xp": 15
+    },
+    {
+      "band": 72,
+      "xp": 18
+    },
+    {
+      "band": 80,
+      "xp": 20
+    },
+    {
+      "band": 88,
+      "xp": 22
+    },
+    {
+      "band": 95,
+      "xp": 24
+    },
+    {
+      "band": 100,
+      "xp": 25
+    }
+  ]
+}

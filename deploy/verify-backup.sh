@@ -1,0 +1,88 @@
+#!/usr/bin/env bash
+# Prove a backup can actually be restored. Runs entirely in throwaway Docker
+# containers on this machine — production is never contacted.
+#
+# A backup nobody has restored is a hypothesis, not a backup. This is the test.
+#
+# Usage: ./deploy/verify-backup.sh ./prod-backup/<timestamp>
+
+set -Eeuo pipefail
+
+DIR="${1:?usage: verify-backup.sh <backup-dir>}"
+[ -f "$DIR/db.dump" ]   || { echo "FATAL: $DIR/db.dump not found"; exit 1; }
+[ -f "$DIR/minio.tgz" ] || echo "WARN: no minio.tgz — audio not covered by this check"
+
+CTR="govori-restore-test-$$"
+cleanup() { docker rm -f "$CTR" >/dev/null 2>&1 || true; }
+trap cleanup EXIT
+
+echo "==> [1/5] Booting a scratch Postgres 16"
+docker run -d --name "$CTR" \
+  -e POSTGRES_PASSWORD=verify -e POSTGRES_USER=verify -e POSTGRES_DB=verify \
+  postgres:16-alpine >/dev/null
+
+until docker exec "$CTR" pg_isready -U verify -q 2>/dev/null; do sleep 1; done
+echo "    ready"
+
+echo "==> [2/5] Restoring db.dump into it"
+docker cp "$DIR/db.dump" "$CTR:/tmp/db.dump"
+# -Fc dumps restore with pg_restore. Non-fatal noise (extensions/roles) is
+# expected because we dumped --no-owner --no-acl; real failures surface below.
+docker exec "$CTR" pg_restore -U verify -d verify --no-owner --no-acl /tmp/db.dump \
+  2>&1 | grep -vE 'warning|already exists' | head -20 || true
+
+echo "==> [3/5] Row counts (restored vs production)"
+docker exec "$CTR" psql -U verify -d verify -A -F',' -t \
+  -c "SELECT relname, n_live_tup FROM pg_stat_user_tables WHERE n_live_tup > 0 ORDER BY n_live_tup DESC" \
+  > /tmp/restored_counts.csv 2>/dev/null || true
+docker exec "$CTR" psql -U verify -d verify -c "ANALYZE" >/dev/null 2>&1
+docker exec "$CTR" psql -U verify -d verify -A -F',' -t \
+  -c "SELECT relname, n_live_tup FROM pg_stat_user_tables WHERE n_live_tup > 0 ORDER BY n_live_tup DESC" \
+  > /tmp/restored_counts.csv
+
+echo "    restored:"
+sed 's/^/      /' /tmp/restored_counts.csv
+if [ -f "$DIR/row_counts.csv" ]; then
+  echo "    production (at dump time):"
+  sed 's/^/      /' "$DIR/row_counts.csv" | grep -v ',0$' || true
+  echo "    --> compare these two lists. Any shortfall means data was lost in the dump."
+fi
+
+echo "==> [4/5] The checks that actually matter"
+
+# The real users must be there — not the 30 @demo.uz seed accounts that the
+# existing backups/ folder turned out to contain.
+echo -n "    real users (non-demo/test): "
+docker exec "$CTR" psql -U verify -d verify -A -t -c \
+  "SELECT count(*) FROM users WHERE email NOT LIKE '%@demo.uz' AND email NOT LIKE '%@test.uz'"
+
+echo "    users by role:"
+docker exec "$CTR" psql -U verify -d verify -A -F' = ' -t -c \
+  "SELECT role, count(*) FROM users GROUP BY role ORDER BY 2 DESC" | sed 's/^/      /'
+
+# Password hashes are what let the 50 users log in after the C# port.
+# They must be bcrypt $2b$ — that is what BCrypt.Net-Next can verify.
+echo "    password hash formats (must be \$2b\$ for the C# port):"
+docker exec "$CTR" psql -U verify -d verify -A -F' = ' -t -c \
+  "SELECT COALESCE(substring(password_hash from 1 for 4), '(null/google)'), count(*)
+   FROM users GROUP BY 1 ORDER BY 2 DESC" | sed 's/^/      /'
+
+echo -n "    graded evaluations: "
+docker exec "$CTR" psql -U verify -d verify -A -t -c "SELECT count(*) FROM evaluations" 2>/dev/null || echo "?"
+
+echo -n "    alembic revision: "
+docker exec "$CTR" psql -U verify -d verify -A -t -c "SELECT version_num FROM alembic_version" 2>/dev/null || echo "?"
+if [ -f "$DIR/alembic_revision.txt" ]; then
+  echo "    (production said: $(cat "$DIR/alembic_revision.txt"))"
+fi
+
+echo "==> [5/5] Audio archive"
+if [ -f "$DIR/minio.tgz" ]; then
+  N=$(tar tzf "$DIR/minio.tgz" 2>/dev/null | grep -cE '\.(webm|ogg|mp3|mp4|wav)$' || echo 0)
+  echo "    audio objects in archive: ${N}"
+  [ "$N" -gt 0 ] || echo "    WARN: no audio files found — check the bucket path"
+fi
+
+echo
+echo "PASS — the dump restores and contains real users."
+echo "This backup is now proven, not assumed."

@@ -1,0 +1,13 @@
+# .NET build output
+bin/
+obj/
+[Bb]in/
+[Oo]bj/
+*.user
+
+# Rider / VS
+.idea/
+.vs/
+
+# EF tools
+*.received.*

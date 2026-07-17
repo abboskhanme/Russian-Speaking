@@ -1,0 +1,46 @@
+# Characterization harness — runs entirely in containers, installs nothing on
+# the host (the user works Docker-only).
+#
+# Two steps, in order:
+#
+#   1. Generate the fixtures FROM the live Python code:
+#        docker compose -f docker-compose.characterization.yml run --rm gen-fixtures
+#
+#   2. Prove the C# port agrees with them:
+#        docker compose -f docker-compose.characterization.yml run --rm dotnet-characterize
+#
+# Step 1 imports the real backend modules, so it needs the backend image built
+# (docker compose build backend) or it builds it here.
+
+services:
+  gen-fixtures:
+    build: ./backend
+    working_dir: /app
+    # Dummy env so app.core.config imports without a real .env. The pinned
+    # SECRET_KEY for JWT vectors is set inside the script itself.
+    environment:
+      DATABASE_URL: "postgresql+psycopg2://u:p@localhost/db"
+      S3_ENDPOINT_URL: "http://localhost:9000"
+      S3_PUBLIC_URL: "http://localhost:9000"
+      S3_ACCESS_KEY: "dummy"
+      S3_SECRET_KEY: "dummy"
+    volumes:
+      # Mount the repo's tests dir so generated fixtures land on the host and
+      # the C# side can read them.
+      - ./tests:/tests
+    command: >
+      python /tests/characterization/python/generate_fixtures.py
+
+  dotnet-characterize:
+    image: mcr.microsoft.com/dotnet/sdk:9.0
+    working_dir: /work/backend-dotnet
+    volumes:
+      - ./backend-dotnet:/work/backend-dotnet
+      - ./tests:/work/tests            # fixtures live here; Fixtures.cs walks up to find them
+      - dotnet-nuget:/root/.nuget/packages
+    command: >
+      dotnet test tests/Govori.Characterization/Govori.Characterization.csproj
+      --nologo -v minimal
+
+volumes:
+  dotnet-nuget:

@@ -1,0 +1,1087 @@
+{
+  "_doc": "level_score = max(0, with_pron(x) - min(n*4, 20)); with_pron(x) = x if pron is None else (x*4 + pron)/5. pron is None on the Whisper path — text-only scoring.",
+  "penalty_per_error": 4.0,
+  "penalty_cap": 20.0,
+  "cases": [
+    {
+      "text_score": 0,
+      "pron_score": null,
+      "orthoepy_errors": 0,
+      "expected": 0.0
+    },
+    {
+      "text_score": 0,
+      "pron_score": null,
+      "orthoepy_errors": 1,
+      "expected": 0.0
+    },
+    {
+      "text_score": 0,
+      "pron_score": null,
+      "orthoepy_errors": 3,
+      "expected": 0.0
+    },
+    {
+      "text_score": 0,
+      "pron_score": null,
+      "orthoepy_errors": 5,
+      "expected": 0.0
+    },
+    {
+      "text_score": 0,
+      "pron_score": null,
+      "orthoepy_errors": 8,
+      "expected": 0.0
+    },
+    {
+      "text_score": 0,
+      "pron_score": 0,
+      "orthoepy_errors": 0,
+      "expected": 0.0
+    },
+    {
+      "text_score": 0,
+      "pron_score": 0,
+      "orthoepy_errors": 1,
+      "expected": 0.0
+    },
+    {
+      "text_score": 0,
+      "pron_score": 0,
+      "orthoepy_errors": 3,
+      "expected": 0.0
+    },
+    {
+      "text_score": 0,
+      "pron_score": 0,
+      "orthoepy_errors": 5,
+      "expected": 0.0
+    },
+    {
+      "text_score": 0,
+      "pron_score": 0,
+      "orthoepy_errors": 8,
+      "expected": 0.0
+    },
+    {
+      "text_score": 0,
+      "pron_score": 45,
+      "orthoepy_errors": 0,
+      "expected": 9.0
+    },
+    {
+      "text_score": 0,
+      "pron_score": 45,
+      "orthoepy_errors": 1,
+      "expected": 5.0
+    },
+    {
+      "text_score": 0,
+      "pron_score": 45,
+      "orthoepy_errors": 3,
+      "expected": 0.0
+    },
+    {
+      "text_score": 0,
+      "pron_score": 45,
+      "orthoepy_errors": 5,
+      "expected": 0.0
+    },
+    {
+      "text_score": 0,
+      "pron_score": 45,
+      "orthoepy_errors": 8,
+      "expected": 0.0
+    },
+    {
+      "text_score": 0,
+      "pron_score": 70,
+      "orthoepy_errors": 0,
+      "expected": 14.0
+    },
+    {
+      "text_score": 0,
+      "pron_score": 70,
+      "orthoepy_errors": 1,
+      "expected": 10.0
+    },
+    {
+      "text_score": 0,
+      "pron_score": 70,
+      "orthoepy_errors": 3,
+      "expected": 2.0
+    },
+    {
+      "text_score": 0,
+      "pron_score": 70,
+      "orthoepy_errors": 5,
+      "expected": 0.0
+    },
+    {
+      "text_score": 0,
+      "pron_score": 70,
+      "orthoepy_errors": 8,
+      "expected": 0.0
+    },
+    {
+      "text_score": 0,
+      "pron_score": 92,
+      "orthoepy_errors": 0,
+      "expected": 18.4
+    },
+    {
+      "text_score": 0,
+      "pron_score": 92,
+      "orthoepy_errors": 1,
+      "expected": 14.399999999999999
+    },
+    {
+      "text_score": 0,
+      "pron_score": 92,
+      "orthoepy_errors": 3,
+      "expected": 6.399999999999999
+    },
+    {
+      "text_score": 0,
+      "pron_score": 92,
+      "orthoepy_errors": 5,
+      "expected": 0.0
+    },
+    {
+      "text_score": 0,
+      "pron_score": 92,
+      "orthoepy_errors": 8,
+      "expected": 0.0
+    },
+    {
+      "text_score": 0,
+      "pron_score": 100,
+      "orthoepy_errors": 0,
+      "expected": 20.0
+    },
+    {
+      "text_score": 0,
+      "pron_score": 100,
+      "orthoepy_errors": 1,
+      "expected": 16.0
+    },
+    {
+      "text_score": 0,
+      "pron_score": 100,
+      "orthoepy_errors": 3,
+      "expected": 8.0
+    },
+    {
+      "text_score": 0,
+      "pron_score": 100,
+      "orthoepy_errors": 5,
+      "expected": 0.0
+    },
+    {
+      "text_score": 0,
+      "pron_score": 100,
+      "orthoepy_errors": 8,
+      "expected": 0.0
+    },
+    {
+      "text_score": 40,
+      "pron_score": null,
+      "orthoepy_errors": 0,
+      "expected": 40.0
+    },
+    {
+      "text_score": 40,
+      "pron_score": null,
+      "orthoepy_errors": 1,
+      "expected": 36.0
+    },
+    {
+      "text_score": 40,
+      "pron_score": null,
+      "orthoepy_errors": 3,
+      "expected": 28.0
+    },
+    {
+      "text_score": 40,
+      "pron_score": null,
+      "orthoepy_errors": 5,
+      "expected": 20.0
+    },
+    {
+      "text_score": 40,
+      "pron_score": null,
+      "orthoepy_errors": 8,
+      "expected": 20.0
+    },
+    {
+      "text_score": 40,
+      "pron_score": 0,
+      "orthoepy_errors": 0,
+      "expected": 32.0
+    },
+    {
+      "text_score": 40,
+      "pron_score": 0,
+      "orthoepy_errors": 1,
+      "expected": 28.0
+    },
+    {
+      "text_score": 40,
+      "pron_score": 0,
+      "orthoepy_errors": 3,
+      "expected": 20.0
+    },
+    {
+      "text_score": 40,
+      "pron_score": 0,
+      "orthoepy_errors": 5,
+      "expected": 12.0
+    },
+    {
+      "text_score": 40,
+      "pron_score": 0,
+      "orthoepy_errors": 8,
+      "expected": 12.0
+    },
+    {
+      "text_score": 40,
+      "pron_score": 45,
+      "orthoepy_errors": 0,
+      "expected": 41.0
+    },
+    {
+      "text_score": 40,
+      "pron_score": 45,
+      "orthoepy_errors": 1,
+      "expected": 37.0
+    },
+    {
+      "text_score": 40,
+      "pron_score": 45,
+      "orthoepy_errors": 3,
+      "expected": 29.0
+    },
+    {
+      "text_score": 40,
+      "pron_score": 45,
+      "orthoepy_errors": 5,
+      "expected": 21.0
+    },
+    {
+      "text_score": 40,
+      "pron_score": 45,
+      "orthoepy_errors": 8,
+      "expected": 21.0
+    },
+    {
+      "text_score": 40,
+      "pron_score": 70,
+      "orthoepy_errors": 0,
+      "expected": 46.0
+    },
+    {
+      "text_score": 40,
+      "pron_score": 70,
+      "orthoepy_errors": 1,
+      "expected": 42.0
+    },
+    {
+      "text_score": 40,
+      "pron_score": 70,
+      "orthoepy_errors": 3,
+      "expected": 34.0
+    },
+    {
+      "text_score": 40,
+      "pron_score": 70,
+      "orthoepy_errors": 5,
+      "expected": 26.0
+    },
+    {
+      "text_score": 40,
+      "pron_score": 70,
+      "orthoepy_errors": 8,
+      "expected": 26.0
+    },
+    {
+      "text_score": 40,
+      "pron_score": 92,
+      "orthoepy_errors": 0,
+      "expected": 50.4
+    },
+    {
+      "text_score": 40,
+      "pron_score": 92,
+      "orthoepy_errors": 1,
+      "expected": 46.4
+    },
+    {
+      "text_score": 40,
+      "pron_score": 92,
+      "orthoepy_errors": 3,
+      "expected": 38.4
+    },
+    {
+      "text_score": 40,
+      "pron_score": 92,
+      "orthoepy_errors": 5,
+      "expected": 30.4
+    },
+    {
+      "text_score": 40,
+      "pron_score": 92,
+      "orthoepy_errors": 8,
+      "expected": 30.4
+    },
+    {
+      "text_score": 40,
+      "pron_score": 100,
+      "orthoepy_errors": 0,
+      "expected": 52.0
+    },
+    {
+      "text_score": 40,
+      "pron_score": 100,
+      "orthoepy_errors": 1,
+      "expected": 48.0
+    },
+    {
+      "text_score": 40,
+      "pron_score": 100,
+      "orthoepy_errors": 3,
+      "expected": 40.0
+    },
+    {
+      "text_score": 40,
+      "pron_score": 100,
+      "orthoepy_errors": 5,
+      "expected": 32.0
+    },
+    {
+      "text_score": 40,
+      "pron_score": 100,
+      "orthoepy_errors": 8,
+      "expected": 32.0
+    },
+    {
+      "text_score": 52.5,
+      "pron_score": null,
+      "orthoepy_errors": 0,
+      "expected": 52.5
+    },
+    {
+      "text_score": 52.5,
+      "pron_score": null,
+      "orthoepy_errors": 1,
+      "expected": 48.5
+    },
+    {
+      "text_score": 52.5,
+      "pron_score": null,
+      "orthoepy_errors": 3,
+      "expected": 40.5
+    },
+    {
+      "text_score": 52.5,
+      "pron_score": null,
+      "orthoepy_errors": 5,
+      "expected": 32.5
+    },
+    {
+      "text_score": 52.5,
+      "pron_score": null,
+      "orthoepy_errors": 8,
+      "expected": 32.5
+    },
+    {
+      "text_score": 52.5,
+      "pron_score": 0,
+      "orthoepy_errors": 0,
+      "expected": 42.0
+    },
+    {
+      "text_score": 52.5,
+      "pron_score": 0,
+      "orthoepy_errors": 1,
+      "expected": 38.0
+    },
+    {
+      "text_score": 52.5,
+      "pron_score": 0,
+      "orthoepy_errors": 3,
+      "expected": 30.0
+    },
+    {
+      "text_score": 52.5,
+      "pron_score": 0,
+      "orthoepy_errors": 5,
+      "expected": 22.0
+    },
+    {
+      "text_score": 52.5,
+      "pron_score": 0,
+      "orthoepy_errors": 8,
+      "expected": 22.0
+    },
+    {
+      "text_score": 52.5,
+      "pron_score": 45,
+      "orthoepy_errors": 0,
+      "expected": 51.0
+    },
+    {
+      "text_score": 52.5,
+      "pron_score": 45,
+      "orthoepy_errors": 1,
+      "expected": 47.0
+    },
+    {
+      "text_score": 52.5,
+      "pron_score": 45,
+      "orthoepy_errors": 3,
+      "expected": 39.0
+    },
+    {
+      "text_score": 52.5,
+      "pron_score": 45,
+      "orthoepy_errors": 5,
+      "expected": 31.0
+    },
+    {
+      "text_score": 52.5,
+      "pron_score": 45,
+      "orthoepy_errors": 8,
+      "expected": 31.0
+    },
+    {
+      "text_score": 52.5,
+      "pron_score": 70,
+      "orthoepy_errors": 0,
+      "expected": 56.0
+    },
+    {
+      "text_score": 52.5,
+      "pron_score": 70,
+      "orthoepy_errors": 1,
+      "expected": 52.0
+    },
+    {
+      "text_score": 52.5,
+      "pron_score": 70,
+      "orthoepy_errors": 3,
+      "expected": 44.0
+    },
+    {
+      "text_score": 52.5,
+      "pron_score": 70,
+      "orthoepy_errors": 5,
+      "expected": 36.0
+    },
+    {
+      "text_score": 52.5,
+      "pron_score": 70,
+      "orthoepy_errors": 8,
+      "expected": 36.0
+    },
+    {
+      "text_score": 52.5,
+      "pron_score": 92,
+      "orthoepy_errors": 0,
+      "expected": 60.4
+    },
+    {
+      "text_score": 52.5,
+      "pron_score": 92,
+      "orthoepy_errors": 1,
+      "expected": 56.4
+    },
+    {
+      "text_score": 52.5,
+      "pron_score": 92,
+      "orthoepy_errors": 3,
+      "expected": 48.4
+    },
+    {
+      "text_score": 52.5,
+      "pron_score": 92,
+      "orthoepy_errors": 5,
+      "expected": 40.4
+    },
+    {
+      "text_score": 52.5,
+      "pron_score": 92,
+      "orthoepy_errors": 8,
+      "expected": 40.4
+    },
+    {
+      "text_score": 52.5,
+      "pron_score": 100,
+      "orthoepy_errors": 0,
+      "expected": 62.0
+    },
+    {
+      "text_score": 52.5,
+      "pron_score": 100,
+      "orthoepy_errors": 1,
+      "expected": 58.0
+    },
+    {
+      "text_score": 52.5,
+      "pron_score": 100,
+      "orthoepy_errors": 3,
+      "expected": 50.0
+    },
+    {
+      "text_score": 52.5,
+      "pron_score": 100,
+      "orthoepy_errors": 5,
+      "expected": 42.0
+    },
+    {
+      "text_score": 52.5,
+      "pron_score": 100,
+      "orthoepy_errors": 8,
+      "expected": 42.0
+    },
+    {
+      "text_score": 74,
+      "pron_score": null,
+      "orthoepy_errors": 0,
+      "expected": 74.0
+    },
+    {
+      "text_score": 74,
+      "pron_score": null,
+      "orthoepy_errors": 1,
+      "expected": 70.0
+    },
+    {
+      "text_score": 74,
+      "pron_score": null,
+      "orthoepy_errors": 3,
+      "expected": 62.0
+    },
+    {
+      "text_score": 74,
+      "pron_score": null,
+      "orthoepy_errors": 5,
+      "expected": 54.0
+    },
+    {
+      "text_score": 74,
+      "pron_score": null,
+      "orthoepy_errors": 8,
+      "expected": 54.0
+    },
+    {
+      "text_score": 74,
+      "pron_score": 0,
+      "orthoepy_errors": 0,
+      "expected": 59.2
+    },
+    {
+      "text_score": 74,
+      "pron_score": 0,
+      "orthoepy_errors": 1,
+      "expected": 55.2
+    },
+    {
+      "text_score": 74,
+      "pron_score": 0,
+      "orthoepy_errors": 3,
+      "expected": 47.2
+    },
+    {
+      "text_score": 74,
+      "pron_score": 0,
+      "orthoepy_errors": 5,
+      "expected": 39.2
+    },
+    {
+      "text_score": 74,
+      "pron_score": 0,
+      "orthoepy_errors": 8,
+      "expected": 39.2
+    },
+    {
+      "text_score": 74,
+      "pron_score": 45,
+      "orthoepy_errors": 0,
+      "expected": 68.2
+    },
+    {
+      "text_score": 74,
+      "pron_score": 45,
+      "orthoepy_errors": 1,
+      "expected": 64.2
+    },
+    {
+      "text_score": 74,
+      "pron_score": 45,
+      "orthoepy_errors": 3,
+      "expected": 56.2
+    },
+    {
+      "text_score": 74,
+      "pron_score": 45,
+      "orthoepy_errors": 5,
+      "expected": 48.2
+    },
+    {
+      "text_score": 74,
+      "pron_score": 45,
+      "orthoepy_errors": 8,
+      "expected": 48.2
+    },
+    {
+      "text_score": 74,
+      "pron_score": 70,
+      "orthoepy_errors": 0,
+      "expected": 73.2
+    },
+    {
+      "text_score": 74,
+      "pron_score": 70,
+      "orthoepy_errors": 1,
+      "expected": 69.2
+    },
+    {
+      "text_score": 74,
+      "pron_score": 70,
+      "orthoepy_errors": 3,
+      "expected": 61.2
+    },
+    {
+      "text_score": 74,
+      "pron_score": 70,
+      "orthoepy_errors": 5,
+      "expected": 53.2
+    },
+    {
+      "text_score": 74,
+      "pron_score": 70,
+      "orthoepy_errors": 8,
+      "expected": 53.2
+    },
+    {
+      "text_score": 74,
+      "pron_score": 92,
+      "orthoepy_errors": 0,
+      "expected": 77.6
+    },
+    {
+      "text_score": 74,
+      "pron_score": 92,
+      "orthoepy_errors": 1,
+      "expected": 73.6
+    },
+    {
+      "text_score": 74,
+      "pron_score": 92,
+      "orthoepy_errors": 3,
+      "expected": 65.6
+    },
+    {
+      "text_score": 74,
+      "pron_score": 92,
+      "orthoepy_errors": 5,
+      "expected": 57.599999999999994
+    },
+    {
+      "text_score": 74,
+      "pron_score": 92,
+      "orthoepy_errors": 8,
+      "expected": 57.599999999999994
+    },
+    {
+      "text_score": 74,
+      "pron_score": 100,
+      "orthoepy_errors": 0,
+      "expected": 79.2
+    },
+    {
+      "text_score": 74,
+      "pron_score": 100,
+      "orthoepy_errors": 1,
+      "expected": 75.2
+    },
+    {
+      "text_score": 74,
+      "pron_score": 100,
+      "orthoepy_errors": 3,
+      "expected": 67.2
+    },
+    {
+      "text_score": 74,
+      "pron_score": 100,
+      "orthoepy_errors": 5,
+      "expected": 59.2
+    },
+    {
+      "text_score": 74,
+      "pron_score": 100,
+      "orthoepy_errors": 8,
+      "expected": 59.2
+    },
+    {
+      "text_score": 88,
+      "pron_score": null,
+      "orthoepy_errors": 0,
+      "expected": 88.0
+    },
+    {
+      "text_score": 88,
+      "pron_score": null,
+      "orthoepy_errors": 1,
+      "expected": 84.0
+    },
+    {
+      "text_score": 88,
+      "pron_score": null,
+      "orthoepy_errors": 3,
+      "expected": 76.0
+    },
+    {
+      "text_score": 88,
+      "pron_score": null,
+      "orthoepy_errors": 5,
+      "expected": 68.0
+    },
+    {
+      "text_score": 88,
+      "pron_score": null,
+      "orthoepy_errors": 8,
+      "expected": 68.0
+    },
+    {
+      "text_score": 88,
+      "pron_score": 0,
+      "orthoepy_errors": 0,
+      "expected": 70.4
+    },
+    {
+      "text_score": 88,
+      "pron_score": 0,
+      "orthoepy_errors": 1,
+      "expected": 66.4
+    },
+    {
+      "text_score": 88,
+      "pron_score": 0,
+      "orthoepy_errors": 3,
+      "expected": 58.400000000000006
+    },
+    {
+      "text_score": 88,
+      "pron_score": 0,
+      "orthoepy_errors": 5,
+      "expected": 50.400000000000006
+    },
+    {
+      "text_score": 88,
+      "pron_score": 0,
+      "orthoepy_errors": 8,
+      "expected": 50.400000000000006
+    },
+    {
+      "text_score": 88,
+      "pron_score": 45,
+      "orthoepy_errors": 0,
+      "expected": 79.4
+    },
+    {
+      "text_score": 88,
+      "pron_score": 45,
+      "orthoepy_errors": 1,
+      "expected": 75.4
+    },
+    {
+      "text_score": 88,
+      "pron_score": 45,
+      "orthoepy_errors": 3,
+      "expected": 67.4
+    },
+    {
+      "text_score": 88,
+      "pron_score": 45,
+      "orthoepy_errors": 5,
+      "expected": 59.400000000000006
+    },
+    {
+      "text_score": 88,
+      "pron_score": 45,
+      "orthoepy_errors": 8,
+      "expected": 59.400000000000006
+    },
+    {
+      "text_score": 88,
+      "pron_score": 70,
+      "orthoepy_errors": 0,
+      "expected": 84.4
+    },
+    {
+      "text_score": 88,
+      "pron_score": 70,
+      "orthoepy_errors": 1,
+      "expected": 80.4
+    },
+    {
+      "text_score": 88,
+      "pron_score": 70,
+      "orthoepy_errors": 3,
+      "expected": 72.4
+    },
+    {
+      "text_score": 88,
+      "pron_score": 70,
+      "orthoepy_errors": 5,
+      "expected": 64.4
+    },
+    {
+      "text_score": 88,
+      "pron_score": 70,
+      "orthoepy_errors": 8,
+      "expected": 64.4
+    },
+    {
+      "text_score": 88,
+      "pron_score": 92,
+      "orthoepy_errors": 0,
+      "expected": 88.8
+    },
+    {
+      "text_score": 88,
+      "pron_score": 92,
+      "orthoepy_errors": 1,
+      "expected": 84.8
+    },
+    {
+      "text_score": 88,
+      "pron_score": 92,
+      "orthoepy_errors": 3,
+      "expected": 76.8
+    },
+    {
+      "text_score": 88,
+      "pron_score": 92,
+      "orthoepy_errors": 5,
+      "expected": 68.8
+    },
+    {
+      "text_score": 88,
+      "pron_score": 92,
+      "orthoepy_errors": 8,
+      "expected": 68.8
+    },
+    {
+      "text_score": 88,
+      "pron_score": 100,
+      "orthoepy_errors": 0,
+      "expected": 90.4
+    },
+    {
+      "text_score": 88,
+      "pron_score": 100,
+      "orthoepy_errors": 1,
+      "expected": 86.4
+    },
+    {
+      "text_score": 88,
+      "pron_score": 100,
+      "orthoepy_errors": 3,
+      "expected": 78.4
+    },
+    {
+      "text_score": 88,
+      "pron_score": 100,
+      "orthoepy_errors": 5,
+      "expected": 70.4
+    },
+    {
+      "text_score": 88,
+      "pron_score": 100,
+      "orthoepy_errors": 8,
+      "expected": 70.4
+    },
+    {
+      "text_score": 100,
+      "pron_score": null,
+      "orthoepy_errors": 0,
+      "expected": 100.0
+    },
+    {
+      "text_score": 100,
+      "pron_score": null,
+      "orthoepy_errors": 1,
+      "expected": 96.0
+    },
+    {
+      "text_score": 100,
+      "pron_score": null,
+      "orthoepy_errors": 3,
+      "expected": 88.0
+    },
+    {
+      "text_score": 100,
+      "pron_score": null,
+      "orthoepy_errors": 5,
+      "expected": 80.0
+    },
+    {
+      "text_score": 100,
+      "pron_score": null,
+      "orthoepy_errors": 8,
+      "expected": 80.0
+    },
+    {
+      "text_score": 100,
+      "pron_score": 0,
+      "orthoepy_errors": 0,
+      "expected": 80.0
+    },
+    {
+      "text_score": 100,
+      "pron_score": 0,
+      "orthoepy_errors": 1,
+      "expected": 76.0
+    },
+    {
+      "text_score": 100,
+      "pron_score": 0,
+      "orthoepy_errors": 3,
+      "expected": 68.0
+    },
+    {
+      "text_score": 100,
+      "pron_score": 0,
+      "orthoepy_errors": 5,
+      "expected": 60.0
+    },
+    {
+      "text_score": 100,
+      "pron_score": 0,
+      "orthoepy_errors": 8,
+      "expected": 60.0
+    },
+    {
+      "text_score": 100,
+      "pron_score": 45,
+      "orthoepy_errors": 0,
+      "expected": 89.0
+    },
+    {
+      "text_score": 100,
+      "pron_score": 45,
+      "orthoepy_errors": 1,
+      "expected": 85.0
+    },
+    {
+      "text_score": 100,
+      "pron_score": 45,
+      "orthoepy_errors": 3,
+      "expected": 77.0
+    },
+    {
+      "text_score": 100,
+      "pron_score": 45,
+      "orthoepy_errors": 5,
+      "expected": 69.0
+    },
+    {
+      "text_score": 100,
+      "pron_score": 45,
+      "orthoepy_errors": 8,
+      "expected": 69.0
+    },
+    {
+      "text_score": 100,
+      "pron_score": 70,
+      "orthoepy_errors": 0,
+      "expected": 94.0
+    },
+    {
+      "text_score": 100,
+      "pron_score": 70,
+      "orthoepy_errors": 1,
+      "expected": 90.0
+    },
+    {
+      "text_score": 100,
+      "pron_score": 70,
+      "orthoepy_errors": 3,
+      "expected": 82.0
+    },
+    {
+      "text_score": 100,
+      "pron_score": 70,
+      "orthoepy_errors": 5,
+      "expected": 74.0
+    },
+    {
+      "text_score": 100,
+      "pron_score": 70,
+      "orthoepy_errors": 8,
+      "expected": 74.0
+    },
+    {
+      "text_score": 100,
+      "pron_score": 92,
+      "orthoepy_errors": 0,
+      "expected": 98.4
+    },
+    {
+      "text_score": 100,
+      "pron_score": 92,
+      "orthoepy_errors": 1,
+      "expected": 94.4
+    },
+    {
+      "text_score": 100,
+      "pron_score": 92,
+      "orthoepy_errors": 3,
+      "expected": 86.4
+    },
+    {
+      "text_score": 100,
+      "pron_score": 92,
+      "orthoepy_errors": 5,
+      "expected": 78.4
+    },
+    {
+      "text_score": 100,
+      "pron_score": 92,
+      "orthoepy_errors": 8,
+      "expected": 78.4
+    },
+    {
+      "text_score": 100,
+      "pron_score": 100,
+      "orthoepy_errors": 0,
+      "expected": 100.0
+    },
+    {
+      "text_score": 100,
+      "pron_score": 100,
+      "orthoepy_errors": 1,
+      "expected": 96.0
+    },
+    {
+      "text_score": 100,
+      "pron_score": 100,
+      "orthoepy_errors": 3,
+      "expected": 88.0
+    },
+    {
+      "text_score": 100,
+      "pron_score": 100,
+      "orthoepy_errors": 5,
+      "expected": 80.0
+    },
+    {
+      "text_score": 100,
+      "pron_score": 100,
+      "orthoepy_errors": 8,
+      "expected": 80.0
+    }
+  ]
+}

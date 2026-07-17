@@ -1,0 +1,66 @@
+{
+  "_doc": "difflib.SequenceMatcher; on_topic = completeness >= 50.0. Gate for shadowing XP.",
+  "on_topic_threshold": 50.0,
+  "cases": [
+    {
+      "reference": "я иду в магазин",
+      "spoken": "я иду в магазин",
+      "result": {
+        "completeness": 100.0,
+        "similarity": 1.0,
+        "matched_words": 4,
+        "reference_words": 4,
+        "spoken_words": 4,
+        "on_topic": true
+      }
+    },
+    {
+      "reference": "я иду в магазин",
+      "spoken": "я иду в магазин сегодня",
+      "result": {
+        "completeness": 100.0,
+        "similarity": 0.889,
+        "matched_words": 4,
+        "reference_words": 4,
+        "spoken_words": 5,
+        "on_topic": true
+      }
+    },
+    {
+      "reference": "я иду в магазин",
+      "spoken": "я иду",
+      "result": {
+        "completeness": 50.0,
+        "similarity": 0.667,
+        "matched_words": 2,
+        "reference_words": 4,
+        "spoken_words": 2,
+        "on_topic": true
+      }
+    },
+    {
+      "reference": "я иду в магазин",
+      "spoken": "погода хорошая",
+      "result": {
+        "completeness": 0.0,
+        "similarity": 0.0,
+        "matched_words": 0,
+        "reference_words": 4,
+        "spoken_words": 2,
+        "on_topic": false
+      }
+    },
+    {
+      "reference": "я иду в магазин",
+      "spoken": "",
+      "result": {
+        "completeness": 0.0,
+        "similarity": 0.0,
+        "matched_words": 0,
+        "reference_words": 4,
+        "spoken_words": 0,
+        "on_topic": false
+      }
+    }
+  ]
+}

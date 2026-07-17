@@ -1,0 +1,47 @@
+{
+  "_doc": "_norm_for_compare: lower → ё=е → strip punctuation → collapse whitespace. Keep the correction iff normalized(original) != normalized(corrected).",
+  "cases": [
+    {
+      "original": "я иду в магазин",
+      "corrected": "Я иду в магазин.",
+      "norm_original": "я иду в магазин",
+      "norm_corrected": "я иду в магазин",
+      "keep": false
+    },
+    {
+      "original": "что ты делаешь",
+      "corrected": "Что ты делаешь?",
+      "norm_original": "что ты делаешь",
+      "norm_corrected": "что ты делаешь",
+      "keep": false
+    },
+    {
+      "original": "я идти в магазин",
+      "corrected": "я иду в магазин",
+      "norm_original": "я идти в магазин",
+      "norm_corrected": "я иду в магазин",
+      "keep": true
+    },
+    {
+      "original": "ежик",
+      "corrected": "ёжик",
+      "norm_original": "ежик",
+      "norm_corrected": "ежик",
+      "keep": false
+    },
+    {
+      "original": "привет  мир",
+      "corrected": "привет мир",
+      "norm_original": "привет мир",
+      "norm_corrected": "привет мир",
+      "keep": false
+    },
+    {
+      "original": "он поехать",
+      "corrected": "он поехал",
+      "norm_original": "он поехать",
+      "norm_corrected": "он поехал",
+      "keep": true
+    }
+  ]
+}

@@ -1,0 +1,41 @@
+/* =============================================================================
+ * Ovoz Design System — Self-hosted @font-face
+ * -----------------------------------------------------------------------------
+ * The mockups (RussianDesign/Govori/*.dc.html) load Onest + JetBrains Mono from
+ * fonts.googleapis.com. That CDN does NOT ship to production (docs/08 item 4.4:
+ * "self-hosted; mockup CDN ishlatadi, prodda yaramaydi; LCP regress yo'q").
+ *
+ * These faces reference SELF-HOSTED variable woff2 files under ./fonts/.
+ * The binaries are NOT committed here — see ./fonts/README.md for exactly which
+ * files to vendor, where to get them, and why the CDN is forbidden.
+ *
+ * Weights the DS actually uses (docs/03 §3.4):
+ *   Onest         400 / 500 / 600 / 700 / 800   (Display + UI)
+ *   JetBrains Mono 400 / 500                     (transcript, timecodes, phonemes)
+ * A single variable file per family covers those with one request each.
+ *
+ * `font-display: swap` — text paints immediately in the fallback (Nunito /
+ * system-ui) and swaps when the face loads; no invisible-text (FOIT) delay.
+ * ========================================================================== */
+
+/* ---- Onest (variable, weight axis 100–900) --------------------------------
+ * Covers Latin + full Cyrillic + Uzbek diacritic (oʻ / gʻ, U+02BB) in one file.
+ */
+@font-face {
+  font-family: "Onest";
+  font-style: normal;
+  font-weight: 100 900;               /* variable range → 400/500/600/700/800 all resolve */
+  font-display: swap;
+  src: url("./fonts/Onest-Variable.woff2") format("woff2");
+}
+
+/* ---- JetBrains Mono (variable, weight axis 100–800) ------------------------
+ * Cyrillic-capable monospace for transcripts, phonemes and timecodes.
+ */
+@font-face {
+  font-family: "JetBrains Mono";
+  font-style: normal;
+  font-weight: 100 800;               /* variable range → 400/500 resolve */
+  font-display: swap;
+  src: url("./fonts/JetBrainsMono-Variable.woff2") format("woff2");
+}

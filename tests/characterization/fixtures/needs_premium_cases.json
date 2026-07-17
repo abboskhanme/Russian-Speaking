@@ -1,0 +1,126 @@
+{
+  "_doc": "services/access.py:78-89 (needs_premium) + 54-75 (task_index). Real signature needs_premium(db, student, q); characterized by running the REAL function with a fake Session injecting (a) the module row and (b) the positional COUNT. Decision: non-student OR premium → False; no module or visibility != 'public' → False; FREE_TASKS_PER_MODULE (n) <= 0 → False; else task_index >= n. Only PUBLIC modules are gated.",
+  "default_free_tasks_per_module": 3,
+  "cases": [
+    {
+      "role": "student",
+      "is_premium": false,
+      "block_id_present": true,
+      "block_exists": true,
+      "visibility": "public",
+      "free_tasks_per_module": 3,
+      "task_index": 0,
+      "expected": false
+    },
+    {
+      "role": "student",
+      "is_premium": false,
+      "block_id_present": true,
+      "block_exists": true,
+      "visibility": "public",
+      "free_tasks_per_module": 3,
+      "task_index": 2,
+      "expected": false
+    },
+    {
+      "role": "student",
+      "is_premium": false,
+      "block_id_present": true,
+      "block_exists": true,
+      "visibility": "public",
+      "free_tasks_per_module": 3,
+      "task_index": 3,
+      "expected": true
+    },
+    {
+      "role": "student",
+      "is_premium": false,
+      "block_id_present": true,
+      "block_exists": true,
+      "visibility": "public",
+      "free_tasks_per_module": 3,
+      "task_index": 7,
+      "expected": true
+    },
+    {
+      "role": "student",
+      "is_premium": false,
+      "block_id_present": true,
+      "block_exists": true,
+      "visibility": "public",
+      "free_tasks_per_module": 0,
+      "task_index": 9,
+      "expected": false
+    },
+    {
+      "role": "student",
+      "is_premium": false,
+      "block_id_present": true,
+      "block_exists": true,
+      "visibility": "public",
+      "free_tasks_per_module": -1,
+      "task_index": 9,
+      "expected": false
+    },
+    {
+      "role": "student",
+      "is_premium": false,
+      "block_id_present": true,
+      "block_exists": true,
+      "visibility": "group",
+      "free_tasks_per_module": 3,
+      "task_index": 9,
+      "expected": false
+    },
+    {
+      "role": "student",
+      "is_premium": false,
+      "block_id_present": true,
+      "block_exists": false,
+      "visibility": null,
+      "free_tasks_per_module": 3,
+      "task_index": 9,
+      "expected": false
+    },
+    {
+      "role": "student",
+      "is_premium": false,
+      "block_id_present": false,
+      "block_exists": false,
+      "visibility": null,
+      "free_tasks_per_module": 3,
+      "task_index": 9,
+      "expected": false
+    },
+    {
+      "role": "student",
+      "is_premium": true,
+      "block_id_present": true,
+      "block_exists": true,
+      "visibility": "public",
+      "free_tasks_per_module": 3,
+      "task_index": 9,
+      "expected": false
+    },
+    {
+      "role": "teacher",
+      "is_premium": false,
+      "block_id_present": true,
+      "block_exists": true,
+      "visibility": "public",
+      "free_tasks_per_module": 3,
+      "task_index": 9,
+      "expected": false
+    },
+    {
+      "role": "admin",
+      "is_premium": false,
+      "block_id_present": true,
+      "block_exists": true,
+      "visibility": "public",
+      "free_tasks_per_module": 3,
+      "task_index": 9,
+      "expected": false
+    }
+  ]
+}
