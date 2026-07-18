@@ -1,0 +1,39 @@
+{
+  "app": {
+    "name": "Govori",
+    "tagline": "Rus tilida ishonch bilan gapiring"
+  },
+  "nav": {
+    "home": "Bosh",
+    "practice": "Mashq",
+    "chat": "AI Suhbat",
+    "progress": "Progress",
+    "profile": "Profil"
+  },
+  "common": {
+    "continue": "Davom etish",
+    "start": "Boshlash",
+    "back": "Orqaga",
+    "next": "Keyingi",
+    "retry": "Qayta urinish",
+    "skip": "O'tkazib yuborish",
+    "save": "Saqlash",
+    "cancel": "Bekor qilish",
+    "close": "Yopish",
+    "loading": "Yuklanmoqda…"
+  },
+  "theme": {
+    "toLight": "Yorug' rejimga o'tish",
+    "toDark": "Qorong'i rejimga o'tish"
+  },
+  "chat": {
+    "title": "AI Suhbat",
+    "comingSoon": "Tez orada",
+    "body": "AI bilan jonli suhbat mashqlari ustida ishlayapmiz — rolli o'yinlar va erkin muloqot tez orada shu yerda bo'ladi.",
+    "backHome": "Bosh sahifaga qaytish"
+  },
+  "units": {
+    "points_one": "{{count}} ball",
+    "points_other": "{{count}} ball"
+  }
+}

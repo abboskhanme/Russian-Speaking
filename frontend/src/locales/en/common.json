@@ -1,0 +1,39 @@
+{
+  "app": {
+    "name": "Govori",
+    "tagline": "Speak Russian with confidence"
+  },
+  "nav": {
+    "home": "Home",
+    "practice": "Practice",
+    "chat": "AI Chat",
+    "progress": "Progress",
+    "profile": "Profile"
+  },
+  "common": {
+    "continue": "Continue",
+    "start": "Start",
+    "back": "Back",
+    "next": "Next",
+    "retry": "Retry",
+    "skip": "Skip",
+    "save": "Save",
+    "cancel": "Cancel",
+    "close": "Close",
+    "loading": "Loading…"
+  },
+  "theme": {
+    "toLight": "Switch to light mode",
+    "toDark": "Switch to dark mode"
+  },
+  "chat": {
+    "title": "AI Chat",
+    "comingSoon": "Coming soon",
+    "body": "We're building live AI conversation practice — roleplay and free-form chat will land here soon.",
+    "backHome": "Back to home"
+  },
+  "units": {
+    "points_one": "{{count}} point",
+    "points_other": "{{count}} points"
+  }
+}

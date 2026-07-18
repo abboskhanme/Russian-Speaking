@@ -1,0 +1,76 @@
+/**
+ * shared/i18n — i18next + react-i18next bootstrap (docs/08 Faza 4.7).
+ *
+ * Contract:
+ *   • Languages: uz · ru · en. Default AND fallback = `uz` (docs/08 §4.7).
+ *   • Language detection is intentionally OFF — the language is an explicit,
+ *     app-owned choice (persisted server-side per user in the real product), so
+ *     nothing here sniffs the browser / navigator. Call `setLang()` to change it.
+ *   • Namespaces: a single `common` ns this pass (nav + shared buttons + the
+ *     chat placeholder + a plural sample). The full 2085-key extraction and the
+ *     namespace split are described in ./README.md.
+ *   • Plurals use i18next's built-in CLDR rules (Intl.PluralRules), so Russian
+ *     gets one/few/many automatically — e.g. `t("units.points", { count: 2 })`
+ *     → «2 балла» (the Faza 4.7 DoD). No i18next-icu needed for this.
+ *
+ * Resources are bundled JSON (imported statically), so `init()` resolves
+ * synchronously and `useTranslation()` works on first render without Suspense.
+ */
+import i18n from "i18next";
+import { initReactI18next } from "react-i18next";
+
+import enCommon from "../../locales/en/common.json";
+import ruCommon from "../../locales/ru/common.json";
+import uzCommon from "../../locales/uz/common.json";
+
+export const SUPPORTED_LANGS = ["uz", "ru", "en"] as const;
+export type AppLang = (typeof SUPPORTED_LANGS)[number];
+
+export const DEFAULT_LANG: AppLang = "uz";
+export const FALLBACK_LANG: AppLang = "uz";
+
+/** Localized language names for a language switcher (docs/08 §4.7). */
+export const LANG_LABELS: Record<AppLang, string> = {
+  uz: "O‘zbekcha",
+  ru: "Русский",
+  en: "English",
+};
+
+export const defaultNS = "common" as const;
+
+export const resources = {
+  uz: { common: uzCommon },
+  ru: { common: ruCommon },
+  en: { common: enCommon },
+} as const;
+
+// Guard against double-init under Vite HMR / React StrictMode.
+if (!i18n.isInitialized) {
+  void i18n.use(initReactI18next).init({
+    resources,
+    lng: DEFAULT_LANG,
+    fallbackLng: FALLBACK_LANG,
+    supportedLngs: SUPPORTED_LANGS as unknown as string[],
+    ns: [defaultNS],
+    defaultNS,
+    // No language detector — the choice is explicit (see file header).
+    interpolation: { escapeValue: false }, // React already escapes.
+    returnNull: false,
+    react: { useSuspense: false },
+  });
+}
+
+/** Change the active UI language (uz | ru | en). */
+export function setLang(lang: AppLang): void {
+  void i18n.changeLanguage(lang);
+}
+
+/** The current UI language, narrowed to a supported code. */
+export function getLang(): AppLang {
+  const code = i18n.resolvedLanguage ?? i18n.language ?? DEFAULT_LANG;
+  return (SUPPORTED_LANGS as readonly string[]).includes(code)
+    ? (code as AppLang)
+    : DEFAULT_LANG;
+}
+
+export default i18n;
