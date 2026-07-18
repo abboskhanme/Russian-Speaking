@@ -1,0 +1,300 @@
+/* PracticeScreen — the core practice loop (docs/04 §4.2–4.6).
+ * Composed from shared/ui + widgets; every colour / space / radius / shadow /
+ * motion value is a token. Full-width per docs/04 §4.10 — the page root spans
+ * its column with no max-width + auto-margin centring; inner blocks align with
+ * flex/grid, never a centred narrow wrapper. */
+
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-6);
+  width: 100%;
+}
+
+/* ---- Header row: progress + attempts ---- */
+.head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-3);
+  flex-wrap: wrap;
+}
+
+.progress {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+}
+.pips {
+  display: flex;
+  align-items: center;
+  gap: var(--s-1);
+}
+.pip {
+  width: 8px;
+  height: 8px;
+  border-radius: var(--r-pill);
+  background: var(--line-2);
+  transition:
+    width var(--m-fast),
+    background-color var(--m-fast);
+}
+.pipDone {
+  background: var(--primary);
+}
+.pipCurrent {
+  width: 22px;
+  background: var(--primary);
+}
+
+/* ---- Task-prompt card ---- */
+.taskCard {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-4);
+}
+.taskMeta {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  flex-wrap: wrap;
+}
+.prompt {
+  text-wrap: balance;
+}
+.instruction {
+  padding: var(--s-4);
+  background: var(--primary-tint);
+  border: 1px solid var(--primary-tint-2);
+  border-radius: var(--r-md);
+}
+
+/* ---- Stage: swaps recorder / grading / feedback ---- */
+.stage {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--s-5);
+  padding: var(--s-6) 0;
+  min-height: 320px;
+}
+.answerActions {
+  display: flex;
+  justify-content: center;
+}
+
+/* ---- Grading placeholder ---- */
+.gradeStage {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--s-4);
+}
+.gradeSteps {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--s-3);
+}
+.gradeStepRow {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+}
+
+/* ---- Feedback panel ---- */
+.feedback {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-4);
+  width: 100%;
+}
+.block {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-3);
+}
+.blockHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-2);
+}
+
+.scoreHead {
+  display: flex;
+  align-items: center;
+  gap: var(--s-6);
+  flex-wrap: wrap;
+}
+.scoreBlock {
+  display: flex;
+  align-items: center;
+  gap: var(--s-4);
+  flex-wrap: wrap;
+}
+.scoreRing {
+  display: grid;
+  place-items: center;
+  width: 112px;
+  height: 112px;
+  flex: none;
+  border-radius: var(--r-pill);
+  border: 4px solid var(--line-2);
+  background: var(--surface);
+}
+.ringGood {
+  border-color: var(--success);
+  background: var(--success-tint);
+}
+.ringMid {
+  border-color: var(--warn);
+  background: var(--warn-tint);
+}
+.ringLow {
+  border-color: var(--danger);
+  background: var(--danger-tint);
+}
+.scoreMeta {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--s-2);
+  min-width: 0;
+}
+
+/* ---- Strengths ---- */
+.strengths {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+}
+.strengths li {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--s-3);
+}
+.strengths li::before {
+  content: "";
+  flex: none;
+  width: 7px;
+  height: 7px;
+  margin-top: 7px;
+  border-radius: var(--r-pill);
+  background: var(--success);
+}
+
+/* ---- Transcript ---- */
+.transcriptText {
+  padding: var(--s-3) var(--s-4);
+  background: var(--surface-2);
+  border-radius: var(--r-md);
+}
+.audioRow {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  flex-wrap: wrap;
+}
+
+/* ---- Corrections ---- */
+.corrections {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-4);
+}
+.correctionRow {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-1);
+}
+.correctionDiff {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  flex-wrap: wrap;
+}
+.before {
+  text-decoration: line-through;
+  text-decoration-color: var(--danger);
+}
+.arrow {
+  color: var(--muted);
+}
+
+/* ---- Criteria bars ---- */
+.criteria {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-3);
+}
+.criterionRow {
+  display: grid;
+  grid-template-columns: minmax(88px, 132px) 1fr auto;
+  align-items: center;
+  gap: var(--s-3);
+}
+.critLabel {
+  min-width: 0;
+}
+.bar {
+  height: 8px;
+  border-radius: var(--r-pill);
+  background: var(--surface-3);
+  overflow: hidden;
+}
+.barFill {
+  height: 100%;
+  border-radius: var(--r-pill);
+  transition: width var(--m-base);
+}
+.barGood {
+  background: var(--success);
+}
+.barMid {
+  background: var(--warn);
+}
+.barLow {
+  background: var(--danger);
+}
+.critScore {
+  justify-self: end;
+  min-width: 3ch;
+  text-align: right;
+}
+
+/* ---- Result actions ---- */
+.actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--s-3);
+  flex-wrap: wrap;
+}
+
+/* ---- Inline play glyph ---- */
+.glyph {
+  margin-inline-end: var(--s-1);
+  vertical-align: -2px;
+}
+
+/* Stack the primary actions on narrow screens (primary on top). */
+@media (max-width: 560px) {
+  .actions {
+    flex-direction: column-reverse;
+    align-items: stretch;
+  }
+  .actions > * {
+    width: 100%;
+  }
+}
