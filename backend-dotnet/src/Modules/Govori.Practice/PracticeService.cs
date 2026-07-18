@@ -31,12 +31,14 @@ public sealed class PracticeService
     private readonly GovoriDbContext _db;
     private readonly IObjectStorage _storage;
     private readonly CatalogService _catalog;
+    private readonly IGradingQueue _grading;
 
-    public PracticeService(GovoriDbContext db, IObjectStorage storage, CatalogService catalog)
+    public PracticeService(GovoriDbContext db, IObjectStorage storage, CatalogService catalog, IGradingQueue grading)
     {
         _db = db;
         _storage = storage;
         _catalog = catalog;
+        _grading = grading;
     }
 
     // Python _EXT_BY_CONTENT_TYPE (submissions.py:43-49); unknown → "webm".
@@ -111,10 +113,12 @@ public sealed class PracticeService
         _db.Submissions.Add(submission);
         await _db.SaveChangesAsync(ct);
 
-        // TODO(Faza 3.4 — Assessment + Hangfire): enqueue grading here. The Python flow fires
-        // process_submission.delay(sub.id) (submissions.py:157) to run the STT + analysis pipeline.
-        // Hangfire is NOT wired yet (docs/08 Faza 3.4/3.9), so the attempt is left status=pending
-        // for the worker to pick up once the job is added.
+        // Enqueue grading (Faza 3.4) — the C# equivalent of process_submission.delay(sub.id)
+        // (submissions.py:157). The default in-process queue runs the STT + analysis pipeline
+        // synchronously in its OWN scope, and short-circuits (leaving the attempt pending) until real
+        // STT/Grader providers are wired — so submit stays fast and non-graded exactly as today.
+        // TODO(Hangfire, Faza 3.9): swap in the durable background queue so grading is off-request.
+        await _grading.EnqueueAsync(submission.Id, ct);
 
         var response = await ToResponseAsync(submission, student, question, ct);
         return new SubmitResult(SubmitStatus.Ok, response);

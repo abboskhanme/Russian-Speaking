@@ -35,6 +35,8 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Modules", "Modules", "{CA25
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Govori.Practice", "src\Modules\Govori.Practice\Govori.Practice.csproj", "{4D1C4229-63A8-4C63-8C56-A4323F3F92C3}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Govori.Assessment", "src\Modules\Govori.Assessment\Govori.Assessment.csproj", "{84F15CCF-FA4F-41B0-950C-86472A02AA64}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -189,6 +191,18 @@ Global
 		{4D1C4229-63A8-4C63-8C56-A4323F3F92C3}.Release|x64.Build.0 = Release|Any CPU
 		{4D1C4229-63A8-4C63-8C56-A4323F3F92C3}.Release|x86.ActiveCfg = Release|Any CPU
 		{4D1C4229-63A8-4C63-8C56-A4323F3F92C3}.Release|x86.Build.0 = Release|Any CPU
+		{84F15CCF-FA4F-41B0-950C-86472A02AA64}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{84F15CCF-FA4F-41B0-950C-86472A02AA64}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{84F15CCF-FA4F-41B0-950C-86472A02AA64}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{84F15CCF-FA4F-41B0-950C-86472A02AA64}.Debug|x64.Build.0 = Debug|Any CPU
+		{84F15CCF-FA4F-41B0-950C-86472A02AA64}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{84F15CCF-FA4F-41B0-950C-86472A02AA64}.Debug|x86.Build.0 = Debug|Any CPU
+		{84F15CCF-FA4F-41B0-950C-86472A02AA64}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{84F15CCF-FA4F-41B0-950C-86472A02AA64}.Release|Any CPU.Build.0 = Release|Any CPU
+		{84F15CCF-FA4F-41B0-950C-86472A02AA64}.Release|x64.ActiveCfg = Release|Any CPU
+		{84F15CCF-FA4F-41B0-950C-86472A02AA64}.Release|x64.Build.0 = Release|Any CPU
+		{84F15CCF-FA4F-41B0-950C-86472A02AA64}.Release|x86.ActiveCfg = Release|Any CPU
+		{84F15CCF-FA4F-41B0-950C-86472A02AA64}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -207,5 +221,6 @@ Global
 		{A57189FB-7A09-48B2-A23D-AFA6AE95CAAC} = {0AB3BF05-4346-4AA6-1389-037BE0695223}
 		{07001840-442F-4138-924A-BA19893780BC} = {EC447DCF-ABFA-6E24-52A5-D7FD48A5C558}
 		{4D1C4229-63A8-4C63-8C56-A4323F3F92C3} = {CA253913-39DE-BFD0-C9A3-4B7EC6FBDF17}
+		{84F15CCF-FA4F-41B0-950C-86472A02AA64} = {CA253913-39DE-BFD0-C9A3-4B7EC6FBDF17}
 	EndGlobalSection
 EndGlobal

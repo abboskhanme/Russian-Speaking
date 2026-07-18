@@ -1,12 +1,16 @@
 using System.Reflection;
 using System.Text;
 using System.Text.Json;
+using Govori.Assessment;
 using Govori.Catalog;
+using Govori.Contracts;
 using Govori.Identity;
 using Govori.Identity.Providers;
 using Govori.Identity.Security;
 using Govori.Infrastructure;
+using Govori.Platform.Grader;
 using Govori.Platform.Storage;
+using Govori.Platform.Stt;
 using Govori.Practice;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
@@ -148,10 +152,21 @@ try
         new MinioObjectStorage(sp.GetRequiredService<StorageOptions>()));
 
     // ── Practice / attempt-submit path (docs/07 §7.2, Faza 3.3) ─────────────
-    // PracticeService owns the submit flow (404→403→402 gate → store audio → pending Submission).
-    // The 402 freemium gate reuses Catalog's frozen CatalogService.NeedsPremiumAsync (task decision
-    // 3a — single C4-characterized source of truth, no divergence).
+    // PracticeService owns the submit flow (404→403→402 gate → store audio → pending Submission →
+    // enqueue grading). The 402 freemium gate reuses Catalog's frozen CatalogService.NeedsPremiumAsync
+    // (task decision 3a — single C4-characterized source of truth, no divergence).
     builder.Services.AddScoped<PracticeService>();
+
+    // ── Assessment / grading pipeline (docs/07 §7.7, Faza 3.4) ──────────────
+    // STT + Grader behind interfaces. PROD registers the REAL Azure/Whisper/Gemini ports, which are
+    // TODO stubs reporting IsConfigured=false (no keys) — so the pipeline safely DEFERS (attempt stays
+    // pending) until real keys + Hangfire land. Fakes are NEVER registered here; integration tests
+    // swap them in via ConfigureTestServices. AssessmentService is scoped (scoped DbContext); the
+    // in-process queue is a singleton that opens a fresh scope per run.
+    builder.Services.AddSingleton<ISttProvider, AzureSttProvider>();        // TODO(Faza 3.4): Whisper fallback
+    builder.Services.AddSingleton<IGraderProvider, GeminiGraderProvider>(); // TODO(Faza 3.4): OpenAI/Azure fallback
+    builder.Services.AddScoped<AssessmentService>();
+    builder.Services.AddSingleton<IGradingQueue, InlineGradingQueue>();     // TODO(Hangfire, Faza 3.9): durable queue
 
     // ── Identity providers + config (docs/07 §7.5, Faza 3.1) ────────────────
     // OTP / email-verification config — mirrors Python EMAIL_OTP_* + email_enabled.

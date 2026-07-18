@@ -1,0 +1,22 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\Govori.Contracts\Govori.Contracts.csproj" />
+    <ProjectReference Include="..\..\Govori.Infrastructure\Govori.Infrastructure.csproj" />
+    <!-- Provider seams (ISttProvider / IGraderProvider) + IObjectStorage live in Platform. -->
+    <ProjectReference Include="..\..\Govori.Platform\Govori.Platform.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Same shared-framework pattern as Govori.Identity: the module uses ILogger, DI
+         (IServiceScopeFactory) and EF Core types the shared ASP.NET Core framework provides. -->
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <TargetFramework>net9.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+</Project>

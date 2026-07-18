@@ -34,6 +34,8 @@
     <ProjectReference Include="..\..\src\Modules\Govori.Catalog\Govori.Catalog.csproj" />
     <!-- Construct MinioObjectStorage directly against govori-net MinIO (object-storage round-trip). -->
     <ProjectReference Include="..\..\src\Govori.Platform\Govori.Platform.csproj" />
+    <!-- Drive the grading pipeline (AssessmentService / IGradingQueue) with Fake providers. -->
+    <ProjectReference Include="..\..\src\Modules\Govori.Assessment\Govori.Assessment.csproj" />
   </ItemGroup>
 
 </Project>

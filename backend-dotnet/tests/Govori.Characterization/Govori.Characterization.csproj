@@ -22,6 +22,8 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\Modules\Govori.Identity\Govori.Identity.csproj" />
+    <!-- C5: drive the REAL scoring port (Govori.Assessment.Scoring) against pron_math_cases.json. -->
+    <ProjectReference Include="..\..\src\Modules\Govori.Assessment\Govori.Assessment.csproj" />
   </ItemGroup>
 
 </Project>
