@@ -36,6 +36,9 @@
     <ProjectReference Include="..\..\src\Govori.Platform\Govori.Platform.csproj" />
     <!-- Drive the grading pipeline (AssessmentService / IGradingQueue) with Fake providers. -->
     <ProjectReference Include="..\..\src\Modules\Govori.Assessment\Govori.Assessment.csproj" />
+    <!-- Construct EngagementService directly to drive the worker-side award/streak/SRS-schedule paths
+         (no HTTP route) through real EF/SQL, alongside the leaderboard/review/notification endpoints. -->
+    <ProjectReference Include="..\..\src\Modules\Govori.Engagement\Govori.Engagement.csproj" />
   </ItemGroup>
 
 </Project>

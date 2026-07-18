@@ -39,6 +39,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Govori.Assessment", "src\Mo
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Govori.Classroom", "src\Modules\Govori.Classroom\Govori.Classroom.csproj", "{D6DCC3DB-6B67-4805-B4EF-AF41DBF2B371}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Govori.Engagement", "src\Modules\Govori.Engagement\Govori.Engagement.csproj", "{0D57C7C6-C725-4F9C-8DD0-03B3A436B24E}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -217,6 +219,18 @@ Global
 		{D6DCC3DB-6B67-4805-B4EF-AF41DBF2B371}.Release|x64.Build.0 = Release|Any CPU
 		{D6DCC3DB-6B67-4805-B4EF-AF41DBF2B371}.Release|x86.ActiveCfg = Release|Any CPU
 		{D6DCC3DB-6B67-4805-B4EF-AF41DBF2B371}.Release|x86.Build.0 = Release|Any CPU
+		{0D57C7C6-C725-4F9C-8DD0-03B3A436B24E}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{0D57C7C6-C725-4F9C-8DD0-03B3A436B24E}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{0D57C7C6-C725-4F9C-8DD0-03B3A436B24E}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{0D57C7C6-C725-4F9C-8DD0-03B3A436B24E}.Debug|x64.Build.0 = Debug|Any CPU
+		{0D57C7C6-C725-4F9C-8DD0-03B3A436B24E}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{0D57C7C6-C725-4F9C-8DD0-03B3A436B24E}.Debug|x86.Build.0 = Debug|Any CPU
+		{0D57C7C6-C725-4F9C-8DD0-03B3A436B24E}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{0D57C7C6-C725-4F9C-8DD0-03B3A436B24E}.Release|Any CPU.Build.0 = Release|Any CPU
+		{0D57C7C6-C725-4F9C-8DD0-03B3A436B24E}.Release|x64.ActiveCfg = Release|Any CPU
+		{0D57C7C6-C725-4F9C-8DD0-03B3A436B24E}.Release|x64.Build.0 = Release|Any CPU
+		{0D57C7C6-C725-4F9C-8DD0-03B3A436B24E}.Release|x86.ActiveCfg = Release|Any CPU
+		{0D57C7C6-C725-4F9C-8DD0-03B3A436B24E}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -237,5 +251,6 @@ Global
 		{4D1C4229-63A8-4C63-8C56-A4323F3F92C3} = {CA253913-39DE-BFD0-C9A3-4B7EC6FBDF17}
 		{84F15CCF-FA4F-41B0-950C-86472A02AA64} = {CA253913-39DE-BFD0-C9A3-4B7EC6FBDF17}
 		{D6DCC3DB-6B67-4805-B4EF-AF41DBF2B371} = {CA253913-39DE-BFD0-C9A3-4B7EC6FBDF17}
+		{0D57C7C6-C725-4F9C-8DD0-03B3A436B24E} = {CA253913-39DE-BFD0-C9A3-4B7EC6FBDF17}
 	EndGlobalSection
 EndGlobal

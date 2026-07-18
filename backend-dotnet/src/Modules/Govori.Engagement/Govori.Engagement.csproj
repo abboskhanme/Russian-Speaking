@@ -1,0 +1,26 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\Govori.Contracts\Govori.Contracts.csproj" />
+    <ProjectReference Include="..\..\Govori.Infrastructure\Govori.Infrastructure.csproj" />
+    <!-- NOTE (Engagement→Catalog/Classroom boundary): deliberately NOT referenced. The XP/streak/SRS
+         award logic (gamification.py) and the leaderboard/review/notification read paths are
+         domain-owned and share no characterized fixture with those modules, so no module→module edge
+         is warranted. The frozen C8 XpForBand lives HERE (its only home). -->
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- This module defines its own minimal-API endpoint group (MapEngagementEndpoints) and uses
+         ClaimsPrincipal / Results — the shared ASP.NET Core framework provides those types to a
+         class library. Same modular-endpoint pattern as Govori.Identity / Govori.Catalog /
+         Govori.Practice / Govori.Classroom. -->
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <TargetFramework>net9.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+</Project>

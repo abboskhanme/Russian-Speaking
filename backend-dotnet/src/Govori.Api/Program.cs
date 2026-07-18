@@ -5,6 +5,7 @@ using Govori.Assessment;
 using Govori.Catalog;
 using Govori.Classroom;
 using Govori.Contracts;
+using Govori.Engagement;
 using Govori.Identity;
 using Govori.Identity.Providers;
 using Govori.Identity.Security;
@@ -175,6 +176,14 @@ try
     // the S1 roster-filter SECURITY FIX on assignment creation (§7.8). Scoped (scoped DbContext).
     builder.Services.AddScoped<ClassroomService>();
 
+    // ── Engagement / XP + streak + leaderboard + SRS + notifications (docs/07 §3.6, Faza 3.6) ──
+    // EngagementService owns the frozen C8 XP curve (XpForBand), the daily streak (with freezes), the
+    // leaderboard (SQL-side ranking), the spaced-repetition review queue and in-app notifications.
+    // Ported from gamification.py (award/streak/schedule — worker-driven, no HTTP route) +
+    // engagement.py/notifications.py (leaderboard/review/notifications HTTP surface). Scoped (scoped
+    // DbContext).
+    builder.Services.AddScoped<EngagementService>();
+
     // ── Identity providers + config (docs/07 §7.5, Faza 3.1) ────────────────
     // OTP / email-verification config — mirrors Python EMAIL_OTP_* + email_enabled.
     builder.Services.AddSingleton(new OtpOptions
@@ -286,6 +295,12 @@ try
     // (/api/reports/gradebook) live in the Classroom module's MapClassroomEndpoints extension,
     // one call per domain.
     app.MapClassroomEndpoints();
+
+    // ── Engagement endpoints (docs/07 §3.6, Faza 3.6) ───────────────────────
+    // The leaderboard (/api/leaderboard), SRS review queue (/api/review) and in-app notifications
+    // (/api/notifications) live in the Engagement module's MapEngagementEndpoints extension, one call
+    // per domain. XP/streak/SRS-scheduling AWARD paths have no HTTP route (worker-driven, like Python).
+    app.MapEngagementEndpoints();
 
     app.Run();
 }

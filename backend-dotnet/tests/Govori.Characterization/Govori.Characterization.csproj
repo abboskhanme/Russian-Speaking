@@ -24,6 +24,8 @@
     <ProjectReference Include="..\..\src\Modules\Govori.Identity\Govori.Identity.csproj" />
     <!-- C5: drive the REAL scoring port (Govori.Assessment.Scoring) against pron_math_cases.json. -->
     <ProjectReference Include="..\..\src\Modules\Govori.Assessment\Govori.Assessment.csproj" />
+    <!-- C8: drive the REAL XP port (Govori.Engagement.EngagementService.XpForBand) against xp_cases.json. -->
+    <ProjectReference Include="..\..\src\Modules\Govori.Engagement\Govori.Engagement.csproj" />
   </ItemGroup>
 
 </Project>
