@@ -3,6 +3,7 @@ using System.Text;
 using System.Text.Json;
 using Govori.Assessment;
 using Govori.Catalog;
+using Govori.Classroom;
 using Govori.Contracts;
 using Govori.Identity;
 using Govori.Identity.Providers;
@@ -168,6 +169,12 @@ try
     builder.Services.AddScoped<AssessmentService>();
     builder.Services.AddSingleton<IGradingQueue, InlineGradingQueue>();     // TODO(Hangfire, Faza 3.9): durable queue
 
+    // ── Classroom / groups + assignments + gradebook (docs/07 §3.5, Faza 3.5) ──
+    // ClassroomService owns teacher groups (create/join/roster), assignments (single + module) and
+    // the teacher-scoped gradebook. Ported from groups.py/engagement.py/reports.py; it also carries
+    // the S1 roster-filter SECURITY FIX on assignment creation (§7.8). Scoped (scoped DbContext).
+    builder.Services.AddScoped<ClassroomService>();
+
     // ── Identity providers + config (docs/07 §7.5, Faza 3.1) ────────────────
     // OTP / email-verification config — mirrors Python EMAIL_OTP_* + email_enabled.
     builder.Services.AddSingleton(new OtpOptions
@@ -273,6 +280,12 @@ try
     // store + pending Submission; list + attempt detail) lives in the Practice module's
     // MapPracticeEndpoints extension, one call per domain.
     app.MapPracticeEndpoints();
+
+    // ── Classroom endpoints (docs/07 §3.5, Faza 3.5) ────────────────────────
+    // Teacher groups (/api/groups), assignments (/api/assignments) and the gradebook
+    // (/api/reports/gradebook) live in the Classroom module's MapClassroomEndpoints extension,
+    // one call per domain.
+    app.MapClassroomEndpoints();
 
     app.Run();
 }

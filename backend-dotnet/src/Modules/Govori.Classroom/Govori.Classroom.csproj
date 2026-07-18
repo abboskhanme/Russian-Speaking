@@ -1,0 +1,28 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\Govori.Contracts\Govori.Contracts.csproj" />
+    <ProjectReference Include="..\..\Govori.Infrastructure\Govori.Infrastructure.csproj" />
+    <!-- NOTE (Classroom→Catalog boundary): deliberately NOT referenced. Catalog exposes
+         StudentTeacherIdsAsync (the student→teachers direction, for the freemium/module view)
+         and the C4/C9-frozen NeedsPremiumAsync that Practice reuses. Classroom needs the
+         INVERSE (teacher→their students, the "roster") plus the C3 progress score — both are
+         plain, domain-owned queries with no characterized fixture to share, so re-using Catalog
+         would add a module→module edge for no reuse. If a shared roster/scoring helper is ever
+         extracted, this is where the edge would land. -->
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- This module defines its own minimal-API endpoint group (MapClassroomEndpoints) and uses
+         ClaimsPrincipal / Results — the shared ASP.NET Core framework provides those types to a
+         class library. Same modular-endpoint pattern as Govori.Identity / Govori.Catalog / Govori.Practice. -->
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <TargetFramework>net9.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+</Project>
