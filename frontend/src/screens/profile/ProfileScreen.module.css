@@ -1,0 +1,222 @@
+/* ProfileScreen — the student's Profil place (docs/04 §4.9).
+ * Composed from shared/ui + widgets; every colour / space / radius / shadow /
+ * motion value is a token. Full-width per docs/04 §4.10 — the page root spans
+ * its column with no max-width + auto-margin centring; inner blocks align with
+ * flex/grid, never a centred narrow wrapper. */
+
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-6);
+  width: 100%;
+}
+
+.section {
+  display: flex;
+  flex-direction: column;
+}
+.sectionLabel {
+  margin-bottom: var(--s-2);
+}
+
+/* ---- Identity card ---- */
+.userCard {
+  display: flex;
+  align-items: center;
+  gap: var(--s-4);
+}
+.avatar {
+  display: grid;
+  place-items: center;
+  width: 64px;
+  height: 64px;
+  flex: none;
+  border-radius: var(--r-pill);
+  background: var(--accent-tint);
+  color: var(--accent);
+  font-family: var(--font-display);
+  font-size: var(--t-title-m-size);
+  font-weight: var(--fw-black);
+  overflow: hidden;
+}
+.avatarImg {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.userMeta {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-1);
+}
+.userNameRow {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  flex-wrap: wrap;
+  min-width: 0;
+}
+.userName {
+  min-width: 0;
+}
+.verified {
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  flex: none;
+  border-radius: var(--r-pill);
+  background: var(--success-tint);
+  color: var(--success);
+}
+
+/* ---- Premium status card ---- */
+.premiumCard {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--s-4);
+}
+.premiumIcon {
+  display: grid;
+  place-items: center;
+  width: 56px;
+  height: 56px;
+  flex: none;
+  border-radius: var(--r-lg);
+  background: var(--accent-tint);
+  color: var(--accent);
+}
+.premiumBody {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+}
+.premiumHead {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  flex-wrap: wrap;
+}
+.premiumActions {
+  display: flex;
+  margin-top: var(--s-1);
+}
+
+/* ---- Language selector ---- */
+.langGroup {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--s-3);
+}
+.langOption {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-1);
+  align-items: flex-start;
+  text-align: start;
+  padding: var(--s-3) var(--s-4);
+  border-radius: var(--r-md);
+  border: 1.5px solid var(--line);
+  background: var(--surface);
+  cursor: pointer;
+  transition:
+    border-color var(--m-fast),
+    background-color var(--m-fast),
+    color var(--m-fast);
+}
+.langOption:hover {
+  border-color: var(--line-2);
+}
+.langOption:focus-visible {
+  outline: var(--focus-ring-width) solid var(--focus-ring);
+  outline-offset: var(--focus-ring-offset);
+}
+.langOptionActive {
+  border-color: var(--primary);
+  background: var(--primary-tint);
+  color: var(--primary);
+}
+
+/* ---- Settings list ---- */
+.settingsList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-3);
+}
+
+/* The card renders onto this <button> (interactive asChild) or a static div. */
+.settingRow {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  text-align: start;
+}
+.settingIcon {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  flex: none;
+  border-radius: var(--r-sm);
+}
+.settingIconPrimary {
+  background: var(--primary-tint);
+  color: var(--primary);
+}
+.settingIconInfo {
+  background: var(--info-tint);
+  color: var(--info);
+}
+.settingIconAccent {
+  background: var(--accent-tint);
+  color: var(--accent);
+}
+.settingText {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-1);
+}
+.settingValue {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  flex: none;
+  color: var(--muted);
+}
+.settingControl {
+  display: flex;
+  align-items: center;
+  flex: none;
+}
+
+/* ---- Logout ---- */
+.logoutRow {
+  display: flex;
+  margin-top: var(--s-2);
+}
+
+/* ---- Inline glyphs ---- */
+.glyph {
+  display: block;
+}
+.chevron {
+  display: block;
+  color: var(--faint);
+}
+
+/* ---- Responsive ---- */
+@media (max-width: 480px) {
+  .logoutRow > * {
+    width: 100%;
+  }
+}
