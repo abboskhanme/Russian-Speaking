@@ -6,6 +6,8 @@ using Govori.Identity;
 using Govori.Identity.Providers;
 using Govori.Identity.Security;
 using Govori.Infrastructure;
+using Govori.Platform.Storage;
+using Govori.Practice;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.EntityFrameworkCore;
@@ -120,6 +122,37 @@ try
     });
     builder.Services.AddScoped<CatalogService>();
 
+    // ── Platform.Storage (docs/07 §7.2 — S3/MinIO object storage) ───────────
+    // StorageOptions binds from the prod S3_* env keys (config.py:38-43), falling back to the
+    // integration-test keys (GOVORI_S3_*) so the same host works in the govori-net test env.
+    // PublicUrl defaults to the internal endpoint: presigned URLs must be signed for the host the
+    // consumer reaches (in-network tests reach MinIO at the same host — see StorageOptions docs).
+    var s3Endpoint = builder.Configuration["S3_ENDPOINT_URL"]
+        ?? builder.Configuration["GOVORI_S3_ENDPOINT"]
+        ?? "http://govori-minio:9000";
+    builder.Services.AddSingleton(new StorageOptions
+    {
+        Endpoint = s3Endpoint,
+        PublicUrl = builder.Configuration["S3_PUBLIC_URL"]
+            ?? builder.Configuration["GOVORI_S3_ENDPOINT"]
+            ?? s3Endpoint,
+        AccessKey = builder.Configuration["S3_ACCESS_KEY"]
+            ?? builder.Configuration["GOVORI_S3_ACCESS_KEY"] ?? "minioadmin",
+        SecretKey = builder.Configuration["S3_SECRET_KEY"]
+            ?? builder.Configuration["GOVORI_S3_SECRET_KEY"] ?? "minioadmin",
+        Bucket = builder.Configuration["S3_BUCKET"]
+            ?? builder.Configuration["GOVORI_S3_BUCKET"] ?? "govori-audio",
+        Region = builder.Configuration["S3_REGION"] ?? "us-east-1",
+    });
+    builder.Services.AddSingleton<IObjectStorage>(sp =>
+        new MinioObjectStorage(sp.GetRequiredService<StorageOptions>()));
+
+    // ── Practice / attempt-submit path (docs/07 §7.2, Faza 3.3) ─────────────
+    // PracticeService owns the submit flow (404→403→402 gate → store audio → pending Submission).
+    // The 402 freemium gate reuses Catalog's frozen CatalogService.NeedsPremiumAsync (task decision
+    // 3a — single C4-characterized source of truth, no divergence).
+    builder.Services.AddScoped<PracticeService>();
+
     // ── Identity providers + config (docs/07 §7.5, Faza 3.1) ────────────────
     // OTP / email-verification config — mirrors Python EMAIL_OTP_* + email_enabled.
     builder.Services.AddSingleton(new OtpOptions
@@ -219,6 +252,12 @@ try
     // The student read path (GET /api/blocks/student — the two-layer sequence+freemium lock)
     // lives in the Catalog module's MapCatalogEndpoints extension, one call per domain.
     app.MapCatalogEndpoints();
+
+    // ── Practice endpoints (docs/07 §7.2, Faza 3.3) ─────────────────────────
+    // The student attempt/submit surface (POST /api/submissions — the 402 freemium gate + audio
+    // store + pending Submission; list + attempt detail) lives in the Practice module's
+    // MapPracticeEndpoints extension, one call per domain.
+    app.MapPracticeEndpoints();
 
     app.Run();
 }

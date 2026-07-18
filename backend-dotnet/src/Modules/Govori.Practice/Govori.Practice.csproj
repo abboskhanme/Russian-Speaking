@@ -1,0 +1,26 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\Govori.Contracts\Govori.Contracts.csproj" />
+    <ProjectReference Include="..\..\Govori.Infrastructure\Govori.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\Govori.Platform\Govori.Platform.csproj" />
+    <!-- Freemium-gate reuse (task decision 3a): the 402 gate calls Catalog's frozen
+         CatalogService.NeedsPremiumAsync (the single, C4/C9-characterized source of truth)
+         instead of re-implementing needs_premium/task_index here (divergence risk). -->
+    <ProjectReference Include="..\Govori.Catalog\Govori.Catalog.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- This module defines its own minimal-API endpoint group (MapPracticeEndpoints) and uses
+         ClaimsPrincipal / Results / IFormFile — the shared ASP.NET Core framework provides those
+         types to a class library. Same modular-endpoint pattern as Govori.Identity / Govori.Catalog. -->
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <TargetFramework>net9.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+</Project>
