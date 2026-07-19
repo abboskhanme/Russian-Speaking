@@ -30,15 +30,15 @@ public static class IdentityEndpoints
 
         // POST /api/auth/email/request-code → 200 { ok, expires_in }, or 409 if the email is
         // already registered (auth.py:78-85).
-        // RATE LIMIT (Python: email_code 5/600, FAIL-OPEN). Not yet enforced in .NET — see
-        // the TODO at the bottom of this file; the fail-open intent must be preserved.
+        // RATE LIMIT: email_code 5/600, per-IP, FAIL-OPEN (auth.py:76; policy registered in
+        // Govori.Api/RateLimiting — a store outage ALLOWS the request).
         auth.MapPost("/email/request-code", async (EmailCodeRequest req, AuthService svc, CancellationToken ct) =>
         {
             var result = await svc.RequestEmailCodeAsync(req.Email, ct);
             return result.Status == EmailCodeRequestStatus.EmailTaken
                 ? Detail("Email already registered", StatusCodes.Status409Conflict)
                 : Results.Ok(new EmailCodeSentResponse(true, result.ExpiresInSeconds));
-        });
+        }).RequireRateLimiting(RateLimitPolicyNames.EmailCode);
 
         // POST /api/auth/email/verify-code → 200 { email_verify_token }, or 400 on a
         // wrong/expired code (auth.py:93-97). FAIL-CLOSED: a broken OTP store denies (400).
@@ -80,7 +80,7 @@ public static class IdentityEndpoints
                     StatusCodes.Status403Forbidden),
                 _ => Results.Ok(result.Tokens),
             };
-        });
+        }).RequireRateLimiting(RateLimitPolicyNames.Login);
 
         // POST /api/auth/google → 200 TokenPair, 503 (not configured), 502 (unreachable),
         // 401 (invalid token), 403 (blocked) (auth.py:176-207).
@@ -95,7 +95,7 @@ public static class IdentityEndpoints
                 GoogleAuthStatus.Blocked => Detail("Account is blocked", StatusCodes.Status403Forbidden),
                 _ => Results.Ok(result.Tokens),
             };
-        });
+        }).RequireRateLimiting(RateLimitPolicyNames.Login); // auth.py:174 uses the same "login" scope
 
         // POST /api/auth/refresh → 200 TokenPair, or 401 if the token isn't a refresh token
         // (auth.py:211-219).
@@ -128,10 +128,12 @@ public static class IdentityEndpoints
             return me is null ? Results.Unauthorized() : Results.Ok(me);
         }).RequireAuthorization();
 
-        // TODO(§7.5 rate limiting): Python fixed-window limits login/register/email paths in
-        // Redis, FAIL-OPEN (backend/app/core/ratelimit.py — a Redis outage must never take the
-        // API down, and keying is per-user-or-IP to survive classroom NAT). Port as ASP.NET
-        // Core RateLimiter middleware in a follow-up; preserve the fail-open semantics.
+        // Rate limiting (§7.3): login/google (login 10-20/300) and email/request-code
+        // (email_code 5/600) attach ASP.NET Core RateLimiter policies via .RequireRateLimiting above.
+        // Policies are per-user-or-IP fixed-window and FAIL-OPEN (a store outage must never take the
+        // API down), registered in Govori.Api/RateLimiting (AddGovoriRateLimiter). TODO(§7.3): the
+        // remaining Python scopes (email_verify 10/600, register 10/3600, submit/genmodel) can attach
+        // the same way when those .NET routes want limiting.
         return app;
     }
 

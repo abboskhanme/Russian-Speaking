@@ -1,0 +1,23 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\Govori.Contracts\Govori.Contracts.csproj" />
+    <!-- Reuses the SAME STT seam (ISttProvider) the grading pipeline uses, so the guest demo
+         runs the identical Azure pronunciation assessment as the app (guest.py:4). -->
+    <ProjectReference Include="..\..\Govori.Platform\Govori.Platform.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- This module defines its own minimal-API endpoint group (MapGuestEndpoints) and uses
+         Results / HttpRequest — the shared ASP.NET Core framework provides those types to a
+         class library. Same modular-endpoint pattern as Govori.Identity. -->
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <TargetFramework>net9.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+</Project>

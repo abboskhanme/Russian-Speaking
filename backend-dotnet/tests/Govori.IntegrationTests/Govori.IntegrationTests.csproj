@@ -42,6 +42,8 @@
     <!-- Construct AppSettingsService/AppSettingsCache directly to drive the tri-state + ~30s cache
          (docs/07 §3.7) through real EF/SQL without waiting real seconds. -->
     <ProjectReference Include="..\..\src\Modules\Govori.Administration\Govori.Administration.csproj" />
+    <!-- Guest demo (Faza 3.8): assert phrase membership + reuse the ITtsProvider seam in tests. -->
+    <ProjectReference Include="..\..\src\Modules\Govori.Guest\Govori.Guest.csproj" />
   </ItemGroup>
 
 </Project>

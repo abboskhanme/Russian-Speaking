@@ -2,11 +2,14 @@ using System.Reflection;
 using System.Text;
 using System.Text.Json;
 using Govori.Administration;
+using Govori.Api.RateLimiting;
 using Govori.Assessment;
 using Govori.Catalog;
 using Govori.Classroom;
 using Govori.Contracts;
 using Govori.Engagement;
+using Govori.Guest;
+using Govori.Guest.Tts;
 using Govori.Identity;
 using Govori.Identity.Providers;
 using Govori.Identity.Security;
@@ -196,6 +199,23 @@ try
     builder.Services.AddScoped<AppSettingsService>();
     builder.Services.AddScoped<AdministrationService>();
 
+    // ── Guest / auth-less demo (docs/07 §3.8, Faza 3.8) ─────────────────────
+    // GuestService owns the public "try one phrase" demo (phrase pick + the SAME Azure
+    // pronunciation assessment the app uses, via the shared ISttProvider seam, + score blend + rough
+    // CEFR level). Ported from guest.py; stores nothing, requires no account. TTS behind ITtsProvider
+    // mirrors the STT seam — a real Azure port is a TODO stub (IsConfigured=false) so /guest/tts
+    // safely returns 503 until a key lands, exactly like Python raising with no key. Scoped
+    // (matches the module convention); the providers are singletons.
+    builder.Services.AddSingleton<ITtsProvider, AzureTtsProvider>(); // TODO(Faza 3.4): real Azure TTS
+    builder.Services.AddScoped<GuestService>();
+
+    // ── Rate limiting (docs/07 §7.3, §3.8) ──────────────────────────────────
+    // ASP.NET Core RateLimiter mirroring backend/app/core/ratelimit.py: per-user-or-IP fixed-window
+    // policies (email_code / login / guest_assess / guest_tts) and — CRITICAL — FAIL-OPEN (a store
+    // outage ALLOWS the request; rate limiting must never take the API down). Default counter is
+    // in-memory; GOVORI_RATELIMIT_BACKEND=redis swaps in the (implemented) cross-instance store.
+    builder.Services.AddGovoriRateLimiter(builder.Configuration);
+
     // ── Identity providers + config (docs/07 §7.5, Faza 3.1) ────────────────
     // OTP / email-verification config — mirrors Python EMAIL_OTP_* + email_enabled.
     builder.Services.AddSingleton(new OtpOptions
@@ -265,6 +285,11 @@ try
     app.UseAuthentication();
     app.UseAuthorization();
 
+    // Rate limiter AFTER authentication so per-user keying can read the validated `sub` claim
+    // (falls back to client IP for anonymous requests). Endpoints opt in with .RequireRateLimiting;
+    // rejections answer 429 (docs/07 §7.3, ratelimit.py). FAIL-OPEN — see Govori.Api/RateLimiting.
+    app.UseRateLimiter();
+
     // Liveness (docs/07 §2.8): process is up ⇒ Healthy. Predicate '_ => false' runs
     // NO registered checks, so a slow/unready dependency never fails liveness
     // (an orchestrator must not restart a live-but-not-yet-ready process).
@@ -319,6 +344,12 @@ try
     // (/api/admin/settings/{ai,links,reveal}) and the PUBLIC links read (/api/settings/links) live in
     // the Administration module's MapAdministrationEndpoints extension, one call per domain.
     app.MapAdministrationEndpoints();
+
+    // ── Guest endpoints (docs/07 §3.8, Faza 3.8) ────────────────────────────
+    // The auth-less demo surface (GET /api/guest/demo, POST /api/guest/assess, GET /api/guest/tts)
+    // lives in the Guest module's MapGuestEndpoints extension, one call per domain. These are NOT
+    // .RequireAuthorization() — they ARE rate-limited (per-IP, fail-open).
+    app.MapGuestEndpoints();
 
     app.Run();
 }
