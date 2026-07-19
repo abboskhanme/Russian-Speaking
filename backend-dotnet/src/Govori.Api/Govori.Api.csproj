@@ -7,6 +7,7 @@
     <ProjectReference Include="..\Modules\Govori.Catalog\Govori.Catalog.csproj" />
     <ProjectReference Include="..\Modules\Govori.Practice\Govori.Practice.csproj" />
     <ProjectReference Include="..\Modules\Govori.Assessment\Govori.Assessment.csproj" />
+    <ProjectReference Include="..\Govori.Realtime\Govori.Realtime.csproj" />
     <ProjectReference Include="..\Modules\Govori.Classroom\Govori.Classroom.csproj" />
     <ProjectReference Include="..\Govori.Platform\Govori.Platform.csproj" />
     <ProjectReference Include="..\Modules\Govori.Engagement\Govori.Engagement.csproj" />

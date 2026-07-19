@@ -53,4 +53,14 @@ public interface IObjectStorage
     /// Single-key counterpart to Python's batch <c>delete_keys</c> (storage.py:80-84).
     /// </summary>
     Task DeleteAsync(string key, CancellationToken ct = default);
+
+    /// <summary>
+    /// List every object under <paramref name="prefix"/> with its last-modified time (paginated
+    /// under the hood). Mirrors Python <c>list_objects(prefix)</c> (storage.py) — used by the
+    /// orphan-upload cleanup job to find audio that never became a submission.
+    /// </summary>
+    Task<IReadOnlyList<StorageObject>> ListObjectsAsync(string prefix, CancellationToken ct = default);
 }
+
+/// <summary>One stored object as returned by <see cref="IObjectStorage.ListObjectsAsync"/>.</summary>
+public sealed record StorageObject(string Key, DateTimeOffset LastModified);

@@ -142,6 +142,34 @@ public sealed class MinioObjectStorage : IObjectStorage, IDisposable
     public Task DeleteAsync(string key, CancellationToken ct = default) =>
         _internal.DeleteObjectAsync(new DeleteObjectRequest { BucketName = _bucket, Key = key }, ct);
 
+    public async Task<IReadOnlyList<StorageObject>> ListObjectsAsync(string prefix, CancellationToken ct = default)
+    {
+        var results = new List<StorageObject>();
+        string? continuationToken = null;
+        do
+        {
+            var response = await _internal.ListObjectsV2Async(new ListObjectsV2Request
+            {
+                BucketName = _bucket,
+                Prefix = prefix,
+                ContinuationToken = continuationToken,
+            }, ct).ConfigureAwait(false);
+
+            foreach (var obj in response.S3Objects)
+            {
+                // S3/MinIO report LastModified in UTC; the container runs UTC. Pin the Kind so the
+                // "older than 24h" cutoff compares apples to apples with DateTime.UtcNow.
+                var lastModifiedUtc = DateTime.SpecifyKind(obj.LastModified, DateTimeKind.Utc);
+                results.Add(new StorageObject(obj.Key, new DateTimeOffset(lastModifiedUtc)));
+            }
+
+            continuationToken = response.IsTruncated ? response.NextContinuationToken : null;
+        }
+        while (continuationToken is not null);
+
+        return results;
+    }
+
     public void Dispose()
     {
         _internal.Dispose();

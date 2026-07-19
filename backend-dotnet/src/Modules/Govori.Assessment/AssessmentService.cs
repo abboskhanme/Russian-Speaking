@@ -1,6 +1,7 @@
 using System.Text.Encodings.Web;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using Govori.Contracts;
 using Govori.Infrastructure;
 using Govori.Infrastructure.Entities;
 using Govori.Platform.Grader;
@@ -55,6 +56,7 @@ public sealed class AssessmentService
     private readonly IObjectStorage _storage;
     private readonly ISttProvider _stt;
     private readonly IGraderProvider _grader;
+    private readonly IGradingEvents _events;
     private readonly ILogger<AssessmentService> _logger;
 
     // JSONB columns are written as snake_case JSON to match the Python dict shape the frontend
@@ -78,12 +80,14 @@ public sealed class AssessmentService
         IObjectStorage storage,
         ISttProvider stt,
         IGraderProvider grader,
+        IGradingEvents events,
         ILogger<AssessmentService> logger)
     {
         _db = db;
         _storage = storage;
         _stt = stt;
         _grader = grader;
+        _events = events;
         _logger = logger;
     }
 
@@ -110,10 +114,14 @@ public sealed class AssessmentService
             return AssessmentOutcome.Deferred;
         }
 
+        // Real-time progress (docs/08 Faza 3.10): the job has been picked up — still pending.
+        await EmitAsync(submissionId, GradingState.Queued, "pending", null);
+
         try
         {
             sub.Status = SubmissionStatus.Processing;                       // tasks.py:101-102
             await _db.SaveChangesAsync(ct);
+            await EmitAsync(submissionId, GradingState.Transcribing, "processing", null);
 
             var filename = sub.AudioKey.Split('/')[^1];                     // tasks.py:105
 
@@ -169,9 +177,12 @@ public sealed class AssessmentService
                 sub.CompletedAt = DateTime.UtcNow;
                 await _db.SaveChangesAsync(ct);
                 // TODO(gamification, C8): award_practice (fixed PRACTICE_XP) when reference_match.on_topic.
+                await EmitAsync(submissionId, GradingState.Done, "done", null);
                 _logger.LogInformation("shadowing done (submission {SubmissionId})", submissionId);
                 return AssessmentOutcome.Shadowing;
             }
+
+            await EmitAsync(submissionId, GradingState.Grading, "processing", null);
 
             // GRADE (tasks.py:190-217). Picture tasks best-effort feed the image (tasks.py:194-199).
             var question = sub.Question;
@@ -204,6 +215,8 @@ public sealed class AssessmentService
                 ImageBytes = imageBytes,
                 ImageMime = imageMime,
             }, ct);
+
+            await EmitAsync(submissionId, GradingState.Scoring, "processing", null);
 
             // ORTHOEPY (tasks.py:219-232) — separate best-effort AUDIO pass on its own breaker.
             // Deferred; the C5 penalty term is fully implemented and exercised by the fixture test.
@@ -249,6 +262,7 @@ public sealed class AssessmentService
             sub.Status = SubmissionStatus.Done;                            // tasks.py:278-279
             sub.CompletedAt = DateTime.UtcNow;
             await _db.SaveChangesAsync(ct);
+            await EmitAsync(submissionId, GradingState.Done, "done", null);
 
             // TODO(Stage 6): gamification (award_submission/schedule_review, C8 xp_for_band) +
             //   notifications — best-effort engagement side-effects, must never break the pipeline.
@@ -257,11 +271,36 @@ public sealed class AssessmentService
         }
         catch (Exception ex)
         {
-            // TODO(Hangfire, Faza 3.9): terminal-vs-transient split — SoftTimeLimit / CircuitOpen are
-            //   NOT retried (same wall), only genuinely transient errors retry (tasks.py:302-322).
+            // Hangfire (Faza 3.9): AssessmentService owns the status decision and marks the
+            // submission failed here; the pipeline is idempotent (resume-from-transcript +
+            // Evaluation DELETE-then-INSERT), so a Hangfire auto-retry (worker crash / transient
+            // error) safely re-runs from where it left off without re-billing STT.
+            // TODO: terminal-vs-transient split — SoftTimeLimit / CircuitOpen are NOT retried
+            //   (same wall), only genuinely transient errors retry (tasks.py:302-322).
             _logger.LogError(ex, "grading failed (submission {SubmissionId})", submissionId);
             await MarkFailedAsync(submissionId, ex.Message, ct);
+            var message = ex.Message.Length > 1000 ? ex.Message[..1000] : ex.Message;
+            await EmitAsync(submissionId, GradingState.Failed, "failed", message);
             return AssessmentOutcome.Failed;
+        }
+    }
+
+    // Best-effort real-time progress emit (docs/08 Faza 3.10). NEVER throws: a dead hub / backplane
+    // must never break grading — mirrors the "engagement side-effects must never break the pipeline"
+    // rule. Publishes with CancellationToken.None so a terminal (done/failed) event still reaches
+    // subscribers even when the job's own token was cancelled.
+    private async Task EmitAsync(Guid submissionId, string state, string status, string? message)
+    {
+        try
+        {
+            await _events.PublishAsync(
+                new GradingProgressEvent(submissionId, state, status, message, DateTime.UtcNow),
+                CancellationToken.None);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(
+                ex, "grading progress emit failed (state {State}, submission {SubmissionId})", state, submissionId);
         }
     }
 

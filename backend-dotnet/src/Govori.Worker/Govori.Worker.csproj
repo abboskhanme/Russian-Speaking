@@ -17,6 +17,17 @@
   </ItemGroup>
 
   <ItemGroup>
+    <!-- The Worker IS the grading pipeline host (ex-Celery): it runs the Hangfire server + recurring
+         maintenance jobs and publishes SignalR progress over the Redis backplane (docs/07 §7.7). -->
     <ProjectReference Include="..\Govori.Infrastructure\Govori.Infrastructure.csproj" />
+    <ProjectReference Include="..\Govori.Platform\Govori.Platform.csproj" />
+    <ProjectReference Include="..\Modules\Govori.Assessment\Govori.Assessment.csproj" />
+    <ProjectReference Include="..\Govori.Realtime\Govori.Realtime.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- AddSignalR + IHubContext (for publishing progress via the backplane) come from the shared
+         ASP.NET Core framework, usable from this generic Worker host once referenced. -->
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
   </ItemGroup>
 </Project>

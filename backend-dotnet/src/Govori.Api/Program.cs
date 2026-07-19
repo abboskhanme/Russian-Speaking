@@ -18,6 +18,7 @@ using Govori.Platform.Grader;
 using Govori.Platform.Storage;
 using Govori.Platform.Stt;
 using Govori.Practice;
+using Govori.Realtime;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.EntityFrameworkCore;
@@ -172,7 +173,24 @@ try
     builder.Services.AddSingleton<ISttProvider, AzureSttProvider>();        // TODO(Faza 3.4): Whisper fallback
     builder.Services.AddSingleton<IGraderProvider, GeminiGraderProvider>(); // TODO(Faza 3.4): OpenAI/Azure fallback
     builder.Services.AddScoped<AssessmentService>();
-    builder.Services.AddSingleton<IGradingQueue, InlineGradingQueue>();     // TODO(Hangfire, Faza 3.9): durable queue
+    // The durable job unit — registered unconditionally so it resolves whether or not Hangfire is on
+    // (AddGovoriHangfire TryAdds the same); the Hangfire client below enqueues it per submit.
+    builder.Services.AddScoped<GradingJob>();
+
+    // ── Real-time attempt progress (SignalR + Redis backplane, docs/08 Faza 3.10) ──
+    // Registers the attempt-progress hub services + IGradingEvents (SignalRGradingEvents). The API
+    // hosts the /hubs/attempts endpoint that browsers connect to; grading events reach those clients
+    // in-process here and — in prod — from the Worker via the Redis backplane.
+    builder.Services.AddGovoriRealtime(builder.Configuration);
+
+    // ── Durable grading queue (Hangfire, docs/07 §7.7, Faza 3.9) ────────────
+    // ON by default: the API is a Hangfire CLIENT (no server) that enqueues a GradingJob per submit
+    // (replacing the in-process pipeline). Set GOVORI_HANGFIRE=false to fall back to the synchronous
+    // in-process queue — the two grading integration tests do this to keep their inline assertions.
+    if (builder.Configuration.GetValue("GOVORI_HANGFIRE", true))
+        builder.Services.AddGovoriHangfire(builder.Configuration, runServer: false);
+    else
+        builder.Services.AddSingleton<IGradingQueue, InlineGradingQueue>();
 
     // ── Classroom / groups + assignments + gradebook (docs/07 §3.5, Faza 3.5) ──
     // ClassroomService owns teacher groups (create/join/roster), assignments (single + module) and
@@ -271,6 +289,22 @@ try
                 ValidateLifetime = true,
                 ClockSkew = TimeSpan.Zero,
             };
+            // SignalR (docs/08 Faza 3.10): the WebSocket/SSE transports can't send an Authorization
+            // header, so the JWT arrives as the `access_token` query string on the hub handshake.
+            // Read it there for /hubs paths; the REST API keeps using the Authorization header.
+            options.Events = new JwtBearerEvents
+            {
+                OnMessageReceived = context =>
+                {
+                    var accessToken = context.Request.Query["access_token"];
+                    if (!string.IsNullOrEmpty(accessToken)
+                        && context.HttpContext.Request.Path.StartsWithSegments("/hubs"))
+                    {
+                        context.Token = accessToken;
+                    }
+                    return Task.CompletedTask;
+                },
+            };
         });
     builder.Services.AddAuthorization();
 
@@ -350,6 +384,11 @@ try
     // lives in the Guest module's MapGuestEndpoints extension, one call per domain. These are NOT
     // .RequireAuthorization() — they ARE rate-limited (per-IP, fail-open).
     app.MapGuestEndpoints();
+
+    // ── Real-time attempt-progress hub (docs/08 Faza 3.10) ──────────────────
+    // Clients connect with their JWT and call SubscribeToAttempt(id) to stream grading progress.
+    // The hub's [Authorize] enforces the bearer; per-attempt ownership is checked inside the hub.
+    app.MapHub<AttemptsHub>("/hubs/attempts");
 
     app.Run();
 }

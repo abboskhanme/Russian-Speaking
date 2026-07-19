@@ -1,0 +1,32 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net9.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- IGradingQueue / IGradingEvents / GradingProgressEvent contracts. -->
+    <ProjectReference Include="..\Govori.Contracts\Govori.Contracts.csproj" />
+    <!-- GovoriDbContext + entities for the hub's per-attempt ownership check. -->
+    <ProjectReference Include="..\Govori.Infrastructure\Govori.Infrastructure.csproj" />
+    <!-- GradingJob (durable grading unit) + MaintenanceJobs (ported beat schedule). -->
+    <ProjectReference Include="..\Modules\Govori.Assessment\Govori.Assessment.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- SignalR hub + IHubContext + [Authorize] come from the shared ASP.NET Core framework
+         (also usable from a generic Worker host once this FrameworkReference is present). -->
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Durable background jobs on Postgres storage (Celery+beat replacement, docs/07 §7.3). -->
+    <PackageReference Include="Hangfire.AspNetCore" Version="1.8.24" />
+    <PackageReference Include="Hangfire.PostgreSql" Version="1.21.1" />
+    <!-- SignalR Redis backplane (govori-redis) so a Worker-side publish reaches API-side clients. -->
+    <PackageReference Include="Microsoft.AspNetCore.SignalR.StackExchangeRedis" Version="9.0.4" />
+  </ItemGroup>
+
+</Project>

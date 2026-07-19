@@ -7,6 +7,7 @@ using Govori.Infrastructure.Entities;
 using Govori.Platform.Grader;
 using Govori.Platform.Storage;
 using Govori.Platform.Stt;
+using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.EntityFrameworkCore;
@@ -296,6 +297,15 @@ public sealed class AssessmentPipelineTests
         {
             Environment.SetEnvironmentVariable("SECRET_KEY", TestSecretKey);
             Environment.SetEnvironmentVariable("GOVORI_DB", ConnectionString);
+        }
+
+        // This slice drives the pipeline synchronously via IGradingQueue and asserts the result
+        // inline, so keep the in-process queue (no Hangfire Postgres storage) and in-memory SignalR
+        // (no Redis backplane) — the durable/real-time paths are covered by AttemptEventsTests.
+        protected override void ConfigureWebHost(IWebHostBuilder builder)
+        {
+            builder.UseSetting("GOVORI_HANGFIRE", "false");
+            builder.UseSetting("GOVORI_SIGNALR_BACKPLANE", "false");
         }
     }
 }
