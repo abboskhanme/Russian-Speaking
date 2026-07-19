@@ -1,0 +1,28 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\Govori.Contracts\Govori.Contracts.csproj" />
+    <ProjectReference Include="..\..\Govori.Infrastructure\Govori.Infrastructure.csproj" />
+    <!-- NOTE (Administration→Identity boundary): deliberately NOT referenced. The admin surface's
+         only need for the Identity module would be its BCrypt PasswordHasher (to CREATE users or
+         change passwords). Per this module's stated deps (Infrastructure + Contracts) and the
+         codebase convention against module→module edges, those two write paths are DEFERRED rather
+         than pulling in the auth primitive here (see AdministrationService). Everything the task
+         enumerates — list/search users, grant/revoke premium, (de)activate — needs no hashing. -->
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- This module defines its own minimal-API endpoint group (MapAdministrationEndpoints) and uses
+         ClaimsPrincipal / Results / IConfiguration / IMemoryCache-style types — the shared ASP.NET
+         Core framework provides those to a class library. Same modular-endpoint pattern as
+         Govori.Identity / Govori.Catalog / Govori.Practice / Govori.Classroom / Govori.Engagement. -->
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <TargetFramework>net9.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+</Project>

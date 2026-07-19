@@ -1,0 +1,232 @@
+using Govori.Contracts;
+using Govori.Infrastructure;
+using Govori.Infrastructure.Entities;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
+
+namespace Govori.Administration;
+
+/// <summary>
+/// Runtime-editable app settings, backed by the DB with env-var fallback (docs/07 §3.7).
+/// Faithful port of <c>backend/app/services/app_settings.py</c>. Resolution order for every key:
+/// <code>DB override (app_settings) → env default (IConfiguration) → caller default</code>
+///
+/// <para><b>THE TRI-STATE (the subtle part — app_settings.py:118-137).</b> A write distinguishes
+/// three states of the incoming value, NOT two:</para>
+/// <list type="bullet">
+///   <item><c>null</c> → leave the key <b>unchanged</b> (used to keep an existing secret when the
+///   admin didn't retype it);</item>
+///   <item><c>""</c> → <b>clear</b> the override (delete the row) so the key reverts to its env
+///   default;</item>
+///   <item>any other string → <b>store</b> it (upsert the row).</item>
+/// </list>
+/// A naïve two-state port would merge <c>null</c> and <c>""</c> (both "no value") and silently wipe
+/// a secret the admin meant to keep — that is the bug this port avoids. See
+/// <see cref="SetManyAsync"/>.
+///
+/// <para><b>THE ~30s CACHE (app_settings.py:79-107).</b> Reads go through
+/// <see cref="IAppSettingsCache"/> — the whole override map is loaded once and reused for ~30s
+/// because the grader resolves config on every submission. Every write
+/// <see cref="IAppSettingsCache.Invalidate">invalidates</see> it so the next read re-hits the DB.</para>
+///
+/// <para>Reads reload with <c>AsNoTracking</c> — like Python's fresh <c>SessionLocal()</c> per
+/// <c>_overrides()</c>, they must observe committed DB state, never a stale identity-map instance.</para>
+/// </summary>
+public sealed class AppSettingsService
+{
+    private readonly GovoriDbContext _db;
+    private readonly IAppSettingsCache _cache;
+    private readonly IConfiguration _config;
+
+    public AppSettingsService(GovoriDbContext db, IAppSettingsCache cache, IConfiguration config)
+    {
+        _db = db;
+        _cache = cache;
+        _config = config;
+    }
+
+    // key → (env-var name used as the default, is_secret). Faithful copy of Python's _SPEC
+    // (app_settings.py:21-43). The Python side maps to Settings attribute names, which ARE the
+    // uppercase env-var names — so we read the same names straight from IConfiguration.
+    private static readonly IReadOnlyDictionary<string, (string EnvVar, bool Secret)> Spec =
+        new Dictionary<string, (string, bool)>
+        {
+            ["llm_provider"] = ("LLM_PROVIDER", false),
+            ["gemini_api_key"] = ("GEMINI_API_KEY", true),
+            ["gemini_model"] = ("GEMINI_MODEL", false),
+            ["orthoepy_enabled"] = ("ORTHOEPY_ENABLED", false),
+            ["azure_openai_endpoint"] = ("AZURE_OPENAI_ENDPOINT", false),
+            ["azure_openai_api_key"] = ("AZURE_OPENAI_API_KEY", true),
+            ["azure_openai_deployment"] = ("AZURE_OPENAI_DEPLOYMENT", false),
+            ["azure_openai_api_version"] = ("AZURE_OPENAI_API_VERSION", false),
+            ["stt_provider"] = ("STT_PROVIDER", false),
+            ["azure_speech_key"] = ("AZURE_SPEECH_KEY", true),
+            ["azure_speech_region"] = ("AZURE_SPEECH_REGION", false),
+            ["openai_api_key"] = ("OPENAI_API_KEY", true),
+            ["whisper_model"] = ("WHISPER_MODEL", false),
+            ["openai_grader_model"] = ("OPENAI_GRADER_MODEL", false),
+            ["tg_support_url"] = ("TG_SUPPORT_URL", false),
+            ["tg_channel_url"] = ("TG_CHANNEL_URL", false),
+        };
+
+    /// <summary>The secret keys — only these may be revealed (app_settings.py:46).</summary>
+    public static readonly IReadOnlySet<string> SecretKeys =
+        Spec.Where(kv => kv.Value.Secret).Select(kv => kv.Key).ToHashSet();
+
+    // Curated Gemini models for the admin dropdown (app_settings.py:51-77). Ordered best-first.
+    private static readonly IReadOnlyList<KnownModel> KnownModels = new List<KnownModel>
+    {
+        new("gemini-3.1-flash-lite", "Gemini 3.1 Flash Lite (recommended)",
+            "Fast and cheap; ~500 requests/day on the free tier."),
+        new("gemini-2.5-flash-lite", "Gemini 2.5 Flash Lite",
+            "Light and quick; generous free-tier limits."),
+        new("gemini-2.5-flash", "Gemini 2.5 Flash (avoid on free tier)",
+            "Higher quality but only ~20 requests/day free — exhausts quickly."),
+        new("gemini-2.0-flash", "Gemini 2.0 Flash",
+            "Previous-gen flash; solid free-tier limits."),
+        new("gemini-1.5-flash", "Gemini 1.5 Flash",
+            "Legacy fallback; widely available."),
+    };
+
+    // app_settings.py:32-33 — accepted truthy/falsey spellings for boolean-ish settings.
+    private static readonly HashSet<string> TrueWords = new(StringComparer.Ordinal) { "true", "1", "yes", "on" };
+
+    // ─── Read primitives (app_settings.py:84-115) ───────────────────────────
+
+    // app_settings.py:84-86 — the env default for a key ("" when unmapped/unset).
+    private string EnvDefault(string key)
+        => Spec.TryGetValue(key, out var s) && !string.IsNullOrEmpty(s.EnvVar)
+            ? _config[s.EnvVar] ?? string.Empty
+            : string.Empty;
+
+    // app_settings.py:89-101 — all DB overrides, cached for the TTL. On a miss, load the whole
+    // table fresh (AsNoTracking) and cache it.
+    private async Task<IReadOnlyDictionary<string, string?>> OverridesAsync(CancellationToken ct)
+    {
+        if (_cache.TryGet(out var cached))
+            return cached;
+
+        var map = await _db.AppSettings
+            .AsNoTracking()
+            .ToDictionaryAsync(r => r.Key, r => r.Value, ct);
+        _cache.Set(map);
+        return map;
+    }
+
+    /// <summary>Resolved value for <paramref name="key"/>: DB override → env default →
+    /// <paramref name="def"/>. Faithful port of <c>get</c> (app_settings.py:110-115): an override
+    /// is used only when truthy, so a stored NULL or "" falls through to the env default.</summary>
+    public async Task<string> GetAsync(string key, string def = "", CancellationToken ct = default)
+    {
+        var overrides = await OverridesAsync(ct);
+        overrides.TryGetValue(key, out var ov);
+        if (!string.IsNullOrEmpty(ov))       // Python `if ov:` — null/"" are falsy
+            return ov!;
+        var env = EnvDefault(key);
+        return !string.IsNullOrEmpty(env) ? env : def;
+    }
+
+    // ─── Write (app_settings.py:118-137) — THE TRI-STATE ────────────────────
+
+    /// <summary>
+    /// Upsert overrides from an admin edit. Per key (app_settings.py:125-136):
+    /// <c>null</c> → leave unchanged; <c>""</c> → delete the row (revert to the env default);
+    /// any other string → upsert. Unknown keys are ignored. Invalidates the cache afterwards.
+    /// </summary>
+    public async Task SetManyAsync(IReadOnlyDictionary<string, string?> values, CancellationToken ct = default)
+    {
+        var now = DateTime.UtcNow;
+        foreach (var (key, val) in values)
+        {
+            if (val is null || !Spec.TryGetValue(key, out var spec))
+                continue;                                    // null → unchanged; unknown → skip
+
+            var row = await _db.AppSettings.FindAsync(new object?[] { key }, ct);
+            if (val.Length == 0)                             // "" → clear the override
+            {
+                if (row is not null)
+                    _db.AppSettings.Remove(row);
+            }
+            else if (row is null)
+            {
+                _db.AppSettings.Add(new AppSetting
+                {
+                    Key = key,
+                    Value = val,
+                    IsSecret = spec.Secret,
+                    CreatedAt = now,
+                    UpdatedAt = now,
+                });
+            }
+            else
+            {
+                row.Value = val;
+                row.UpdatedAt = now;
+            }
+        }
+        await _db.SaveChangesAsync(ct);
+        _cache.Invalidate();                                 // app_settings.py:137
+    }
+
+    // ─── Derived read models ────────────────────────────────────────────────
+
+    /// <summary>Whether the best-effort orthoepy audio pass runs (app_settings.py:153-157):
+    /// enabled unless an admin explicitly stored a falsey value.</summary>
+    public async Task<bool> OrthoepyEnabledAsync(CancellationToken ct = default)
+        => TrueWords.Contains((await GetAsync("orthoepy_enabled", "true", ct)).Trim().ToLowerInvariant());
+
+    /// <summary>Resolved outbound links for the sidebar contact menu (app_settings.py:160-165).</summary>
+    public async Task<LinksResponse> ResolveLinksAsync(CancellationToken ct = default)
+        => new(await GetAsync("tg_support_url", ct: ct), await GetAsync("tg_channel_url", ct: ct));
+
+    private static SecretState Secret(string val)
+        => new(!string.IsNullOrEmpty(val),
+               string.IsNullOrEmpty(val) ? string.Empty : (val.Length <= 4 ? val : val[^4..]));
+
+    /// <summary>The admin AI/STT read model. Faithful port of <c>_current()</c>
+    /// (admin_settings.py:36-79) over <c>masked_state()</c> (app_settings.py:140-150).</summary>
+    public async Task<AiSettingsResponse> GetAiSettingsAsync(CancellationToken ct = default)
+    {
+        var llmProvider = await GetAsync("llm_provider", ct: ct);
+        var provider = string.IsNullOrEmpty(llmProvider) ? "auto" : llmProvider;
+
+        var geminiKey = Secret(await GetAsync("gemini_api_key", ct: ct));
+        var azureKey = Secret(await GetAsync("azure_openai_api_key", ct: ct));
+        var azureEndpoint = await GetAsync("azure_openai_endpoint", ct: ct);
+        var azureDeployment = await GetAsync("azure_openai_deployment", ct: ct);
+        var azureReady = !string.IsNullOrEmpty(azureEndpoint) && azureKey.Set && !string.IsNullOrEmpty(azureDeployment);
+        var active = azureReady && (provider is "azure" or "auto") ? "azure" : "gemini";
+
+        var sttRaw = await GetAsync("stt_provider", ct: ct);
+        var sttProvider = string.IsNullOrEmpty(sttRaw) ? "auto" : sttRaw;
+        var speechKey = Secret(await GetAsync("azure_speech_key", ct: ct));
+        var openaiKey = Secret(await GetAsync("openai_api_key", ct: ct));
+        var azureSpeechRegion = await GetAsync("azure_speech_region", ct: ct);
+        var azureSpeechReady = speechKey.Set && !string.IsNullOrEmpty(azureSpeechRegion);
+        var sttActive = sttProvider is "azure" or "whisper"
+            ? sttProvider
+            : speechKey.Set ? "azure"
+            : openaiKey.Set ? "whisper"
+            : "none";
+
+        return new AiSettingsResponse(
+            LlmProvider: provider,
+            GeminiModel: await GetAsync("gemini_model", ct: ct),
+            OrthoepyEnabled: await OrthoepyEnabledAsync(ct),
+            KnownGeminiModels: KnownModels,
+            AzureOpenaiEndpoint: azureEndpoint,
+            AzureOpenaiDeployment: azureDeployment,
+            AzureOpenaiApiVersion: await GetAsync("azure_openai_api_version", ct: ct),
+            GeminiApiKey: geminiKey,
+            AzureOpenaiApiKey: azureKey,
+            AzureReady: azureReady,
+            ActiveProvider: active,
+            SttProvider: sttProvider,
+            AzureSpeechRegion: azureSpeechRegion,
+            WhisperModel: await GetAsync("whisper_model", ct: ct),
+            AzureSpeechKey: speechKey,
+            OpenaiApiKey: openaiKey,
+            AzureSpeechReady: azureSpeechReady,
+            SttActiveProvider: sttActive);
+    }
+}

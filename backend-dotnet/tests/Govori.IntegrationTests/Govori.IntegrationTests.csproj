@@ -39,6 +39,9 @@
     <!-- Construct EngagementService directly to drive the worker-side award/streak/SRS-schedule paths
          (no HTTP route) through real EF/SQL, alongside the leaderboard/review/notification endpoints. -->
     <ProjectReference Include="..\..\src\Modules\Govori.Engagement\Govori.Engagement.csproj" />
+    <!-- Construct AppSettingsService/AppSettingsCache directly to drive the tri-state + ~30s cache
+         (docs/07 §3.7) through real EF/SQL without waiting real seconds. -->
+    <ProjectReference Include="..\..\src\Modules\Govori.Administration\Govori.Administration.csproj" />
   </ItemGroup>
 
 </Project>

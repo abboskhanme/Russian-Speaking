@@ -1,6 +1,7 @@
 using System.Reflection;
 using System.Text;
 using System.Text.Json;
+using Govori.Administration;
 using Govori.Assessment;
 using Govori.Catalog;
 using Govori.Classroom;
@@ -184,6 +185,17 @@ try
     // DbContext).
     builder.Services.AddScoped<EngagementService>();
 
+    // ── Administration / app settings + admin user management (docs/07 §3.7, Faza 3.7) ──
+    // AppSettingsService owns the tri-state app_settings read/write (None=unchanged / ""=clear /
+    // value=store) with env-var fallback, behind the process-global ~30s AppSettingsCache (SINGLETON,
+    // mirroring Python's module-level cache; invalidated on every write). AdministrationService owns
+    // the admin-only user surface (stats, teacher/student list-search-update-delete) and the freemium
+    // is_premium grant/revoke + (de)activate. Ported from admin.py / admin_settings.py /
+    // settings_public.py. Both services scoped (scoped DbContext).
+    builder.Services.AddSingleton<IAppSettingsCache>(new AppSettingsCache());
+    builder.Services.AddScoped<AppSettingsService>();
+    builder.Services.AddScoped<AdministrationService>();
+
     // ── Identity providers + config (docs/07 §7.5, Faza 3.1) ────────────────
     // OTP / email-verification config — mirrors Python EMAIL_OTP_* + email_enabled.
     builder.Services.AddSingleton(new OtpOptions
@@ -301,6 +313,12 @@ try
     // (/api/notifications) live in the Engagement module's MapEngagementEndpoints extension, one call
     // per domain. XP/streak/SRS-scheduling AWARD paths have no HTTP route (worker-driven, like Python).
     app.MapEngagementEndpoints();
+
+    // ── Administration endpoints (docs/07 §3.7, Faza 3.7) ───────────────────
+    // Admin user management (/api/admin/{stats,teachers,students}), runtime app settings
+    // (/api/admin/settings/{ai,links,reveal}) and the PUBLIC links read (/api/settings/links) live in
+    // the Administration module's MapAdministrationEndpoints extension, one call per domain.
+    app.MapAdministrationEndpoints();
 
     app.Run();
 }
