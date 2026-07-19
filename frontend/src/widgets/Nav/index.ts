@@ -8,7 +8,10 @@ export {
   MicIcon,
   ProgressIcon,
   ProfileIcon,
+  GroupsIcon,
+  AssignmentsIcon,
+  GradebookIcon,
 } from "./icons";
 
-export { studentNavItems } from "./navItems";
-export type { StudentNavKey } from "./navItems";
+export { studentNavItems, teacherNavItems } from "./navItems";
+export type { StudentNavKey, TeacherNavKey } from "./navItems";

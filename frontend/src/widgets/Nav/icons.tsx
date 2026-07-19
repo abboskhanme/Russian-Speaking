@@ -84,6 +84,64 @@ export function MicIcon(props: IconProps) {
   );
 }
 
+/** Guruhlar — groups / cohort (two people). */
+export function GroupsIcon(props: IconProps) {
+  return (
+    <svg {...base(props)}>
+      <circle cx="9" cy="8" r="3.2" stroke="currentColor" strokeWidth={1.8} />
+      <path
+        d="M3.5 20a5.5 5.5 0 0 1 11 0"
+        stroke="currentColor"
+        strokeWidth={1.8}
+        strokeLinecap="round"
+      />
+      <path
+        d="M16 5.2a3.2 3.2 0 0 1 0 5.6M17 14.6A5.5 5.5 0 0 1 20.5 20"
+        stroke="currentColor"
+        strokeWidth={1.8}
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}
+
+/** Topshiriqlar — assignments (clipboard with a checkmark). */
+export function AssignmentsIcon(props: IconProps) {
+  return (
+    <svg {...base(props)}>
+      <rect x="5" y="4" width="14" height="17" rx="2.4" stroke="currentColor" strokeWidth={1.8} />
+      <path
+        d="M9 3.5h6a1 1 0 0 1 1 1V6a1 1 0 0 1-1 1H9a1 1 0 0 1-1-1V4.5a1 1 0 0 1 1-1z"
+        stroke="currentColor"
+        strokeWidth={1.7}
+        strokeLinejoin="round"
+      />
+      <path
+        d="m8.5 13 2 2 4-4.5"
+        stroke="currentColor"
+        strokeWidth={1.8}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+/** Jurnal — gradebook (ruled ledger). */
+export function GradebookIcon(props: IconProps) {
+  return (
+    <svg {...base(props)}>
+      <rect x="4" y="4" width="16" height="16" rx="2.4" stroke="currentColor" strokeWidth={1.8} />
+      <path
+        d="M8 4v16M11.5 9h5M11.5 12.5h5M11.5 16h3"
+        stroke="currentColor"
+        strokeWidth={1.7}
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}
+
 /** Progress — bar chart. */
 export function ProgressIcon(props: IconProps) {
   return (

@@ -9,6 +9,10 @@
     "chat": "AI Chat",
     "progress": "Progress",
     "profile": "Profile",
+    "dashboard": "Dashboard",
+    "groups": "Groups",
+    "assignments": "Assignments",
+    "gradebook": "Gradebook",
     "landmark": "Main navigation"
   },
   "common": {
@@ -126,5 +130,33 @@
     "active": "Active",
     "free": "Free",
     "upgrade": "Upgrade to Premium"
+  },
+  "teacher": {
+    "role": "Teacher",
+    "createGroup": "New group",
+    "createAssignment": "Assign task",
+    "statsAria": "Class overview",
+    "activeStudents": "Active students",
+    "groupsStat": "Groups",
+    "pendingReviews": "In review queue",
+    "groups": "Groups",
+    "newGroup": "+ New group",
+    "members_one": "{{count}} student",
+    "members_other": "{{count}} students",
+    "avgBand": "Avg",
+    "joinCode": "Code",
+    "assign": "Assign",
+    "openGroup": "Open",
+    "reviewQueue": "Needs review",
+    "pendingCount_one": "{{count}} pending",
+    "pendingCount_other": "{{count}} pending",
+    "noReviews": "All caught up — nothing to review",
+    "scoreAria": "Score {{score}}",
+    "grade": "Grade",
+    "status": {
+      "lowConfidence": "Low confidence",
+      "flagged": "Flagged",
+      "graded": "Graded"
+    }
   }
 }

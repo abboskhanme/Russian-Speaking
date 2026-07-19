@@ -1,0 +1,251 @@
+/* TeacherDashboardScreen — the teacher's Boshqaruv paneli (docs/04 teacher
+ * flows, Faza 4.9). Composed from shared/ui + widgets; every colour / space /
+ * radius / shadow / motion value is a token. Full-width per docs/04 §4.10 — the
+ * page root spans its column with no max-width + auto-margin centring.
+ *
+ * Compact density (docs/03 §3.5): the page sets --density-scale to 0.75 so the
+ * vertical rhythm here is ×0.75 of the comfortable student screens; the scale is
+ * consumed via calc(var(--s-*) * var(--density-scale)). Scoped to .page so it
+ * never leaks into the student surfaces. */
+
+.page {
+  --density-scale: 0.75;
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--s-6) * var(--density-scale));
+  width: 100%;
+}
+
+/* ---- Header (greeting + quick actions) ---- */
+.head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-4);
+  flex-wrap: wrap;
+}
+.headMain {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  min-width: 0;
+}
+.headText {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-1);
+  min-width: 0;
+}
+.headName {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  flex-wrap: wrap;
+}
+.headActions {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  flex-wrap: wrap;
+}
+
+/* ---- Quick-stats row ---- */
+.stats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: calc(var(--s-4) * var(--density-scale));
+}
+.statTile {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+}
+.statIcon {
+  display: grid;
+  place-items: center;
+  width: 42px;
+  height: 42px;
+  flex: none;
+  border-radius: var(--r-sm);
+}
+.statMeta {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  min-width: 0;
+}
+
+/* Tones — reuse the DS semantic tint/ink pairs (docs/03 §3.2). */
+.tone-primary {
+  background: var(--primary-tint);
+  color: var(--primary);
+}
+.tone-info {
+  background: var(--info-tint);
+  color: var(--info);
+}
+.tone-warn {
+  background: var(--warn-tint);
+  color: var(--warn-ink);
+}
+
+/* ---- Section scaffold (groups + activity) ---- */
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--s-3) * var(--density-scale));
+}
+.sectionHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-3);
+}
+
+/* ---- Groups grid ---- */
+.groupGrid {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: calc(var(--s-4) * var(--density-scale));
+}
+.groupCard {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--s-3) * var(--density-scale));
+}
+.groupTop {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  min-width: 0;
+}
+.groupTitle {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.groupChips {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  flex-wrap: wrap;
+}
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-1);
+  padding: var(--s-1) var(--s-2);
+  border-radius: var(--r-xs);
+  background: var(--surface-2);
+}
+.chipCode {
+  background: var(--primary-tint);
+}
+.groupActions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--s-2);
+  margin-top: auto;
+}
+
+/* ---- Needs-review / recent activity list ---- */
+.activityList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--s-2) * var(--density-scale));
+}
+.activityRow {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+}
+.avatar {
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  flex: none;
+  border-radius: var(--r-pill);
+  background: var(--accent-tint);
+  color: var(--accent);
+  letter-spacing: 0.02em;
+}
+.activityBody {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.activityTitleRow {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  min-width: 0;
+}
+.score {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  flex: none;
+  border-radius: var(--r-sm);
+}
+.score-success {
+  background: var(--success-tint);
+  color: var(--success);
+}
+.score-warn {
+  background: var(--warn-tint);
+  color: var(--warn-ink);
+}
+.score-danger {
+  background: var(--danger-tint);
+  color: var(--danger);
+}
+.activityTag {
+  flex: none;
+}
+.activityAction {
+  flex: none;
+}
+
+.empty {
+  display: grid;
+  place-items: center;
+  text-align: center;
+  padding-block: var(--s-6);
+}
+
+/* ---- Responsive ---- */
+@media (max-width: 720px) {
+  .stats {
+    grid-template-columns: 1fr;
+  }
+  .head {
+    align-items: flex-start;
+  }
+  .headActions {
+    width: 100%;
+  }
+  .headActions > * {
+    flex: 1;
+  }
+}
+
+@media (max-width: 560px) {
+  /* On the narrowest columns the status tag drops out; the score chip + the
+     Grade CTA carry the meaning, and colour is never the only signal. */
+  .activityTag {
+    display: none;
+  }
+}

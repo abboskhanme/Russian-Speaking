@@ -9,6 +9,10 @@
     "chat": "AI Диалог",
     "progress": "Прогресс",
     "profile": "Профиль",
+    "dashboard": "Панель",
+    "groups": "Группы",
+    "assignments": "Задания",
+    "gradebook": "Журнал",
     "landmark": "Основная навигация"
   },
   "common": {
@@ -133,5 +137,35 @@
     "active": "Активен",
     "free": "Бесплатно",
     "upgrade": "Перейти на Premium"
+  },
+  "teacher": {
+    "role": "Учитель",
+    "createGroup": "Новая группа",
+    "createAssignment": "Выдать задание",
+    "statsAria": "Обзор класса",
+    "activeStudents": "Активные ученики",
+    "groupsStat": "Группы",
+    "pendingReviews": "В очереди проверки",
+    "groups": "Группы",
+    "newGroup": "+ Новая группа",
+    "members_one": "{{count}} ученик",
+    "members_few": "{{count}} ученика",
+    "members_many": "{{count}} учеников",
+    "avgBand": "Ср.",
+    "joinCode": "Код",
+    "assign": "Задание",
+    "openGroup": "Открыть",
+    "reviewQueue": "Нужна проверка",
+    "pendingCount_one": "{{count}} в очереди",
+    "pendingCount_few": "{{count}} в очереди",
+    "pendingCount_many": "{{count}} в очереди",
+    "noReviews": "Всё проверено — ничего в очереди",
+    "scoreAria": "Балл {{score}}",
+    "grade": "Проверить",
+    "status": {
+      "lowConfidence": "Низкая уверенность",
+      "flagged": "Жалоба",
+      "graded": "Проверено"
+    }
   }
 }

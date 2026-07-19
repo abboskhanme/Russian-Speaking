@@ -9,6 +9,10 @@
     "chat": "AI Suhbat",
     "progress": "Progress",
     "profile": "Profil",
+    "dashboard": "Boshqaruv",
+    "groups": "Guruhlar",
+    "assignments": "Topshiriqlar",
+    "gradebook": "Jurnal",
     "landmark": "Asosiy navigatsiya"
   },
   "common": {
@@ -126,5 +130,33 @@
     "active": "Faol",
     "free": "Bepul",
     "upgrade": "Premiumga o'tish"
+  },
+  "teacher": {
+    "role": "O'qituvchi",
+    "createGroup": "Yangi guruh",
+    "createAssignment": "Topshiriq berish",
+    "statsAria": "Sinf ko'rsatkichlari",
+    "activeStudents": "Faol o'quvchilar",
+    "groupsStat": "Guruhlar",
+    "pendingReviews": "Tekshirish navbatida",
+    "groups": "Guruhlar",
+    "newGroup": "+ Yangi guruh",
+    "members_one": "{{count}} o'quvchi",
+    "members_other": "{{count}} o'quvchi",
+    "avgBand": "O'rtacha",
+    "joinCode": "Kod",
+    "assign": "Topshiriq",
+    "openGroup": "Ochish",
+    "reviewQueue": "Tekshirish navbati",
+    "pendingCount_one": "{{count}} navbatda",
+    "pendingCount_other": "{{count}} navbatda",
+    "noReviews": "Hammasi tekshirildi — navbat bo'sh",
+    "scoreAria": "Ball {{score}}",
+    "grade": "Baholash",
+    "status": {
+      "lowConfidence": "Ishonch past",
+      "flagged": "Shikoyat",
+      "graded": "Baholandi"
+    }
   }
 }
