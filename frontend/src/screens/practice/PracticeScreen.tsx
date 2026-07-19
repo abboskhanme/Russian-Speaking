@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import {
   Badge,
   Button,
@@ -160,6 +161,7 @@ export function PracticeScreen({
   onNavigate,
   onToggleTheme,
 }: PracticeScreenProps) {
+  const { t } = useTranslation();
   const controlled = phaseProp !== undefined;
   const [internalPhase, setInternalPhase] = useState<PracticePhase>("idle");
   const phase = controlled ? phaseProp : internalPhase;
@@ -207,10 +209,15 @@ export function PracticeScreen({
   return (
     <AppShell
       brand={<Brand />}
-      nav={{ items: studentNavItems, activeKey: activeNavKey, onNavigate }}
+      nav={{
+        items: studentNavItems(t),
+        activeKey: activeNavKey,
+        onNavigate,
+        label: t("nav.landmark"),
+      }}
       headerStart={
         <Text as="h1" variant="title-m">
-          Mashq
+          {t("nav.practice")}
         </Text>
       }
       headerEnd={<ThemeToggle onChange={onToggleTheme} />}
@@ -220,7 +227,7 @@ export function PracticeScreen({
           <ProgressPips current={progress.current} total={progress.total} />
           {attemptsLeft !== undefined && (
             <Badge variant={attemptsLeft > 0 ? "neutral" : "warn"}>
-              {attemptsLeft} urinish qoldi
+              {t("practice.attemptsLeft", { count: attemptsLeft })}
             </Badge>
           )}
         </div>
@@ -252,7 +259,7 @@ export function PracticeScreen({
             <div>
               <Button variant="secondary" size="sm" onClick={onPlayReference}>
                 <PlayGlyph />
-                Namunani eshit
+                {t("practice.listenModel")}
               </Button>
             </div>
           )}
@@ -288,7 +295,7 @@ export function PracticeScreen({
         {answering && onSkip && (
           <div className={styles.answerActions}>
             <Button variant="ghost" onClick={onSkip}>
-              O&apos;tkazib yuborish →
+              {t("practice.skipCta")}
             </Button>
           </div>
         )}
@@ -302,6 +309,7 @@ export function PracticeScreen({
 /* -------------------------------------------------------------------------- */
 
 function ProgressPips({ current, total }: PracticeProgress) {
+  const { t } = useTranslation();
   const pips = Array.from({ length: Math.max(total, 0) }, (_, i) => i);
   return (
     <div className={styles.progress}>
@@ -318,7 +326,7 @@ function ProgressPips({ current, total }: PracticeProgress) {
         ))}
       </div>
       <Text as="span" variant="body-s" color="muted" weight="semibold" numeric>
-        Vazifa {current} / {total}
+        {t("practice.taskCounter", { current, total })}
       </Text>
     </div>
   );
@@ -329,17 +337,18 @@ function ProgressPips({ current, total }: PracticeProgress) {
 /* -------------------------------------------------------------------------- */
 
 function GradingPanel({ mood }: { mood: MascotMood }) {
+  const { t } = useTranslation();
   return (
     <div className={styles.gradeStage} role="status">
-      <Mascot mood={mood} size={140} label="Govo javobingni baholayapti" />
+      <Mascot mood={mood} size={140} label={t("practice.gradingMascotLabel")} />
       <Text variant="title-s" align="center">
-        Javobingni baholayapman…
+        {t("practice.grading")}
       </Text>
       <div className={styles.gradeSteps}>
         <div className={styles.gradeStepRow}>
           <Spinner size="sm" label="" />
           <Text as="span" variant="body-s" color="ink-soft">
-            Talaffuzni tekshiryapman
+            {t("practice.checkingPron")}
           </Text>
         </div>
         <Skeleton width={220} height={12} />
@@ -370,6 +379,7 @@ function FeedbackPanel({
   onPlayReference,
   onPlayAnswer,
 }: FeedbackPanelProps) {
+  const { t } = useTranslation();
   const tone = toneForScore(feedback.score);
   const shownCorrections = feedback.corrections ?? [];
   const total = feedback.correctionTotal ?? shownCorrections.length;
@@ -387,7 +397,7 @@ function FeedbackPanel({
             </div>
             <div className={styles.scoreMeta}>
               <Badge variant="accent" size="md">
-                Daraja {feedback.band}
+                {t("practice.levelBadge", { band: feedback.band })}
               </Badge>
               <Text variant="body-l" color="ink-soft">
                 {feedback.summary}
@@ -400,7 +410,7 @@ function FeedbackPanel({
       {feedback.strengths && feedback.strengths.length > 0 && (
         <Card variant="flat" padding="lg" className={styles.block}>
           <Text as="p" variant="label" color="success">
-            Yaxshi bo&apos;ldi
+            {t("practice.strengthsTitle")}
           </Text>
           <ul className={styles.strengths}>
             {feedback.strengths.map((s, i) => (
@@ -417,7 +427,7 @@ function FeedbackPanel({
       {feedback.transcript && (
         <Card variant="flat" padding="lg" className={styles.block}>
           <Text as="p" variant="label" color="muted">
-            Sening javobing
+            {t("practice.yourAnswer")}
           </Text>
           <Text as="p" variant="mono" className={styles.transcriptText}>
             {feedback.transcript}
@@ -425,11 +435,11 @@ function FeedbackPanel({
           <div className={styles.audioRow}>
             <Button variant="ghost" size="sm" onClick={onPlayAnswer}>
               <PlayGlyph />
-              Audiongni eshit
+              {t("practice.listenYourAudio")}
             </Button>
             <Button variant="ghost" size="sm" onClick={onPlayReference}>
               <PlayGlyph />
-              Namuna javob
+              {t("practice.modelAnswer")}
             </Button>
           </div>
         </Card>
@@ -439,7 +449,7 @@ function FeedbackPanel({
         <Card variant="flat" padding="lg" className={styles.block}>
           <div className={styles.blockHead}>
             <Text as="p" variant="label" color="muted">
-              Tuzatamiz
+              {t("practice.correctionsTitle")}
             </Text>
             {total > shownCorrections.length && (
               <Badge variant="neutral">
@@ -475,11 +485,11 @@ function FeedbackPanel({
       {feedback.criteria && feedback.criteria.length > 0 && (
         <Card variant="flat" padding="lg" className={styles.block}>
           <Text as="p" variant="label" color="muted">
-            Mezonlar
+            {t("practice.criteriaTitle")}
           </Text>
           <ul className={styles.criteria}>
             {feedback.criteria.map((cr) => {
-              const t = toneForScore(cr.score);
+              const critTone = toneForScore(cr.score);
               return (
                 <li key={cr.id} className={styles.criterionRow}>
                   <Text as="span" variant="body" className={styles.critLabel}>
@@ -494,7 +504,7 @@ function FeedbackPanel({
                     aria-valuenow={cr.score}
                   >
                     <div
-                      className={cx(styles.barFill, BAR_BY_TONE[t])}
+                      className={cx(styles.barFill, BAR_BY_TONE[critTone])}
                       style={{ width: `${clampPct(cr.score)}%` }}
                     />
                   </div>
@@ -503,7 +513,7 @@ function FeedbackPanel({
                     variant="body"
                     weight="bold"
                     numeric
-                    color={TEXT_BY_TONE[t]}
+                    color={TEXT_BY_TONE[critTone]}
                     className={styles.critScore}
                   >
                     {cr.score}
@@ -517,10 +527,10 @@ function FeedbackPanel({
 
       <div className={styles.actions}>
         <Button variant="secondary" onClick={onRetry}>
-          Qayta urinish
+          {t("common.retry")}
         </Button>
         <Button variant="primary" onClick={onNext}>
-          Keyingi vazifa →
+          {t("practice.nextTask")}
         </Button>
       </div>
     </div>

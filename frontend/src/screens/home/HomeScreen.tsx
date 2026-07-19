@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { Badge, Button, Card, Mascot, Text, cx } from "../../shared/ui";
 import type { MascotMood } from "../../shared/ui";
 import { AppShell, Brand, ThemeToggle, studentNavItems } from "../../widgets";
@@ -133,13 +134,19 @@ export function HomeScreen({
   onNavigate,
   onToggleTheme,
 }: HomeScreenProps) {
+  const { t } = useTranslation();
   return (
     <AppShell
       brand={<Brand />}
-      nav={{ items: studentNavItems, activeKey: activeNavKey, onNavigate }}
+      nav={{
+        items: studentNavItems(t),
+        activeKey: activeNavKey,
+        onNavigate,
+        label: t("nav.landmark"),
+      }}
       headerStart={
         <Text as="h1" variant="title-m">
-          Bosh
+          {t("nav.home")}
         </Text>
       }
       headerEnd={<ThemeToggle onChange={onToggleTheme} />}
@@ -147,16 +154,16 @@ export function HomeScreen({
       <div className={styles.page}>
         <GreetingHeader user={user} mood={mood} />
 
-        <section className={styles.today} aria-label="Bugungi holat">
+        <section className={styles.today} aria-label={t("home.todayAria")}>
           <DailyGoalCard goal={dailyGoal} />
           <StreakCard streak={streak} />
         </section>
 
         <ContinueCard target={continueTarget} onContinue={onContinue} />
 
-        <section className={styles.modules} aria-label="Modullar">
+        <section className={styles.modules} aria-label={t("home.modules")}>
           <Text as="h2" variant="label" color="faint" className={styles.sectionLabel}>
-            Modullar
+            {t("home.modules")}
           </Text>
           <ul className={styles.moduleList}>
             {modules.map((m) => (
@@ -206,7 +213,8 @@ const RING_R = 52;
 const RING_C = 2 * Math.PI * RING_R;
 
 function DailyGoalCard({ goal }: { goal: HomeDailyGoal }) {
-  const unit = goal.unit ?? "daqiqa";
+  const { t } = useTranslation();
+  const unit = goal.unit ?? t("units.minutesUnit");
   const pct = clampPct(goal.target > 0 ? (goal.done / goal.target) * 100 : 0);
   const met = goal.done >= goal.target && goal.target > 0;
   const dashoffset = RING_C * (1 - pct / 100);
@@ -220,7 +228,7 @@ function DailyGoalCard({ goal }: { goal: HomeDailyGoal }) {
         aria-valuemax={goal.target}
         aria-valuenow={goal.done}
         aria-valuetext={`${goal.done} / ${goal.target} ${unit}`}
-        aria-label="Bugungi maqsad"
+        aria-label={t("home.dailyGoal")}
       >
         <svg className={styles.ringSvg} viewBox="0 0 120 120" aria-hidden>
           <circle className={styles.ringTrack} cx="60" cy="60" r={RING_R} />
@@ -242,7 +250,7 @@ function DailyGoalCard({ goal }: { goal: HomeDailyGoal }) {
 
       <div className={styles.goalMeta}>
         <Text as="p" variant="label" color="primary">
-          Bugungi maqsad
+          {t("home.dailyGoal")}
         </Text>
         <Text as="p" variant="title-s">
           <Text as="span" variant="title-s" numeric>
@@ -254,7 +262,7 @@ function DailyGoalCard({ goal }: { goal: HomeDailyGoal }) {
           </Text>
         </Text>
         <Text as="p" variant="body-s" color={met ? "success" : "ink-soft"}>
-          {met ? "Bugungi maqsad bajarildi 🎉" : "Kunlik seriyani davom ettir"}
+          {met ? t("home.goalMet") : t("home.goalKeepGoing")}
         </Text>
       </div>
     </Card>
@@ -266,6 +274,7 @@ function DailyGoalCard({ goal }: { goal: HomeDailyGoal }) {
 /* -------------------------------------------------------------------------- */
 
 function StreakCard({ streak }: { streak: HomeStreak }) {
+  const { t } = useTranslation();
   const lit = streak.todayComplete ?? false;
   return (
     <Card variant="outline" padding="lg" className={styles.streakCard}>
@@ -275,20 +284,20 @@ function StreakCard({ streak }: { streak: HomeStreak }) {
 
       <div className={styles.streakMeta}>
         <Text as="p" variant="label" color="faint">
-          Seriya
+          {t("home.streak")}
         </Text>
         <div className={styles.streakNum}>
           <Text as="span" variant="title-l" numeric>
             {streak.current}
           </Text>
           <Text as="span" variant="body" color="muted">
-            kun
+            {t("units.daysUnit", { count: streak.current })}
           </Text>
         </div>
 
         <div
           className={styles.freezes}
-          aria-label={`${streak.freezes} muzlatish qoldi`}
+          aria-label={t("home.freezesLeftAria", { count: streak.freezes })}
         >
           {Array.from({ length: Math.max(streak.freezes, 0) }, (_, i) => (
             <span key={i} className={styles.freeze} aria-hidden>
@@ -296,7 +305,7 @@ function StreakCard({ streak }: { streak: HomeStreak }) {
             </span>
           ))}
           <Text as="span" variant="body-s" color="info" weight="semibold" numeric>
-            {streak.freezes} muzlatish
+            {t("home.freezes", { count: streak.freezes })}
           </Text>
         </div>
       </div>
@@ -315,6 +324,7 @@ function ContinueCard({
   target: HomeContinueTarget;
   onContinue?: () => void;
 }) {
+  const { t } = useTranslation();
   const steps = target.steps;
   return (
     <Card variant="raised" padding="lg" className={styles.continueCard}>
@@ -346,11 +356,14 @@ function ContinueCard({
           <div
             className={styles.steps}
             role="progressbar"
-            aria-label="Mashq bosqichlari"
+            aria-label={t("home.sessionStepsAria")}
             aria-valuemin={0}
             aria-valuemax={steps.total}
             aria-valuenow={steps.done}
-            aria-valuetext={`${steps.total} bosqichdan ${steps.done} tasi bajarildi`}
+            aria-valuetext={t("home.stepsValueText", {
+              total: steps.total,
+              done: steps.done,
+            })}
           >
             {Array.from({ length: steps.total }, (_, i) => (
               <span
@@ -364,7 +377,7 @@ function ContinueCard({
 
         <div className={styles.continueActions}>
           <Button variant="primary" size="lg" onClick={onContinue}>
-            {target.actionLabel ?? "Boshlash →"}
+            {target.actionLabel ?? t("home.startCta")}
           </Button>
         </div>
       </div>
@@ -377,16 +390,17 @@ function ContinueCard({
 /* -------------------------------------------------------------------------- */
 
 interface ModuleStatusMeta {
-  label: string;
+  /** i18n key under `home.status.*` for the badge label. */
+  labelKey: string;
   badge: "neutral" | "primary" | "success" | "info";
   tone: Tone;
 }
 
 const STATUS_META: Record<ModuleStatus, ModuleStatusMeta> = {
-  "not-started": { label: "Yangi", badge: "info", tone: "neutral" },
-  "in-progress": { label: "Davom etyapti", badge: "primary", tone: "primary" },
-  done: { label: "Yakunlandi", badge: "success", tone: "success" },
-  locked: { label: "Qulflangan", badge: "neutral", tone: "muted" },
+  "not-started": { labelKey: "home.status.notStarted", badge: "info", tone: "neutral" },
+  "in-progress": { labelKey: "home.status.inProgress", badge: "primary", tone: "primary" },
+  done: { labelKey: "home.status.done", badge: "success", tone: "success" },
+  locked: { labelKey: "home.status.locked", badge: "neutral", tone: "muted" },
 };
 
 function ModuleCard({
@@ -396,6 +410,7 @@ function ModuleCard({
   module: HomeModule;
   onOpenModule?: (id: string, module: HomeModule) => void;
 }) {
+  const { t } = useTranslation();
   const meta = STATUS_META[module.status];
   const locked = module.status === "locked";
   const pct = clampPct(module.progress);
@@ -419,7 +434,7 @@ function ModuleCard({
           </Text>
           {module.teacher && (
             <Badge variant="accent" size="sm">
-              O&apos;qituvchi
+              {t("home.teacherBadge")}
             </Badge>
           )}
         </span>
@@ -433,7 +448,7 @@ function ModuleCard({
         <span
           className={styles.modBar}
           role="progressbar"
-          aria-label={`${module.name} progressi`}
+          aria-label={t("home.moduleProgressAria", { name: module.name })}
           aria-valuemin={0}
           aria-valuemax={100}
           aria-valuenow={Math.round(pct)}
@@ -446,7 +461,7 @@ function ModuleCard({
       </span>
 
       <Badge variant={meta.badge} size="sm" className={styles.modStatus}>
-        {meta.label}
+        {t(meta.labelKey)}
       </Badge>
     </>
   );

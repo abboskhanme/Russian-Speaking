@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { Badge, Card, Text, cx } from "../../shared/ui";
 import type { TextColor } from "../../shared/ui";
 import { AppShell, Brand, ThemeToggle, studentNavItems } from "../../widgets";
@@ -124,13 +125,19 @@ export function ProgressScreen({
   onNavigate,
   onToggleTheme,
 }: ProgressScreenProps) {
+  const { t } = useTranslation();
   return (
     <AppShell
       brand={<Brand />}
-      nav={{ items: studentNavItems, activeKey: activeNavKey, onNavigate }}
+      nav={{
+        items: studentNavItems(t),
+        activeKey: activeNavKey,
+        onNavigate,
+        label: t("nav.landmark"),
+      }}
       headerStart={
         <Text as="h1" variant="title-m">
-          Progress
+          {t("nav.progress")}
         </Text>
       }
       headerEnd={<ThemeToggle onChange={onToggleTheme} />}
@@ -138,7 +145,7 @@ export function ProgressScreen({
       <div className={styles.page}>
         <BandTrendCard trend={bandTrend} />
 
-        <section className={styles.stats} aria-label="Daraja va seriya">
+        <section className={styles.stats} aria-label={t("progress.statsAria")}>
           <LevelCard level={level} />
           <StreakCard streak={streak} />
         </section>
@@ -154,11 +161,12 @@ export function ProgressScreen({
 /* -------------------------------------------------------------------------- */
 
 function BandTrendCard({ trend }: { trend: ProgressBandTrend }) {
+  const { t } = useTranslation();
   const dir = trend.deltaDir ?? "flat";
-  const kicker = trend.kicker ?? "Hozirgi daraja";
+  const kicker = trend.kicker ?? t("progress.currentLevel");
   const lastIndex = trend.points.length - 1;
   const groupLabel =
-    trend.ariaLabel ?? `Daraja trendi — hozirgi daraja ${trend.currentBand}`;
+    trend.ariaLabel ?? t("progress.trendAria", { band: trend.currentBand });
 
   return (
     <Card variant="outline" padding="lg" className={styles.trendCard}>
@@ -191,9 +199,10 @@ function BandTrendCard({ trend }: { trend: ProgressBandTrend }) {
             key={p.id}
             className={styles.trendCol}
             role="listitem"
-            aria-label={`${p.label}: ${p.band ? `${p.band}, ` : ""}${Math.round(
-              clampPct(p.score),
-            )} ball`}
+            aria-label={`${p.label}: ${p.band ? `${p.band}, ` : ""}${t(
+              "units.points",
+              { count: Math.round(clampPct(p.score)) },
+            )}`}
           >
             <span className={styles.trendTrack} aria-hidden>
               <span
@@ -224,12 +233,14 @@ function BandTrendCard({ trend }: { trend: ProgressBandTrend }) {
 /* -------------------------------------------------------------------------- */
 
 function LevelCard({ level }: { level: ProgressLevel }) {
+  const { t } = useTranslation();
   const unit = level.unit ?? "XP";
   const pct = clampPct(
     level.xpForNext > 0 ? (level.xp / level.xpForNext) * 100 : 0,
   );
   const remaining = Math.max(level.xpForNext - level.xp, 0);
-  const next = level.nextLabel ?? `${level.level + 1}-daraja`;
+  const next =
+    level.nextLabel ?? t("progress.levelOrdinal", { n: level.level + 1 });
 
   return (
     <Card variant="outline" padding="lg" className={styles.levelCard}>
@@ -239,11 +250,11 @@ function LevelCard({ level }: { level: ProgressLevel }) {
         </span>
         <div className={styles.levelMeta}>
           <Text as="p" variant="label" color="faint">
-            Daraja
+            {t("progress.level")}
           </Text>
           <div className={styles.levelNum}>
             <Text as="span" variant="title-l" numeric>
-              {level.level}-daraja
+              {t("progress.levelOrdinal", { n: level.level })}
             </Text>
             {level.totalXp !== undefined && (
               <Badge variant="accent" size="md">
@@ -257,7 +268,7 @@ function LevelCard({ level }: { level: ProgressLevel }) {
       <div
         className={styles.xpBar}
         role="progressbar"
-        aria-label={`${next}gacha ${unit}`}
+        aria-label={t("progress.toNextAria", { next, unit })}
         aria-valuemin={0}
         aria-valuemax={level.xpForNext}
         aria-valuenow={level.xp}
@@ -271,7 +282,7 @@ function LevelCard({ level }: { level: ProgressLevel }) {
           {level.xp} / {level.xpForNext} {unit}
         </Text>
         {" · "}
-        {next}gacha {remaining} {unit}
+        {t("progress.toNext", { next, remaining, unit })}
       </Text>
     </Card>
   );
@@ -282,6 +293,7 @@ function LevelCard({ level }: { level: ProgressLevel }) {
 /* -------------------------------------------------------------------------- */
 
 function StreakCard({ streak }: { streak: ProgressStreak }) {
+  const { t } = useTranslation();
   const week = streak.week ?? [];
   return (
     <Card variant="outline" padding="lg" className={styles.streakCard}>
@@ -291,20 +303,20 @@ function StreakCard({ streak }: { streak: ProgressStreak }) {
         </span>
         <div className={styles.streakMeta}>
           <Text as="p" variant="label" color="faint">
-            Seriya
+            {t("progress.streak")}
           </Text>
           <div className={styles.streakNum}>
             <Text as="span" variant="title-l" numeric>
               {streak.current}
             </Text>
             <Text as="span" variant="body" color="muted">
-              kun
+              {t("units.daysUnit", { count: streak.current })}
             </Text>
           </div>
           <Text as="p" variant="body-s" color="ink-soft">
-            Eng uzun:{" "}
+            {t("progress.longest")}{" "}
             <Text as="span" variant="body-s" weight="semibold" numeric>
-              {streak.longest} kun
+              {streak.longest} {t("units.daysUnit", { count: streak.longest })}
             </Text>
           </Text>
         </div>
@@ -314,7 +326,7 @@ function StreakCard({ streak }: { streak: ProgressStreak }) {
         <div
           className={styles.week}
           role="list"
-          aria-label="Shu haftadagi faollik"
+          aria-label={t("progress.weekAria")}
         >
           {week.map((d, i) => (
             <div
@@ -322,8 +334,8 @@ function StreakCard({ streak }: { streak: ProgressStreak }) {
               className={styles.weekDay}
               role="listitem"
               aria-label={`${d.label}: ${
-                d.active ? "bajarildi" : "bajarilmadi"
-              }${d.today ? " (bugun)" : ""}`}
+                d.active ? t("progress.done") : t("progress.notDone")
+              }${d.today ? ` (${t("progress.today")})` : ""}`}
             >
               <span
                 className={cx(
@@ -360,12 +372,13 @@ function AchievementsSection({
 }: {
   achievements: ProgressAchievement[];
 }) {
+  const { t } = useTranslation();
   const earned = achievements.filter((a) => a.status === "earned").length;
   return (
-    <section className={styles.achSection} aria-label="Yutuqlar">
+    <section className={styles.achSection} aria-label={t("progress.achievements")}>
       <div className={styles.achHead}>
         <Text as="h2" variant="label" color="faint">
-          Yutuqlar
+          {t("progress.achievements")}
         </Text>
         <Text as="span" variant="body-s" color="accent" weight="bold" numeric>
           {earned} / {achievements.length}
@@ -387,6 +400,7 @@ function AchievementCard({
 }: {
   achievement: ProgressAchievement;
 }) {
+  const { t } = useTranslation();
   const earned = achievement.status === "earned";
   return (
     <Card
@@ -416,14 +430,16 @@ function AchievementCard({
 
       {earned ? (
         <Badge variant="success" size="sm" className={styles.achStatus}>
-          Ochildi
+          {t("progress.unlocked")}
         </Badge>
       ) : (
         achievement.progress !== undefined && (
           <span
             className={styles.achBar}
             role="progressbar"
-            aria-label={`${achievement.title} progressi`}
+            aria-label={t("progress.achievementProgressAria", {
+              title: achievement.title,
+            })}
             aria-valuemin={0}
             aria-valuemax={100}
             aria-valuenow={Math.round(clampPct(achievement.progress))}

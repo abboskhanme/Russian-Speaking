@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { useTranslation } from "react-i18next";
 import { Badge, Button, Card, Text, VisuallyHidden, cx } from "../../shared/ui";
 import { AppShell, Brand, ThemeToggle, studentNavItems } from "../../widgets";
 import type { NavItem, ThemeMode } from "../../widgets";
@@ -105,13 +106,19 @@ export function ProfileScreen({
   onNavigate,
   onToggleTheme,
 }: ProfileScreenProps) {
+  const { t } = useTranslation();
   return (
     <AppShell
       brand={<Brand />}
-      nav={{ items: studentNavItems, activeKey: activeNavKey, onNavigate }}
+      nav={{
+        items: studentNavItems(t),
+        activeKey: activeNavKey,
+        onNavigate,
+        label: t("nav.landmark"),
+      }}
       headerStart={
         <Text as="h1" variant="title-m">
-          Profil
+          {t("nav.profile")}
         </Text>
       }
       headerEnd={<ThemeToggle onChange={onToggleTheme} />}
@@ -121,35 +128,35 @@ export function ProfileScreen({
 
         <PremiumCard premium={premium} onUpgrade={onUpgrade} />
 
-        <section className={styles.section} aria-label="Ilova tili">
+        <section className={styles.section} aria-label={t("profile.appLanguage")}>
           <Text
             as="h2"
             variant="label"
             color="faint"
             className={styles.sectionLabel}
           >
-            Til
+            {t("profile.language")}
           </Text>
           <LanguageSelector value={language} onChange={onChangeLanguage} />
         </section>
 
-        <section className={styles.section} aria-label="Sozlamalar">
+        <section className={styles.section} aria-label={t("profile.settings")}>
           <Text
             as="h2"
             variant="label"
             color="faint"
             className={styles.sectionLabel}
           >
-            Sozlamalar
+            {t("profile.settings")}
           </Text>
           <ul className={styles.settingsList}>
             <li>
               <SettingRow
                 tone="primary"
                 icon={<TargetGlyph />}
-                label="Kunlik maqsad"
-                description="Har kungi mashq vaqti"
-                value={`${settings.dailyGoalMinutes} daqiqa`}
+                label={t("profile.dailyGoal")}
+                description={t("profile.dailyGoalDesc")}
+                value={t("units.minutes", { count: settings.dailyGoalMinutes })}
                 onEdit={() => onEditSetting?.("dailyGoal")}
               />
             </li>
@@ -157,9 +164,9 @@ export function ProfileScreen({
               <SettingRow
                 tone="info"
                 icon={<BellGlyph />}
-                label="Bildirishnomalar"
-                description="Eslatma va seriya ogohlantirishlari"
-                value={settings.notifications ? "Yoqilgan" : "O'chirilgan"}
+                label={t("profile.notifications")}
+                description={t("profile.notificationsDesc")}
+                value={settings.notifications ? t("profile.on") : t("profile.off")}
                 onEdit={() => onEditSetting?.("notifications")}
               />
             </li>
@@ -167,8 +174,8 @@ export function ProfileScreen({
               <SettingRow
                 tone="accent"
                 icon={<ContrastGlyph />}
-                label="Ko'rinish"
-                description="Yorug' yoki qorong'i rejim"
+                label={t("profile.appearance")}
+                description={t("profile.appearanceDesc")}
                 control={<ThemeToggle onChange={onToggleTheme} />}
               />
             </li>
@@ -178,7 +185,7 @@ export function ProfileScreen({
         <div className={styles.logoutRow}>
           <Button variant="danger" onClick={onLogout}>
             <LogoutGlyph />
-            Chiqish
+            {t("profile.logout")}
           </Button>
         </div>
       </div>
@@ -191,6 +198,7 @@ export function ProfileScreen({
 /* -------------------------------------------------------------------------- */
 
 function UserCard({ user }: { user: ProfileUser }) {
+  const { t } = useTranslation();
   const level = [user.level, user.levelLabel].filter(Boolean).join(" · ");
   return (
     <Card variant="raised" padding="lg" className={styles.userCard}>
@@ -208,9 +216,9 @@ function UserCard({ user }: { user: ProfileUser }) {
             {user.name}
           </Text>
           {user.verified && (
-            <span className={styles.verified} title="Tasdiqlangan">
+            <span className={styles.verified} title={t("profile.verified")}>
               <CheckGlyph />
-              <VisuallyHidden>Tasdiqlangan hisob</VisuallyHidden>
+              <VisuallyHidden>{t("profile.verifiedAccount")}</VisuallyHidden>
             </span>
           )}
           {user.level && (
@@ -226,7 +234,7 @@ function UserCard({ user }: { user: ProfileUser }) {
 
         {level && (
           <Text as="p" variant="body-s" color="faint">
-            Daraja: {level}
+            {t("profile.levelLine", { level })}
           </Text>
         )}
       </div>
@@ -245,15 +253,16 @@ function PremiumCard({
   premium: ProfilePremium;
   onUpgrade?: () => void;
 }) {
+  const { t } = useTranslation();
   const active = premium.active;
   const plan = premium.planLabel ?? "Premium";
   const caption = active
     ? premium.renewsLabel
       ? `${plan} · ${premium.renewsLabel}`
-      : `${plan} — barcha imkoniyatlar ochiq`
+      : t("profile.premiumAllOpen", { plan })
     : premium.attemptsLeft !== undefined
-      ? `${premium.attemptsLeft} ta bepul urinish qoldi`
-      : "Cheksiz mashq va batafsil tahlil";
+      ? t("profile.freeAttemptsLeft", { count: premium.attemptsLeft })
+      : t("profile.premiumPitch");
 
   return (
     <Card variant="tint" padding="lg" className={styles.premiumCard}>
@@ -264,10 +273,10 @@ function PremiumCard({
       <div className={styles.premiumBody}>
         <div className={styles.premiumHead}>
           <Text as="p" variant="title-s">
-            {active ? plan : "Bepul reja"}
+            {active ? plan : t("profile.freePlan")}
           </Text>
           <Badge variant={active ? "success" : "neutral"} size="md">
-            {active ? "Faol" : "Bepul"}
+            {active ? t("profile.active") : t("profile.free")}
           </Badge>
         </div>
 
@@ -278,7 +287,7 @@ function PremiumCard({
         {!active && (
           <div className={styles.premiumActions}>
             <Button variant="primary" onClick={onUpgrade}>
-              Premiumga o&apos;tish
+              {t("profile.upgrade")}
             </Button>
           </div>
         )}
@@ -312,8 +321,9 @@ function LanguageSelector({
   value: AppLanguage;
   onChange?: (language: AppLanguage) => void;
 }) {
+  const { t } = useTranslation();
   return (
-    <div className={styles.langGroup} role="group" aria-label="Ilova tili">
+    <div className={styles.langGroup} role="group" aria-label={t("profile.appLanguage")}>
       {LANGUAGES.map((lang) => {
         const selected = lang.code === value;
         return (

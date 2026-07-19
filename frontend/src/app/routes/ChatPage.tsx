@@ -23,17 +23,15 @@ export default function ChatPage() {
   const { t } = useTranslation();
   const onNavigate = useNavHandler();
 
-  // Re-label the shared nav model through t() — proves nav strings flow through
-  // i18n without rewriting the widget (see shared/i18n/README.md follow-up).
-  const navItems = studentNavItems.map((item) => ({
-    ...item,
-    label: t(`nav.${item.key}`),
-  }));
-
   return (
     <AppShell
       brand={<Brand />}
-      nav={{ items: navItems, activeKey: "chat", onNavigate }}
+      nav={{
+        items: studentNavItems(t),
+        activeKey: "chat",
+        onNavigate,
+        label: t("nav.landmark"),
+      }}
       headerStart={
         <Text as="h1" variant="title-m">
           {t("nav.chat")}
