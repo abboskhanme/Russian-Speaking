@@ -20,7 +20,26 @@
   </ItemGroup>
 
   <ItemGroup>
+    <!-- ArchTests must load EVERY inspected assembly by type, so it references the whole graph.
+         Order below mirrors docs/07 §7.2: hosts, shared kernel, Platform, then the 8 domain modules.
+         These are inspection-only references; ArchTests contains no production code. -->
+    <!-- Hosts -->
     <ProjectReference Include="..\..\src\Govori.Api\Govori.Api.csproj" />
+    <ProjectReference Include="..\..\src\Govori.Worker\Govori.Worker.csproj" />
+    <!-- Shared kernel + cross-cutting -->
+    <ProjectReference Include="..\..\src\Govori.Contracts\Govori.Contracts.csproj" />
+    <ProjectReference Include="..\..\src\Govori.Infrastructure\Govori.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\src\Govori.Platform\Govori.Platform.csproj" />
+    <ProjectReference Include="..\..\src\Govori.Realtime\Govori.Realtime.csproj" />
+    <!-- Domain modules (docs/07 §7.2 boundary subjects) -->
+    <ProjectReference Include="..\..\src\Modules\Govori.Identity\Govori.Identity.csproj" />
+    <ProjectReference Include="..\..\src\Modules\Govori.Catalog\Govori.Catalog.csproj" />
+    <ProjectReference Include="..\..\src\Modules\Govori.Practice\Govori.Practice.csproj" />
+    <ProjectReference Include="..\..\src\Modules\Govori.Assessment\Govori.Assessment.csproj" />
+    <ProjectReference Include="..\..\src\Modules\Govori.Classroom\Govori.Classroom.csproj" />
+    <ProjectReference Include="..\..\src\Modules\Govori.Engagement\Govori.Engagement.csproj" />
+    <ProjectReference Include="..\..\src\Modules\Govori.Administration\Govori.Administration.csproj" />
+    <ProjectReference Include="..\..\src\Modules\Govori.Guest\Govori.Guest.csproj" />
   </ItemGroup>
 
 </Project>

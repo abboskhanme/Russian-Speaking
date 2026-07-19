@@ -72,8 +72,13 @@ try
     builder.Services.AddGovoriHangfire(builder.Configuration, runServer: true);
 
     // ── Recurring maintenance jobs (the Celery beat port) ───────────────────
-    // Destructive cleanup runs ONLY here (this is the Hangfire host): enable the guard.
-    builder.Services.AddSingleton(new MaintenanceOptions { Enabled = true });
+    // Destructive cleanup runs ONLY on this Hangfire host. Enabled by default; GOVORI_MAINTENANCE=false
+    // registers the schedule but no-ops the work (used to verify Hangfire's additive schema against a
+    // live DB without touching data).
+    builder.Services.AddSingleton(new MaintenanceOptions
+    {
+        Enabled = builder.Configuration.GetValue("GOVORI_MAINTENANCE", true),
+    });
     builder.Services.AddScoped<MaintenanceJobs>();
 
     // Liveness heartbeat so the host is observably alive alongside the Hangfire server.
