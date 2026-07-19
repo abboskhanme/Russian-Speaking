@@ -16,14 +16,15 @@ Keyingi `up`lar tez (cache).
 
 ## Servislar va portlar
 
-| Servis | Host port | Nima |
-|---|---|---|
-| **frontend** | **http://localhost:8081** | nginx — SPA + `/api` va `/hubs` (SignalR WS) proxy → api |
-| **api** | http://localhost:8082 | ASP.NET Core — `/api/*`, `/hubs/attempts`, `/health`, `/metrics` |
-| db | localhost:5433 | Postgres 16 — birinchi ishga tushishda demo dump'dan **avtoseed** |
-| minio | localhost:9000 (konsol :9001) | S3 obyekt saqlash (`govori-audio` bucket) |
-| redis | ichki | OTP · SignalR backplane · rate-limit |
-| worker | ichki | Hangfire server + recurring maintenance job'lar |
+| Container | Image | Host port | Nima |
+|---|---|---|---|
+| **govori-web** | `govori/web:dev` | **http://localhost:8081** | nginx — SPA + `/api` va `/hubs` (SignalR WS) proxy → api |
+| **govori-api** | `govori/api:dev` | http://localhost:8082 | ASP.NET Core — `/api/*`, `/hubs/attempts`, `/health`, `/metrics` |
+| govori-worker | `govori/worker:dev` | — (ichki) | Hangfire server + recurring maintenance job'lar |
+| govori-db | postgres:16-alpine | localhost:5433 | Postgres 16 — birinchi ishga tushishda demo dump'dan **avtoseed** |
+| govori-minio | minio/minio | localhost:9000 (konsol :9001) | S3 obyekt saqlash (`govori-audio` bucket) |
+| govori-redis | redis:7-alpine | — (ichki) | OTP · SignalR backplane · rate-limit |
+| govori-minio-init | minio/mc | — | Bir martalik: bucket yaratib **darhol tugaydi** (`Exited (0)` — normal) |
 
 **Foydalanish:** brauzerda **http://localhost:8081** oching.
 
