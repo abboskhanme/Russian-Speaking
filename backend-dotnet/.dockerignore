@@ -1,0 +1,18 @@
+# Build output — never ship the host's bin/obj into the image (stale/other-arch).
+**/bin/
+**/obj/
+
+# IDE / tooling
+**/.vs/
+**/.idea/
+**/*.user
+
+# Not needed to publish Govori.Api / Govori.Worker
+tests/
+init-solution.sh
+**/*.md
+
+# Docker artefacts (the builder reads the Dockerfile out-of-band)
+**/Dockerfile
+.dockerignore
+.gitignore

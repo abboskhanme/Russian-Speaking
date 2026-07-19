@@ -1,0 +1,14 @@
+# Installed/build output — reinstalled and rebuilt inside the image.
+node_modules
+dist
+
+# Local/dev cruft
+.DS_Store
+*.log
+.git
+.gitignore
+
+# Docker artefacts
+Dockerfile
+Dockerfile.prod
+.dockerignore
