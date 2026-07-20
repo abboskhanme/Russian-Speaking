@@ -67,7 +67,18 @@
       "inProgress": "Davom etyapti",
       "done": "Yakunlandi",
       "locked": "Qulflangan"
-    }
+    },
+    "greeting": {
+      "morning": "Xayrli tong,",
+      "afternoon": "Xayrli kun,",
+      "evening": "Xayrli kech,",
+      "night": "Xayrli tun,"
+    },
+    "taskCount_one": "{{count}} vazifa",
+    "taskCount_other": "{{count}} vazifa",
+    "continueKicker": "Davom eting",
+    "continueEmptyTitle": "Hozircha mashqlar yo'q",
+    "continueEmptyBody": "Yangi vazifalar qo'shilganda shu yerda ko'rinadi."
   },
   "practice": {
     "attemptsLeft_one": "{{count}} urinish qoldi",
@@ -86,7 +97,13 @@
     "correctionsTitle": "Tuzatamiz",
     "criteriaTitle": "Mezonlar",
     "nextTask": "Keyingi vazifa →",
-    "skipCta": "O'tkazib yuborish →"
+    "skipCta": "O'tkazib yuborish →",
+    "submitDone": "Javobingiz qabul qilindi 🎉",
+    "submitGrading": "Javobingiz yuborildi — baholanmoqda…",
+    "submitFailed": "Javobni yuborib bo'lmadi. Qayta urinib ko'ring.",
+    "paywall": "Bu vazifa uchun premium kerak. Davom etish uchun premiumga o'ting.",
+    "forbidden": "Bu vazifa sizga tayinlanmagan yoki muddati o'tgan.",
+    "emptyBody": "Hozircha mavjud vazifa yo'q. Keyinroq qayta tekshiring."
   },
   "progress": {
     "statsAria": "Daraja va seriya",
@@ -158,5 +175,48 @@
       "flagged": "Shikoyat",
       "graded": "Baholandi"
     }
+  },
+  "auth": {
+    "email": "Email",
+    "emailPlaceholder": "sen@example.com",
+    "password": "Parol",
+    "fullName": "To'liq ism",
+    "phone": "Telefon",
+    "age": "Yosh",
+    "region": "Viloyat",
+    "district": "Tuman",
+    "groupCode": "Guruh kodi",
+    "groupCodeHint": "Ixtiyoriy — o'qituvchingiz bergan kod",
+    "login": {
+      "title": "Xush kelibsiz",
+      "subtitle": "Davom etish uchun tizimga kiring",
+      "submit": "Kirish",
+      "noAccount": "Hisobingiz yo'qmi?",
+      "registerLink": "Ro'yxatdan o'ting"
+    },
+    "register": {
+      "title": "Ro'yxatdan o'tish",
+      "subtitle": "Bepul hisob yarating",
+      "otpSubtitle": "Emailingizga yuborilgan kodni kiriting",
+      "sendCode": "Kodni yuborish",
+      "submit": "Hisob yaratish",
+      "devHint": "Dev rejim: tasdiqlash kodi emailga yuborilmaydi — u API loglarida chiqadi.",
+      "codeLabel": "{{email}} uchun tasdiqlash kodi",
+      "haveAccount": "Hisobingiz bormi?",
+      "loginLink": "Kirish"
+    },
+    "errors": {
+      "invalidCredentials": "Email yoki parol noto'g'ri",
+      "inactive": "Hisob faol emas",
+      "network": "Internet aloqasi yo'q. Qayta urinib ko'ring.",
+      "generic": "Xatolik yuz berdi. Qayta urinib ko'ring.",
+      "emailTaken": "Bu email allaqachon ro'yxatdan o'tgan",
+      "badCode": "Tasdiqlash kodi noto'g'ri yoki muddati o'tgan",
+      "validation": "Ma'lumotlarni tekshiring"
+    }
+  },
+  "errors": {
+    "loadTitle": "Ma'lumotni yuklab bo'lmadi",
+    "loadBody": "Internet aloqangizni tekshiring va qayta urinib ko'ring."
   }
 }

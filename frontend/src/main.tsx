@@ -14,6 +14,7 @@ import "./shared/styles/tokens.css";
 
 import i18n from "./shared/i18n"; // side-effect: initializes i18next
 import { applyTheme, getStoredTheme } from "./widgets";
+import { AuthProvider } from "./shared/auth";
 import App from "./App";
 
 // Reflect the stored theme (or follow the OS when unset) before first paint.
@@ -23,7 +24,9 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
     <I18nextProvider i18n={i18n}>
       <BrowserRouter>
-        <App />
+        <AuthProvider>
+          <App />
+        </AuthProvider>
       </BrowserRouter>
     </I18nextProvider>
   </React.StrictMode>,

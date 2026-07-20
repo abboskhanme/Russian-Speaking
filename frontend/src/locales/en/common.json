@@ -67,7 +67,18 @@
       "inProgress": "In progress",
       "done": "Completed",
       "locked": "Locked"
-    }
+    },
+    "greeting": {
+      "morning": "Good morning,",
+      "afternoon": "Good afternoon,",
+      "evening": "Good evening,",
+      "night": "Good night,"
+    },
+    "taskCount_one": "{{count}} task",
+    "taskCount_other": "{{count}} tasks",
+    "continueKicker": "Continue",
+    "continueEmptyTitle": "No exercises yet",
+    "continueEmptyBody": "New tasks will appear here."
   },
   "practice": {
     "attemptsLeft_one": "{{count}} attempt left",
@@ -86,7 +97,13 @@
     "correctionsTitle": "Let's fix",
     "criteriaTitle": "Criteria",
     "nextTask": "Next task →",
-    "skipCta": "Skip →"
+    "skipCta": "Skip →",
+    "submitDone": "Your answer was received 🎉",
+    "submitGrading": "Answer submitted — grading…",
+    "submitFailed": "Couldn't submit your answer. Please try again.",
+    "paywall": "This task needs premium. Upgrade to continue.",
+    "forbidden": "This task isn't assigned to you, or its deadline has passed.",
+    "emptyBody": "No available tasks yet. Check back later."
   },
   "progress": {
     "statsAria": "Level and streak",
@@ -158,5 +175,48 @@
       "flagged": "Flagged",
       "graded": "Graded"
     }
+  },
+  "auth": {
+    "email": "Email",
+    "emailPlaceholder": "you@example.com",
+    "password": "Password",
+    "fullName": "Full name",
+    "phone": "Phone",
+    "age": "Age",
+    "region": "Region",
+    "district": "District",
+    "groupCode": "Group code",
+    "groupCodeHint": "Optional — a code from your teacher",
+    "login": {
+      "title": "Welcome back",
+      "subtitle": "Sign in to continue",
+      "submit": "Sign in",
+      "noAccount": "No account?",
+      "registerLink": "Sign up"
+    },
+    "register": {
+      "title": "Create account",
+      "subtitle": "Create a free account",
+      "otpSubtitle": "Enter the code sent to your email",
+      "sendCode": "Send code",
+      "submit": "Create account",
+      "devHint": "Dev mode: the verification code is not emailed — it is printed in the API logs.",
+      "codeLabel": "Verification code for {{email}}",
+      "haveAccount": "Already have an account?",
+      "loginLink": "Sign in"
+    },
+    "errors": {
+      "invalidCredentials": "Incorrect email or password",
+      "inactive": "Account is not active",
+      "network": "No connection. Please try again.",
+      "generic": "Something went wrong. Please try again.",
+      "emailTaken": "This email is already registered",
+      "badCode": "Invalid or expired code",
+      "validation": "Please check your details"
+    }
+  },
+  "errors": {
+    "loadTitle": "Couldn't load data",
+    "loadBody": "Check your connection and try again."
   }
 }

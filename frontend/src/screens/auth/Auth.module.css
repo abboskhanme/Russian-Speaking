@@ -1,0 +1,100 @@
+/**
+ * screens/auth — the pre-auth login / register layout. Full-width page
+ * background (docs full-width rule) with a single centered form card, mirroring
+ * the ChatPage placeholder precedent. Tokens only.
+ */
+
+.page {
+  min-height: 100dvh;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg);
+}
+
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 18px 24px;
+  width: 100%;
+}
+
+.body {
+  flex: 1;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 24px 20px 64px;
+  width: 100%;
+}
+
+.card {
+  width: 100%;
+  max-width: 420px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.head {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  text-align: center;
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.error {
+  background: var(--danger-tint);
+  color: var(--danger);
+  border-radius: 12px;
+  padding: 10px 14px;
+  font: inherit;
+}
+
+.hint {
+  background: var(--primary-tint);
+  color: var(--ink-soft);
+  border-radius: 12px;
+  padding: 10px 14px;
+}
+
+.footer {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  text-align: center;
+}
+
+.link {
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  color: var(--primary);
+  font: inherit;
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.grid2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+@media (max-width: 420px) {
+  .grid2 {
+    grid-template-columns: 1fr;
+  }
+}

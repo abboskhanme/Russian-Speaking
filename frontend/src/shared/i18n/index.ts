@@ -38,6 +38,22 @@ export const LANG_LABELS: Record<AppLang, string> = {
 
 export const defaultNS = "common" as const;
 
+/** localStorage key for the user's explicit UI-language choice (Profile). */
+const LANG_STORAGE_KEY = "govori_lang";
+
+/** The persisted language if valid, else the default (uz). */
+function getInitialLang(): AppLang {
+  try {
+    const stored = localStorage.getItem(LANG_STORAGE_KEY);
+    if (stored && (SUPPORTED_LANGS as readonly string[]).includes(stored)) {
+      return stored as AppLang;
+    }
+  } catch {
+    /* localStorage may be unavailable (SSR/private mode) — fall through. */
+  }
+  return DEFAULT_LANG;
+}
+
 export const resources = {
   uz: { common: uzCommon },
   ru: { common: ruCommon },
@@ -48,7 +64,7 @@ export const resources = {
 if (!i18n.isInitialized) {
   void i18n.use(initReactI18next).init({
     resources,
-    lng: DEFAULT_LANG,
+    lng: getInitialLang(),
     fallbackLng: FALLBACK_LANG,
     supportedLngs: SUPPORTED_LANGS as unknown as string[],
     ns: [defaultNS],
@@ -60,8 +76,13 @@ if (!i18n.isInitialized) {
   });
 }
 
-/** Change the active UI language (uz | ru | en). */
+/** Change the active UI language (uz | ru | en) and persist the choice. */
 export function setLang(lang: AppLang): void {
+  try {
+    localStorage.setItem(LANG_STORAGE_KEY, lang);
+  } catch {
+    /* ignore persistence failures */
+  }
   void i18n.changeLanguage(lang);
 }
 
