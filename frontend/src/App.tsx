@@ -24,6 +24,7 @@ const ProgressPage = lazy(() => import("./app/routes/ProgressPage"));
 const ProfilePage = lazy(() => import("./app/routes/ProfilePage"));
 const LoginPage = lazy(() => import("./app/routes/LoginPage"));
 const RegisterPage = lazy(() => import("./app/routes/RegisterPage"));
+const PlacementPage = lazy(() => import("./app/routes/PlacementPage"));
 
 function RouteFallback() {
   return (
@@ -52,6 +53,8 @@ export default function App() {
 
         {/* Student app: redirect to /login when unauthenticated. */}
         <Route element={<RequireAuth />}>
+          {/* One-time post-register placement ("dastlabki sinov"). */}
+          <Route path="/placement" element={<PlacementPage />} />
           <Route path="/" element={<HomePage />} />
           <Route path="/practice" element={<PracticePage />} />
           <Route path="/chat" element={<ChatPage />} />

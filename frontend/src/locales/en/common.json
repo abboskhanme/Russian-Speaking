@@ -105,6 +105,24 @@
     "forbidden": "This task isn't assigned to you, or its deadline has passed.",
     "emptyBody": "No available tasks yet. Check back later."
   },
+  "placement": {
+    "kicker": "Placement test · one time",
+    "introTitle": "Let's find your level",
+    "introBody": "Answer 3 questions by voice (~2 minutes). Your result is saved — we won't ask again.",
+    "firstQuestion": "Question 1",
+    "startCta": "Start the test →",
+    "skipCta": "Later — just go in for now",
+    "questionKicker": "Question",
+    "questionProgress": "Question {{current}} / {{total}}",
+    "answerHint": "~90s",
+    "grading": "Grading…",
+    "gradingMascotLabel": "Govo is grading your answer",
+    "submitError": "Couldn't send your answer. Please try again.",
+    "resultKicker": "Placement complete",
+    "resultTitle": "Great start!",
+    "resultBody": "You can already speak. Five minutes a day — you'll feel it in 8 weeks.",
+    "enterApp": "Start"
+  },
   "progress": {
     "statsAria": "Level and streak",
     "currentLevel": "Current level",

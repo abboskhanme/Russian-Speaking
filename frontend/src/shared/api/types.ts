@@ -128,6 +128,29 @@ export interface SubmissionResponse {
   reviewed_at: string | null;
 }
 
+/* ── Placement (PlacementContracts.cs) — one-time post-register CEFR check ── */
+
+/** GET /api/placement/questions → the 3 fixed Russian prompts. */
+export interface PlacementQuestionResponse {
+  index: number;
+  prompt_ru: string;
+}
+
+/** POST /api/placement/submit → the per-answer band (0–100). Grading is STUBBED
+ * (deterministic) until real AI keys land, so the band is approximate. */
+export interface PlacementSubmitResponse {
+  index: number;
+  band: number;
+}
+
+/** POST /api/placement/complete → the estimated CEFR level + its short Uzbek
+ * label (e.g. A2 · "boshlang'ich") + the averaged band. */
+export interface PlacementResultResponse {
+  level: string;
+  label_uz: string;
+  band: number;
+}
+
 /* ── Engagement (EngagementContracts.cs) — Progress ──────────────────────── */
 
 export interface LeaderboardEntryResponse {

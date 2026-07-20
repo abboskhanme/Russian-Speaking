@@ -3,6 +3,7 @@
  * Presentational and prop-driven; no routing/data coupling yet.
  */
 export * from "./home";
+export * from "./placement";
 export * from "./practice";
 export * from "./progress";
 export * from "./profile";

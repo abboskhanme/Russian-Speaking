@@ -36,6 +36,16 @@ export interface AuthContextValue {
   user: MeResponse | null;
   status: AuthStatus;
   isAuthenticated: boolean;
+  /**
+   * "Just registered" signal (docs: post-register placement hop). Set true when the last
+   * successful `verifyOtp` created an account (a `fullName` was supplied), so the app can route
+   * a brand-new user into the one-time placement test instead of straight to Home. It is a
+   * transient in-memory flag (not persisted): cleared by {@link clearJustRegistered} once the
+   * placement screen has consumed it.
+   */
+  justRegistered: boolean;
+  /** Clear the {@link justRegistered} signal (placement consumed it / user skipped). */
+  clearJustRegistered: () => void;
   /** OTP step 1 — send a one-time code to the phone. Throws ApiError on 400. */
   requestOtp: (phone: string) => Promise<OtpRequestResponse>;
   /** OTP step 2 — verify the code. On a token pair it stores the tokens and
@@ -53,6 +63,7 @@ const AuthContext = createContext<AuthContextValue | null>(null);
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<MeResponse | null>(null);
   const [status, setStatus] = useState<AuthStatus>(tokenStore.access ? "boot" : "ready");
+  const [justRegistered, setJustRegistered] = useState(false);
   const booted = useRef(false);
 
   const loadMe = useCallback(async () => {
@@ -91,10 +102,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const me = await endpoints.me(true);
       setUser(me);
       setStatus("ready");
+      // A supplied name means this verify CREATED the account (register, or the
+      // login→register fallback) — flag it so the app can route into placement.
+      if (fullName && fullName.trim()) setJustRegistered(true);
       return { needsRegistration: false, user: me };
     },
     [],
   );
+
+  const clearJustRegistered = useCallback(() => setJustRegistered(false), []);
 
   const logout = useCallback(() => {
     // Fire-and-forget: the .NET logout is a no-op (stateless JWT); ignore errors.
@@ -109,12 +125,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       user,
       status,
       isAuthenticated: user !== null,
+      justRegistered,
+      clearJustRegistered,
       requestOtp,
       verifyOtp,
       logout,
       loadMe,
     }),
-    [user, status, requestOtp, verifyOtp, logout, loadMe],
+    [user, status, justRegistered, clearJustRegistered, requestOtp, verifyOtp, logout, loadMe],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

@@ -80,8 +80,9 @@ export default function RegisterScreen() {
     setBusy(true);
     try {
       // Name captured in step 1 → one-shot register (never needs_registration).
+      // A brand-new user goes to the one-time placement test, not straight Home.
       await verifyOtp(e164, code, name.trim());
-      navigate("/", { replace: true });
+      navigate("/placement", { replace: true });
     } catch (err) {
       setError(mapError(err));
     } finally {

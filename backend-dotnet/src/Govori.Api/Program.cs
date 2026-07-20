@@ -178,6 +178,14 @@ try
     // (AddGovoriHangfire TryAdds the same); the Hangfire client below enqueues it per submit.
     builder.Services.AddScoped<GradingJob>();
 
+    // ── Placement / one-time "dastlabki sinov" (owner mockup A2/A3) ──────────
+    // A new student answers 3 fixed Russian questions post-register → an estimated CEFR level.
+    // Stateless + storage-free: questions are hardcoded, per-answer bands are returned and discarded,
+    // and the client marks "placement done" in localStorage (no schema change). Reuses the SAME
+    // ISttProvider + IGraderProvider seams as grading — while those are stubbed (no keys) the band is
+    // a deterministic placeholder, so the flow works end-to-end until real AI keys land (Faza 3.4).
+    builder.Services.AddScoped<PlacementService>();
+
     // ── Real-time attempt progress (SignalR + Redis backplane, docs/08 Faza 3.10) ──
     // Registers the attempt-progress hub services + IGradingEvents (SignalRGradingEvents). The API
     // hosts the /hubs/attempts endpoint that browsers connect to; grading events reach those clients
@@ -375,6 +383,12 @@ try
     // store + pending Submission; list + attempt detail) lives in the Practice module's
     // MapPracticeEndpoints extension, one call per domain.
     app.MapPracticeEndpoints();
+
+    // ── Placement endpoints (owner mockup "dastlabki sinov") ────────────────
+    // The one-time post-register CEFR check (GET /api/placement/questions, POST /api/placement/submit,
+    // POST /api/placement/complete) lives in the Assessment module's MapPlacementEndpoints extension,
+    // one call per domain. All routes require auth; the flow persists nothing server-side.
+    app.MapPlacementEndpoints();
 
     // ── Classroom endpoints (docs/07 §3.5, Faza 3.5) ────────────────────────
     // Teacher groups (/api/groups), assignments (/api/assignments) and the gradebook

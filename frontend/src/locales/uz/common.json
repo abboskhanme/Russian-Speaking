@@ -105,6 +105,24 @@
     "forbidden": "Bu vazifa sizga tayinlanmagan yoki muddati o'tgan.",
     "emptyBody": "Hozircha mavjud vazifa yo'q. Keyinroq qayta tekshiring."
   },
+  "placement": {
+    "kicker": "Dastlabki sinov · bir martalik",
+    "introTitle": "Darajangizni aniqlaymiz",
+    "introBody": "3 ta savolga ovozli javob bering (~2 daqiqa). Natija saqlanadi — keyingi safar so'ralmaydi.",
+    "firstQuestion": "1-savol",
+    "startCta": "Sinovni boshlash →",
+    "skipCta": "Keyinroq — hozircha kirish",
+    "questionKicker": "Savol",
+    "questionProgress": "{{current}} / {{total}}-savol",
+    "answerHint": "~90s",
+    "grading": "Baholayapmiz…",
+    "gradingMascotLabel": "Govo javobingizni baholayapti",
+    "submitError": "Javobni yuborib bo'lmadi. Qayta urinib ko'ring.",
+    "resultKicker": "Joylashtiruv tugadi",
+    "resultTitle": "Yaxshi boshladik!",
+    "resultBody": "Siz allaqachon gapira olasiz. Har kuni 5 daqiqa — 8 haftada seziladi.",
+    "enterApp": "Boshlash"
+  },
   "progress": {
     "statsAria": "Daraja va seriya",
     "currentLevel": "Hozirgi daraja",

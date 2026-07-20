@@ -14,6 +14,9 @@ import type {
   MeResponse,
   OtpRequestResponse,
   OtpVerifyResponse,
+  PlacementQuestionResponse,
+  PlacementResultResponse,
+  PlacementSubmitResponse,
   StudentModuleResponse,
   SubmissionResponse,
   TokenResponse,
@@ -104,6 +107,33 @@ export function submitAudio({
 
 export function getSubmission(id: string, signal?: AbortSignal): Promise<SubmissionResponse> {
   return apiClient.get<SubmissionResponse>(`/submissions/${id}`, { signal });
+}
+
+/* ── Placement — the one-time post-register CEFR check ───────────────────── */
+
+/** GET /api/placement/questions → the 3 fixed Russian prompts (auth required). */
+export function placementQuestions(): Promise<PlacementQuestionResponse[]> {
+  return apiClient.get<PlacementQuestionResponse[]>("/placement/questions");
+}
+
+export interface PlacementSubmitArgs {
+  index: number;
+  audio: Blob;
+}
+
+/** POST /api/placement/submit (multipart: question_index + audio) → { index, band }. */
+export function placementSubmit({ index, audio }: PlacementSubmitArgs): Promise<PlacementSubmitResponse> {
+  const form = new FormData();
+  form.append("question_index", String(index));
+  const ct = audio.type || "audio/webm";
+  const ext = ct.includes("mp4") ? "mp4" : ct.includes("ogg") ? "ogg" : "webm";
+  form.append("audio", audio, `placement-${index}.${ext}`);
+  return apiClient.post<PlacementSubmitResponse>("/placement/submit", form);
+}
+
+/** POST /api/placement/complete { bands } → the averaged CEFR level. */
+export function placementComplete(bands: number[]): Promise<PlacementResultResponse> {
+  return apiClient.post<PlacementResultResponse>("/placement/complete", { bands });
 }
 
 /* ── Engagement — Progress ─────────────────────────────────────────────── */
