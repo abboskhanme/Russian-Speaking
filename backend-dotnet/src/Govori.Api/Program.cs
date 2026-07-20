@@ -390,6 +390,13 @@ try
     // one call per domain. All routes require auth; the flow persists nothing server-side.
     app.MapPlacementEndpoints();
 
+    // ── Guest placement / auth-less "try the level test" (product: try before register) ──
+    // The SAME 3-question placement as above, but reachable WITHOUT an account (GET/POST
+    // /api/guest/placement/*) so a first-time visitor can experience the system, then is nudged to
+    // sign up. Delegates to the shared PlacementService (no duplicated grading/CEFR logic); NOT
+    // .RequireAuthorization(); the two write routes are per-IP rate-limited (fail-open).
+    app.MapGuestPlacementEndpoints();
+
     // ── Classroom endpoints (docs/07 §3.5, Faza 3.5) ────────────────────────
     // Teacher groups (/api/groups), assignments (/api/assignments) and the gradebook
     // (/api/reports/gradebook) live in the Classroom module's MapClassroomEndpoints extension,

@@ -121,7 +121,16 @@
     "resultKicker": "Placement complete",
     "resultTitle": "Great start!",
     "resultBody": "You can already speak. Five minutes a day — you'll feel it in 8 weeks.",
-    "enterApp": "Start"
+    "enterApp": "Start",
+    "guest": {
+      "kicker": "Free test · no sign-up",
+      "introBody": "Answer 3 questions by voice (~2 min) and find your level — no account needed.",
+      "introSkip": "Skip and sign up",
+      "resultTitle": "Your level is ready!",
+      "resultBody": "This is an approximate level. Sign up and start speaking Russian fluently — 5 minutes a day.",
+      "registerCta": "Sign up →",
+      "loginCta": "Already have an account? Log in"
+    }
   },
   "progress": {
     "statsAria": "Level and streak",
@@ -230,7 +239,8 @@
       "nameRequired": "Enter your name",
       "network": "No connection. Please try again.",
       "generic": "Something went wrong. Please try again."
-    }
+    },
+    "tryLink": "Try the system · find your level for free"
   },
   "errors": {
     "loadTitle": "Couldn't load data",

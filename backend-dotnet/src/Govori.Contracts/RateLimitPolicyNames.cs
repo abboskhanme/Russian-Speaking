@@ -22,4 +22,9 @@ public static class RateLimitPolicyNames
 
     /// <summary>Guest demo TTS — guest.py:131 <c>guest_tts 60/3600</c>.</summary>
     public const string GuestTts = "guest_tts";
+
+    /// <summary>Auth-less "try the placement test" flow (submit + complete). No Python sibling — a
+    /// .NET-slice addition guarding the public guest placement endpoints, per-IP + FAIL-OPEN like the
+    /// other guest policies. A full 3-answer session costs ~4 hits.</summary>
+    public const string GuestPlacement = "guest_placement";
 }

@@ -25,6 +25,7 @@ const ProfilePage = lazy(() => import("./app/routes/ProfilePage"));
 const LoginPage = lazy(() => import("./app/routes/LoginPage"));
 const RegisterPage = lazy(() => import("./app/routes/RegisterPage"));
 const PlacementPage = lazy(() => import("./app/routes/PlacementPage"));
+const TryPlacementPage = lazy(() => import("./app/routes/TryPlacementPage"));
 
 function RouteFallback() {
   return (
@@ -50,6 +51,11 @@ export default function App() {
           <Route path="/login" element={<LoginPage />} />
           <Route path="/register" element={<RegisterPage />} />
         </Route>
+
+        {/* Public "try before you register" level test — reachable while logged out,
+            so it lives OUTSIDE RequireAuth (and PublicOnly, so a curious signed-in
+            user can revisit it too). Uses the auth-less guest placement endpoints. */}
+        <Route path="/try" element={<TryPlacementPage />} />
 
         {/* Student app: redirect to /login when unauthenticated. */}
         <Route element={<RequireAuth />}>

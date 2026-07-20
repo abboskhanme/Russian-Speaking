@@ -18,6 +18,7 @@ import { isApiError, type OtpRequestResponse } from "../../shared/api";
 import { AuthHero } from "./AuthHero";
 import { IconInput } from "./IconInput";
 import { OtpStep } from "./OtpStep";
+import { TryLink } from "./TryLink";
 import { PhoneIcon, UserIcon } from "./icons";
 import { formatDisplay, groupNational, isValidUz, nationalDigits, toE164 } from "./phone";
 import styles from "./Auth.module.css";
@@ -169,6 +170,7 @@ export default function LoginScreen() {
             >
               {t("auth.login.submit")}
             </Button>
+            <TryLink />
           </form>
         ) : (
           otpInfo && (

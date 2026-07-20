@@ -1,21 +1,20 @@
 /**
- * PlacementScreen (`/placement`) — the one-time "dastlabki sinov" a brand-new student takes right
- * after registering (owner mockup frames A2 · A3). Three steps, all full-screen (no app nav):
+ * PlacementScreen — the CEFR level check ("dastlabki sinov"). ONE screen, TWO modes (owner mockup
+ * frames A2 · A3):
  *
- *   intro     — "DASTLABKI SINOV · BIR MARTALIK", Govo, "Darajangizni aniqlaymiz", a 1-SAVOL preview
- *               card, "Sinovni boshlash →", and a "Keyinroq — hozircha kirish" skip link.
- *   recording — for each of the 3 questions: "N / 3-savol" progress, the Russian question card, and
- *               the shared <Recorder/> (Govo listens, timer, "Yozilyapti", record/stop). On accept we
- *               POST the take → collect the band → advance; a grading beat shows Govo thinking.
- *   result    — "JOYLASHTIRUV TUGADI", proud Govo, the CEFR level ring (e.g. A2 · boshlang'ich),
- *               "Yaxshi boshladik!", and "Boshlash" → into the app.
+ *   mode="auth"  (`/placement`)  — the logged-in student's optional level test. Reuses the authed
+ *                `/api/placement/*` endpoints, remembers completion in localStorage (govori_placed),
+ *                and routes into the app (Home) when done or skipped. No longer forced post-register.
+ *   mode="guest" (`/try`)        — the AUTH-LESS "try before you register" flow reached from a link on
+ *                the login/register screens. Reuses the SAME UI but calls `/api/guest/placement/*`
+ *                (no token), sets NO placed flag (it's a trial), and at the result nudges the visitor
+ *                to sign up (primary "Ro'yxatdan o'tish →" + a subtle "Kirish").
  *
- * Reuses Recorder / Mascot / Card / Button / Text + tokens + i18n. Grading is STUBBED server-side
- * (deterministic band) until real AI keys land, so the level is approximate. Both the skip link and
- * the final button mark placement done (localStorage) and route to Home; an already-placed user is
- * bounced straight to Home on mount.
+ * Three steps, all full-screen (no app nav): intro → record 3 → result. Reuses Recorder / Mascot /
+ * Card / Button / Text / LevelRing + tokens + i18n. Grading is STUBBED server-side (deterministic
+ * band) until real AI keys land, so the level is approximate.
  */
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
 import { Button, Card, Mascot, Recorder, Spinner, Text } from "../../shared/ui";
@@ -30,13 +29,38 @@ import styles from "./PlacementScreen.module.css";
 
 type Phase = "intro" | "recording" | "result";
 
+export type PlacementMode = "auth" | "guest";
+
+export interface PlacementScreenProps {
+  /** "auth" (logged-in `/placement`) or "guest" (auth-less `/try`). Default "auth". */
+  mode?: PlacementMode;
+}
+
 /** ~90s per answer (mockup "~90s") — the Recorder auto-stops at the cap. */
 const MAX_ANSWER_MS = 90_000;
 
-export default function PlacementScreen() {
+export default function PlacementScreen({ mode = "auth" }: PlacementScreenProps) {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const { clearJustRegistered } = useAuth();
+  const isGuest = mode === "guest";
+
+  // The auth vs guest placement endpoints — identical shapes, different auth (guest sends no token).
+  const api = useMemo(
+    () =>
+      isGuest
+        ? {
+            questions: endpoints.guestPlacementQuestions,
+            submit: endpoints.guestPlacementSubmit,
+            complete: endpoints.guestPlacementComplete,
+          }
+        : {
+            questions: endpoints.placementQuestions,
+            submit: endpoints.placementSubmit,
+            complete: endpoints.placementComplete,
+          },
+    [isGuest],
+  );
 
   const [questions, setQuestions] = useState<PlacementQuestionResponse[] | null>(null);
   const [loadError, setLoadError] = useState(false);
@@ -50,33 +74,36 @@ export default function PlacementScreen() {
   const [recorderKey, setRecorderKey] = useState(0);
   const [result, setResult] = useState<PlacementResultResponse | null>(null);
 
-  // Already placed on this device → never re-prompt; go straight to Home.
-  const placed = useRef(hasPlaced());
+  // Auth mode only: an already-placed user is bounced straight to Home (guests always get the trial).
+  const placed = useRef(isGuest ? false : hasPlaced());
   useEffect(() => {
     if (placed.current) navigate("/", { replace: true });
   }, [navigate]);
 
-  // Fetch the 3 fixed questions (auth-guarded route → token is present).
+  // Fetch the 3 fixed questions (auth route → token present; guest route → no token).
   useEffect(() => {
     if (placed.current) return;
     let alive = true;
     setLoadError(false);
     setQuestions(null);
-    endpoints
-      .placementQuestions()
+    api
+      .questions()
       .then((qs) => alive && setQuestions(qs))
       .catch(() => alive && setLoadError(true));
     return () => {
       alive = false;
     };
-  }, [reloadKey]);
+  }, [api, reloadKey]);
 
-  /** Finish placement: remember it, drop the "just registered" signal, enter the app. */
-  const finish = useCallback(() => {
+  /** Finish an AUTH placement: remember it, drop the "just registered" signal, enter the app. */
+  const finishAuth = useCallback(() => {
     markPlaced();
     clearJustRegistered();
     navigate("/", { replace: true });
   }, [clearJustRegistered, navigate]);
+
+  /** Guest bail-out (intro skip): go straight to sign-up (the trial's whole point). */
+  const goRegister = useCallback(() => navigate("/register"), [navigate]);
 
   const total = questions?.length ?? 0;
 
@@ -87,7 +114,7 @@ export default function PlacementScreen() {
       setSubmitting(true);
       setAnswerError(null);
       try {
-        const res = await endpoints.placementSubmit({ index, audio });
+        const res = await api.submit({ index, audio });
         const nextBands = [...bands, res.band];
         setBands(nextBands);
         if (current + 1 < questions.length) {
@@ -95,7 +122,7 @@ export default function PlacementScreen() {
           setRecorderKey((k) => k + 1); // fresh Recorder for the next question
           setSubmitting(false);
         } else {
-          const done = await endpoints.placementComplete(nextBands);
+          const done = await api.complete(nextBands);
           setResult(done);
           setPhase("result");
           setSubmitting(false);
@@ -106,7 +133,7 @@ export default function PlacementScreen() {
         setSubmitting(false);
       }
     },
-    [bands, current, questions, t],
+    [api, bands, current, questions, t],
   );
 
   if (loadError) return <PageError onRetry={() => setReloadKey((k) => k + 1)} />;
@@ -128,8 +155,11 @@ export default function PlacementScreen() {
         <IntroStep
           firstPrompt={questions[0]?.prompt_ru ?? ""}
           total={total}
+          kicker={isGuest ? t("placement.guest.kicker") : t("placement.kicker")}
+          body={isGuest ? t("placement.guest.introBody") : t("placement.introBody")}
+          skipLabel={isGuest ? t("placement.guest.introSkip") : t("placement.skipCta")}
           onStart={() => setPhase("recording")}
-          onSkip={finish}
+          onSkip={isGuest ? goRegister : finishAuth}
         />
       )}
 
@@ -184,9 +214,17 @@ export default function PlacementScreen() {
         </div>
       )}
 
-      {phase === "result" && result && (
-        <ResultStep result={result} onStart={finish} />
-      )}
+      {phase === "result" &&
+        result &&
+        (isGuest ? (
+          <GuestResultStep
+            result={result}
+            onRegister={goRegister}
+            onLogin={() => navigate("/login")}
+          />
+        ) : (
+          <ResultStep result={result} onStart={finishAuth} />
+        ))}
     </div>
   );
 }
@@ -198,23 +236,26 @@ export default function PlacementScreen() {
 interface IntroStepProps {
   firstPrompt: string;
   total: number;
+  kicker: string;
+  body: string;
+  skipLabel: string;
   onStart: () => void;
   onSkip: () => void;
 }
 
-function IntroStep({ firstPrompt, total, onStart, onSkip }: IntroStepProps) {
+function IntroStep({ firstPrompt, total, kicker, body, skipLabel, onStart, onSkip }: IntroStepProps) {
   const { t } = useTranslation();
   return (
     <div className={styles.intro}>
       <Text as="p" variant="label" color="primary" className={styles.kicker}>
-        {t("placement.kicker")}
+        {kicker}
       </Text>
       <Mascot mood="listening" size={120} label="Govo" className={styles.introMascot} />
       <Text as="h1" variant="title-l" weight="black" align="center">
         {t("placement.introTitle")}
       </Text>
       <Text as="p" variant="body" color="ink-soft" align="center" className={styles.introBody}>
-        {t("placement.introBody")}
+        {body}
       </Text>
 
       <Card variant="flat" padding="lg" className={styles.previewCard}>
@@ -237,7 +278,7 @@ function IntroStep({ firstPrompt, total, onStart, onSkip }: IntroStepProps) {
           {t("placement.startCta")}
         </Button>
         <Button variant="ghost" fullWidth onClick={onSkip}>
-          {t("placement.skipCta")}
+          {skipLabel}
         </Button>
       </div>
     </div>
@@ -245,7 +286,7 @@ function IntroStep({ firstPrompt, total, onStart, onSkip }: IntroStepProps) {
 }
 
 /* -------------------------------------------------------------------------- */
-/* Result                                                                     */
+/* Result — authed (into the app)                                             */
 /* -------------------------------------------------------------------------- */
 
 function ResultStep({
@@ -271,6 +312,43 @@ function ResultStep({
       </Text>
       <Button variant="primary" size="lg" fullWidth onClick={onStart} className={styles.resultCta}>
         {t("placement.enterApp")}
+      </Button>
+    </div>
+  );
+}
+
+/* -------------------------------------------------------------------------- */
+/* Result — guest (nudge to register)                                         */
+/* -------------------------------------------------------------------------- */
+
+function GuestResultStep({
+  result,
+  onRegister,
+  onLogin,
+}: {
+  result: PlacementResultResponse;
+  onRegister: () => void;
+  onLogin: () => void;
+}) {
+  const { t } = useTranslation();
+  return (
+    <div className={styles.result}>
+      <Text as="p" variant="label" color="muted">
+        {t("placement.resultKicker")}
+      </Text>
+      <Mascot mood="proud" size={92} label="Govo" className={styles.resultMascot} />
+      <LevelRing level={result.level} label={result.label_uz} band={result.band} />
+      <Text as="h1" variant="title-l" weight="black" align="center" className={styles.resultTitle}>
+        {t("placement.guest.resultTitle")}
+      </Text>
+      <Text as="p" variant="body" color="ink-soft" align="center" className={styles.resultBody}>
+        {t("placement.guest.resultBody")}
+      </Text>
+      <Button variant="primary" size="lg" fullWidth onClick={onRegister} className={styles.resultCta}>
+        {t("placement.guest.registerCta")}
+      </Button>
+      <Button variant="ghost" fullWidth onClick={onLogin}>
+        {t("placement.guest.loginCta")}
       </Button>
     </div>
   );

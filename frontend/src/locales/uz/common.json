@@ -121,7 +121,16 @@
     "resultKicker": "Joylashtiruv tugadi",
     "resultTitle": "Yaxshi boshladik!",
     "resultBody": "Siz allaqachon gapira olasiz. Har kuni 5 daqiqa — 8 haftada seziladi.",
-    "enterApp": "Boshlash"
+    "enterApp": "Boshlash",
+    "guest": {
+      "kicker": "Bepul sinov · ro'yxatdan o'tmasdan",
+      "introBody": "3 ta savolga ovozli javob bering (~2 daqiqa) va darajangizni bilib oling — hisob shart emas.",
+      "introSkip": "Hozircha o'tkazib, ro'yxatdan o'tish",
+      "resultTitle": "Darajangiz tayyor!",
+      "resultBody": "Bu — taxminiy daraja. Ro'yxatdan o'ting va har kuni 5 daqiqada rus tilida erkin gapirishni boshlang.",
+      "registerCta": "Ro'yxatdan o'tish →",
+      "loginCta": "Hisobingiz bormi? Kirish"
+    }
   },
   "progress": {
     "statsAria": "Daraja va seriya",
@@ -230,7 +239,8 @@
       "nameRequired": "Ismingizni kiriting",
       "network": "Internet aloqasi yo'q. Qayta urinib ko'ring.",
       "generic": "Xatolik yuz berdi. Qayta urinib ko'ring."
-    }
+    },
+    "tryLink": "Tizimni sinab ko'rish · darajangizni bepul aniqlang"
   },
   "errors": {
     "loadTitle": "Ma'lumotni yuklab bo'lmadi",

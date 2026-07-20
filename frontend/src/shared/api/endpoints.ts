@@ -136,6 +136,29 @@ export function placementComplete(bands: number[]): Promise<PlacementResultRespo
   return apiClient.post<PlacementResultResponse>("/placement/complete", { bands });
 }
 
+/* ── Guest placement — the SAME test, auth-less ("try before register") ──── */
+
+/** GET /api/guest/placement/questions → the 3 fixed Russian prompts (NO auth —
+ * a visitor can try the level test before signing up). Mirrors the authed one. */
+export function guestPlacementQuestions(): Promise<PlacementQuestionResponse[]> {
+  return apiClient.get<PlacementQuestionResponse[]>("/guest/placement/questions", { auth: false });
+}
+
+/** POST /api/guest/placement/submit (multipart) → { index, band }. No auth header. */
+export function guestPlacementSubmit({ index, audio }: PlacementSubmitArgs): Promise<PlacementSubmitResponse> {
+  const form = new FormData();
+  form.append("question_index", String(index));
+  const ct = audio.type || "audio/webm";
+  const ext = ct.includes("mp4") ? "mp4" : ct.includes("ogg") ? "ogg" : "webm";
+  form.append("audio", audio, `placement-${index}.${ext}`);
+  return apiClient.post<PlacementSubmitResponse>("/guest/placement/submit", form, { auth: false });
+}
+
+/** POST /api/guest/placement/complete { bands } → the averaged CEFR level. No auth. */
+export function guestPlacementComplete(bands: number[]): Promise<PlacementResultResponse> {
+  return apiClient.post<PlacementResultResponse>("/guest/placement/complete", { bands }, { auth: false });
+}
+
 /* ── Engagement — Progress ─────────────────────────────────────────────── */
 
 /** GET /api/leaderboard (?period). Param-free returns the all-time board; we

@@ -16,11 +16,10 @@ import { ThemeToggle } from "../../widgets";
 import { useAuth } from "../../shared/auth";
 import { isApiError, type OtpRequestResponse } from "../../shared/api";
 import { AuthHero } from "./AuthHero";
-import { AuthNote } from "./AuthNote";
 import { IconInput } from "./IconInput";
 import { OtpStep } from "./OtpStep";
+import { TryLink } from "./TryLink";
 import { PhoneIcon, UserIcon } from "./icons";
-import { clearPlaced } from "../placement";
 import { formatDisplay, groupNational, isValidUz, nationalDigits, toE164 } from "./phone";
 import styles from "./Auth.module.css";
 
@@ -81,10 +80,10 @@ export default function RegisterScreen() {
     setBusy(true);
     try {
       // Name captured in step 1 → one-shot register (never needs_registration).
-      // A brand-new user goes to the one-time placement test, not straight Home.
+      // Placement is no longer forced post-register — a fresh user lands straight on Home
+      // (they can try the level test any time from the "try it" link / the app).
       await verifyOtp(e164, code, name.trim());
-      clearPlaced();   // fresh account → always show the one-time placement (device flag is global)
-      navigate("/placement", { replace: true });
+      navigate("/", { replace: true });
     } catch (err) {
       setError(mapError(err));
     } finally {
@@ -160,7 +159,7 @@ export default function RegisterScreen() {
             >
               {t("auth.register.submit")}
             </Button>
-            <AuthNote tone="info">{t("auth.register.placementNote")}</AuthNote>
+            <TryLink />
           </form>
         ) : (
           otpInfo && (

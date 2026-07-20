@@ -26,6 +26,9 @@ internal static class RateLimitPolicies
         (RateLimitPolicyNames.Login, 10, TimeSpan.FromSeconds(300)),
         (RateLimitPolicyNames.GuestAssess, 15, TimeSpan.FromSeconds(3600)),
         (RateLimitPolicyNames.GuestTts, 60, TimeSpan.FromSeconds(3600)),
+        // Public "try the placement" flow (no Python sibling). A 3-answer session is ~4 hits; 30/hour
+        // per IP allows a handful of retries/sessions while capping abuse. Fail-open like the rest.
+        (RateLimitPolicyNames.GuestPlacement, 30, TimeSpan.FromSeconds(3600)),
     };
 
     private const string TooManyRequestsBody = "{\"detail\":\"Too many requests. Please try again later.\"}";
