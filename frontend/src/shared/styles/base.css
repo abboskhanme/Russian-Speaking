@@ -1,0 +1,50 @@
+/* Minimal global base for the app (replaces the legacy index.css).
+ * Design tokens live in tokens.css; every component styles itself with CSS Modules.
+ * Scroll model: the DOCUMENT scrolls (body/#root grow with content). The AppShell's
+ * top bar is sticky and its mobile bottom-nav is fixed — so long screens (and the
+ * register form) scroll naturally instead of being clipped. */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  margin: 0;
+  min-height: 100dvh;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-sans, system-ui, -apple-system, sans-serif);
+  font-weight: 500;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+#root {
+  min-height: 100dvh;
+}
+
+img,
+svg,
+video,
+canvas {
+  max-width: 100%;
+}
+
+button,
+input,
+textarea,
+select {
+  font: inherit;
+  color: inherit;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}

@@ -9,7 +9,7 @@ import { I18nextProvider } from "react-i18next";
 //   3. tokens.css  — Ovoz DS tokens; imported LAST so its :root light defaults
 //                    win the cascade and dark mode (data-theme) drives the app.
 import "./shared/styles/fonts.css";
-import "./index.css";
+import "./shared/styles/base.css";
 import "./shared/styles/tokens.css";
 
 import i18n from "./shared/i18n"; // side-effect: initializes i18next

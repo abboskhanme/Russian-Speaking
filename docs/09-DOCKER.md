@@ -8,7 +8,7 @@ own network + volumes).
 
 ```bash
 cp .env.example .env      # birinchi marta: SECRET_KEY va (ixtiyoriy) GOOGLE_CLIENT_ID to'ldiring
-docker compose -f docker-compose.dotnet.yml up -d --build
+docker compose up -d --build
 ```
 
 Birinchi build bir necha daqiqa (Api + Worker `dotnet publish`, frontend `vite build`).
@@ -34,10 +34,10 @@ Portlar `.env` orqali sozlanadi (`API_PORT`, `FRONTEND_PORT`, `DB_PORT`, `MINIO_
 ## Holatni ko'rish / log / to'xtatish
 
 ```bash
-docker compose -f docker-compose.dotnet.yml ps           # holat (hammasi healthy bo'lishi kerak)
-docker compose -f docker-compose.dotnet.yml logs -f api   # api loglari (Serilog JSON)
-docker compose -f docker-compose.dotnet.yml down          # to'xtatish (ma'lumot saqlanadi)
-docker compose -f docker-compose.dotnet.yml down -v       # to'xtatish + BAZANI TOZALASH (qayta seed bo'ladi)
+docker compose ps           # holat (hammasi healthy bo'lishi kerak)
+docker compose logs -f api   # api loglari (Serilog JSON)
+docker compose down          # to'xtatish (ma'lumot saqlanadi)
+docker compose down -v       # to'xtatish + BAZANI TOZALASH (qayta seed bo'ladi)
 ```
 
 ## Ma'lumot (schema) haqida — muhim

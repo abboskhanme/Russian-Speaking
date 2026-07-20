@@ -1,61 +1,44 @@
-# RusSpeak — Rus tili speaking platformasi
+# Govori — govorim.uz
 
-IELTS Speaking uslubidagi, faqat rus tiliga moslangan speaking mashq platformasi.
-O'qituvchi savol kiritadi → o'quvchi gapirib javob beradi (ovoz yoziladi) → AI tahlil qiladi va baho/feedback beradi.
+Russian‑speaking practice platform for Uzbek learners: record an answer, get AI
+pronunciation + grading feedback, progress through modules, compete on the
+leaderboard. Teachers run groups, assign work, and track a gradebook.
 
-Arxitektura tafsilotlari: [`ARCHITECTURE.md`](./ARCHITECTURE.md).
+Rebuilt on **.NET 9** (backend) + **React 18 / Vite** (frontend). The design
+system is **Ovoz DS**.
 
-## Stek
+## Quick start (Docker only)
 
-- **Frontend:** React + TypeScript + Vite + Tailwind CSS
-- **Backend:** Python FastAPI + SQLAlchemy + Celery
-- **DB:** PostgreSQL · **Navbat/kesh:** Redis · **Fayllar:** MinIO (S3-mos)
-- **AI:** OpenAI Whisper (STT) + Google Gemini (matn tahlili)
-
-## Ishga tushirish (Docker)
-
-1. Env faylni tayyorlang:
-   ```bash
-   cp .env.example .env
-   ```
-   `.env` ichida **`OPENAI_API_KEY`** va **`GEMINI_API_KEY`** ni kiriting.
-   Production'da `SECRET_KEY` ni o'zgartiring.
-
-2. Servislarni ko'taring:
-   ```bash
-   docker compose up --build
-   ```
-
-3. DB jadvallarini yarating (birinchi marta):
-   ```bash
-   docker compose exec backend alembic revision --autogenerate -m "init"
-   docker compose exec backend alembic upgrade head
-   ```
-
-4. Manzillar:
-   - Frontend: http://localhost:5173
-   - API docs (Swagger): http://localhost:8000/docs
-   - MinIO konsoli: http://localhost:9001 (login: `minioadmin` / `minioadmin`)
-
-## Oqim
-
-1. **O'qituvchi** ro'yxatdan o'tadi (role: teacher) → savol yaratadi (text/rasm/video) → publikatsiya qiladi.
-2. **O'quvchi** (role: student) savolni ochadi → ovoz yozadi → yuboradi.
-3. Backend audioni MinIO'ga saqlaydi → Celery worker: Whisper (transkripsiya) → Gemini (baho).
-4. O'quvchi natijani ko'radi: ballar, transkripsiya, tuzatishlar, feedback.
-
-## Loyiha tuzilishi
-
-```
-backend/   FastAPI app, modellar, API, Celery worker, AI servislar
-frontend/  React SPA (sahifalar, recorder, API klient)
-docker-compose.yml
-ARCHITECTURE.md
+```bash
+cp .env.example .env         # set SECRET_KEY (+ optional GOOGLE_CLIENT_ID / AI keys)
+docker compose up -d --build
 ```
 
-## Keyingi qadamlar (Faza 2)
+Open **http://localhost:8081**. Dev logins (all password `Parol123!`):
+`student@govori.uz` · `teacher@govori.uz` · `admin@govori.uz`.
 
-- Akustik tahlil: беглость (sur'at/pauza) — Whisper timestamp'laridan.
-- Talaffuz baholash (forced alignment + GOP).
-- Teacher dashboard: o'quvchilar progressi, statistika.
-- Testlar (savollar to'plami = IELTS Part 1/2/3).
+Full Docker guide: [`docs/09-DOCKER.md`](docs/09-DOCKER.md).
+
+## Layout
+
+```
+backend-dotnet/   .NET 9 solution — Api · Worker · Contracts · Infrastructure (EF Core,
+                  database-first) · Platform (Stt/Grader/Storage) · Realtime (Hangfire+SignalR)
+                  · Modules/ (Identity, Catalog, Practice, Assessment, Classroom,
+                  Engagement, Administration, Guest) · tests (Characterization/Unit/Integration/Arch)
+frontend/         React + Vite SPA — src/{app,screens,widgets,shared,locales}
+deploy/           nginx conf · Postgres seeds · backup/restore/domain scripts
+docs/             00–09 — audit, product/architecture, design system, UX, roadmap,
+                  .NET architecture (07), rewrite plan (08), Docker (09)
+tests/            characterization fixtures (frozen Python behaviour — the port's safety net)
+RussianDesign/    design mockups (source of truth for the UI)
+```
+
+## Docs
+
+- Architecture: [`docs/07-ARCHITECTURE-DOTNET.md`](docs/07-ARCHITECTURE-DOTNET.md)
+- Rewrite plan / status: [`docs/08-REWRITE-PLAN.md`](docs/08-REWRITE-PLAN.md)
+- Design system: [`docs/03-DESIGN-SYSTEM.md`](docs/03-DESIGN-SYSTEM.md)
+
+> The prior Python/FastAPI stack was replaced by this rewrite; it remains in git
+> history if ever needed.

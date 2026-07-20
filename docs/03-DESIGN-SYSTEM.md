@@ -320,7 +320,7 @@ Va **hech qachon** o'quvchini "yomon" his qildirmaydi. Alternativa taklif etilad
 
 | Nom | Kenglik | Shell |
 |---|---|---|
-| `sm` | < 720px | **Bottom nav (3 ta: Bosh · Mashq · Progress)** + FAB "Gapirish". Sidebar → drawer. |
+| `sm` | < 720px | **Bottom nav (5 ta: Bosh · Mashq · AI Suhbat · Progress · Profil)** + FAB "Gapirish". Sidebar → drawer. |
 | `md` | 720–1080 | Sidebar (icon-only, 72px) + kontent |
 | `lg` | 1080–1440 | Sidebar (250px) + kontent |
 | `xl` | > 1440 | Sidebar + kontent + o'ng panel (kontekst: streak, keyingi vazifa) |
@@ -328,9 +328,18 @@ Va **hech qachon** o'quvchini "yomon" his qildirmaydi. Alternativa taklif etilad
 **To'liq kenglik qoidasi (o'zgarmas):** sahifa ildizida hech qachon `mx-auto max-w-*`.
 Kontent nafas olishi uchun **ichki** grid ustunlari ishlatiladi (`.split`, `.g3`), sahifa emas.
 
-**Muhim tuzatish:** brief va `PROJECT_OVERVIEW.md` o'quvchi uchun **3 elementli bottom nav** va'da
-qiladi; hozirgi kod 7 elementli sidebar beradi. **Brief g'olib** — o'quvchi navigatsiyasi
-3 taga qisqartiriladi (§04 §4.1).
+**Muhim tuzatish (2026-07-17 yangilandi):** hozirgi kod 7 elementli sidebar beradi. Bu hujjat
+avval **3** elementli nav taklif qilgan edi. Foydalanuvchining yangi mockuplari
+(`RussianDesign/Govori/Govorim - Student.dc.html`, sarlavhasida ochiq: *"5 menyu"*) esa **5** ta
+beradi:
+
+`Bosh · Mashq · AI Suhbat · Progress · Profil`
+
+**Mockup g'olib** — u yangiroq va mahsulot egasi yaratgan. Sabab ham to'g'ri: **AI Suhbat
+(roleplay)** — mahsulotning asosiy raqobat farqi (`01 §1.3`), uni «Mashq» ichiga ko'mish
+o'sha farqni yashiradi. «Profil» esa sozlama/chiqish uchun kerak.
+
+7 → 5: `Modullar`/`Shadowing`/`Takrorlash` «Mashq» ichiga kiradi, `Reyting` → Progress tab.
 
 ---
 

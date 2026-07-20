@@ -32,3 +32,6 @@ uploads/
 
 # Local DB backups
 /backups/
+
+# Production backups — never commit (contains secrets + user PII)
+/prod-backup/

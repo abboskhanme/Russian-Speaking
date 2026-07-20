@@ -17,15 +17,28 @@ Bu papka — bitta manba (single source of truth). Eski `ARCHITECTURE.md`, `PROJ
 | 02 | [`02-ARCHITECTURE-V2.md`](./02-ARCHITECTURE-V2.md) | Backend + frontend maqsad arxitekturasi, migratsiya yo'li. |
 | 03 | [`03-DESIGN-SYSTEM.md`](./03-DESIGN-SYSTEM.md) | **Ovoz DS** — brend, tokenlar, tipografiya, komponentlar, motion, a11y. |
 | 04 | [`04-UX-FLOWS.md`](./04-UX-FLOWS.md) | IA, navigatsiya, ekran-ba-ekran spetsifikatsiya, asosiy oqimlar. |
-| 05 | [`05-ROADMAP.md`](./05-ROADMAP.md) | Fazalar, ketma-ketlik, Definition of Done, xavflar. |
+| 05 | [`05-ROADMAP.md`](./05-ROADMAP.md) | ⚠️ **ESKIRGAN** → `08` ga qarang. Python'ni joyida yaxshilash uchun edi. |
 | 06 | [`06-CLAUDE-DESIGN-PROMPT.md`](./06-CLAUDE-DESIGN-PROMPT.md) | **Claude Design uchun tayyor prompt** (copy-paste). |
+| **07** | [`07-ARCHITECTURE-DOTNET.md`](./07-ARCHITECTURE-DOTNET.md) | 🔴 **Amaldagi arxitektura.** Backend = C#/.NET 9. `02` ning backend qismini almashtiradi. |
+| **08** | [`08-REWRITE-PLAN.md`](./08-REWRITE-PLAN.md) | 🔴 **Amaldagi reja.** Fazalar, cutover, tozalash. `05` ni almashtiradi. |
+
+## ⚠️ 2026-07-17 — kurs o'zgarishi
+
+Backend **Python/FastAPI** dan **C#/.NET 9** ga ko'chiriladi; baza **Postgres qoladi va
+ma'lumoti saqlanadi**; frontend React+TS qoladi, lekin dizayn va kod to'liq yangi.
+
+Shuning uchun:
+- `02-ARCHITECTURE-V2.md` — **backend qismi eskirgan** (SQLAlchemy/Celery/Pydantic).
+  Domen chegaralari g'oyasi kuchda; texnologiya → `07`.
+- `05-ROADMAP.md` — **eskirgan**. Yangi fazalar → `08`.
+- `03` va `04` — **kuchda** (dizayn tildan mustaqil).
 
 ## O'qish tartibi
 
-- **Ega / strateg** → 01 → 05
+- **Ega / strateg** → 01 → **08**
 - **Dizayner** → 01 → 03 → 04 → 06
-- **Backend** → 00 → 02 → 05
-- **Frontend** → 00 → 02 → 03 → 04
+- **Backend** → 00 → **07** → **08**
+- **Frontend** → 00 → **07 §7.11** → 03 → 04
 
 ## Bir jumlada qaror
 
