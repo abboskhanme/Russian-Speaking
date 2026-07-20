@@ -16,7 +16,6 @@ import { ThemeToggle } from "../../widgets";
 import { useAuth } from "../../shared/auth";
 import { isApiError, type OtpRequestResponse } from "../../shared/api";
 import { AuthHero } from "./AuthHero";
-import { AuthNote } from "./AuthNote";
 import { IconInput } from "./IconInput";
 import { OtpStep } from "./OtpStep";
 import { PhoneIcon, UserIcon } from "./icons";
@@ -170,7 +169,6 @@ export default function LoginScreen() {
             >
               {t("auth.login.submit")}
             </Button>
-            <AuthNote tone="success">{t("auth.login.savedNote")}</AuthNote>
           </form>
         ) : (
           otpInfo && (

@@ -24,3 +24,16 @@ export function markPlaced(): void {
     /* private mode / storage disabled — non-fatal, placement just re-prompts. */
   }
 }
+
+/**
+ * Reset the flag. Called on a fresh REGISTER so a newly-created account is always
+ * prompted for the one-time placement, even if a previous account on this device
+ * already completed it (the flag is device-global, not per-user).
+ */
+export function clearPlaced(): void {
+  try {
+    localStorage.removeItem(PLACED_KEY);
+  } catch {
+    /* non-fatal */
+  }
+}

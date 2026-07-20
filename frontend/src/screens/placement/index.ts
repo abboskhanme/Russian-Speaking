@@ -3,4 +3,4 @@
  */
 export { default as PlacementScreen } from "./PlacementScreen";
 export { LevelRing } from "./LevelRing";
-export { hasPlaced, markPlaced } from "./placed";
+export { hasPlaced, markPlaced, clearPlaced } from "./placed";
