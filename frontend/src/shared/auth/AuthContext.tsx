@@ -49,9 +49,21 @@ export interface AuthContextValue {
   /** OTP step 1 — send a one-time code to the phone. Throws ApiError on 400. */
   requestOtp: (phone: string) => Promise<OtpRequestResponse>;
   /** OTP step 2 — verify the code. On a token pair it stores the tokens and
-   * hydrates `user`; on a new phone it resolves `needsRegistration: true`
-   * without storing anything. Throws ApiError on 401/403. */
-  verifyOtp: (phone: string, code: string, fullName?: string) => Promise<VerifyOtpResult>;
+   * (by default) hydrates `user`; on a new phone it resolves
+   * `needsRegistration: true` without storing anything. Throws ApiError on
+   * 401/403. Pass `{ hydrate: false }` to store the tokens but DEFER flipping
+   * `user`/`isAuthenticated` — the register flow uses this so its final "Manzil"
+   * step can run before `PublicOnly` redirects the now-authed user to Home. */
+  verifyOtp: (
+    phone: string,
+    code: string,
+    fullName?: string,
+    opts?: { hydrate?: boolean },
+  ) => Promise<VerifyOtpResult>;
+  /** Adopt a fetched `MeResponse` as the signed-in user (flips
+   * `isAuthenticated`). Used to complete a deferred-hydration register once the
+   * profile PATCH has returned the fresh user. */
+  hydrateUser: (me: MeResponse) => void;
   /** Clears tokens + user (best-effort server logout). */
   logout: () => void;
   /** Re-fetch `/me` into `user`. */
@@ -92,13 +104,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const requestOtp = useCallback((phone: string) => endpoints.otpRequest(phone), []);
 
   const verifyOtp = useCallback(
-    async (phone: string, code: string, fullName?: string): Promise<VerifyOtpResult> => {
+    async (
+      phone: string,
+      code: string,
+      fullName?: string,
+      opts?: { hydrate?: boolean },
+    ): Promise<VerifyOtpResult> => {
       const res = await endpoints.otpVerify(phone, code, fullName);
       if (isNeedsRegistration(res)) {
         return { needsRegistration: true, user: null };
       }
-      // Token pair (login OR register) → persist + hydrate the user.
+      // Token pair (login OR register) → persist the tokens.
       tokenStore.set(res.access_token, res.refresh_token);
+      // Deferred mode (register flow): tokens are stored so authed calls work,
+      // but DON'T flip `user` yet — the "Manzil" step still has to run before
+      // PublicOnly would bounce the now-authed user to Home.
+      if (opts?.hydrate === false) {
+        return { needsRegistration: false, user: null };
+      }
       const me = await endpoints.me(true);
       setUser(me);
       setStatus("ready");
@@ -109,6 +132,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     },
     [],
   );
+
+  const hydrateUser = useCallback((me: MeResponse) => {
+    setUser(me);
+    setStatus("ready");
+  }, []);
 
   const clearJustRegistered = useCallback(() => setJustRegistered(false), []);
 
@@ -129,10 +157,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       clearJustRegistered,
       requestOtp,
       verifyOtp,
+      hydrateUser,
       logout,
       loadMe,
     }),
-    [user, status, justRegistered, clearJustRegistered, requestOtp, verifyOtp, logout, loadMe],
+    [user, status, justRegistered, clearJustRegistered, requestOtp, verifyOtp, hydrateUser, logout, loadMe],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

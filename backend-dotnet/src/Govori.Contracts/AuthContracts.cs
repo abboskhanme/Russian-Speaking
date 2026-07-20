@@ -23,9 +23,20 @@ public sealed record TokenResponse(string AccessToken, string RefreshToken, stri
 /// lowercase PG enum label ("teacher"/"student"/"admin") read from the DB on every request —
 /// never trusted from the JWT (docs/07 §7.5). For a phone user <c>Email</c> is the derived
 /// placeholder <c>{+998XXXXXXXXX}@govori.uz</c>. Serialized snake_case: <c>full_name</c> /
-/// <c>is_active</c> / <c>is_premium</c>.
+/// <c>is_active</c> / <c>is_premium</c>. <c>Region</c> / <c>District</c> / <c>Address</c> are the
+/// registration "Manzil" (address) fields — nullable, absent on legacy rows.
 /// </summary>
-public sealed record MeResponse(Guid Id, string Email, string FullName, string Role, bool IsActive, bool IsPremium);
+public sealed record MeResponse(
+    Guid Id, string Email, string FullName, string Role, bool IsActive, bool IsPremium,
+    string? Region = null, string? District = null, string? Address = null);
+
+/// <summary>
+/// Partial profile update body for <c>PATCH /api/auth/me</c> (auth-required). All fields are
+/// optional: only the NON-NULL ones are written, so a request may carry just the address bits.
+/// Feeds the registration "Manzil" step (region/district/address). JSON: <c>{ "region": "...",
+/// "district": "...", "address": "..." }</c> — snake_case in/out.
+/// </summary>
+public sealed record UpdateProfileRequest(string? Region = null, string? District = null, string? Address = null);
 
 /// <summary>
 /// Refresh-token exchange body. Mirrors Python's <c>RefreshRequest</c>

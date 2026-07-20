@@ -236,6 +236,117 @@
   margin-top: calc(-1 * var(--s-2));
 }
 
+/* ============================ SELECT (dropdowns) ======================= */
+/* The native <select> styled to match .fieldControl (mockup A6 Viloyat/Tuman).
+ * The trailing chevron replaces the native arrow (appearance:none). */
+.selectControl {
+  padding-inline-end: var(--s-4);
+}
+
+.selectInput {
+  flex: 1 1 auto;
+  min-width: 0;
+  appearance: none;
+  -webkit-appearance: none;
+  background: transparent;
+  border: none;
+  outline: none;
+  color: var(--ink);
+  font-family: var(--font-sans);
+  font-size: var(--t-body-l-size);
+  font-weight: var(--fw-medium);
+  padding: 14px 0;
+  cursor: pointer;
+}
+/* Empty (placeholder) state — dim like an input placeholder. */
+.selectInput[data-empty] {
+  color: var(--faint);
+}
+.selectInput:disabled {
+  cursor: not-allowed;
+}
+/* Options render in the native menu — keep them on a real surface for dark mode. */
+.selectInput option {
+  color: var(--ink);
+  background: var(--surface);
+}
+
+.selectChevron {
+  flex: none;
+  display: inline-flex;
+  color: var(--muted);
+  pointer-events: none;
+}
+
+.controlDisabled {
+  opacity: 0.55;
+}
+
+/* ============================ STEPPER (Hisob→Aloqa→Manzil) ============== */
+/* The mockup's 3-segment progress: a row of bars + a row of labels. Completed =
+ * success (with a ✓), active = primary, upcoming = muted. */
+.stepper {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+}
+
+.stepBars {
+  display: flex;
+  gap: 6px;
+}
+
+.stepBar {
+  flex: 1;
+  height: 4px;
+  border-radius: var(--r-pill);
+  background: var(--surface-3);
+  transition: background-color var(--m-instant);
+}
+.stepBar[data-state="done"] {
+  background: var(--success);
+}
+.stepBar[data-state="active"] {
+  background: var(--primary);
+}
+
+.stepLabels {
+  display: flex;
+  justify-content: space-between;
+  font-family: var(--font-sans);
+  font-size: 12px;
+  font-weight: var(--fw-bold);
+}
+
+.stepLabel {
+  color: var(--muted);
+}
+.stepLabel[data-state="done"] {
+  color: var(--success);
+}
+.stepLabel[data-state="active"] {
+  color: var(--primary);
+}
+
+/* ============================ ADDRESS (Manzil) ========================= */
+.addressNote {
+  font-family: var(--font-sans);
+  font-size: var(--t-body-s-size);
+  color: var(--ink-soft);
+  line-height: 1.5;
+}
+
+/* Free-text street box — taller, top-aligned (mockup A6 "Ko'cha, uy, xonadon"). */
+.streetControl {
+  align-items: flex-start;
+  min-height: 64px;
+}
+.streetInput {
+  padding-block: 16px;
+  resize: vertical;
+  line-height: 1.4;
+}
+
 /* ============================ OTP BOXES ================================= */
 .otp {
   display: flex;

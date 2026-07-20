@@ -654,6 +654,7 @@ public partial class GovoriDbContext : DbContext
             entity.Property(e => e.Id)
                 .ValueGeneratedNever()
                 .HasColumnName("id");
+            entity.Property(e => e.Address).HasColumnName("address"); // additive nullable varchar (15-address-column.sql)
             entity.Property(e => e.Age).HasColumnName("age");
             entity.Property(e => e.AvatarKey)
                 .HasMaxLength(512)

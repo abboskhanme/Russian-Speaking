@@ -1,9 +1,12 @@
 /**
  * RegisterScreen (`/register`) — phone + Telegram-bot OTP sign-up, rebuilt to
- * the mockup ("1 · KIRISH", frame A1 register). Two steps:
- *   1. name + phone → `requestOtp` → the code step.
- *   2. code → `verifyOtp(phone, code, fullName)` → tokens (one-shot register) →
- *      navigate to `/`.
+ * the mockup's 3-step stepper (frames A4/A5/A6): Hisob → Aloqa → Manzil.
+ *   1. Hisob  — name + phone → `requestOtp` → the code step.
+ *   2. Aloqa  — code → `verifyOtp(phone, code, fullName, { hydrate:false })` →
+ *               tokens stored (account created) WITHOUT flipping isAuthenticated
+ *               yet, so PublicOnly doesn't bounce us before the address step.
+ *   3. Manzil — region + district (+ optional street) → `updateProfile` →
+ *               `hydrateUser` → navigate to `/` (Home).
  * Because the name is captured up front, the verify is a single call — the
  * `needs_registration` branch never fires here. Composed from `shared/ui` +
  * Ovoz DS tokens; i18n via `auth.*`. No email/password anywhere.
@@ -14,25 +17,33 @@ import { useNavigate } from "react-router-dom";
 import { Button } from "../../shared/ui";
 import { ThemeToggle } from "../../widgets";
 import { useAuth } from "../../shared/auth";
-import { isApiError, type OtpRequestResponse } from "../../shared/api";
+import { endpoints, isApiError, type OtpRequestResponse } from "../../shared/api";
 import { AuthHero } from "./AuthHero";
+import { AddressStep } from "./AddressStep";
 import { IconInput } from "./IconInput";
 import { OtpStep } from "./OtpStep";
+import { RegisterStepper } from "./RegisterStepper";
 import { TryLink } from "./TryLink";
 import { PhoneIcon, UserIcon } from "./icons";
 import { formatDisplay, groupNational, isValidUz, nationalDigits, toE164 } from "./phone";
+import { districtsFor } from "./uz-regions";
 import styles from "./Auth.module.css";
+
+type Step = "phone" | "code" | "address";
 
 export default function RegisterScreen() {
   const { t } = useTranslation();
-  const { requestOtp, verifyOtp } = useAuth();
+  const { requestOtp, verifyOtp, hydrateUser } = useAuth();
   const navigate = useNavigate();
 
-  const [step, setStep] = useState<"phone" | "code">("phone");
+  const [step, setStep] = useState<Step>("phone");
   const [name, setName] = useState("");
   const [phone, setPhone] = useState(""); // national digits (max 9)
   const [code, setCode] = useState("");
   const [otpInfo, setOtpInfo] = useState<OtpRequestResponse | null>(null);
+  const [region, setRegion] = useState("");
+  const [district, setDistrict] = useState("");
+  const [street, setStreet] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [info, setInfo] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -80,9 +91,28 @@ export default function RegisterScreen() {
     setBusy(true);
     try {
       // Name captured in step 1 → one-shot register (never needs_registration).
-      // Placement is no longer forced post-register — a fresh user lands straight on Home
-      // (they can try the level test any time from the "try it" link / the app).
-      await verifyOtp(e164, code, name.trim());
+      // hydrate:false keeps the tokens but defers isAuthenticated so the guard
+      // doesn't skip the Manzil step; we flip it after the address PATCH.
+      await verifyOtp(e164, code, name.trim(), { hydrate: false });
+      setStep("address");
+    } catch (err) {
+      setError(mapError(err));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function submitAddress() {
+    setError(null);
+    if (!region || !district) return;
+    setBusy(true);
+    try {
+      const me = await endpoints.updateProfile({
+        region,
+        district,
+        address: street.trim(),
+      });
+      hydrateUser(me); // flip isAuthenticated now that the flow is complete
       navigate("/", { replace: true });
     } catch (err) {
       setError(mapError(err));
@@ -106,11 +136,23 @@ export default function RegisterScreen() {
     }
   }
 
-  function back() {
+  function backToPhone() {
     setStep("phone");
     setCode("");
     setError(null);
     setInfo(null);
+  }
+
+  function backToCode() {
+    setStep("code");
+    setError(null);
+    setInfo(null);
+  }
+
+  function onRegionChange(value: string) {
+    setRegion(value);
+    // The tuman list is region-specific — drop a now-invalid district.
+    if (!districtsFor(value).includes(district)) setDistrict("");
   }
 
   return (
@@ -119,8 +161,9 @@ export default function RegisterScreen() {
       <AuthHero active="register" />
 
       <div className={styles.content}>
-        {step === "phone" ? (
+        {step === "phone" && (
           <form className={styles.form} onSubmit={submitDetails} noValidate>
+            <RegisterStepper current="hisob" />
             {error && (
               <div className={styles.error} role="alert">
                 {error}
@@ -161,22 +204,38 @@ export default function RegisterScreen() {
             </Button>
             <TryLink />
           </form>
-        ) : (
-          otpInfo && (
-            <OtpStep
-              phoneDisplay={formatDisplay(phone)}
-              delivery={otpInfo}
-              code={code}
-              onCodeChange={setCode}
-              onVerify={submitCode}
-              onBack={back}
-              onResend={resend}
-              submitLabel={t("auth.otp.verify")}
-              busy={busy}
-              error={error}
-              info={info}
-            />
-          )
+        )}
+
+        {step === "code" && otpInfo && (
+          <OtpStep
+            phoneDisplay={formatDisplay(phone)}
+            delivery={otpInfo}
+            code={code}
+            onCodeChange={setCode}
+            onVerify={submitCode}
+            onBack={backToPhone}
+            onResend={resend}
+            submitLabel={t("auth.otp.verify")}
+            busy={busy}
+            error={error}
+            info={info}
+            topSlot={<RegisterStepper current="aloqa" />}
+          />
+        )}
+
+        {step === "address" && (
+          <AddressStep
+            region={region}
+            district={district}
+            street={street}
+            onRegionChange={onRegionChange}
+            onDistrictChange={setDistrict}
+            onStreetChange={setStreet}
+            onSubmit={submitAddress}
+            onBack={backToCode}
+            busy={busy}
+            error={error}
+          />
         )}
       </div>
     </div>

@@ -249,6 +249,34 @@ public sealed class AuthService
         return Project(user);
     }
 
+    /// <summary>
+    /// Apply a partial profile update (region / district / address) to the authenticated user and
+    /// return the refreshed <see cref="MeResponse"/>. Only NON-NULL fields are written (a null field
+    /// is "leave unchanged"); a supplied-but-blank value clears the column. Backs the registration
+    /// "Manzil" step. A missing or inactive user yields <c>null</c> → 401 at the endpoint.
+    /// </summary>
+    public async Task<MeResponse?> UpdateProfileAsync(Guid userId, UpdateProfileRequest req, CancellationToken ct = default)
+    {
+        var user = await _db.Users.FirstOrDefaultAsync(u => u.Id == userId, ct);
+        if (user is null || !user.IsActive)
+            return null;
+
+        if (req.Region is not null) user.Region = Normalize(req.Region);
+        if (req.District is not null) user.District = Normalize(req.District);
+        if (req.Address is not null) user.Address = Normalize(req.Address);
+        user.UpdatedAt = DateTime.UtcNow;
+
+        await _db.SaveChangesAsync(ct);
+        return Project(user);
+    }
+
+    // Trim; a blank (whitespace-only) value clears the column back to NULL.
+    private static string? Normalize(string value)
+    {
+        var trimmed = value.Trim();
+        return trimmed.Length == 0 ? null : trimmed;
+    }
+
     private TokenResponse MintPair(User user)
     {
         var subject = user.Id.ToString();
@@ -260,5 +288,6 @@ public sealed class AuthService
     // Role → lowercase PG enum label ("teacher"/"student"/"admin"), matching the Python
     // str-enum JSON value. Read straight off the DB entity, never from the token.
     private static MeResponse Project(User user)
-        => new(user.Id, user.Email, user.FullName, user.Role.ToString().ToLowerInvariant(), user.IsActive, user.IsPremium);
+        => new(user.Id, user.Email, user.FullName, user.Role.ToString().ToLowerInvariant(), user.IsActive, user.IsPremium,
+            user.Region, user.District, user.Address);
 }

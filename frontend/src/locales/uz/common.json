@@ -240,7 +240,24 @@
       "network": "Internet aloqasi yo'q. Qayta urinib ko'ring.",
       "generic": "Xatolik yuz berdi. Qayta urinib ko'ring."
     },
-    "tryLink": "Tizimni sinab ko'rish · darajangizni bepul aniqlang"
+    "tryLink": "Tizimni sinab ko'rish · darajangizni bepul aniqlang",
+    "steps": {
+      "hisob": "Hisob",
+      "aloqa": "Aloqa",
+      "manzil": "Manzil"
+    },
+    "address": {
+      "title": "Yashash manzili",
+      "note": "Manzil o'qituvchi va yetkazib berish uchun kerak. Xohlasang keyin o'zgartirasan.",
+      "regionLabel": "Viloyat",
+      "regionPlaceholder": "Viloyatni tanlang",
+      "districtLabel": "Tuman",
+      "districtPlaceholder": "Tumanni tanlang",
+      "districtPlaceholderEmpty": "Avval viloyatni tanlang",
+      "streetLabel": "Ko'cha, uy, xonadon",
+      "streetPlaceholder": "Amir Temur ko'chasi, 12-uy, 34-xonadon",
+      "finish": "Tugatish va boshlash"
+    }
   },
   "errors": {
     "loadTitle": "Ma'lumotni yuklab bo'lmadi",

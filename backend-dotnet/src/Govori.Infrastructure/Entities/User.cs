@@ -48,6 +48,13 @@ public partial class User
 
     public string? District { get; set; }
 
+    /// <summary>
+    /// Free-text street / house / apartment ("ko'cha, uy, xonadon"), collected in the
+    /// registration "Manzil" step alongside <see cref="Region"/> + <see cref="District"/>.
+    /// Additive nullable <c>varchar</c> column (deploy/seed/15-address-column.sql); older rows are NULL.
+    /// </summary>
+    public string? Address { get; set; }
+
     public string? Telegram { get; set; }
 
     public string? AvatarKey { get; set; }

@@ -113,6 +113,22 @@ public static class IdentityEndpoints
             return me is null ? Results.Unauthorized() : Results.Ok(me);
         }).RequireAuthorization();
 
+        // PATCH /api/auth/me → partial profile update (region / district / address) for the
+        // registration "Manzil" step. Only the NON-NULL fields in the body are written. Requires a
+        // valid *access* token (a refresh token is rejected, same guard as GET /me). Returns the
+        // updated MeResponse; 401 if the token isn't an access token or the user is missing/inactive.
+        auth.MapPatch("/me", async (UpdateProfileRequest req, ClaimsPrincipal principal, AuthService svc, CancellationToken ct) =>
+        {
+            if (principal.FindFirstValue("type") != "access"
+                || !Guid.TryParse(principal.FindFirstValue("sub"), out var userId))
+            {
+                return Results.Unauthorized();
+            }
+
+            var me = await svc.UpdateProfileAsync(userId, req, ct);
+            return me is null ? Results.Unauthorized() : Results.Ok(me);
+        }).RequireAuthorization();
+
         return app;
     }
 

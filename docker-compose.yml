@@ -66,6 +66,9 @@ services:
       # /docker-entrypoint-initdb.d/ ONLY on the FIRST init of an empty data dir
       # (`down -v` to reset). Owner role `russpeak` == POSTGRES_USER.
       - ./backups/russpeak_20260711_111407.sql.gz:/docker-entrypoint-initdb.d/10-seed.sql.gz:ro
+      # Additive registration "Manzil" column (users.address). Runs AFTER the dump (which lacks it)
+      # and BEFORE the dev/sample seeds that insert users. Idempotent.
+      - ./deploy/seed/15-address-column.sql:/docker-entrypoint-initdb.d/15-address-column.sql:ro
       # Dev login accounts (student/teacher/admin @govori.uz, password Parol123!).
       # Runs after the dump. DEV ONLY — do not mount for prod.
       - ./deploy/seed/20-dev-users.sql:/docker-entrypoint-initdb.d/20-dev-users.sql:ro

@@ -20,6 +20,7 @@ import type {
   StudentModuleResponse,
   SubmissionResponse,
   TokenResponse,
+  UpdateProfileArgs,
 } from "./types";
 
 /* ── Auth (phone + Telegram-bot OTP) ─────────────────────────────────────── */
@@ -70,6 +71,13 @@ export function me(skipRedirect = false): Promise<MeResponse> {
 
 export function authConfig(): Promise<AuthConfigResponse> {
   return apiClient.get<AuthConfigResponse>("/auth/config", { auth: false });
+}
+
+/** PATCH /api/auth/me — partial profile update (registration "Manzil" step:
+ * region / district / address). Auth required; returns the updated user. Only
+ * the provided fields are written server-side. */
+export function updateProfile(args: UpdateProfileArgs): Promise<MeResponse> {
+  return apiClient.patch<MeResponse>("/auth/me", args);
 }
 
 /* ── Catalog — Home + Practice ─────────────────────────────────────────── */

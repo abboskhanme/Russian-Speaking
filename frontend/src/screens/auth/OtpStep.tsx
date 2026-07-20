@@ -30,6 +30,8 @@ export interface OtpStepProps {
   resendBusy?: boolean;
   error?: string | null;
   info?: string | null;
+  /** Optional content rendered right under the header (register shows the stepper). */
+  topSlot?: ReactNode;
   children?: ReactNode;
 }
 
@@ -46,6 +48,7 @@ export function OtpStep({
   resendBusy = false,
   error,
   info,
+  topSlot,
   children,
 }: OtpStepProps) {
   const { t } = useTranslation();
@@ -66,6 +69,8 @@ export function OtpStep({
           {t("auth.otp.title")}
         </Text>
       </div>
+
+      {topSlot}
 
       <Text as="p" variant="body-s" color="muted">
         {t("auth.otp.sentTo")} <b>{phoneDisplay}</b>

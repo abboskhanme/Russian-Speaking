@@ -26,6 +26,18 @@ export interface MeResponse {
   role: UserRole;
   is_active: boolean;
   is_premium: boolean;
+  /** Registration "Manzil" fields — null until the address step is completed. */
+  region: string | null;
+  district: string | null;
+  address: string | null;
+}
+
+/** PATCH /api/auth/me body — partial profile update (registration "Manzil"
+ * step). Only the provided fields are written server-side. */
+export interface UpdateProfileArgs {
+  region?: string | null;
+  district?: string | null;
+  address?: string | null;
 }
 
 /** How the one-time code reaches the user: a Telegram bot deep-link, or (dev)

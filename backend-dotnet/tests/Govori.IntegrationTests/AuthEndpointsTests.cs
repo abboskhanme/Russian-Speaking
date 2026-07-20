@@ -120,6 +120,67 @@ public sealed class AuthEndpointsTests : IClassFixture<AuthEndpointsTests.AuthAp
         }
     }
 
+    [Fact]
+    public async Task Register_then_patch_me_persists_region_district_address()
+    {
+        // A brand-new phone (no seeded user) — verify with a full_name REGISTERS the account in
+        // one shot, then PATCH /me writes the "Manzil" fields and GET /me reflects them.
+        var phone = "+99897" + Random.Shared.Next(0, 10_000_000).ToString("D7");
+
+        try
+        {
+            var client = _factory.CreateClient();
+
+            // 1. Request + verify (dev 000000) WITH a name → 200 TokenPair (register branch).
+            var reqResp = await client.PostAsJsonAsync("/api/auth/otp/request", new { phone });
+            Assert.Equal(HttpStatusCode.OK, reqResp.StatusCode);
+
+            var verifyResp = await client.PostAsJsonAsync(
+                "/api/auth/otp/verify", new { phone, code = DevCode, full_name = "Manzil Tester" });
+            Assert.Equal(HttpStatusCode.OK, verifyResp.StatusCode);
+            using var verifyDoc = JsonDocument.Parse(await verifyResp.Content.ReadAsStringAsync());
+            var accessToken = verifyDoc.RootElement.GetProperty("access_token").GetString();
+            Assert.False(string.IsNullOrEmpty(accessToken));
+
+            // 2. PATCH /api/auth/me with the address fields → 200 + echoed in the MeResponse.
+            var patchReq = new HttpRequestMessage(HttpMethod.Patch, "/api/auth/me")
+            {
+                Content = JsonContent.Create(new
+                {
+                    region = "Toshkent shahri",
+                    district = "Yunusobod tumani",
+                    address = "Amir Temur ko'chasi, 12-uy, 34-xonadon",
+                }),
+            };
+            patchReq.Headers.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
+            var patchResp = await client.SendAsync(patchReq);
+            Assert.Equal(HttpStatusCode.OK, patchResp.StatusCode);
+            using (var patchDoc = JsonDocument.Parse(await patchResp.Content.ReadAsStringAsync()))
+            {
+                Assert.Equal("Toshkent shahri", patchDoc.RootElement.GetProperty("region").GetString());
+                Assert.Equal("Yunusobod tumani", patchDoc.RootElement.GetProperty("district").GetString());
+                Assert.Equal("Amir Temur ko'chasi, 12-uy, 34-xonadon",
+                    patchDoc.RootElement.GetProperty("address").GetString());
+            }
+
+            // 3. GET /api/auth/me (Bearer) → the persisted address fields survive a fresh read.
+            var meReq = new HttpRequestMessage(HttpMethod.Get, "/api/auth/me");
+            meReq.Headers.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
+            var meResp = await client.SendAsync(meReq);
+            Assert.Equal(HttpStatusCode.OK, meResp.StatusCode);
+            using var meDoc = JsonDocument.Parse(await meResp.Content.ReadAsStringAsync());
+            Assert.Equal("Toshkent shahri", meDoc.RootElement.GetProperty("region").GetString());
+            Assert.Equal("Yunusobod tumani", meDoc.RootElement.GetProperty("district").GetString());
+            Assert.Equal("Amir Temur ko'chasi, 12-uy, 34-xonadon",
+                meDoc.RootElement.GetProperty("address").GetString());
+        }
+        finally
+        {
+            await using var ctx = CreateContext();
+            await ctx.Users.Where(u => u.Phone == phone).ExecuteDeleteAsync();
+        }
+    }
+
     public void Dispose() => _dataSource.Dispose();
 
     /// <summary>

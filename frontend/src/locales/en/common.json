@@ -240,7 +240,24 @@
       "network": "No connection. Please try again.",
       "generic": "Something went wrong. Please try again."
     },
-    "tryLink": "Try the system · find your level for free"
+    "tryLink": "Try the system · find your level for free",
+    "steps": {
+      "hisob": "Account",
+      "aloqa": "Contact",
+      "manzil": "Address"
+    },
+    "address": {
+      "title": "Home address",
+      "note": "The address is for your teacher and for delivery. You can change it later.",
+      "regionLabel": "Region",
+      "regionPlaceholder": "Select a region",
+      "districtLabel": "District",
+      "districtPlaceholder": "Select a district",
+      "districtPlaceholderEmpty": "Select a region first",
+      "streetLabel": "Street, house, apartment",
+      "streetPlaceholder": "Amir Temur street, 12, apt 34",
+      "finish": "Finish and start"
+    }
   },
   "errors": {
     "loadTitle": "Couldn't load data",
