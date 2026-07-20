@@ -17,6 +17,7 @@ using Govori.Infrastructure;
 using Govori.Platform.Grader;
 using Govori.Platform.Storage;
 using Govori.Platform.Stt;
+using Govori.Platform.Telegram;
 using Govori.Practice;
 using Govori.Realtime;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -235,15 +236,12 @@ try
     builder.Services.AddGovoriRateLimiter(builder.Configuration);
 
     // ── Identity providers + config (docs/07 §7.5, Faza 3.1) ────────────────
-    // OTP / email-verification config — mirrors Python EMAIL_OTP_* + email_enabled.
+    // OTP generation config — TTL/length/attempts reused as-is for phone codes.
     builder.Services.AddSingleton(new OtpOptions
     {
         CodeLength = builder.Configuration.GetValue("EMAIL_OTP_LENGTH", 6),
         TtlSeconds = builder.Configuration.GetValue("EMAIL_OTP_TTL_SEC", 600),
         MaxAttempts = builder.Configuration.GetValue("EMAIL_OTP_MAX_ATTEMPTS", 5),
-        // Python derives email_enabled from SMTP config; SMTP isn't wired here yet, so this
-        // is an explicit flag (default false → sign-up works without email verification).
-        EmailVerificationEnabled = builder.Configuration.GetValue("EMAIL_VERIFICATION_ENABLED", false),
     });
     builder.Services.AddSingleton(new GoogleAuthOptions
     {
@@ -262,10 +260,27 @@ try
     });
 
     // External providers behind interfaces — real impls here; integration tests swap fakes
-    // via ConfigureTestServices so they never hit real Redis/Google/SMS/email.
+    // via ConfigureTestServices so they never hit real Redis/Google/Telegram.
     builder.Services.AddSingleton<IOtpStore, RedisOtpStore>();      // Redis-backed, FAIL-CLOSED
-    builder.Services.AddSingleton<IOtpSender, LoggingOtpSender>();  // TODO: real SMTP/SMS provider
     builder.Services.AddHttpClient<IGoogleTokenVerifier, GoogleTokenVerifier>(); // Google tokeninfo
+
+    // OTP delivery (phone → Telegram). If TELEGRAM_BOT_TOKEN + TELEGRAM_BOT_USERNAME are set, use the
+    // FREE-bot deep-link sender: it stashes {phone,code} behind a start-token in Redis and returns a
+    // t.me/<bot>?start=<token> link (the Worker's poller DMs the code when the user presses Start).
+    // Otherwise fall back to the dev stub (logs the code + accepts the fixed dev code 000000). The
+    // dev bypass is impossible once a real bot is present (TelegramBotOtpSender.AcceptsDevCode=false).
+    var telegramBotToken = builder.Configuration["TELEGRAM_BOT_TOKEN"];
+    var telegramBotUsername = builder.Configuration["TELEGRAM_BOT_USERNAME"];
+    if (!string.IsNullOrWhiteSpace(telegramBotToken) && !string.IsNullOrWhiteSpace(telegramBotUsername))
+    {
+        builder.Services.AddSingleton(new TelegramBotOptions { Username = telegramBotUsername });
+        builder.Services.AddSingleton<ITelegramOtpLinkStore, RedisTelegramOtpLinkStore>();
+        builder.Services.AddSingleton<IOtpDeliverySender, TelegramBotOtpSender>();
+    }
+    else
+    {
+        builder.Services.AddSingleton<IOtpDeliverySender, DevOtpDeliverySender>();
+    }
 
     // JSON: snake_case in/out to match the Python API shape (access_token, full_name, ...).
     builder.Services.ConfigureHttpJsonOptions(o =>

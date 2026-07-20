@@ -91,7 +91,7 @@ public sealed class AttemptEventsTests
         try
         {
             var client = _factory.CreateClient();
-            var token = await LoginAsync(client, ownerEmail, password);
+            var token = TokenFor(ownerId);
 
             // ── Submit (proves the enqueue seam; RecordingGradingQueue does NOT grade) ──
             var resp = await Send(client, HttpMethod.Post, "/api/submissions", token, BuildAudioForm(questionId));
@@ -202,7 +202,7 @@ public sealed class AttemptEventsTests
             var client = _factory.CreateClient();
 
             // ── A DIFFERENT student cannot subscribe to the owner's attempt ──
-            var otherToken = await LoginAsync(client, otherEmail, password);
+            var otherToken = TokenFor(otherId);
             await using (var otherConn = BuildConnection(otherToken))
             {
                 await otherConn.StartAsync();
@@ -219,7 +219,7 @@ public sealed class AttemptEventsTests
             }
 
             // ── The owner CAN subscribe (positive control) ──
-            var ownerToken = await LoginAsync(client, ownerEmail, password);
+            var ownerToken = TokenFor(ownerId);
             await using (var ownerConn = BuildConnection(ownerToken))
             {
                 await ownerConn.StartAsync();
@@ -287,13 +287,11 @@ public sealed class AttemptEventsTests
         await ctx.Users.Where(u => userIds.Contains(u.Id)).ExecuteDeleteAsync();
     }
 
-    private static async Task<string> LoginAsync(HttpClient client, string email, string password)
-    {
-        var resp = await client.PostAsJsonAsync("/api/auth/login", new { email, password });
-        Assert.Equal(HttpStatusCode.OK, resp.StatusCode);
-        using var doc = JsonDocument.Parse(await resp.Content.ReadAsStringAsync());
-        return doc.RootElement.GetProperty("access_token").GetString()!;
-    }
+    // Auth is phone-OTP now (no email/password login). These non-auth tests only need a bearer for a
+    // seeded user, so mint the SAME access token login used to return (sub = user id) with the test secret.
+    private static string TokenFor(Guid userId) =>
+        new TokenService(new IdentityAuthOptions { SecretKey = AttemptEventsFactory.TestSecretKey })
+            .CreateAccessToken(userId.ToString());
 
     private static Task<HttpResponseMessage> Send(
         HttpClient client, HttpMethod method, string url, string token, HttpContent? content = null)
@@ -393,7 +391,7 @@ public sealed class AttemptEventsTests
         public FakeGraderProvider Grader { get; } = new();
         public RecordingGradingQueue Queue { get; } = new();
 
-        private const string TestSecretKey =
+        internal const string TestSecretKey =
             "attempt-events-integration-test-secret-key-do-not-use-in-prod";
 
         public AttemptEventsFactory()

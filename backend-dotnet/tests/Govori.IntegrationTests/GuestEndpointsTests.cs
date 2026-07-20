@@ -90,23 +90,23 @@ public sealed class GuestEndpointsTests : IClassFixture<GuestEndpointsTests.Gues
     }
 
     // ── 5. Rate limiter: allows UNDER the limit, then returns 429 (email_code = 5/window) ──
-    // Also proves the limiter is applied to the OTP-request endpoint (a task requirement).
+    // Also proves the limiter is applied to the phone-OTP request endpoint (a task requirement).
     [Fact]
     public async Task Rate_limiter_allows_under_the_limit_then_returns_429()
     {
         // Fresh in-memory counter for this isolated host so the window starts at zero.
         var client = _factory.CreateClientWith(rateLimitStore: new InMemoryRateLimitStore());
-        var email = $"rl-{Guid.NewGuid():N}@example.test";
+        const string phone = "+998901112233";
 
         // The email_code policy allows 5 requests per window. First 5 must NOT be 429...
         for (var i = 1; i <= 5; i++)
         {
-            var ok = await client.PostAsJsonAsync("/api/auth/email/request-code", new { email });
+            var ok = await client.PostAsJsonAsync("/api/auth/otp/request", new { phone });
             Assert.NotEqual(HttpStatusCode.TooManyRequests, ok.StatusCode); // under the limit → allowed
         }
 
         // ...the 6th trips the limiter: 429 with FastAPI's { detail } body.
-        var limited = await client.PostAsJsonAsync("/api/auth/email/request-code", new { email });
+        var limited = await client.PostAsJsonAsync("/api/auth/otp/request", new { phone });
         Assert.Equal(HttpStatusCode.TooManyRequests, limited.StatusCode);
         using var doc = JsonDocument.Parse(await limited.Content.ReadAsStringAsync());
         Assert.Equal("Too many requests. Please try again later.",
@@ -118,13 +118,13 @@ public sealed class GuestEndpointsTests : IClassFixture<GuestEndpointsTests.Gues
     public async Task Rate_limiter_is_fail_open_when_the_store_errors()
     {
         var client = _factory.CreateClientWith(rateLimitStore: new ThrowingRateLimitStore());
-        var email = $"failopen-{Guid.NewGuid():N}@example.test";
+        const string phone = "+998901112244";
 
         // Burst well past the email_code limit (5). Because the store throws, the limiter must ALLOW
         // every request — the opposite of OTP's fail-closed. None may be 429.
         for (var i = 0; i < 8; i++)
         {
-            var resp = await client.PostAsJsonAsync("/api/auth/email/request-code", new { email });
+            var resp = await client.PostAsJsonAsync("/api/auth/otp/request", new { phone });
             Assert.NotEqual(HttpStatusCode.TooManyRequests, resp.StatusCode);
         }
     }
@@ -183,14 +183,12 @@ public sealed class GuestEndpointsTests : IClassFixture<GuestEndpointsTests.Gues
                         services.AddSingleton(rateLimitStore);
                     }
 
-                    // OTP fakes so /auth/email/request-code (the rate-limit burst target) never hits
-                    // Redis/SMTP; email verification on to mirror the Identity happy path.
+                    // OTP fakes so /api/auth/otp/request (the rate-limit burst target) never hits
+                    // Redis. The default dev delivery sender (no bot token in tests) just logs.
                     services.RemoveAll<IOtpStore>();
                     services.AddSingleton<IOtpStore>(new FakeOtpStore());
-                    services.RemoveAll<IOtpSender>();
-                    services.AddSingleton<IOtpSender>(new FakeOtpSender());
-                    services.RemoveAll<OtpOptions>();
-                    services.AddSingleton(new OtpOptions { EmailVerificationEnabled = true });
+                    services.RemoveAll<IOtpDeliverySender>();
+                    services.AddSingleton<IOtpDeliverySender>(new FakeOtpDeliverySender());
                 })).CreateClient();
         }
     }

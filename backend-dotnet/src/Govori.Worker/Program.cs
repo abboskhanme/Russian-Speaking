@@ -3,10 +3,13 @@ using Govori.Infrastructure;
 using Govori.Platform.Grader;
 using Govori.Platform.Storage;
 using Govori.Platform.Stt;
+using Govori.Platform.Telegram;
 using Govori.Realtime;
+using Govori.Worker;
 using Microsoft.EntityFrameworkCore;
 using Serilog;
 using Serilog.Formatting.Compact;
+using StackExchange.Redis;
 
 // ── Bootstrap logger ────────────────────────────────────────────────────────
 // docs/07 §7.9 — the Worker uses the same Serilog JSON style as Govori.Api. This
@@ -83,6 +86,26 @@ try
 
     // Liveness heartbeat so the host is observably alive alongside the Hangfire server.
     builder.Services.AddHostedService<Govori.Worker.Worker>();
+
+    // ── Telegram bot OTP poller (phone-OTP delivery, docs/08) ───────────────
+    // Registered ONLY when TELEGRAM_BOT_TOKEN is set (dev stacks have none → the API's dev delivery
+    // stub + fixed code 000000 cover local testing). Long-polls getUpdates; on "/start <token>" it
+    // resolves the deep-link token in Redis (shared with the API sender) and DMs the code.
+    var telegramBotToken = builder.Configuration["TELEGRAM_BOT_TOKEN"];
+    if (!string.IsNullOrWhiteSpace(telegramBotToken))
+    {
+        var redisConfiguration = builder.Configuration["GOVORI_REDIS"] ?? "govori-redis:6379";
+        builder.Services.AddSingleton<IConnectionMultiplexer>(_ =>
+        {
+            var options = ConfigurationOptions.Parse(redisConfiguration);
+            options.AbortOnConnectFail = false;
+            return ConnectionMultiplexer.Connect(options);
+        });
+        builder.Services.AddSingleton<ITelegramOtpLinkStore, RedisTelegramOtpLinkStore>();
+        builder.Services.AddHttpClient();
+        builder.Services.AddSingleton(new TelegramBotPollerOptions(telegramBotToken));
+        builder.Services.AddHostedService<TelegramBotPoller>();
+    }
 
     var host = builder.Build();
 

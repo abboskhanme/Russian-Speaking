@@ -69,8 +69,8 @@ public sealed class AdministrationEndpointsTests
         try
         {
             var client = _factory.CreateClient();
-            var adminToken = await LoginAsync(client, adminEmail, password);
-            var studentToken = await LoginAsync(client, studentEmail, password);
+            var adminToken = TokenFor(adminId);
+            var studentToken = TokenFor(studentId);
 
             // Baseline: the student is not premium (their own /me reads the DB live).
             Assert.False(await MyPremiumAsync(client, studentToken));
@@ -154,8 +154,8 @@ public sealed class AdministrationEndpointsTests
         try
         {
             var client = _factory.CreateClient();
-            var adminToken = await LoginAsync(client, adminEmail, password);
-            var userToken = await LoginAsync(client, userEmail, password);
+            var adminToken = TokenFor(adminId);
+            var userToken = TokenFor(userId);
 
             // ── admin-only gate on settings ──
             Assert.Equal(HttpStatusCode.Unauthorized, (await client.GetAsync("/api/admin/settings/ai")).StatusCode);
@@ -252,13 +252,11 @@ public sealed class AdministrationEndpointsTests
         Assert.Equal(HttpStatusCode.OK, resp.StatusCode);
     }
 
-    private static async Task<string> LoginAsync(HttpClient client, string email, string password)
-    {
-        var resp = await client.PostAsJsonAsync("/api/auth/login", new { email, password });
-        Assert.Equal(HttpStatusCode.OK, resp.StatusCode);
-        using var doc = JsonDocument.Parse(await resp.Content.ReadAsStringAsync());
-        return doc.RootElement.GetProperty("access_token").GetString()!;
-    }
+    // Auth is phone-OTP now (no email/password login). These non-auth tests only need a bearer for a
+    // seeded user, so mint the SAME access token login used to return (sub = user id) with the test secret.
+    private static string TokenFor(Guid userId) =>
+        new TokenService(new IdentityAuthOptions { SecretKey = AdminApiFactory.TestSecretKey })
+            .CreateAccessToken(userId.ToString());
 
     private static Task<HttpResponseMessage> Send(
         HttpClient client, HttpMethod method, string url, string token, HttpContent? content = null)
@@ -294,7 +292,7 @@ public sealed class AdministrationEndpointsTests
             Environment.GetEnvironmentVariable("GOVORI_TEST_DB")
             ?? GovoriDataSourceFactory.DefaultConnectionString;
 
-        private const string TestSecretKey =
+        internal const string TestSecretKey =
             "administration-domain-integration-test-secret-key-do-not-use-in-prod";
 
         public AdminApiFactory()

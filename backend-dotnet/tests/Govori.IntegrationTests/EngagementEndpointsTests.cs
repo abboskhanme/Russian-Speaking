@@ -192,9 +192,9 @@ public sealed class EngagementEndpointsTests : IClassFixture<EngagementEndpoints
         try
         {
             var client = _factory.CreateClient();
-            var tokenTeacher = await LoginAsync(client, Email(teacherId), Password);
-            var tokenS3 = await LoginAsync(client, Email(s3), Password);
-            var tokenOutsider = await LoginAsync(client, Email(outsiderId), Password);
+            var tokenTeacher = TokenFor(teacherId);
+            var tokenS3 = TokenFor(s3);
+            var tokenOutsider = TokenFor(outsiderId);
 
             // Anonymous → 401.
             Assert.Equal(HttpStatusCode.Unauthorized, (await client.GetAsync("/api/leaderboard")).StatusCode);
@@ -323,8 +323,8 @@ public sealed class EngagementEndpointsTests : IClassFixture<EngagementEndpoints
         try
         {
             var client = _factory.CreateClient();
-            var tokenTeacher = await LoginAsync(client, Email(teacherId), Password);
-            var tokenStudent = await LoginAsync(client, Email(studentId), Password);
+            var tokenTeacher = TokenFor(teacherId);
+            var tokenStudent = TokenFor(studentId);
 
             // Auth negatives: anonymous → 401; student POST /review → 403 (require_teacher).
             Assert.Equal(HttpStatusCode.Unauthorized, (await client.GetAsync("/api/review")).StatusCode);
@@ -446,8 +446,8 @@ public sealed class EngagementEndpointsTests : IClassFixture<EngagementEndpoints
         try
         {
             var client = _factory.CreateClient();
-            var token = await LoginAsync(client, Email(userId), Password);
-            var otherToken = await LoginAsync(client, Email(otherId), Password);
+            var token = TokenFor(userId);
+            var otherToken = TokenFor(otherId);
 
             // Anonymous → 401.
             Assert.Equal(HttpStatusCode.Unauthorized, (await client.GetAsync("/api/notifications")).StatusCode);
@@ -563,13 +563,11 @@ public sealed class EngagementEndpointsTests : IClassFixture<EngagementEndpoints
         await ctx.Users.Where(u => userIds.Contains(u.Id)).ExecuteDeleteAsync();
     }
 
-    private static async Task<string> LoginAsync(HttpClient client, string email, string password)
-    {
-        var resp = await client.PostAsJsonAsync("/api/auth/login", new { email, password });
-        Assert.Equal(HttpStatusCode.OK, resp.StatusCode);
-        using var doc = JsonDocument.Parse(await resp.Content.ReadAsStringAsync());
-        return doc.RootElement.GetProperty("access_token").GetString()!;
-    }
+    // Auth is phone-OTP now (no email/password login). These non-auth tests only need a bearer for a
+    // seeded user, so mint the SAME access token login used to return (sub = user id) with the test secret.
+    private static string TokenFor(Guid userId) =>
+        new TokenService(new IdentityAuthOptions { SecretKey = EngagementApiFactory.TestSecretKey })
+            .CreateAccessToken(userId.ToString());
 
     private static Task<HttpResponseMessage> Send(HttpClient client, HttpMethod method, string url, string token, HttpContent? content = null)
     {
@@ -650,7 +648,7 @@ public sealed class EngagementEndpointsTests : IClassFixture<EngagementEndpoints
             Environment.GetEnvironmentVariable("GOVORI_TEST_DB")
             ?? GovoriDataSourceFactory.DefaultConnectionString;
 
-        private const string TestSecretKey =
+        internal const string TestSecretKey =
             "engagement-domain-integration-test-secret-key-do-not-use-in-prod";
 
         public EngagementApiFactory()

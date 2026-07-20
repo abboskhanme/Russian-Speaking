@@ -43,6 +43,11 @@ x-backend-env: &backend-env
   # Auth / secrets. SECRET_KEY is REQUIRED — the Api refuses to boot without it.
   SECRET_KEY: "${SECRET_KEY:?SECRET_KEY is required — copy .env.example to .env}"
   GOOGLE_CLIENT_ID: "${GOOGLE_CLIENT_ID:-}"
+  # Phone-OTP over a FREE Telegram bot. Set both to enable real delivery (api mints a
+  # t.me/<bot>?start=<token> deep link; the worker's poller DMs the code on Start). Absent → dev
+  # delivery (code logged + fixed 000000 accepted). Create the bot via @BotFather.
+  TELEGRAM_BOT_TOKEN: "${TELEGRAM_BOT_TOKEN:-}"
+  TELEGRAM_BOT_USERNAME: "${TELEGRAM_BOT_USERNAME:-}"
   # Realtime / rate limiting.
   GOVORI_SIGNALR_BACKPLANE: "true"
   GOVORI_RATELIMIT_BACKEND: "${GOVORI_RATELIMIT_BACKEND:-redis}"

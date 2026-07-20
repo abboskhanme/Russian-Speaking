@@ -29,8 +29,12 @@ SET client_min_messages = warning;
 
 
 -- ─────────────────────────────────────────────────────────────────────────────
--- 1) USERS — 4 teachers + 10 students (realistic Uzbek names). Password: Parol123!
+-- 1) USERS — 4 teachers + 10 students (realistic Uzbek names).
 --    Natural key = email → ON CONFLICT (email) DO NOTHING.
+--    AUTH IS PHONE + OTP: every user has a UNIQUE +998 phone (teachers +99890111220x,
+--    students +9989110020xx). In dev (no Telegram token) log in as any of them with:
+--      otp/request { phone } → otp/verify { phone, code: "000000" } → tokens.
+--    (The bcrypt hash is legacy parity only; email/password login no longer exists.)
 -- ─────────────────────────────────────────────────────────────────────────────
 INSERT INTO users
   (id, email, password_hash, full_name, role, is_active, is_premium,

@@ -3,7 +3,6 @@ using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text.Json;
 using Govori.Identity.Providers;
-using Govori.Identity.Security;
 using Govori.Infrastructure;
 using Govori.Infrastructure.Entities;
 using Microsoft.AspNetCore.Hosting;
@@ -16,16 +15,20 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 namespace Govori.IntegrationTests;
 
 /// <summary>
-/// Full Identity-domain (Faza 3.1) coverage over the real Govori.Api host: register-via-OTP →
-/// login → refresh → me happy path, login 401/403 parity, refresh rejecting an access token,
-/// Google find-or-create via a fake verifier, and OTP fail-closed when the store errors.
+/// Full Identity-domain (Faza 3.1) coverage over the real Govori.Api host for the PHONE + OTP auth
+/// flow (product decision: login by phone, OTP over Telegram, no email/password): otp/request →
+/// otp/verify login for an existing seeded phone → me; otp/verify register for a new phone + name;
+/// wrong code → 401; new phone without a name → needs_registration; inactive → 403; refresh
+/// rejecting an access token; Google find-or-create; and OTP fail-closed when the store errors.
 ///
-/// External providers (OTP store/sender, Google verifier) are swapped for fakes via
-/// ConfigureTestServices so tests never touch Redis/Google/SMS/email. Every created/seeded
-/// row is deleted in a finally so runs are idempotent.
+/// External providers (OTP store + delivery, Google verifier) are swapped for fakes via
+/// ConfigureTestServices so tests never touch Redis/Google/Telegram. The dev delivery fake accepts
+/// the fixed code 000000. Every created/seeded row is deleted in a finally so runs are idempotent.
 /// </summary>
 public sealed class IdentityEndpointsTests : IClassFixture<IdentityEndpointsTests.IdentityApiFactory>, IDisposable
 {
+    private const string DevCode = "000000";
+
     private readonly IdentityApiFactory _factory;
     private readonly NpgsqlDataSourceHolder _db;
 
@@ -35,72 +38,37 @@ public sealed class IdentityEndpointsTests : IClassFixture<IdentityEndpointsTest
         _db = new NpgsqlDataSourceHolder(factory.ConnectionString);
     }
 
-    // ── 1. Full happy path: request-code → verify-code → register → login → refresh → me ──
+    // ── 1. Existing phone: otp/request → otp/verify (dev 000000) → tokens → me ──
     [Fact]
-    public async Task Register_via_otp_then_login_refresh_and_me_round_trip()
+    public async Task Otp_login_for_existing_phone_then_me_round_trip()
     {
-        var store = new FakeOtpStore();
-        var sender = new FakeOtpSender();
-        var client = _factory.CreateClientWith(store, sender, AnyGoogle(), emailVerificationEnabled: true);
-
-        var email = $"reg-{Guid.NewGuid():N}@example.test";
-        const string password = "Register!123";
+        var client = _factory.CreateClientWith(new FakeOtpStore(), new FakeOtpDeliverySender(), AnyGoogle());
+        var phone = NewPhone();
+        var email = $"login-{Guid.NewGuid():N}@example.test";
+        await SeedUser(email, phone, UserRole.Student, isActive: true);
 
         try
         {
-            // request-code → 200 { ok, expires_in }; fake sender captures the code.
-            var codeResp = await client.PostAsJsonAsync("/api/auth/email/request-code", new { email });
-            Assert.Equal(HttpStatusCode.OK, codeResp.StatusCode);
-            using (var codeDoc = JsonDocument.Parse(await codeResp.Content.ReadAsStringAsync()))
+            // request → 200 { ok, delivery: "dev", expires_in, dev_hint: "000000" }
+            var reqResp = await client.PostAsJsonAsync("/api/auth/otp/request", new { phone });
+            Assert.Equal(HttpStatusCode.OK, reqResp.StatusCode);
+            using (var reqDoc = JsonDocument.Parse(await reqResp.Content.ReadAsStringAsync()))
             {
-                Assert.True(codeDoc.RootElement.GetProperty("ok").GetBoolean());
-                Assert.True(codeDoc.RootElement.GetProperty("expires_in").GetInt32() > 0);
+                Assert.True(reqDoc.RootElement.GetProperty("ok").GetBoolean());
+                Assert.Equal("dev", reqDoc.RootElement.GetProperty("delivery").GetString());
+                Assert.True(reqDoc.RootElement.GetProperty("expires_in").GetInt32() > 0);
+                Assert.Equal(DevCode, reqDoc.RootElement.GetProperty("dev_hint").GetString());
             }
-            var code = sender.LastCodeFor(email);
-            Assert.False(string.IsNullOrEmpty(code));
 
-            // verify-code → 200 { email_verify_token }.
-            var verifyResp = await client.PostAsJsonAsync("/api/auth/email/verify-code", new { email, code });
+            // verify with the dev code → 200 token pair (LOGIN, not register — no full_name needed).
+            var verifyResp = await client.PostAsJsonAsync("/api/auth/otp/verify", new { phone, code = DevCode });
             Assert.Equal(HttpStatusCode.OK, verifyResp.StatusCode);
             using var verifyDoc = JsonDocument.Parse(await verifyResp.Content.ReadAsStringAsync());
-            var emailVerifyToken = verifyDoc.RootElement.GetProperty("email_verify_token").GetString();
-            Assert.False(string.IsNullOrEmpty(emailVerifyToken));
-
-            // register → 201 UserOut (student). Uses the verify token.
-            var registerResp = await client.PostAsJsonAsync("/api/auth/register", new
-            {
-                email,
-                password,
-                full_name = "Reg Tester",
-                phone = "+998901234567",
-                age = 21,
-                region = "Toshkent",
-                district = "Yunusobod",
-                email_verify_token = emailVerifyToken,
-            });
-            Assert.Equal(HttpStatusCode.Created, registerResp.StatusCode);
-            using (var regDoc = JsonDocument.Parse(await registerResp.Content.ReadAsStringAsync()))
-            {
-                Assert.Equal(email, regDoc.RootElement.GetProperty("email").GetString());
-                Assert.Equal("student", regDoc.RootElement.GetProperty("role").GetString());
-                Assert.True(regDoc.RootElement.GetProperty("is_active").GetBoolean());
-            }
-
-            // login → 200 token pair.
-            var loginResp = await client.PostAsJsonAsync("/api/auth/login", new { email, password });
-            Assert.Equal(HttpStatusCode.OK, loginResp.StatusCode);
-            using var loginDoc = JsonDocument.Parse(await loginResp.Content.ReadAsStringAsync());
-            var refreshToken = loginDoc.RootElement.GetProperty("refresh_token").GetString();
-            Assert.False(string.IsNullOrEmpty(refreshToken));
-
-            // refresh (with a real refresh token) → 200, fresh access token.
-            var refreshResp = await client.PostAsJsonAsync("/api/auth/refresh", new { refresh_token = refreshToken });
-            Assert.Equal(HttpStatusCode.OK, refreshResp.StatusCode);
-            using var refreshDoc = JsonDocument.Parse(await refreshResp.Content.ReadAsStringAsync());
-            var accessToken = refreshDoc.RootElement.GetProperty("access_token").GetString();
+            var accessToken = verifyDoc.RootElement.GetProperty("access_token").GetString();
             Assert.False(string.IsNullOrEmpty(accessToken));
+            Assert.False(string.IsNullOrEmpty(verifyDoc.RootElement.GetProperty("refresh_token").GetString()));
 
-            // me (with the refreshed access token) → 200; role from DB, not the token.
+            // me → 200, the seeded student (role from DB, not the token).
             var me = await GetMe(client, accessToken!);
             Assert.Equal(HttpStatusCode.OK, me.StatusCode);
             using var meDoc = JsonDocument.Parse(await me.Content.ReadAsStringAsync());
@@ -109,62 +77,137 @@ public sealed class IdentityEndpointsTests : IClassFixture<IdentityEndpointsTest
         }
         finally
         {
-            await DeleteByEmail(email);
+            await DeleteByPhone(phone);
         }
     }
 
-    // ── 2. login parity: 401 wrong password, 403 inactive (blocked) ──
+    // ── 2. New phone + full_name → registers a passwordless student, issues tokens ──
     [Fact]
-    public async Task Login_returns_401_for_wrong_password_and_403_for_inactive()
+    public async Task Otp_verify_new_phone_with_full_name_registers_and_issues_tokens()
     {
-        var client = _factory.CreateClientWith(new FakeOtpStore(), new FakeOtpSender(), AnyGoogle());
-        var hasher = new PasswordHasher();
-
-        var activeEmail = $"active-{Guid.NewGuid():N}@example.test";
-        var inactiveEmail = $"inactive-{Guid.NewGuid():N}@example.test";
-        const string password = "Correct!123";
-
-        await SeedUser(activeEmail, hasher.Hash(password), UserRole.Student, isActive: true);
-        await SeedUser(inactiveEmail, hasher.Hash(password), UserRole.Student, isActive: false);
+        var client = _factory.CreateClientWith(new FakeOtpStore(), new FakeOtpDeliverySender(), AnyGoogle());
+        var phone = NewPhone();
 
         try
         {
-            // wrong password on an active account → 401.
-            var wrong = await client.PostAsJsonAsync("/api/auth/login", new { email = activeEmail, password = "nope" });
-            Assert.Equal(HttpStatusCode.Unauthorized, wrong.StatusCode);
+            await client.PostAsJsonAsync("/api/auth/otp/request", new { phone });
 
-            // correct password but blocked account → 403.
-            var blocked = await client.PostAsJsonAsync("/api/auth/login", new { email = inactiveEmail, password });
-            Assert.Equal(HttpStatusCode.Forbidden, blocked.StatusCode);
-            using var doc = JsonDocument.Parse(await blocked.Content.ReadAsStringAsync());
-            Assert.Equal("Account is blocked", doc.RootElement.GetProperty("detail").GetString());
+            var verifyResp = await client.PostAsJsonAsync(
+                "/api/auth/otp/verify", new { phone, code = DevCode, full_name = "Yangi Foydalanuvchi" });
+            Assert.Equal(HttpStatusCode.OK, verifyResp.StatusCode);
+            using var verifyDoc = JsonDocument.Parse(await verifyResp.Content.ReadAsStringAsync());
+            var accessToken = verifyDoc.RootElement.GetProperty("access_token").GetString();
+            Assert.False(string.IsNullOrEmpty(accessToken));
 
-            // sanity: correct password on the active account still succeeds.
-            var ok = await client.PostAsJsonAsync("/api/auth/login", new { email = activeEmail, password });
-            Assert.Equal(HttpStatusCode.OK, ok.StatusCode);
+            // me → the created student; email is the derived {phone}@govori.uz placeholder.
+            var me = await GetMe(client, accessToken!);
+            Assert.Equal(HttpStatusCode.OK, me.StatusCode);
+            using var meDoc = JsonDocument.Parse(await me.Content.ReadAsStringAsync());
+            Assert.Equal($"{phone}@govori.uz", meDoc.RootElement.GetProperty("email").GetString());
+            Assert.Equal("Yangi Foydalanuvchi", meDoc.RootElement.GetProperty("full_name").GetString());
+            Assert.Equal("student", meDoc.RootElement.GetProperty("role").GetString());
+
+            // The row is real, passwordless (password_hash NULL), phone-matched.
+            await using var ctx = _db.CreateContext();
+            var created = await ctx.Users.SingleAsync(u => u.Phone == phone);
+            Assert.Null(created.PasswordHash);
+            Assert.True(created.IsActive);
         }
         finally
         {
-            await DeleteByEmail(activeEmail);
-            await DeleteByEmail(inactiveEmail);
+            await DeleteByPhone(phone);
         }
     }
 
-    // ── 3. refresh rejects an ACCESS token (only type=refresh is accepted) ──
+    // ── 3. New phone WITHOUT a name → 200 { needs_registration: true } (no row created) ──
     [Fact]
-    public async Task Refresh_rejects_an_access_token()
+    public async Task Otp_verify_new_phone_without_name_returns_needs_registration()
     {
-        var client = _factory.CreateClientWith(new FakeOtpStore(), new FakeOtpSender(), AnyGoogle());
-        var hasher = new PasswordHasher();
-        var email = $"refresh-{Guid.NewGuid():N}@example.test";
-        const string password = "Refresh!123";
-        await SeedUser(email, hasher.Hash(password), UserRole.Student, isActive: true);
+        var client = _factory.CreateClientWith(new FakeOtpStore(), new FakeOtpDeliverySender(), AnyGoogle());
+        var phone = NewPhone();
 
         try
         {
-            var loginResp = await client.PostAsJsonAsync("/api/auth/login", new { email, password });
-            using var loginDoc = JsonDocument.Parse(await loginResp.Content.ReadAsStringAsync());
-            var accessToken = loginDoc.RootElement.GetProperty("access_token").GetString();
+            await client.PostAsJsonAsync("/api/auth/otp/request", new { phone });
+
+            var verifyResp = await client.PostAsJsonAsync("/api/auth/otp/verify", new { phone, code = DevCode });
+            Assert.Equal(HttpStatusCode.OK, verifyResp.StatusCode);
+            using var doc = JsonDocument.Parse(await verifyResp.Content.ReadAsStringAsync());
+            Assert.True(doc.RootElement.GetProperty("needs_registration").GetBoolean());
+            Assert.False(doc.RootElement.TryGetProperty("access_token", out _)); // NOT tokens
+
+            // No account was created for that phone.
+            await using var ctx = _db.CreateContext();
+            Assert.Equal(0, await ctx.Users.CountAsync(u => u.Phone == phone));
+        }
+        finally
+        {
+            await DeleteByPhone(phone); // no-op if nothing created; keeps the run idempotent
+        }
+    }
+
+    // ── 4. Wrong code → 401 (the dev bypass is 000000; anything else must fail against the store) ──
+    [Fact]
+    public async Task Otp_verify_wrong_code_returns_401()
+    {
+        var client = _factory.CreateClientWith(new FakeOtpStore(), new FakeOtpDeliverySender(), AnyGoogle());
+        var phone = NewPhone();
+        var email = $"wrong-{Guid.NewGuid():N}@example.test";
+        await SeedUser(email, phone, UserRole.Student, isActive: true);
+
+        try
+        {
+            await client.PostAsJsonAsync("/api/auth/otp/request", new { phone }); // FakeOtpStore stores "123456"
+
+            // "111111" is neither the dev bypass nor the stored code → 401.
+            var resp = await client.PostAsJsonAsync("/api/auth/otp/verify", new { phone, code = "111111" });
+            Assert.Equal(HttpStatusCode.Unauthorized, resp.StatusCode);
+        }
+        finally
+        {
+            await DeleteByPhone(phone);
+        }
+    }
+
+    // ── 5. Inactive (blocked) account → 403 even with a valid code ──
+    [Fact]
+    public async Task Otp_verify_returns_403_for_a_blocked_account()
+    {
+        var client = _factory.CreateClientWith(new FakeOtpStore(), new FakeOtpDeliverySender(), AnyGoogle());
+        var phone = NewPhone();
+        var email = $"blocked-{Guid.NewGuid():N}@example.test";
+        await SeedUser(email, phone, UserRole.Student, isActive: false);
+
+        try
+        {
+            await client.PostAsJsonAsync("/api/auth/otp/request", new { phone });
+
+            var resp = await client.PostAsJsonAsync("/api/auth/otp/verify", new { phone, code = DevCode });
+            Assert.Equal(HttpStatusCode.Forbidden, resp.StatusCode);
+            using var doc = JsonDocument.Parse(await resp.Content.ReadAsStringAsync());
+            Assert.Equal("Account is blocked", doc.RootElement.GetProperty("detail").GetString());
+        }
+        finally
+        {
+            await DeleteByPhone(phone);
+        }
+    }
+
+    // ── 6. refresh rejects an ACCESS token (only type=refresh is accepted) ──
+    [Fact]
+    public async Task Refresh_rejects_an_access_token()
+    {
+        var client = _factory.CreateClientWith(new FakeOtpStore(), new FakeOtpDeliverySender(), AnyGoogle());
+        var phone = NewPhone();
+        var email = $"refresh-{Guid.NewGuid():N}@example.test";
+        await SeedUser(email, phone, UserRole.Student, isActive: true);
+
+        try
+        {
+            await client.PostAsJsonAsync("/api/auth/otp/request", new { phone });
+            var verifyResp = await client.PostAsJsonAsync("/api/auth/otp/verify", new { phone, code = DevCode });
+            using var verifyDoc = JsonDocument.Parse(await verifyResp.Content.ReadAsStringAsync());
+            var accessToken = verifyDoc.RootElement.GetProperty("access_token").GetString();
 
             // Feed the ACCESS token to /refresh → 401 (type != "refresh").
             var resp = await client.PostAsJsonAsync("/api/auth/refresh", new { refresh_token = accessToken });
@@ -174,39 +217,36 @@ public sealed class IdentityEndpointsTests : IClassFixture<IdentityEndpointsTest
         }
         finally
         {
-            await DeleteByEmail(email);
+            await DeleteByPhone(phone);
         }
     }
 
-    // ── 4. Google sign-in via the fake verifier creates then returns the same user ──
+    // ── 7. Google sign-in via the fake verifier creates then returns the same user ──
     [Fact]
     public async Task Google_sign_in_creates_then_returns_user()
     {
         var email = $"google-{Guid.NewGuid():N}@example.test";
         var google = new FakeGoogleTokenVerifier(email, sub: $"sub-{Guid.NewGuid():N}", name: "Google User");
-        var client = _factory.CreateClientWith(new FakeOtpStore(), new FakeOtpSender(), google);
+        var client = _factory.CreateClientWith(new FakeOtpStore(), new FakeOtpDeliverySender(), google);
 
         try
         {
-            // First call → creates the account, returns tokens.
             var first = await client.PostAsJsonAsync("/api/auth/google", new { credential = "fake-id-token" });
             Assert.Equal(HttpStatusCode.OK, first.StatusCode);
             using var firstDoc = JsonDocument.Parse(await first.Content.ReadAsStringAsync());
             var accessToken = firstDoc.RootElement.GetProperty("access_token").GetString();
             Assert.False(string.IsNullOrEmpty(accessToken));
 
-            // me → the created student, email matches (lower-cased).
             var me = await GetMe(client, accessToken!);
             Assert.Equal(HttpStatusCode.OK, me.StatusCode);
             using var meDoc = JsonDocument.Parse(await me.Content.ReadAsStringAsync());
             Assert.Equal(email.ToLowerInvariant(), meDoc.RootElement.GetProperty("email").GetString());
             Assert.Equal("student", meDoc.RootElement.GetProperty("role").GetString());
 
-            // Second call → returns the SAME user (login path), still 200.
+            // Second call → returns the SAME user (login path), still 200; exactly one row exists.
             var second = await client.PostAsJsonAsync("/api/auth/google", new { credential = "fake-id-token" });
             Assert.Equal(HttpStatusCode.OK, second.StatusCode);
 
-            // Exactly one row exists for that email.
             await using var ctx = _db.CreateContext();
             Assert.Equal(1, await ctx.Users.CountAsync(u => u.Email == email.ToLowerInvariant()));
         }
@@ -216,21 +256,25 @@ public sealed class IdentityEndpointsTests : IClassFixture<IdentityEndpointsTest
         }
     }
 
-    // ── 5. OTP fail-closed: a broken store denies verification (400), never approves ──
+    // ── 8. OTP fail-closed: a broken store denies verification (401), never approves/500s ──
     [Fact]
     public async Task Otp_verify_is_fail_closed_when_the_store_errors()
     {
-        var client = _factory.CreateClientWith(new ThrowingOtpStore(), new FakeOtpSender(), AnyGoogle(), emailVerificationEnabled: true);
-        var email = $"failclosed-{Guid.NewGuid():N}@example.test";
+        // Non-dev code ("123456") so the dev bypass can't mask the store failure.
+        var client = _factory.CreateClientWith(new ThrowingOtpStore(), new FakeOtpDeliverySender(), AnyGoogle());
+        var phone = NewPhone();
 
-        var resp = await client.PostAsJsonAsync("/api/auth/email/verify-code", new { email, code = "123456" });
+        var resp = await client.PostAsJsonAsync("/api/auth/otp/verify", new { phone, code = "123456" });
 
-        // Denied (400) — NOT a 500 crash and NOT a 200 pass.
-        Assert.Equal(HttpStatusCode.BadRequest, resp.StatusCode);
+        // Denied (401) — NOT a 500 crash and NOT a 200 pass.
+        Assert.Equal(HttpStatusCode.Unauthorized, resp.StatusCode);
     }
 
     // ── helpers ──
     private static FakeGoogleTokenVerifier AnyGoogle() => new("unused@example.test", sub: "unused");
+
+    // A fresh, valid +998 phone unlikely to collide with the seeded fixtures (which use 90/91 codes).
+    private static string NewPhone() => "+99899" + Random.Shared.Next(0, 10_000_000).ToString("D7");
 
     private static async Task<HttpResponseMessage> GetMe(HttpClient client, string accessToken)
     {
@@ -239,15 +283,16 @@ public sealed class IdentityEndpointsTests : IClassFixture<IdentityEndpointsTest
         return await client.SendAsync(req);
     }
 
-    private async Task SeedUser(string email, string passwordHash, UserRole role, bool isActive)
+    private async Task SeedUser(string email, string phone, UserRole role, bool isActive)
     {
         await using var ctx = _db.CreateContext();
         ctx.Users.Add(new User
         {
             Id = Guid.NewGuid(),
             Email = email,
+            Phone = phone,
             FullName = "Seed User",
-            PasswordHash = passwordHash,
+            PasswordHash = null,        // phone users are passwordless
             Role = role,
             IsActive = isActive,
             IsPremium = false,
@@ -256,6 +301,12 @@ public sealed class IdentityEndpointsTests : IClassFixture<IdentityEndpointsTest
             UpdatedAt = DateTime.UtcNow,
         });
         await ctx.SaveChangesAsync();
+    }
+
+    private async Task DeleteByPhone(string phone)
+    {
+        await using var ctx = _db.CreateContext();
+        await ctx.Users.Where(u => u.Phone == phone).ExecuteDeleteAsync();
     }
 
     private async Task DeleteByEmail(string email)
@@ -286,11 +337,11 @@ public sealed class IdentityEndpointsTests : IClassFixture<IdentityEndpointsTest
     }
 
     /// <summary>
-    /// Boots Govori.Api against the schema DB with a fixed test SECRET_KEY, then swaps the
-    /// external providers (OTP store/sender, Google verifier) for fakes and can force
-    /// email-verification on — all via ConfigureTestServices, which runs AFTER the app's own
-    /// registrations so the fakes win. SECRET_KEY + the connection string go through env vars
-    /// because Program.cs reads them at CreateBuilder, before the test host config applies.
+    /// Boots Govori.Api against the schema DB with a fixed test SECRET_KEY, then swaps the external
+    /// providers (OTP store + delivery, Google verifier) for fakes via ConfigureTestServices, which
+    /// runs AFTER the app's own registrations so the fakes win. SECRET_KEY + the connection string
+    /// go through env vars because Program.cs reads them at CreateBuilder, before the test host
+    /// config applies.
     /// </summary>
     public sealed class IdentityApiFactory : WebApplicationFactory<Program>
     {
@@ -311,22 +362,18 @@ public sealed class IdentityEndpointsTests : IClassFixture<IdentityEndpointsTest
         /// isolated host via WithWebHostBuilder so tests don't share provider state.</summary>
         public HttpClient CreateClientWith(
             IOtpStore otpStore,
-            IOtpSender otpSender,
-            IGoogleTokenVerifier googleVerifier,
-            bool emailVerificationEnabled = false)
+            IOtpDeliverySender otpDelivery,
+            IGoogleTokenVerifier googleVerifier)
         {
             return WithWebHostBuilder(builder =>
                 builder.ConfigureTestServices(services =>
                 {
                     services.RemoveAll<IOtpStore>();
                     services.AddSingleton(otpStore);
-                    services.RemoveAll<IOtpSender>();
-                    services.AddSingleton(otpSender);
+                    services.RemoveAll<IOtpDeliverySender>();
+                    services.AddSingleton(otpDelivery);
                     services.RemoveAll<IGoogleTokenVerifier>();
                     services.AddSingleton(googleVerifier);
-
-                    services.RemoveAll<OtpOptions>();
-                    services.AddSingleton(new OtpOptions { EmailVerificationEnabled = emailVerificationEnabled });
                 })).CreateClient();
         }
     }

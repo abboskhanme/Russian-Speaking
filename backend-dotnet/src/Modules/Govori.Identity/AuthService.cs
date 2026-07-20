@@ -8,127 +8,154 @@ using Microsoft.EntityFrameworkCore;
 namespace Govori.Identity;
 
 /// <summary>
-/// Application service for the Identity vertical slice (docs/07 §7.2 — keeps the API
-/// thin). Owns the full auth behaviour ported from backend/app/api/v1/auth.py +
-/// backend/app/api/deps.py, consuming the auth primitives (<see cref="PasswordHasher"/>,
-/// <see cref="TokenService"/>), the external-provider interfaces
-/// (<see cref="IOtpStore"/>, <see cref="IOtpSender"/>, <see cref="IGoogleTokenVerifier"/>)
+/// Application service for the Identity vertical slice (docs/07 §7.2 — keeps the API thin).
+///
+/// <para>PRODUCT DECISION (deliberate deviation from the Python port): auth is PHONE + OTP over
+/// Telegram. There is no email/password login and no email verification. A single OTP round-trip
+/// both logs an existing phone in and registers a new one. Email survives only as a DB column
+/// (NOT NULL + UNIQUE): a phone user gets the derived placeholder <c>{+998…}@govori.uz</c> and a
+/// NULL <c>password_hash</c> (passwordless). Google sign-in (email-keyed) is retained unchanged.</para>
+///
+/// Consumes the auth primitives (<see cref="TokenService"/>; <see cref="PasswordHasher"/> is no
+/// longer called by the phone flow but stays a registered primitive), the OTP seams
+/// (<see cref="IOtpStore"/>, <see cref="IOtpDeliverySender"/>), <see cref="IGoogleTokenVerifier"/>,
 /// and <see cref="GovoriDbContext"/> as-is.
 /// </summary>
 public sealed class AuthService
 {
     private readonly GovoriDbContext _db;
-    private readonly PasswordHasher _passwordHasher;
     private readonly TokenService _tokenService;
     private readonly IOtpStore _otpStore;
-    private readonly IOtpSender _otpSender;
+    private readonly IOtpDeliverySender _otpDelivery;
     private readonly IGoogleTokenVerifier _googleVerifier;
     private readonly OtpOptions _otpOptions;
 
     public AuthService(
         GovoriDbContext db,
-        PasswordHasher passwordHasher,
         TokenService tokenService,
         IOtpStore otpStore,
-        IOtpSender otpSender,
+        IOtpDeliverySender otpDelivery,
         IGoogleTokenVerifier googleVerifier,
         OtpOptions otpOptions)
     {
         _db = db;
-        _passwordHasher = passwordHasher;
         _tokenService = tokenService;
         _otpStore = otpStore;
-        _otpSender = otpSender;
+        _otpDelivery = otpDelivery;
         _googleVerifier = googleVerifier;
         _otpOptions = otpOptions;
     }
 
     /// <summary>
-    /// Authenticate by email + password. Mirrors Python's <c>login</c>
-    /// (auth.py:147-168): an unknown email, an OAuth-only account (NULL <c>password_hash</c>)
-    /// and a wrong password are all indistinguishable 401 failures. The
-    /// <c>is_active</c> check runs AFTER password verification, exactly like Python — so an
-    /// inactive user with the WRONG password still gets 401, not 403.
+    /// Step 1 of phone-OTP auth: normalise the phone, generate + store a code in Redis, and hand it
+    /// to the delivery sender (Telegram in prod, a logging stub in dev). This NEVER reveals whether
+    /// the phone already has an account — the same "sent" result is returned either way, so it is
+    /// safe to call before knowing if the user exists. The dev bypass code is echoed as
+    /// <c>DevHint</c> only when delivery is the dev stub.
     /// </summary>
-    public async Task<LoginResult> LoginAsync(string email, string password, CancellationToken ct = default)
+    public async Task<OtpRequestResult> RequestOtpAsync(string rawPhone, CancellationToken ct = default)
     {
-        var user = await _db.Users.FirstOrDefaultAsync(u => u.Email == email, ct);
-
-        // Verify() null-checks the hash first, so a NULL password_hash safely fails.
-        if (user is null || !_passwordHasher.Verify(password, user.PasswordHash))
-            return new LoginResult(LoginStatus.InvalidCredentials, null, null);
-
-        if (!user.IsActive)
-            return new LoginResult(LoginStatus.Inactive, null, user.Role);
-
-        return new LoginResult(LoginStatus.Success, MintPair(user), user.Role);
-    }
-
-    /// <summary>
-    /// Self-service sign-up. Mirrors Python's <c>register</c> (auth.py:106-139): validates
-    /// the profile fields (422), enforces the email-verify token when verification is
-    /// enabled (400), rejects a duplicate email (409), then creates an active STUDENT.
-    /// </summary>
-    public async Task<RegisterResult> RegisterAsync(RegisterRequest req, CancellationToken ct = default)
-    {
-        // Field validation — mirrors the pydantic validators on UserRegister (→ 422).
         string phone;
         try
         {
-            phone = PhoneNumbers.NormalizeUz(req.Phone);
+            phone = PhoneNumbers.NormalizeUz(rawPhone);
         }
         catch (FormatException ex)
         {
-            return new RegisterResult(RegisterStatus.InvalidInput, Error: ex.Message);
-        }
-        if (req.Age < 5 || req.Age > 100)
-            return new RegisterResult(RegisterStatus.InvalidInput, Error: "Yoshni to'g'ri kiriting");
-        var region = (req.Region ?? string.Empty).Trim();
-        var district = (req.District ?? string.Empty).Trim();
-        if (region.Length == 0 || district.Length == 0)
-            return new RegisterResult(RegisterStatus.InvalidInput, Error: "Manzilni tanlang");
-
-        // When email verification is enabled, require a valid email_verify token whose
-        // subject is this (lower-cased) email — mirrors auth.py:109-116.
-        if (_otpOptions.EmailVerificationEnabled)
-        {
-            var data = _tokenService.Decode(req.EmailVerifyToken ?? string.Empty);
-            if (data is null
-                || !data.TryGetValue("type", out var type) || type != "email_verify"
-                || !data.TryGetValue("sub", out var sub) || sub != req.Email.ToLowerInvariant())
-            {
-                return new RegisterResult(RegisterStatus.EmailNotVerified, Error: "Email tasdiqlanmagan");
-            }
+            return new OtpRequestResult(OtpRequestStatus.InvalidPhone, Error: ex.Message);
         }
 
-        if (await _db.Users.AnyAsync(u => u.Email == req.Email, ct))
-            return new RegisterResult(RegisterStatus.EmailTaken, Error: "Email already registered");
+        var code = await _otpStore.GenerateAndStoreAsync(phone, ct);
+        var delivery = await _otpDelivery.SendAsync(phone, code, ct);
 
-        var user = new User
+        var devHint = _otpDelivery.Channel == "dev" ? DevOtpDeliverySender.FixedDevCode : null;
+        return new OtpRequestResult(
+            OtpRequestStatus.Sent, _otpDelivery.Channel, _otpOptions.TtlSeconds, devHint, delivery.TelegramLink);
+    }
+
+    /// <summary>
+    /// Step 2 of phone-OTP auth: verify the code, then log in / register / ask for a name.
+    /// <list type="bullet">
+    ///   <item>A user with this phone EXISTS + active → <b>login</b> (tokens).</item>
+    ///   <item>No user + <paramref name="fullName"/> given → <b>register</b> a passwordless STUDENT
+    ///         (email = <c>{phone}@govori.uz</c>, password_hash NULL) then issue tokens.</item>
+    ///   <item>No user + no name → <see cref="OtpVerifyStatus.NeedsRegistration"/> so the UI can
+    ///         collect the name and re-verify.</item>
+    /// </list>
+    ///
+    /// <para><b>FAIL-CLOSED:</b> the Redis check denies on any store failure. The ONLY way to pass
+    /// without a Redis match is the dev bypass (<see cref="IOtpDeliverySender.AcceptsDevCode"/>),
+    /// which the real Telegram sender always refuses — so <c>000000</c> can never work in prod.</para>
+    /// </summary>
+    public async Task<OtpVerifyOutcome> VerifyOtpAsync(
+        string rawPhone, string code, string? fullName, CancellationToken ct = default)
+    {
+        string phone;
+        try
         {
-            Id = Guid.NewGuid(),               // Id is ValueGeneratedNever → set client-side (uuid4)
-            Email = req.Email,                 // Python stores the email as typed (token check uses .lower())
-            PasswordHash = _passwordHasher.Hash(req.Password),
-            FullName = req.FullName,
-            Phone = phone,                     // normalised to +998XXXXXXXXX
-            Age = req.Age,
-            Region = region,
-            District = district,
-            Role = UserRole.Student,           // self-service sign-up is always a student
-            IsActive = true,                   // no DB default on is_active — set explicitly
+            phone = PhoneNumbers.NormalizeUz(rawPhone);
+        }
+        catch (FormatException ex)
+        {
+            return new OtpVerifyOutcome(OtpVerifyStatus.InvalidPhone, Error: ex.Message);
+        }
+
+        if (!await VerifyCodeAsync(phone, code, ct))
+            return new OtpVerifyOutcome(OtpVerifyStatus.InvalidCode);
+
+        var user = await _db.Users.FirstOrDefaultAsync(u => u.Phone == phone, ct);
+        if (user is not null)
+        {
+            if (!user.IsActive)
+                return new OtpVerifyOutcome(OtpVerifyStatus.Inactive, Role: user.Role);
+            return new OtpVerifyOutcome(OtpVerifyStatus.LoggedIn, MintPair(user));
+        }
+
+        // New phone. Without a name we can't create the account — ask the UI for it.
+        var name = (fullName ?? string.Empty).Trim();
+        if (name.Length == 0)
+            return new OtpVerifyOutcome(OtpVerifyStatus.NeedsRegistration);
+
+        var created = new User
+        {
+            Id = Guid.NewGuid(),                 // Id is ValueGeneratedNever → set client-side (uuid4)
+            Phone = phone,                       // normalised +998XXXXXXXXX
+            Email = $"{phone}@govori.uz",        // email is NOT NULL + UNIQUE — derive a placeholder
+            PasswordHash = null,                 // passwordless — phone users authenticate by OTP only
+            FullName = name,
+            Role = UserRole.Student,             // self-service sign-up is always a student
+            IsActive = true,                     // no DB default on is_active — set explicitly
             IsPremium = false,
             PreferredLanguage = "uz",
             CreatedAt = DateTime.UtcNow,
             UpdatedAt = DateTime.UtcNow,
         };
-        _db.Users.Add(user);
+        _db.Users.Add(created);
         await _db.SaveChangesAsync(ct);
 
-        // TODO(groups domain): Python auto-joins the teacher's group when a `group_code` is
-        // present (auth.py:136-138 → groups.add_member_by_code). That touches Group /
-        // GroupMember / notifications, which land with the Groups module — deferred here.
+        return new OtpVerifyOutcome(OtpVerifyStatus.Registered, MintPair(created));
+    }
 
-        return new RegisterResult(RegisterStatus.Success, Project(user));
+    /// <summary>Dev bypass first (dev-only, gated by the sender), else the fail-closed Redis check.</summary>
+    private async Task<bool> VerifyCodeAsync(string phone, string code, CancellationToken ct)
+    {
+        // The dev stub accepts a fixed code; the real Telegram sender never does. This is the ONLY
+        // path that skips Redis, so it can only ever pass in dev delivery.
+        if (_otpDelivery.AcceptsDevCode(code))
+            return true;
+
+        try
+        {
+            return await _otpStore.VerifyAsync(phone, code, ct);
+        }
+        catch (OperationCanceledException)
+        {
+            throw; // genuine cancellation is not a verification decision
+        }
+        catch
+        {
+            return false; // fail-closed: a broken store denies, never approves
+        }
     }
 
     /// <summary>
@@ -155,7 +182,7 @@ public sealed class AuthService
     /// Sign in (or sign up) with a Google ID token. Mirrors Python's <c>google_auth</c>
     /// (auth.py:176-207): verify the token, then find-or-create a STUDENT keyed by email.
     /// An existing blocked account is rejected (403); a missing <c>google_sub</c> is
-    /// back-filled.
+    /// back-filled. Retained unchanged alongside phone-OTP.
     /// </summary>
     public async Task<GoogleAuthOutcome> GoogleAsync(string credential, string? groupCode, CancellationToken ct = default)
     {
@@ -206,49 +233,6 @@ public sealed class AuthService
         }
 
         return new GoogleAuthOutcome(GoogleAuthStatus.Success, MintPair(user));
-    }
-
-    /// <summary>
-    /// Issue an email-verification code. Mirrors Python's <c>request_email_code</c>
-    /// (auth.py:78-85): reject an already-registered email (409), else generate + send a
-    /// code and report the TTL.
-    /// </summary>
-    public async Task<EmailCodeRequestResult> RequestEmailCodeAsync(string email, CancellationToken ct = default)
-    {
-        email = email.ToLowerInvariant();
-        if (await _db.Users.AnyAsync(u => u.Email == email, ct))
-            return new EmailCodeRequestResult(EmailCodeRequestStatus.EmailTaken, 0);
-
-        var code = await _otpStore.GenerateAndStoreAsync(email, ct);
-        await _otpSender.SendOtpAsync(email, code, ct);
-        return new EmailCodeRequestResult(EmailCodeRequestStatus.Sent, _otpOptions.TtlSeconds);
-    }
-
-    /// <summary>
-    /// Check an email-verification code and, on success, mint the short-lived
-    /// <c>email_verify</c> token. Mirrors Python's <c>verify_email_code</c> (auth.py:93-97):
-    /// returns <c>null</c> (→ 400) when the code is wrong/expired.
-    ///
-    /// <para><b>FAIL-CLOSED:</b> any OTP-store failure (e.g. Redis down) is treated as a
-    /// denied verification — we NEVER let an unverifiable code through.</para>
-    /// </summary>
-    public async Task<string?> VerifyEmailCodeAsync(string email, string code, CancellationToken ct = default)
-    {
-        bool ok;
-        try
-        {
-            ok = await _otpStore.VerifyAsync(email, code, ct);
-        }
-        catch (OperationCanceledException)
-        {
-            throw; // genuine cancellation is not a verification decision
-        }
-        catch
-        {
-            ok = false; // fail-closed: a broken store denies, never approves
-        }
-
-        return ok ? _tokenService.CreateEmailVerifyToken(email) : null;
     }
 
     /// <summary>

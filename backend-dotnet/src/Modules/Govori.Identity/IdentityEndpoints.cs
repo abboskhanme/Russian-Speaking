@@ -9,10 +9,10 @@ using Microsoft.AspNetCore.Routing;
 namespace Govori.Identity;
 
 /// <summary>
-/// The Identity domain's HTTP surface (docs/07 §7.5, Faza 3.1), ported from
-/// backend/app/api/v1/auth.py. This is the MODULAR-ENDPOINT PATTERN every future domain
-/// (Catalog, Practice, …) copies: a single <c>Map*Endpoints</c> extension the composition
-/// root calls, keeping <c>Program.cs</c> free of per-domain route wiring.
+/// The Identity domain's HTTP surface (docs/07 §7.5, Faza 3.1). PRODUCT DECISION: auth is
+/// PHONE + OTP over Telegram — email/password login and email verification are GONE. The surface
+/// is: <c>otp/request</c> + <c>otp/verify</c> (the whole login-or-register flow), plus the retained
+/// <c>me</c> / <c>refresh</c> / <c>logout</c> / <c>google</c> / <c>config</c>.
 ///
 /// Endpoints are thin by design (§7.2): parse → <see cref="AuthService"/> → serialize. All
 /// behaviour + status-code decisions live in the service; here we only map outcomes to HTTP.
@@ -24,66 +24,53 @@ public static class IdentityEndpoints
     {
         var auth = app.MapGroup("/api/auth");
 
-        // GET /api/auth/config → public client config (auth.py:64-70).
-        auth.MapGet("/config", (OtpOptions otp, GoogleAuthOptions google) =>
-            Results.Ok(new AuthConfigResponse(otp.EmailVerificationEnabled, !string.IsNullOrEmpty(google.ClientId))));
+        // GET /api/auth/config → public client config: whether Google sign-in is configured and
+        // which OTP delivery channel is active ("telegram" | "dev"). Email verification is gone.
+        auth.MapGet("/config", (IOtpDeliverySender delivery, GoogleAuthOptions google) =>
+            Results.Ok(new AuthConfigResponse(!string.IsNullOrEmpty(google.ClientId), delivery.Channel)));
 
-        // POST /api/auth/email/request-code → 200 { ok, expires_in }, or 409 if the email is
-        // already registered (auth.py:78-85).
-        // RATE LIMIT: email_code 5/600, per-IP, FAIL-OPEN (auth.py:76; policy registered in
-        // Govori.Api/RateLimiting — a store outage ALLOWS the request).
-        auth.MapPost("/email/request-code", async (EmailCodeRequest req, AuthService svc, CancellationToken ct) =>
+        // POST /api/auth/otp/request → 200 { ok, delivery, expires_in, telegram_link? | dev_hint? },
+        // or 400 on a malformed phone. NEVER reveals whether the phone already has an account.
+        // RATE LIMIT: reuses the email_code scope (5/600, per-user-or-IP, FAIL-OPEN — a store
+        // outage ALLOWS the request; policy registered in Govori.Api/RateLimiting).
+        auth.MapPost("/otp/request", async (OtpRequestRequest req, AuthService svc, CancellationToken ct) =>
         {
-            var result = await svc.RequestEmailCodeAsync(req.Email, ct);
-            return result.Status == EmailCodeRequestStatus.EmailTaken
-                ? Detail("Email already registered", StatusCodes.Status409Conflict)
-                : Results.Ok(new EmailCodeSentResponse(true, result.ExpiresInSeconds));
+            var result = await svc.RequestOtpAsync(req.Phone, ct);
+            return result.Status == OtpRequestStatus.InvalidPhone
+                ? Detail(result.Error!, StatusCodes.Status400BadRequest)
+                : Results.Ok(new OtpSentResponse(
+                    true, result.Channel, result.ExpiresInSeconds, result.TelegramLink, result.DevHint));
         }).RequireRateLimiting(RateLimitPolicyNames.EmailCode);
 
-        // POST /api/auth/email/verify-code → 200 { email_verify_token }, or 400 on a
-        // wrong/expired code (auth.py:93-97). FAIL-CLOSED: a broken OTP store denies (400).
-        auth.MapPost("/email/verify-code", async (EmailCodeVerifyRequest req, AuthService svc, CancellationToken ct) =>
+        // POST /api/auth/otp/verify → verify the code, then login/register/ask-for-name:
+        //   • existing active phone  → 200 TokenPair (login)
+        //   • new phone + full_name  → 200 TokenPair (register a passwordless student)
+        //   • new phone, no name     → 200 { needs_registration: true }
+        //   • wrong/expired code     → 401
+        //   • matched but inactive   → 403 (teacher-awaiting-approval vs blocked)
+        //   • malformed phone        → 400
+        // FAIL-CLOSED: a broken OTP store denies (401), never approves.
+        // RATE LIMIT: reuses the login scope (10/300), the OTP analogue of password login.
+        auth.MapPost("/otp/verify", async (OtpVerifyRequest req, AuthService svc, CancellationToken ct) =>
         {
-            var token = await svc.VerifyEmailCodeAsync(req.Email, req.Code, ct);
-            return token is null
-                ? Detail("Tasdiqlash kodi noto'g'ri yoki muddati o'tgan", StatusCodes.Status400BadRequest)
-                : Results.Ok(new EmailVerifyTokenResponse(token));
-        });
-
-        // POST /api/auth/register → 201 UserOut, 400 (email not verified), 409 (taken),
-        // 422 (validation) (auth.py:106-139).
-        auth.MapPost("/register", async (RegisterRequest req, AuthService svc, CancellationToken ct) =>
-        {
-            var result = await svc.RegisterAsync(req, ct);
+            var result = await svc.VerifyOtpAsync(req.Phone, req.Code, req.FullName, ct);
             return result.Status switch
             {
-                RegisterStatus.EmailNotVerified => Detail(result.Error!, StatusCodes.Status400BadRequest),
-                RegisterStatus.EmailTaken => Detail(result.Error!, StatusCodes.Status409Conflict),
-                RegisterStatus.InvalidInput => Detail(result.Error!, StatusCodes.Status422UnprocessableEntity),
-                _ => Results.Json(result.User, statusCode: StatusCodes.Status201Created),
-            };
-        });
-
-        // POST /api/auth/login → 200 TokenPair, 401 (bad creds), 403 (inactive) (auth.py:147-168).
-        // Never leak which of email/password was wrong. 403 message differs for an unapproved
-        // teacher vs a blocked account, mirroring Python.
-        auth.MapPost("/login", async (LoginRequest req, AuthService svc, CancellationToken ct) =>
-        {
-            var result = await svc.LoginAsync(req.Email, req.Password, ct);
-            return result.Status switch
-            {
-                LoginStatus.InvalidCredentials => Detail("Incorrect email or password", StatusCodes.Status401Unauthorized),
-                LoginStatus.Inactive => Detail(
+                OtpVerifyStatus.InvalidPhone => Detail(result.Error!, StatusCodes.Status400BadRequest),
+                OtpVerifyStatus.InvalidCode => Detail(
+                    "Tasdiqlash kodi noto'g'ri yoki muddati o'tgan", StatusCodes.Status401Unauthorized),
+                OtpVerifyStatus.Inactive => Detail(
                     result.Role == UserRole.Teacher
                         ? "Your teacher account is awaiting admin approval."
                         : "Account is blocked",
                     StatusCodes.Status403Forbidden),
-                _ => Results.Ok(result.Tokens),
+                OtpVerifyStatus.NeedsRegistration => Results.Ok(new NeedsRegistrationResponse(true)),
+                _ => Results.Ok(result.Tokens), // LoggedIn or Registered
             };
         }).RequireRateLimiting(RateLimitPolicyNames.Login);
 
         // POST /api/auth/google → 200 TokenPair, 503 (not configured), 502 (unreachable),
-        // 401 (invalid token), 403 (blocked) (auth.py:176-207).
+        // 401 (invalid token), 403 (blocked) (auth.py:176-207). Retained alongside phone-OTP.
         auth.MapPost("/google", async (GoogleAuthRequest req, AuthService svc, CancellationToken ct) =>
         {
             var result = await svc.GoogleAsync(req.Credential, req.GroupCode, ct);
@@ -107,10 +94,8 @@ public static class IdentityEndpoints
                 : Results.Ok(tokens);
         });
 
-        // POST /api/auth/logout → 204. Python exposes NO logout route: JWTs are stateless and
-        // never server-revoked. We invent no revocation — the client simply discards its
-        // tokens (they remain valid until expiry, exactly as in Python). This no-op exists
-        // only to give the client a symmetric endpoint to call.
+        // POST /api/auth/logout → 204. JWTs are stateless and never server-revoked; the client
+        // simply discards its tokens. This no-op exists only to give the client a symmetric endpoint.
         auth.MapPost("/logout", () => Results.NoContent());
 
         // GET /api/auth/me → the authenticated user (auth.py:222-224). role/is_active come
@@ -128,12 +113,6 @@ public static class IdentityEndpoints
             return me is null ? Results.Unauthorized() : Results.Ok(me);
         }).RequireAuthorization();
 
-        // Rate limiting (§7.3): login/google (login 10-20/300) and email/request-code
-        // (email_code 5/600) attach ASP.NET Core RateLimiter policies via .RequireRateLimiting above.
-        // Policies are per-user-or-IP fixed-window and FAIL-OPEN (a store outage must never take the
-        // API down), registered in Govori.Api/RateLimiting (AddGovoriRateLimiter). TODO(§7.3): the
-        // remaining Python scopes (email_verify 10/600, register 10/3600, submit/genmodel) can attach
-        // the same way when those .NET routes want limiting.
         return app;
     }
 

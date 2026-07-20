@@ -1,24 +1,25 @@
 namespace Govori.Identity.Providers;
 
 /// <summary>
-/// One-time email-verification code storage, ported from backend/app/services/otp.py.
-/// A code is stored under <c>emailotp:&lt;email&gt;</c> with a TTL; wrong guesses are
-/// attempt-limited under <c>emailotp_attempts:&lt;email&gt;</c> and burn the code once the
-/// limit is hit.
+/// One-time OTP storage, ported from backend/app/services/otp.py and reused for phone codes.
+/// A code is stored under <c>otp:&lt;key&gt;</c> with a TTL (the key is the normalised phone);
+/// wrong guesses are attempt-limited under <c>otp_attempts:&lt;key&gt;</c> and burn the code once
+/// the limit is hit.
 ///
 /// <para><b>FAIL-CLOSED:</b> verification must NEVER let an unverifiable code through. The
 /// real (Redis) backend surfaces a store outage as a thrown exception; the caller
-/// (<see cref="AuthService.VerifyEmailCodeAsync"/>) treats any such failure as a denied
-/// verification. An implementation must never return <c>true</c> when it cannot prove the
-/// code matched.</para>
+/// (<see cref="AuthService.VerifyOtpAsync"/>) treats any such failure as a denied verification. An
+/// implementation must never return <c>true</c> when it cannot prove the code matched. The ONLY
+/// exception is the dev-code bypass, which lives OUTSIDE this store (see
+/// <see cref="IOtpDeliverySender.AcceptsDevCode"/>).</para>
 /// </summary>
 public interface IOtpStore
 {
-    /// <summary>Create a fresh code, store it with the configured TTL, reset the attempt
-    /// counter, and return the code (mirrors <c>otp.generate_and_store</c>).</summary>
-    Task<string> GenerateAndStoreAsync(string email, CancellationToken ct = default);
+    /// <summary>Create a fresh code, store it under <paramref name="key"/> with the configured TTL,
+    /// reset the attempt counter, and return the code (mirrors <c>otp.generate_and_store</c>).</summary>
+    Task<string> GenerateAndStoreAsync(string key, CancellationToken ct = default);
 
-    /// <summary>Return <c>true</c> IFF <paramref name="code"/> matches the stored code
-    /// (one-shot, attempt-limited). Mirrors <c>otp.verify</c>.</summary>
-    Task<bool> VerifyAsync(string email, string code, CancellationToken ct = default);
+    /// <summary>Return <c>true</c> IFF <paramref name="code"/> matches the code stored under
+    /// <paramref name="key"/> (one-shot, attempt-limited). Mirrors <c>otp.verify</c>.</summary>
+    Task<bool> VerifyAsync(string key, string code, CancellationToken ct = default);
 }

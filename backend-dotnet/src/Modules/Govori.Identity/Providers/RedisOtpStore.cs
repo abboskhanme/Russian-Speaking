@@ -10,7 +10,7 @@ namespace Govori.Identity.Providers;
 ///
 /// <para><b>FAIL-CLOSED:</b> this store never swallows a Redis outage into a "pass". If Redis
 /// is unreachable the underlying call throws, and the caller
-/// (<see cref="AuthService.VerifyEmailCodeAsync"/>) denies the verification. We NEVER let an
+/// (<see cref="AuthService.VerifyOtpAsync"/>) denies the verification. We NEVER let an
 /// unverifiable code through — matching the Python module's "verification fails CLOSED if
 /// Redis is down".</para>
 /// </summary>
@@ -25,41 +25,41 @@ public sealed class RedisOtpStore : IOtpStore
         _options = options;
     }
 
-    private static RedisKey CodeKey(string email) => $"emailotp:{email.ToLowerInvariant()}";
-    private static RedisKey AttemptsKey(string email) => $"emailotp_attempts:{email.ToLowerInvariant()}";
+    private static RedisKey CodeKey(string key) => $"otp:{key.ToLowerInvariant()}";
+    private static RedisKey AttemptsKey(string key) => $"otp_attempts:{key.ToLowerInvariant()}";
 
     /// <summary>Mirrors <c>otp.generate_and_store</c>: store a fresh code with the TTL and
     /// reset the attempt counter.</summary>
-    public async Task<string> GenerateAndStoreAsync(string email, CancellationToken ct = default)
+    public async Task<string> GenerateAndStoreAsync(string key, CancellationToken ct = default)
     {
         var code = GenerateCode(_options.CodeLength);
         var db = _redis.GetDatabase();
-        await db.StringSetAsync(CodeKey(email), code, TimeSpan.FromSeconds(_options.TtlSeconds));
-        await db.KeyDeleteAsync(AttemptsKey(email)); // reset attempt counter for the new code
+        await db.StringSetAsync(CodeKey(key), code, TimeSpan.FromSeconds(_options.TtlSeconds));
+        await db.KeyDeleteAsync(AttemptsKey(key)); // reset attempt counter for the new code
         return code;
     }
 
     /// <summary>Mirrors <c>otp.verify</c>: one-shot, attempt-limited, constant-time compare.</summary>
-    public async Task<bool> VerifyAsync(string email, string code, CancellationToken ct = default)
+    public async Task<bool> VerifyAsync(string key, string code, CancellationToken ct = default)
     {
         var db = _redis.GetDatabase();
-        var stored = await db.StringGetAsync(CodeKey(email));
+        var stored = await db.StringGetAsync(CodeKey(key));
         if (stored.IsNullOrEmpty)
             return false; // never issued, or already expired/used
 
-        var attempts = await db.StringIncrementAsync(AttemptsKey(email));
+        var attempts = await db.StringIncrementAsync(AttemptsKey(key));
         if (attempts == 1)
-            await db.KeyExpireAsync(AttemptsKey(email), TimeSpan.FromSeconds(_options.TtlSeconds));
+            await db.KeyExpireAsync(AttemptsKey(key), TimeSpan.FromSeconds(_options.TtlSeconds));
         if (attempts > _options.MaxAttempts)
         {
-            await db.KeyDeleteAsync(CodeKey(email)); // burn the code after too many tries
+            await db.KeyDeleteAsync(CodeKey(key)); // burn the code after too many tries
             return false;
         }
 
         if (FixedTimeEquals(stored!, (code ?? string.Empty).Trim()))
         {
-            await db.KeyDeleteAsync(CodeKey(email));
-            await db.KeyDeleteAsync(AttemptsKey(email));
+            await db.KeyDeleteAsync(CodeKey(key));
+            await db.KeyDeleteAsync(AttemptsKey(key));
             return true;
         }
         return false;

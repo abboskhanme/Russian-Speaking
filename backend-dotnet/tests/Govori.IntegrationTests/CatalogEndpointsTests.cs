@@ -102,11 +102,10 @@ public sealed class CatalogEndpointsTests : IClassFixture<CatalogEndpointsTests.
         {
             var client = _factory.CreateClient();
 
-            // Authenticate as the seeded student via the real auth path.
-            var loginResp = await client.PostAsJsonAsync("/api/auth/login", new { email = studentEmail, password });
-            Assert.Equal(HttpStatusCode.OK, loginResp.StatusCode);
-            using var loginDoc = JsonDocument.Parse(await loginResp.Content.ReadAsStringAsync());
-            var accessToken = loginDoc.RootElement.GetProperty("access_token").GetString();
+            // Auth is phone-OTP now (no email/password login). This non-auth test only needs a bearer
+            // for the seeded student, so mint the same access token (sub = user id) with the test secret.
+            var accessToken = new TokenService(new IdentityAuthOptions { SecretKey = CatalogApiFactory.TestSecretKey })
+                .CreateAccessToken(studentId.ToString());
 
             // Anonymous → 401 (RequireAuthorization).
             Assert.Equal(HttpStatusCode.Unauthorized, (await client.GetAsync("/api/blocks/student")).StatusCode);
@@ -243,7 +242,7 @@ public sealed class CatalogEndpointsTests : IClassFixture<CatalogEndpointsTests.
             Environment.GetEnvironmentVariable("GOVORI_TEST_DB")
             ?? GovoriDataSourceFactory.DefaultConnectionString;
 
-        private const string TestSecretKey =
+        internal const string TestSecretKey =
             "catalog-domain-integration-test-secret-key-do-not-use-in-prod";
 
         public CatalogApiFactory()

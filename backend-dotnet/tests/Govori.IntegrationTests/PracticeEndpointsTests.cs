@@ -82,8 +82,8 @@ public sealed class PracticeEndpointsTests : IClassFixture<PracticeEndpointsTest
         try
         {
             var client = _factory.CreateClient();
-            var premiumToken = await LoginAsync(client, premiumEmail, password);
-            var freeToken = await LoginAsync(client, freeEmail, password);
+            var premiumToken = TokenFor(premiumId);
+            var freeToken = TokenFor(freeId);
 
             // ── Anonymous → 401 (RequireAuthorization) ──
             Assert.Equal(HttpStatusCode.Unauthorized, (await client.GetAsync("/api/submissions")).StatusCode);
@@ -151,13 +151,12 @@ public sealed class PracticeEndpointsTests : IClassFixture<PracticeEndpointsTest
 
     // ── helpers ──
 
-    private static async Task<string> LoginAsync(HttpClient client, string email, string password)
-    {
-        var resp = await client.PostAsJsonAsync("/api/auth/login", new { email, password });
-        Assert.Equal(HttpStatusCode.OK, resp.StatusCode);
-        using var doc = JsonDocument.Parse(await resp.Content.ReadAsStringAsync());
-        return doc.RootElement.GetProperty("access_token").GetString()!;
-    }
+    // Auth is phone-OTP now (no email/password login). These non-auth tests only need a bearer for a
+    // seeded user, so mint the SAME access token login used to return (sub = user id, type = access)
+    // directly with the host's test secret — hermetic, no OTP/Redis round-trip.
+    private static string TokenFor(Guid userId) =>
+        new TokenService(new IdentityAuthOptions { SecretKey = PracticeApiFactory.TestSecretKey })
+            .CreateAccessToken(userId.ToString());
 
     private static Task<HttpResponseMessage> Send(
         HttpClient client, HttpMethod method, string url, string token, HttpContent? content = null)
@@ -249,7 +248,7 @@ public sealed class PracticeEndpointsTests : IClassFixture<PracticeEndpointsTest
             Environment.GetEnvironmentVariable("GOVORI_TEST_DB")
             ?? GovoriDataSourceFactory.DefaultConnectionString;
 
-        private const string TestSecretKey =
+        internal const string TestSecretKey =
             "practice-domain-integration-test-secret-key-do-not-use-in-prod";
 
         public PracticeApiFactory()

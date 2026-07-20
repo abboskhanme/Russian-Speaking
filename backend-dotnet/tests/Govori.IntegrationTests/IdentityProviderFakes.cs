@@ -40,19 +40,25 @@ public sealed class ThrowingOtpStore : IOtpStore
         => throw new InvalidOperationException("simulated OTP store outage");
 }
 
-/// <summary>Test <see cref="IOtpSender"/> — captures the last code per email instead of
-/// sending anything.</summary>
-public sealed class FakeOtpSender : IOtpSender
+/// <summary>Test <see cref="IOtpDeliverySender"/> — the DEV channel: captures the last code per
+/// phone (instead of calling Telegram) and accepts the fixed dev code <c>000000</c>, so tests can
+/// verify either with the captured real code or with the dev bypass.</summary>
+public sealed class FakeOtpDeliverySender : IOtpDeliverySender
 {
     private readonly ConcurrentDictionary<string, string> _sent = new(StringComparer.OrdinalIgnoreCase);
 
-    public Task SendOtpAsync(string email, string code, CancellationToken ct = default)
+    public string Channel => "dev";
+
+    public Task<OtpDeliveryResult> SendAsync(string phone, string code, CancellationToken ct = default)
     {
-        _sent[email] = code;
-        return Task.CompletedTask;
+        _sent[phone] = code;
+        return Task.FromResult(new OtpDeliveryResult()); // no deep link in dev
     }
 
-    public string? LastCodeFor(string email) => _sent.TryGetValue(email, out var c) ? c : null;
+    public bool AcceptsDevCode(string code)
+        => string.Equals((code ?? string.Empty).Trim(), "000000", StringComparison.Ordinal);
+
+    public string? LastCodeFor(string phone) => _sent.TryGetValue(phone, out var c) ? c : null;
 }
 
 /// <summary>Test <see cref="IGoogleTokenVerifier"/> — returns a preset result without calling

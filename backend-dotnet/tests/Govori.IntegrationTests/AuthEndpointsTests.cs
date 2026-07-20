@@ -2,7 +2,6 @@ using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text.Json;
-using Govori.Identity.Security;
 using Govori.Infrastructure;
 using Govori.Infrastructure.Entities;
 using Microsoft.AspNetCore.Mvc.Testing;
@@ -12,15 +11,21 @@ using Npgsql;
 namespace Govori.IntegrationTests;
 
 /// <summary>
-/// Tracer bullet for the Identity vertical slice (docs/07 §7.5, Faza 3.1): proves the full
-/// path HTTP → AuthService → EF Core → the real prod-shaped Postgres → JWT and back.
+/// Tracer bullet for the Identity vertical slice (docs/07 §7.5, Faza 3.1): proves the full PHONE +
+/// OTP path HTTP → AuthService → the REAL providers (Redis OTP store + dev delivery) → EF Core →
+/// the real prod-shaped Postgres → JWT and back.
 ///
 /// Boots the real <c>Govori.Api</c> host via <see cref="WebApplicationFactory{T}"/> with the
-/// DbContext pointed at the govori-net schema DB (GOVORI_TEST_DB) and a fixed test SECRET_KEY.
-/// Seeds one user through the DbContext and deletes it in a finally so the run is idempotent.
+/// DbContext pointed at the govori-net schema DB (GOVORI_TEST_DB) and a fixed test SECRET_KEY, and
+/// (unlike IdentityEndpointsTests) swaps NO providers — so this exercises the real RedisOtpStore
+/// and the real DevOtpDeliverySender (no Telegram token in the test env ⇒ dev delivery, which
+/// accepts the fixed code 000000). Seeds one phone user through the DbContext and deletes it in a
+/// finally so the run is idempotent.
 /// </summary>
 public sealed class AuthEndpointsTests : IClassFixture<AuthEndpointsTests.AuthApiFactory>, IDisposable
 {
+    private const string DevCode = "000000";
+
     private readonly AuthApiFactory _factory;
     private readonly NpgsqlDataSource _dataSource;
 
@@ -39,12 +44,11 @@ public sealed class AuthEndpointsTests : IClassFixture<AuthEndpointsTests.AuthAp
     }
 
     [Fact]
-    public async Task Login_then_me_round_trips_http_to_ef_to_jwt_and_back()
+    public async Task Otp_login_then_me_round_trips_http_to_redis_to_ef_to_jwt_and_back()
     {
         var userId = Guid.NewGuid();
         var email = $"tracer-{userId:N}@example.test";
-        const string password = "Tracer!123";
-        var hasher = new PasswordHasher();
+        var phone = "+99899" + Random.Shared.Next(0, 10_000_000).ToString("D7");
 
         await using (var ctx = CreateContext())
         {
@@ -52,8 +56,9 @@ public sealed class AuthEndpointsTests : IClassFixture<AuthEndpointsTests.AuthAp
             {
                 Id = userId,
                 Email = email,
+                Phone = phone,
                 FullName = "Tracer Bullet",
-                PasswordHash = hasher.Hash(password),   // bcrypt $2b$12$…, read back by AuthService
+                PasswordHash = null,                    // phone users are passwordless
                 Role = UserRole.Student,                // native PG enum
                 IsActive = true,
                 IsPremium = false,
@@ -68,20 +73,26 @@ public sealed class AuthEndpointsTests : IClassFixture<AuthEndpointsTests.AuthAp
         {
             var client = _factory.CreateClient();
 
-            // 1. POST /api/auth/login (correct creds) → 200 + non-empty access_token.
-            var loginResp = await client.PostAsJsonAsync(
-                "/api/auth/login", new { email, password });
-            Assert.Equal(HttpStatusCode.OK, loginResp.StatusCode);
+            // 1. POST /api/auth/otp/request → 200, code stored in the REAL Redis, dev delivery.
+            var reqResp = await client.PostAsJsonAsync("/api/auth/otp/request", new { phone });
+            Assert.Equal(HttpStatusCode.OK, reqResp.StatusCode);
+            using (var reqDoc = JsonDocument.Parse(await reqResp.Content.ReadAsStringAsync()))
+            {
+                Assert.True(reqDoc.RootElement.GetProperty("ok").GetBoolean());
+                Assert.Equal("dev", reqDoc.RootElement.GetProperty("delivery").GetString());
+            }
 
-            using var loginDoc = JsonDocument.Parse(await loginResp.Content.ReadAsStringAsync());
-            var accessToken = loginDoc.RootElement.GetProperty("access_token").GetString();
+            // 2. POST /api/auth/otp/verify (dev 000000) → 200 + non-empty tokens.
+            var verifyResp = await client.PostAsJsonAsync("/api/auth/otp/verify", new { phone, code = DevCode });
+            Assert.Equal(HttpStatusCode.OK, verifyResp.StatusCode);
+            using var verifyDoc = JsonDocument.Parse(await verifyResp.Content.ReadAsStringAsync());
+            var accessToken = verifyDoc.RootElement.GetProperty("access_token").GetString();
             Assert.False(string.IsNullOrEmpty(accessToken));
-            Assert.False(string.IsNullOrEmpty(
-                loginDoc.RootElement.GetProperty("refresh_token").GetString()));
-            Assert.Equal("bearer", loginDoc.RootElement.GetProperty("token_type").GetString());
+            Assert.False(string.IsNullOrEmpty(verifyDoc.RootElement.GetProperty("refresh_token").GetString()));
+            Assert.Equal("bearer", verifyDoc.RootElement.GetProperty("token_type").GetString());
 
-            // 2. GET /api/auth/me (Bearer) → 200 + matching email/role. Role comes from the
-            //    DB read in AuthService, NOT from any claim in the token.
+            // 3. GET /api/auth/me (Bearer) → 200 + matching id/role. Role comes from the DB read in
+            //    AuthService, NOT from any claim in the token.
             var meReq = new HttpRequestMessage(HttpMethod.Get, "/api/auth/me");
             meReq.Headers.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
             var meResp = await client.SendAsync(meReq);
@@ -93,12 +104,12 @@ public sealed class AuthEndpointsTests : IClassFixture<AuthEndpointsTests.AuthAp
             Assert.Equal("student", meDoc.RootElement.GetProperty("role").GetString());
             Assert.True(meDoc.RootElement.GetProperty("is_active").GetBoolean());
 
-            // 3. POST /api/auth/login (wrong password) → 401 (no leak of which field was wrong).
-            var wrongResp = await client.PostAsJsonAsync(
-                "/api/auth/login", new { email, password = "not-the-password" });
+            // 4. POST /api/auth/otp/verify (wrong code) → 401 (dev bypass is 000000 only; "111111"
+            //    must fail against the real Redis-stored code).
+            var wrongResp = await client.PostAsJsonAsync("/api/auth/otp/verify", new { phone, code = "111111" });
             Assert.Equal(HttpStatusCode.Unauthorized, wrongResp.StatusCode);
 
-            // 4. GET /api/auth/me (no token) → 401.
+            // 5. GET /api/auth/me (no token) → 401.
             var anonResp = await client.GetAsync("/api/auth/me");
             Assert.Equal(HttpStatusCode.Unauthorized, anonResp.StatusCode);
         }
