@@ -1,10 +1,16 @@
 /**
- * screens/auth — the pre-auth login / register layout. Full-width page
- * background (docs full-width rule) with a single centered form card, mirroring
- * the ChatPage placeholder precedent. Tokens only.
+ * screens/auth — the phone + Telegram-OTP login / register layout, rebuilt to
+ * the mockup ("1 · KIRISH", frames A1 / A4 / A5 of
+ * RussianDesign/Govori/Govorim - Student.dc.html). Every colour / radius /
+ * shadow / type value is an Ovoz DS token — no raw hex/rgb.
+ *
+ * Structure: a full-bleed orange hero (wordmark + Govo + taglines) with a
+ * rounded bottom, a segmented Kirish / Ro'yxatdan o'tish toggle, then the form
+ * column on the warm cream background.
  */
 
 .page {
+  position: relative;
   min-height: 100dvh;
   width: 100%;
   display: flex;
@@ -12,89 +18,349 @@
   background: var(--bg);
 }
 
-.topbar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 18px 24px;
-  width: 100%;
+/* ---- Floating theme toggle (mockup has none; kept for parity with the app).
+ * The toggle carries its own surface/border/icon colours, so we only place it. */
+.themeToggle {
+  position: absolute;
+  top: var(--s-4);
+  inset-inline-end: var(--s-4);
+  z-index: var(--z-raised);
 }
 
-.body {
-  flex: 1;
-  display: flex;
-  align-items: flex-start;
-  justify-content: center;
-  padding: 24px 20px 64px;
+/* ============================ HERO ====================================== */
+.hero {
+  position: relative;
   width: 100%;
-}
-
-.card {
-  width: 100%;
-  max-width: 420px;
-  display: flex;
-  flex-direction: column;
-  gap: 18px;
-}
-
-.head {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 10px;
+  background: var(--primary);
+  color: var(--primary-on);
+  border-radius: 0 0 var(--r-xl) var(--r-xl);
+  padding: clamp(48px, 7vw, 60px) var(--s-6) var(--s-7, 28px);
   text-align: center;
+}
+
+.heroInner {
+  max-width: 440px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.heroBrand {
+  color: var(--primary-on);
+}
+
+.heroMascot {
+  margin-top: var(--s-3);
+}
+
+.heroTitle {
+  margin-top: var(--s-2);
+  color: var(--primary-on);
+  font-weight: var(--fw-black);
+  letter-spacing: -0.02em;
+}
+
+.heroSub {
+  margin-top: 3px;
+  color: var(--primary-on);
+  opacity: 0.9;
+}
+
+/* ============================ TABS ====================================== */
+.tabs {
+  width: 100%;
+  max-width: 440px;
+  margin: var(--s-5) auto 0;
+  display: flex;
+  gap: var(--s-1);
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  padding: var(--s-1);
+}
+
+.tab {
+  flex: 1;
+  text-align: center;
+  padding: 9px;
+  border-radius: var(--r-xs);
+  font-family: var(--font-sans);
+  font-size: var(--t-body-s-size);
+  font-weight: var(--fw-bold);
+  color: var(--muted);
+  text-decoration: none;
+  cursor: pointer;
+  transition:
+    color var(--m-instant),
+    background-color var(--m-instant),
+    box-shadow var(--m-instant);
+}
+
+.tab[data-active] {
+  background: var(--surface);
+  color: var(--primary);
+  box-shadow: var(--e-1);
+}
+
+.tab:focus-visible {
+  outline: var(--focus-ring-width) solid var(--focus-ring);
+  outline-offset: var(--focus-ring-offset);
+}
+
+/* ============================ CONTENT =================================== */
+.content {
+  width: 100%;
+  max-width: 440px;
+  margin: 0 auto;
+  padding: var(--s-5) var(--s-5) var(--s-16);
+  display: flex;
+  flex-direction: column;
 }
 
 .form {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: var(--s-4);
 }
 
-.error {
-  background: var(--danger-tint);
-  color: var(--danger);
-  border-radius: 12px;
-  padding: 10px 14px;
-  font: inherit;
-}
-
-.hint {
-  background: var(--primary-tint);
-  color: var(--ink-soft);
-  border-radius: 12px;
-  padding: 10px 14px;
-}
-
-.footer {
+/* ---- Code-step header (back chevron + title) --------------------------- */
+.codeHead {
   display: flex;
   align-items: center;
-  justify-content: center;
-  gap: 6px;
-  flex-wrap: wrap;
-  text-align: center;
+  gap: var(--s-3);
 }
 
-.link {
+.backBtn {
+  width: 36px;
+  height: 36px;
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--r-pill);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  color: var(--ink);
+  cursor: pointer;
+  transition:
+    background-color var(--m-instant),
+    border-color var(--m-instant);
+}
+.backBtn:hover {
+  background: var(--surface-2);
+  border-color: var(--line-2);
+}
+.backBtn:focus-visible {
+  outline: var(--focus-ring-width) solid var(--focus-ring);
+  outline-offset: var(--focus-ring-offset);
+}
+
+/* ============================ FIELDS ==================================== */
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+  width: 100%;
+}
+
+.fieldLabel {
+  font-family: var(--font-sans);
+  font-size: var(--t-label-size);
+  font-weight: var(--fw-black);
+  letter-spacing: var(--t-label-tracking);
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.fieldControl {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  background: var(--surface);
+  border: 1.5px solid var(--line-2);
+  border-radius: var(--r-sm);
+  padding: 0 var(--s-4);
+  min-height: 52px;
+  transition:
+    border-color var(--m-instant),
+    box-shadow var(--m-instant);
+}
+.fieldControl:focus-within {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px color-mix(in oklab, var(--primary) 22%, transparent);
+}
+
+.fieldIcon {
+  flex: none;
+  display: inline-flex;
+  color: var(--muted);
+}
+.fieldControl:focus-within .fieldIcon {
+  color: var(--primary);
+}
+
+.fieldPrefix {
+  font-family: var(--font-mono);
+  font-size: var(--t-body-size);
+  color: var(--ink-soft);
+  flex: none;
+}
+
+.fieldInput {
+  flex: 1 1 auto;
+  min-width: 0;
+  background: transparent;
+  border: none;
+  outline: none;
+  color: var(--ink);
+  font-family: var(--font-sans);
+  font-size: var(--t-body-l-size);
+  font-weight: var(--fw-medium);
+  padding: 14px 0;
+}
+.fieldInput::placeholder {
+  color: var(--faint);
+}
+.fieldInput.mono {
+  font-family: var(--font-mono);
+  font-size: var(--t-body-size);
+  letter-spacing: 0.02em;
+}
+
+.fieldNote {
+  font-family: var(--font-sans);
+  font-size: var(--t-body-s-size);
+  color: var(--muted);
+  padding-inline-start: 2px;
+  margin-top: calc(-1 * var(--s-2));
+}
+
+/* ============================ OTP BOXES ================================= */
+.otp {
+  display: flex;
+  gap: var(--s-2);
+}
+
+.otpBox {
+  flex: 1;
+  aspect-ratio: 1;
+  min-width: 0;
+  text-align: center;
+  background: var(--surface);
+  border: 1.5px solid var(--line-2);
+  border-radius: var(--r-sm);
+  color: var(--ink);
+  font-family: var(--font-mono);
+  font-size: 22px;
+  font-weight: var(--fw-black);
+  outline: none;
+  transition:
+    border-color var(--m-instant),
+    box-shadow var(--m-instant);
+}
+.otpBox[data-filled] {
+  border-color: var(--primary);
+}
+.otpBox:focus {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px color-mix(in oklab, var(--primary) 22%, transparent);
+}
+
+/* ============================ TELEGRAM / DEV =========================== */
+/* Dev-delivery: the literal code shown inline (LoggingOtpSender / dev mode). */
+.devHint {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-1);
+  align-items: center;
+  text-align: center;
+  background: var(--surface-2);
+  border: 1px dashed var(--line-2);
+  border-radius: var(--r-sm);
+  padding: var(--s-3) var(--s-4);
+}
+.devHintLabel {
+  font-size: var(--t-body-s-size);
+  color: var(--muted);
+  font-weight: var(--fw-semibold);
+}
+.devHintCode {
+  font-family: var(--font-mono);
+  font-size: var(--t-title-m-size);
+  font-weight: var(--fw-black);
+  letter-spacing: 0.28em;
+  color: var(--primary);
+}
+
+/* ============================ NOTES ==================================== */
+.note {
+  display: flex;
+  gap: var(--s-2);
+  align-items: flex-start;
+  padding: 12px var(--s-3);
+  border-radius: var(--r-sm);
+}
+.note-success {
+  background: var(--success-tint);
+}
+.note-success .noteIcon {
+  color: var(--success);
+}
+.note-success .noteText {
+  color: var(--ink-soft);
+}
+.note-info {
+  background: var(--primary-tint);
+}
+.note-info .noteIcon {
+  color: var(--primary);
+}
+.note-info .noteText {
+  color: var(--primary-press);
+}
+.noteIcon {
+  flex: none;
+  display: inline-flex;
+  margin-top: 1px;
+}
+.noteText {
+  font-family: var(--font-sans);
+  font-size: var(--t-body-s-size);
+  line-height: 1.4;
+}
+
+/* ============================ ERROR + RESEND =========================== */
+.error {
+  display: flex;
+  gap: var(--s-2);
+  align-items: center;
+  background: var(--danger-tint);
+  color: var(--danger);
+  border-radius: var(--r-sm);
+  padding: 12px var(--s-3);
+  font-family: var(--font-sans);
+  font-size: var(--t-body-s-size);
+  font-weight: var(--fw-medium);
+}
+
+.resend {
+  align-self: flex-start;
   background: none;
   border: none;
   padding: 0;
   cursor: pointer;
   color: var(--primary);
-  font: inherit;
-  font-weight: 600;
-  text-decoration: underline;
-  text-underline-offset: 2px;
+  font-family: var(--font-sans);
+  font-size: var(--t-body-s-size);
+  font-weight: var(--fw-bold);
 }
-
-.grid2 {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 12px;
+.resend:disabled {
+  color: var(--muted);
+  cursor: default;
 }
-
-@media (max-width: 420px) {
-  .grid2 {
-    grid-template-columns: 1fr;
-  }
+.resend:focus-visible {
+  outline: var(--focus-ring-width) solid var(--focus-ring);
+  outline-offset: var(--focus-ring-offset);
+  border-radius: var(--r-xs);
 }

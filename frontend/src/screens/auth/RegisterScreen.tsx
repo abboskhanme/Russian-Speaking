@@ -1,96 +1,72 @@
 /**
- * RegisterScreen (`/register`) — self-service student sign-up (docs/08 auth
- * slice, priority #3). Implements the OTP flow request-code → verify-code →
- * register when the API reports email verification is ON (`/auth/config`); when
- * OFF it registers directly. The dev OTP is NOT emailed (LoggingOtpSender) — an
- * inline hint tells the user the code is printed in the API logs. Registration
- * always creates an active student and logs straight in → navigate to `/`.
+ * RegisterScreen (`/register`) — phone + Telegram-bot OTP sign-up, rebuilt to
+ * the mockup ("1 · KIRISH", frame A1 register). Two steps:
+ *   1. name + phone → `requestOtp` → the code step.
+ *   2. code → `verifyOtp(phone, code, fullName)` → tokens (one-shot register) →
+ *      navigate to `/`.
+ * Because the name is captured up front, the verify is a single call — the
+ * `needs_registration` branch never fires here. Composed from `shared/ui` +
+ * Ovoz DS tokens; i18n via `auth.*`. No email/password anywhere.
  */
-import { useEffect, useState, type FormEvent } from "react";
+import { useState, type FormEvent } from "react";
 import { useTranslation } from "react-i18next";
-import { useNavigate, Link } from "react-router-dom";
-import { Button, Card, Input, Mascot, Text } from "../../shared/ui";
-import { Brand, ThemeToggle } from "../../widgets";
+import { useNavigate } from "react-router-dom";
+import { Button } from "../../shared/ui";
+import { ThemeToggle } from "../../widgets";
 import { useAuth } from "../../shared/auth";
-import { endpoints, isApiError, type RegisterPayload } from "../../shared/api";
+import { isApiError, type OtpRequestResponse } from "../../shared/api";
+import { AuthHero } from "./AuthHero";
+import { AuthNote } from "./AuthNote";
+import { IconInput } from "./IconInput";
+import { OtpStep } from "./OtpStep";
+import { PhoneIcon, UserIcon } from "./icons";
+import { formatDisplay, groupNational, isValidUz, nationalDigits, toE164 } from "./phone";
 import styles from "./Auth.module.css";
-
-type Step = "details" | "otp";
 
 export default function RegisterScreen() {
   const { t } = useTranslation();
-  const { register, requestEmailCode, verifyEmailCode } = useAuth();
+  const { requestOtp, verifyOtp } = useAuth();
   const navigate = useNavigate();
 
-  const [step, setStep] = useState<Step>("details");
-  const [emailVerification, setEmailVerification] = useState<boolean | null>(null);
-
-  const [fullName, setFullName] = useState("");
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [phone, setPhone] = useState("");
-  const [age, setAge] = useState("");
-  const [region, setRegion] = useState("");
-  const [district, setDistrict] = useState("");
-  const [groupCode, setGroupCode] = useState("");
+  const [step, setStep] = useState<"phone" | "code">("phone");
+  const [name, setName] = useState("");
+  const [phone, setPhone] = useState(""); // national digits (max 9)
   const [code, setCode] = useState("");
-
+  const [otpInfo, setOtpInfo] = useState<OtpRequestResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [info, setInfo] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
-  // Discover whether the OTP step is required (fail-safe: assume ON on error).
-  useEffect(() => {
-    let alive = true;
-    endpoints
-      .authConfig()
-      .then((c) => alive && setEmailVerification(c.email_verification))
-      .catch(() => alive && setEmailVerification(true));
-    return () => {
-      alive = false;
-    };
-  }, []);
-
-  function basePayload(email_verify_token?: string): RegisterPayload {
-    return {
-      email: email.trim(),
-      password,
-      full_name: fullName.trim(),
-      phone: phone.trim(),
-      age: Number(age) || 0,
-      region: region.trim(),
-      district: district.trim(),
-      email_verify_token: email_verify_token ?? null,
-      group_code: groupCode.trim() || null,
-    };
-  }
+  const e164 = toE164(phone);
 
   function mapError(err: unknown): string {
     if (isApiError(err)) {
-      if (err.status === 409) return t("auth.errors.emailTaken");
-      if (err.status === 400) return err.detail || t("auth.errors.badCode");
-      if (err.status === 422) return err.detail || t("auth.errors.validation");
+      if (err.status === 401) return t("auth.errors.badCode");
+      if (err.status === 400) return err.detail || t("auth.errors.badPhone");
+      if (err.status === 403) return err.detail || t("auth.errors.blocked");
       if (err.status === 0) return t("auth.errors.network");
     }
     return t("auth.errors.generic");
   }
 
-  async function doRegister(email_verify_token?: string) {
-    await register(basePayload(email_verify_token));
-    navigate("/", { replace: true });
-  }
-
-  async function onSubmitDetails(e: FormEvent) {
+  async function submitDetails(e: FormEvent) {
     e.preventDefault();
     if (busy) return;
     setError(null);
+    if (!name.trim()) {
+      setError(t("auth.errors.nameRequired"));
+      return;
+    }
+    if (!isValidUz(phone)) {
+      setError(t("auth.errors.badPhone"));
+      return;
+    }
     setBusy(true);
     try {
-      if (emailVerification) {
-        await requestEmailCode(email.trim());
-        setStep("otp");
-      } else {
-        await doRegister();
-      }
+      const res = await requestOtp(e164);
+      setOtpInfo(res);
+      setCode("");
+      setStep("code");
     } catch (err) {
       setError(mapError(err));
     } finally {
@@ -98,170 +74,108 @@ export default function RegisterScreen() {
     }
   }
 
-  async function onSubmitOtp(e: FormEvent) {
-    e.preventDefault();
-    if (busy) return;
+  async function submitCode() {
     setError(null);
+    setInfo(null);
     setBusy(true);
     try {
-      const token = await verifyEmailCode(email.trim(), code.trim());
-      await doRegister(token);
+      // Name captured in step 1 → one-shot register (never needs_registration).
+      await verifyOtp(e164, code, name.trim());
+      navigate("/", { replace: true });
     } catch (err) {
       setError(mapError(err));
     } finally {
       setBusy(false);
     }
+  }
+
+  async function resend() {
+    setError(null);
+    setBusy(true);
+    try {
+      const res = await requestOtp(e164);
+      setOtpInfo(res);
+      setCode("");
+      setInfo(t("auth.otp.resent"));
+    } catch (err) {
+      setError(mapError(err));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  function back() {
+    setStep("phone");
+    setCode("");
+    setError(null);
+    setInfo(null);
   }
 
   return (
     <div className={styles.page}>
-      <div className={styles.topbar}>
-        <Brand />
-        <ThemeToggle />
-      </div>
+      <ThemeToggle className={styles.themeToggle} />
+      <AuthHero active="register" />
 
-      <div className={styles.body}>
-        <Card variant="raised" padding="lg" className={styles.card}>
-          <div className={styles.head}>
-            <Mascot mood="idle" size={64} label="Govo" />
-            <Text as="h1" variant="title-l">
-              {t("auth.register.title")}
-            </Text>
-            <Text as="p" variant="body-l" color="ink-soft">
-              {step === "details" ? t("auth.register.subtitle") : t("auth.register.otpSubtitle")}
-            </Text>
-          </div>
-
-          {error && (
-            <div className={styles.error} role="alert">
-              {error}
-            </div>
-          )}
-
-          {step === "details" ? (
-            <form className={styles.form} onSubmit={onSubmitDetails} noValidate>
-              <Input
-                label={t("auth.fullName")}
-                name="full_name"
-                autoComplete="name"
-                value={fullName}
-                onChange={(e) => setFullName(e.target.value)}
-                required
-                autoFocus
-              />
-              <Input
-                label={t("auth.email")}
-                type="email"
-                name="email"
-                autoComplete="email"
-                inputMode="email"
-                placeholder={t("auth.emailPlaceholder")}
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-              />
-              <Input
-                label={t("auth.password")}
-                type="password"
-                name="password"
-                autoComplete="new-password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-              />
-              <Input
-                label={t("auth.phone")}
-                type="tel"
-                name="phone"
-                autoComplete="tel"
-                inputMode="tel"
-                placeholder="+998 90 123 45 67"
-                value={phone}
-                onChange={(e) => setPhone(e.target.value)}
-                required
-              />
-              <div className={styles.grid2}>
-                <Input
-                  label={t("auth.age")}
-                  type="number"
-                  name="age"
-                  inputMode="numeric"
-                  min={1}
-                  max={120}
-                  value={age}
-                  onChange={(e) => setAge(e.target.value)}
-                  required
-                />
-                <Input
-                  label={t("auth.region")}
-                  name="region"
-                  value={region}
-                  onChange={(e) => setRegion(e.target.value)}
-                  required
-                />
+      <div className={styles.content}>
+        {step === "phone" ? (
+          <form className={styles.form} onSubmit={submitDetails} noValidate>
+            {error && (
+              <div className={styles.error} role="alert">
+                {error}
               </div>
-              <Input
-                label={t("auth.district")}
-                name="district"
-                value={district}
-                onChange={(e) => setDistrict(e.target.value)}
-                required
-              />
-              <Input
-                label={t("auth.groupCode")}
-                name="group_code"
-                hint={t("auth.groupCodeHint")}
-                value={groupCode}
-                onChange={(e) => setGroupCode(e.target.value)}
-              />
-              <Button type="submit" variant="primary" size="lg" fullWidth loading={busy}>
-                {emailVerification ? t("auth.register.sendCode") : t("auth.register.submit")}
-              </Button>
-            </form>
-          ) : (
-            <form className={styles.form} onSubmit={onSubmitOtp} noValidate>
-              <div className={styles.hint}>
-                <Text as="p" variant="body-s">
-                  {t("auth.register.devHint")}
-                </Text>
-              </div>
-              <Input
-                label={t("auth.register.codeLabel", { email })}
-                name="code"
-                inputMode="numeric"
-                autoComplete="one-time-code"
-                value={code}
-                onChange={(e) => setCode(e.target.value)}
-                required
-                autoFocus
-              />
-              <Button type="submit" variant="primary" size="lg" fullWidth loading={busy}>
-                {t("auth.register.submit")}
-              </Button>
-              <Button
-                type="button"
-                variant="ghost"
-                size="md"
-                fullWidth
-                onClick={() => {
-                  setError(null);
-                  setStep("details");
-                }}
-              >
-                {t("common.back")}
-              </Button>
-            </form>
-          )}
-
-          <div className={styles.footer}>
-            <Text as="span" variant="body-s" color="muted">
-              {t("auth.register.haveAccount")}
-            </Text>
-            <Link to="/login" className={styles.link}>
-              {t("auth.register.loginLink")}
-            </Link>
-          </div>
-        </Card>
+            )}
+            <IconInput
+              label={t("auth.nameLabel")}
+              icon={<UserIcon />}
+              name="full_name"
+              autoComplete="name"
+              value={name}
+              onChange={(ev) => setName(ev.target.value)}
+              placeholder="Aziz Karimov"
+              autoFocus
+            />
+            <IconInput
+              label={t("auth.phoneLabel")}
+              icon={<PhoneIcon />}
+              type="tel"
+              name="phone"
+              inputMode="tel"
+              autoComplete="tel"
+              mono
+              prefix="+998"
+              value={groupNational(phone)}
+              onChange={(ev) => setPhone(nationalDigits(ev.target.value))}
+              placeholder="90 123 45 67"
+            />
+            <Button
+              type="submit"
+              variant="primary"
+              size="lg"
+              fullWidth
+              loading={busy}
+              disabled={!name.trim() || !isValidUz(phone)}
+            >
+              {t("auth.register.submit")}
+            </Button>
+            <AuthNote tone="info">{t("auth.register.placementNote")}</AuthNote>
+          </form>
+        ) : (
+          otpInfo && (
+            <OtpStep
+              phoneDisplay={formatDisplay(phone)}
+              delivery={otpInfo}
+              code={code}
+              onCodeChange={setCode}
+              onVerify={submitCode}
+              onBack={back}
+              onResend={resend}
+              submitLabel={t("auth.otp.verify")}
+              busy={busy}
+              error={error}
+              info={info}
+            />
+          )
+        )}
       </div>
     </div>
   );

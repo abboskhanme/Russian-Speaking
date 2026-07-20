@@ -16,7 +16,9 @@ export interface TokenResponse {
 
 export type UserRole = "student" | "teacher" | "admin";
 
-/** GET /api/auth/me AND POST /api/auth/register → MeResponse. */
+/** GET /api/auth/me → MeResponse. `email` is a `{phone}@govori.uz` placeholder
+ * the backend synthesises from the phone; the phone + Telegram OTP flow never
+ * shows it in the UI. */
 export interface MeResponse {
   id: string;
   email: string;
@@ -26,30 +28,44 @@ export interface MeResponse {
   is_premium: boolean;
 }
 
+/** How the one-time code reaches the user: a Telegram bot deep-link, or (dev)
+ * an inline hint printed straight into the response. */
+export type OtpDelivery = "telegram_bot" | "dev";
+
+/** GET /api/auth/config → the sign-in capabilities of this deployment. */
 export interface AuthConfigResponse {
-  email_verification: boolean;
   google: boolean;
+  otp_delivery: OtpDelivery;
 }
 
-export interface EmailCodeSentResponse {
+/** POST /api/auth/otp/request → where/when the code was sent.
+ *  - `telegram_bot`: open `telegram_link` (a t.me/…?start=… deep-link).
+ *  - `dev`: the code is `dev_hint` (e.g. "000000"). */
+export interface OtpRequestResponse {
   ok: boolean;
+  delivery: OtpDelivery;
+  /** Seconds until the code expires. */
   expires_in: number;
+  /** Present when `delivery === "telegram_bot"`. */
+  telegram_link: string | null;
+  /** Present when `delivery === "dev"` — the literal code. */
+  dev_hint: string | null;
 }
 
-export interface EmailVerifyTokenResponse {
-  email_verify_token: string;
+/** The "this phone has no account yet — send a name" branch of otp/verify. */
+export interface NeedsRegistrationResponse {
+  needs_registration: true;
 }
 
-export interface RegisterPayload {
-  email: string;
-  password: string;
-  full_name: string;
-  phone: string;
-  age: number;
-  region: string;
-  district: string;
-  email_verify_token?: string | null;
-  group_code?: string | null;
+/** POST /api/auth/otp/verify → a token pair (login OR register), OR a signal
+ * that the phone is new and a `full_name` is required to complete sign-up. */
+export type OtpVerifyResponse = TokenResponse | NeedsRegistrationResponse;
+
+/** Narrow an otp/verify result to the "needs a name" branch. */
+export function isNeedsRegistration(
+  res: OtpVerifyResponse,
+): res is NeedsRegistrationResponse {
+  return (res as NeedsRegistrationResponse).needs_registration === true;
 }
 
 /* ── Catalog (CatalogContracts.cs) — Home + Practice ─────────────────────── */

@@ -10,24 +10,42 @@
 import { apiClient } from "./client";
 import type {
   AuthConfigResponse,
-  EmailCodeSentResponse,
-  EmailVerifyTokenResponse,
   LeaderboardEntryResponse,
   MeResponse,
-  RegisterPayload,
+  OtpRequestResponse,
+  OtpVerifyResponse,
   StudentModuleResponse,
   SubmissionResponse,
   TokenResponse,
 } from "./types";
 
-/* ── Auth ────────────────────────────────────────────────────────────────── */
+/* ── Auth (phone + Telegram-bot OTP) ─────────────────────────────────────── */
 
-export function login(email: string, password: string): Promise<TokenResponse> {
-  return apiClient.post<TokenResponse>(
-    "/auth/login",
-    { email, password },
+/** OTP step 1 — send a one-time code to the phone (via the Telegram bot, or a
+ * dev hint). `400 {detail}` on a malformed phone. */
+export function otpRequest(phone: string): Promise<OtpRequestResponse> {
+  return apiClient.post<OtpRequestResponse>(
+    "/auth/otp/request",
+    { phone },
     { auth: false, skipAuthRedirect: true },
   );
+}
+
+/** OTP step 2 — exchange the code for a token pair. Pass `fullName` to register
+ * a brand-new phone in one shot; omit it to log an existing phone in. A new
+ * phone with no `fullName` returns `{ needs_registration: true }`. `401` on a
+ * wrong/expired code, `403` when the account is blocked. */
+export function otpVerify(
+  phone: string,
+  code: string,
+  fullName?: string,
+): Promise<OtpVerifyResponse> {
+  const body: { phone: string; code: string; full_name?: string } = { phone, code };
+  if (fullName && fullName.trim()) body.full_name = fullName.trim();
+  return apiClient.post<OtpVerifyResponse>("/auth/otp/verify", body, {
+    auth: false,
+    skipAuthRedirect: true,
+  });
 }
 
 export function refresh(refresh_token: string): Promise<TokenResponse> {
@@ -49,31 +67,6 @@ export function me(skipRedirect = false): Promise<MeResponse> {
 
 export function authConfig(): Promise<AuthConfigResponse> {
   return apiClient.get<AuthConfigResponse>("/auth/config", { auth: false });
-}
-
-/* ── Registration (OTP flow) ───────────────────────────────────────────── */
-
-export function requestEmailCode(email: string): Promise<EmailCodeSentResponse> {
-  return apiClient.post<EmailCodeSentResponse>(
-    "/auth/email/request-code",
-    { email },
-    { auth: false, skipAuthRedirect: true },
-  );
-}
-
-export function verifyEmailCode(email: string, code: string): Promise<EmailVerifyTokenResponse> {
-  return apiClient.post<EmailVerifyTokenResponse>(
-    "/auth/email/verify-code",
-    { email, code },
-    { auth: false, skipAuthRedirect: true },
-  );
-}
-
-export function register(payload: RegisterPayload): Promise<MeResponse> {
-  return apiClient.post<MeResponse>("/auth/register", payload, {
-    auth: false,
-    skipAuthRedirect: true,
-  });
 }
 
 /* ── Catalog — Home + Practice ─────────────────────────────────────────── */

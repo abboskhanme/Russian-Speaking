@@ -2,9 +2,10 @@
  * shared/auth — the auth store + React context (docs/08 auth slice, priority #2).
  *
  * Holds `{ user, status }`, persists the tokens to localStorage (via
- * {@link tokenStore}), and exposes `login`, `logout`, `loadMe`, plus the OTP
- * registration helpers. On app boot, if a token exists it hydrates `user` from
- * `/api/auth/me` and clears the tokens if that 401s (expired session).
+ * {@link tokenStore}), and exposes the phone + Telegram-bot OTP flow
+ * (`requestOtp`, `verifyOtp`) plus `logout` / `loadMe`. On app boot, if a token
+ * exists it hydrates `user` from `/api/auth/me` and clears the tokens if that
+ * 401s (expired session).
  */
 import {
   createContext,
@@ -16,29 +17,35 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import { endpoints, isApiError } from "../api";
-import type { MeResponse, RegisterPayload } from "../api";
+import { endpoints, isNeedsRegistration } from "../api";
+import type { MeResponse, OtpRequestResponse } from "../api";
 import { tokenStore } from "./tokens";
 
 /** boot = hydrating from a stored token; ready = resolved (in or out). */
 export type AuthStatus = "boot" | "ready";
 
+/** The two shapes an OTP verify can settle into. `needsRegistration` means the
+ * phone is new and the caller must collect a name and verify again. */
+export interface VerifyOtpResult {
+  needsRegistration: boolean;
+  /** The signed-in user — only present when tokens were issued. */
+  user: MeResponse | null;
+}
+
 export interface AuthContextValue {
   user: MeResponse | null;
   status: AuthStatus;
   isAuthenticated: boolean;
-  /** Email + password → stores tokens, hydrates `user`. Throws ApiError on 401/403. */
-  login: (email: string, password: string) => Promise<MeResponse>;
+  /** OTP step 1 — send a one-time code to the phone. Throws ApiError on 400. */
+  requestOtp: (phone: string) => Promise<OtpRequestResponse>;
+  /** OTP step 2 — verify the code. On a token pair it stores the tokens and
+   * hydrates `user`; on a new phone it resolves `needsRegistration: true`
+   * without storing anything. Throws ApiError on 401/403. */
+  verifyOtp: (phone: string, code: string, fullName?: string) => Promise<VerifyOtpResult>;
   /** Clears tokens + user (best-effort server logout). */
   logout: () => void;
   /** Re-fetch `/me` into `user`. */
   loadMe: () => Promise<MeResponse>;
-  /** OTP step 1 — send a code to the email. */
-  requestEmailCode: (email: string) => Promise<{ ok: boolean; expires_in: number }>;
-  /** OTP step 2 — exchange a code for the email-verify token. */
-  verifyEmailCode: (email: string, code: string) => Promise<string>;
-  /** Create the account (student), then log straight in. */
-  register: (payload: RegisterPayload) => Promise<MeResponse>;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -71,14 +78,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       .finally(() => setStatus("ready"));
   }, [loadMe]);
 
-  const login = useCallback(async (email: string, password: string) => {
-    const tokens = await endpoints.login(email, password);
-    tokenStore.set(tokens.access_token, tokens.refresh_token);
-    const me = await endpoints.me(true);
-    setUser(me);
-    setStatus("ready");
-    return me;
-  }, []);
+  const requestOtp = useCallback((phone: string) => endpoints.otpRequest(phone), []);
+
+  const verifyOtp = useCallback(
+    async (phone: string, code: string, fullName?: string): Promise<VerifyOtpResult> => {
+      const res = await endpoints.otpVerify(phone, code, fullName);
+      if (isNeedsRegistration(res)) {
+        return { needsRegistration: true, user: null };
+      }
+      // Token pair (login OR register) → persist + hydrate the user.
+      tokenStore.set(res.access_token, res.refresh_token);
+      const me = await endpoints.me(true);
+      setUser(me);
+      setStatus("ready");
+      return { needsRegistration: false, user: me };
+    },
+    [],
+  );
 
   const logout = useCallback(() => {
     // Fire-and-forget: the .NET logout is a no-op (stateless JWT); ignore errors.
@@ -88,46 +104,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setStatus("ready");
   }, []);
 
-  const requestEmailCode = useCallback(
-    (email: string) => endpoints.requestEmailCode(email),
-    [],
-  );
-
-  const verifyEmailCode = useCallback(async (email: string, code: string) => {
-    const res = await endpoints.verifyEmailCode(email, code);
-    return res.email_verify_token;
-  }, []);
-
-  const register = useCallback(
-    async (payload: RegisterPayload) => {
-      const created = await endpoints.register(payload);
-      // Registration always creates an active student → log straight in.
-      try {
-        await login(payload.email, payload.password);
-      } catch (e) {
-        // Account created but auto-login failed (e.g. awaiting approval) —
-        // return the created user; the caller routes to /login.
-        if (isApiError(e) && e.status === 403) return created;
-        throw e;
-      }
-      return created;
-    },
-    [login],
-  );
-
   const value = useMemo<AuthContextValue>(
     () => ({
       user,
       status,
       isAuthenticated: user !== null,
-      login,
+      requestOtp,
+      verifyOtp,
       logout,
       loadMe,
-      requestEmailCode,
-      verifyEmailCode,
-      register,
     }),
-    [user, status, login, logout, loadMe, requestEmailCode, verifyEmailCode, register],
+    [user, status, requestOtp, verifyOtp, logout, loadMe],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

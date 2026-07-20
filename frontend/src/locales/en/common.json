@@ -177,42 +177,41 @@
     }
   },
   "auth": {
-    "email": "Email",
-    "emailPlaceholder": "you@example.com",
-    "password": "Password",
-    "fullName": "Full name",
-    "phone": "Phone",
-    "age": "Age",
-    "region": "Region",
-    "district": "District",
-    "groupCode": "Group code",
-    "groupCodeHint": "Optional — a code from your teacher",
+    "phoneLabel": "Phone number",
+    "nameLabel": "Full name",
+    "hero": {
+      "tagline": "Speak Russian freely",
+      "taglineRu": "Говори свободно",
+      "login": "Log in",
+      "register": "Sign up",
+      "tabsAria": "Log in or sign up"
+    },
     "login": {
-      "title": "Welcome back",
-      "subtitle": "Sign in to continue",
-      "submit": "Sign in",
-      "noAccount": "No account?",
-      "registerLink": "Sign up"
+      "submit": "Log in",
+      "savedNote": "Your account is saved — the placement test won't be asked again."
     },
     "register": {
-      "title": "Create account",
-      "subtitle": "Create a free account",
-      "otpSubtitle": "Enter the code sent to your email",
-      "sendCode": "Send code",
-      "submit": "Create account",
-      "devHint": "Dev mode: the verification code is not emailed — it is printed in the API logs.",
-      "codeLabel": "Verification code for {{email}}",
-      "haveAccount": "Already have an account?",
-      "loginLink": "Sign in"
+      "submit": "Continue",
+      "placementNote": "After signing up there's a one-time placement test — to find your level."
+    },
+    "otp": {
+      "title": "Confirm the code",
+      "sentTo": "A confirmation code was sent to:",
+      "openTelegram": "Open in Telegram",
+      "devHint": "Dev mode · confirmation code",
+      "codeLabel": "Confirmation code",
+      "resend": "Resend code",
+      "verify": "Confirm",
+      "needName": "This phone is new. Enter your name and confirm the new code to sign up.",
+      "resent": "A new code was sent."
     },
     "errors": {
-      "invalidCredentials": "Incorrect email or password",
-      "inactive": "Account is not active",
+      "badCode": "The code is wrong or expired",
+      "badPhone": "Invalid phone number",
+      "blocked": "Account is blocked or inactive",
+      "nameRequired": "Enter your name",
       "network": "No connection. Please try again.",
-      "generic": "Something went wrong. Please try again.",
-      "emailTaken": "This email is already registered",
-      "badCode": "Invalid or expired code",
-      "validation": "Please check your details"
+      "generic": "Something went wrong. Please try again."
     }
   },
   "errors": {

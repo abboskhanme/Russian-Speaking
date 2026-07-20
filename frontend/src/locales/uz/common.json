@@ -177,42 +177,41 @@
     }
   },
   "auth": {
-    "email": "Email",
-    "emailPlaceholder": "sen@example.com",
-    "password": "Parol",
-    "fullName": "To'liq ism",
-    "phone": "Telefon",
-    "age": "Yosh",
-    "region": "Viloyat",
-    "district": "Tuman",
-    "groupCode": "Guruh kodi",
-    "groupCodeHint": "Ixtiyoriy — o'qituvchingiz bergan kod",
+    "phoneLabel": "Telefon raqam",
+    "nameLabel": "Ism va familiya",
+    "hero": {
+      "tagline": "Rus tilida erkin gapir",
+      "taglineRu": "Говори свободно",
+      "login": "Kirish",
+      "register": "Ro'yxatdan o'tish",
+      "tabsAria": "Kirish yoki ro'yxatdan o'tish"
+    },
     "login": {
-      "title": "Xush kelibsiz",
-      "subtitle": "Davom etish uchun tizimga kiring",
       "submit": "Kirish",
-      "noAccount": "Hisobingiz yo'qmi?",
-      "registerLink": "Ro'yxatdan o'ting"
+      "savedNote": "Hisobingiz saqlangan — dastlabki sinov qayta so'ralmaydi."
     },
     "register": {
-      "title": "Ro'yxatdan o'tish",
-      "subtitle": "Bepul hisob yarating",
-      "otpSubtitle": "Emailingizga yuborilgan kodni kiriting",
-      "sendCode": "Kodni yuborish",
-      "submit": "Hisob yaratish",
-      "devHint": "Dev rejim: tasdiqlash kodi emailga yuborilmaydi — u API loglarida chiqadi.",
-      "codeLabel": "{{email}} uchun tasdiqlash kodi",
-      "haveAccount": "Hisobingiz bormi?",
-      "loginLink": "Kirish"
+      "submit": "Davom etish",
+      "placementNote": "Ro'yxatdan o'tgach bir marta dastlabki sinov beriladi — darajangizni aniqlash uchun."
+    },
+    "otp": {
+      "title": "Kodni tasdiqlang",
+      "sentTo": "Tasdiqlash kodi yuborildi:",
+      "openTelegram": "Telegram'da oching",
+      "devHint": "Dev rejim · tasdiqlash kodi",
+      "codeLabel": "Tasdiqlash kodi",
+      "resend": "Kodni qayta yuborish",
+      "verify": "Tasdiqlash",
+      "needName": "Bu raqam yangi. Ro'yxatdan o'tish uchun ismingizni kiriting va yangi kodni tasdiqlang.",
+      "resent": "Yangi kod yuborildi."
     },
     "errors": {
-      "invalidCredentials": "Email yoki parol noto'g'ri",
-      "inactive": "Hisob faol emas",
+      "badCode": "Kod noto'g'ri yoki eskirgan",
+      "badPhone": "Telefon raqami noto'g'ri",
+      "blocked": "Hisob bloklangan yoki faol emas",
+      "nameRequired": "Ismingizni kiriting",
       "network": "Internet aloqasi yo'q. Qayta urinib ko'ring.",
-      "generic": "Xatolik yuz berdi. Qayta urinib ko'ring.",
-      "emailTaken": "Bu email allaqachon ro'yxatdan o'tgan",
-      "badCode": "Tasdiqlash kodi noto'g'ri yoki muddati o'tgan",
-      "validation": "Ma'lumotlarni tekshiring"
+      "generic": "Xatolik yuz berdi. Qayta urinib ko'ring."
     }
   },
   "errors": {
