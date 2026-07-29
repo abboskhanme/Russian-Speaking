@@ -167,5 +167,28 @@ Goal: AI auto-OKs confident grades; only attempts needing attention reach here.
   teacher with real data (e.g. `aziz.karimov@govori.uz`: 1 group, 5 students, 21
   visible submissions) or seed groups onto the dev teacher.
 
+## Testing the teacher panel on a real phone
+Telegram OTP proves phone ownership via a contact share, so you **cannot** sign
+in as a demo teacher from your own Telegram. Two ways in:
+
+1. **Your own number, teacher role** — `./dev-role.sh teacher <your-phone>` flips
+   your account to teacher and lends it `teacher1@demo.uz`'s groups **and**
+   questions (both are needed: a teacher only sees answers to their OWN
+   questions AND their OWN roster). `./dev-role.sh student <your-phone>` undoes
+   it exactly. Reload the app — no re-login; `/api/auth/me` re-reads the role.
+2. **A demo teacher account, dev OTP** — start the API with the bot token blank
+   so `000000` is accepted, then log in as `+998901112201` … `+998901112205`:
+   `TELEGRAM_BOT_TOKEN= TELEGRAM_BOT_USERNAME= docker compose up -d --no-deps --force-recreate api`
+   Restore real Telegram OTP with the same command minus the two env overrides.
+   No file is edited — shell env just outranks `.env`.
+
+From a phone, reach the local stack at `http://<mac-lan-ip>:8081` (same Wi-Fi);
+the frontend calls `/api` relatively and nginx proxies it, so there is no CORS or
+host config. Prod (`govorim.uz`) does **not** have the teacher panel yet.
+
+> Seed-data wart: several demo accounts share phone numbers (e.g.
+> `+998901112201` is on both `teacher1@demo.uz` and `aziz.karimov@govori.uz`).
+> Login resolves the OLDEST match. Worth cleaning up.
+
 ## When everything is done
-- [ ] Delete this file (`TEACHER-PANEL-PLAN.md`).
+- [ ] Delete this file (`TEACHER-PANEL-PLAN.md`) and `dev-role.sh`.
