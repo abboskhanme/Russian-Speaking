@@ -82,24 +82,36 @@ mobile; the FAB carries the live `21` badge; guards hold both ways (teacher
 `/practice` → `/teacher`, student `/teacher` → `/`); unbuilt nav destinations
 bounce back to Obzor.
 
-## Phase 2 — Klasslar (A2 · A3 · A4 as one tabbed screen)
-Goal: the `Guruhlar | So'rovlar · N | O'quvchilar` segmented screen.
+## Phase 2 — Klasslar (A2 · A4 as one tabbed screen) ✅
+Goal: the `Guruhlar | O'quvchilar` segmented screen.
 
-**Backend**
-- [ ] ✅ Guruhlar tab — `GET /api/groups`, `POST /api/groups` (returns join code).
-- [ ] 🔨 So'rovlar tab — pending-membership model + `approve`/`reject`. Today
-  students join **instantly** via code; this adds an approval step.
-      *Decision needed: keep instant-join, or add approval?*
-- [ ] ⚠️ O'quvchilar tab — a flat "all my students" list; may need a small
-  endpoint or a client-side merge of group rosters. Needs the per-student trend
-  arrow (`↑ 84` / `↓ 61` / `→ 72`) the mockup shows.
+**Backend** — no new endpoints; composed from three existing ones.
+- [x] ✅ Guruhlar tab — `GET /api/groups`, `POST /api/groups` (mints the join code).
+- [x] ✅ O'quvchilar tab — roster from `GET /api/groups/{id}` per group, scores
+  merged in from `GET /api/reports/gradebook`.
 
 **Frontend**
-- [ ] `ClassesScreen` + page (`/teacher/classes`) with the 3 tabs.
-- [ ] A2 group cards: `B1 · Kechki-3`, `18 o'quvchi` pill, schedule + avg line,
-  `Topshiriq berish` / `Ochish` actions, `+ Yangi guruh` dashed tile.
-- [ ] A4 student rows: avatar, name, `guruh · daraja`, trend score.
-- [ ] i18n.
+- [x] `ClassesScreen` + `ClassesPage` (`/teacher/classes`, `?tab=students`).
+- [x] A2 group cards: `B2 · Группа Ойбек`, `6 o'quvchi` pill, `O'rtacha 81 · Kod`
+  line, `Topshiriq berish` / `Ochish`, dashed `+ Yangi guruh` tile → create modal.
+- [x] A4 student rows: avatar initials, name, `guruh · daraja`, score; search box;
+  scored students sorted first.
+- [x] i18n uz/ru/en.
+
+**Two honest deviations from the mockup, both data-driven:**
+- **No `So'rovlar · N` tab.** Joining is instant via the group code, so there is
+  no pending-request model and any count would be invented. Gated on the Phase 2b
+  decision below; the tab model is a plain array, so it is a one-line addition.
+- **No trend arrows** (`↑ 84` / `↓ 61` / `→ 72`). `GradebookRowResponse` carries
+  only a lifetime `avg_band` — no second time window to compare against. The bare
+  score ships now; the arrow needs the same backend work as the Obzor's trend
+  card (Phase 6/D1). A student with no graded attempt reads **"baholanmagan"**
+  rather than `0`, since the gradebook simply has no row for them.
+
+**Verified**: create-group round-trip through the real UI (server minted code
+`NMMEXJ`, card appeared, test group removed); both tabs render on real data in
+light+dark, desktop+mobile; `Klasslar` nav now resolves to `/teacher/classes`;
+student still blocked from it and all student routes error-free.
 
 ## Phase 3 — A5 Guruh detali · A6 O'quvchi profili · A7 A'zo qo'shish
 **Backend**

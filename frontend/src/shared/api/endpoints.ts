@@ -14,6 +14,8 @@ import type {
   AttemptDetailResponse,
   AuthConfigResponse,
   GroupResponse,
+  GroupDetailResponse,
+  GradebookRowResponse,
   LeaderboardEntryResponse,
   LinksResponse,
   MeResponse,
@@ -351,6 +353,29 @@ export function teacherSubmissions(limit = 50): Promise<SubmissionResponse[]> {
   return apiClient.get<SubmissionResponse[]>(
     `/submissions?limit=${encodeURIComponent(String(limit))}`,
   );
+}
+
+/** GET /api/groups/{id} → one group + its roster (owner/admin; 404 otherwise, so
+ * a group's existence never leaks). The Klasslar screen calls this per group to
+ * build the flat "O'quvchilar" list — the roster is authoritative, unlike the
+ * gradebook which omits students with no graded attempt. */
+export function teacherGroupDetail(id: string): Promise<GroupDetailResponse> {
+  return apiClient.get<GroupDetailResponse>(`/groups/${encodeURIComponent(id)}`);
+}
+
+/** POST /api/groups → create a group; the server mints the join code. 201. */
+export function createGroup(name: string): Promise<GroupResponse> {
+  return apiClient.post<GroupResponse>("/groups", { name });
+}
+
+/** GET /api/reports/gradebook (?group_id) → one row per student the teacher may
+ * see, with `avg_band` / `best_band` (0–100) + attempt counts. Teacher-scoped
+ * server-side to their OWN questions AND roster, so a student with no attempt on
+ * this teacher's questions has no row at all — callers must treat a missing row
+ * as "not yet scored", not as "not a member". */
+export function teacherGradebook(groupId?: string): Promise<GradebookRowResponse[]> {
+  const q = groupId ? `?group_id=${encodeURIComponent(groupId)}` : "";
+  return apiClient.get<GradebookRowResponse[]>(`/reports/gradebook${q}`);
 }
 
 /* ── Settings ──────────────────────────────────────────────────────────── */

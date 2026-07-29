@@ -451,6 +451,37 @@ export interface GroupResponse {
   created_at: string;
 }
 
+/** One student inside a group's roster (`GroupDetailResponse.members`). */
+export interface GroupMemberResponse {
+  id: string;
+  full_name: string;
+  email: string;
+  is_premium: boolean;
+  submission_count: number;
+}
+
+/** GET /api/groups/{id} → a group plus its roster (owner/admin only). This is
+ * the AUTHORITATIVE membership list: the gradebook only carries students who
+ * have actually answered one of this teacher's questions, so a member with no
+ * attempts appears here and NOT there. The teacher's Klasslar screen builds its
+ * roster from this and merges scores in from the gradebook. */
+export interface GroupDetailResponse extends GroupResponse {
+  members: GroupMemberResponse[];
+}
+
+/** One student's line in `GET /api/reports/gradebook`. `avg_band` / `best_band`
+ * are 0–100 speaking bands (null until the student has a graded attempt) — the
+ * same scale `CefrScale` buckets into A1…C1. */
+export interface GradebookRowResponse {
+  student_id: string;
+  full_name: string;
+  email: string;
+  attempts: number;
+  avg_band: number | null;
+  best_band: number | null;
+  last_activity: string | null;
+}
+
 /** GET /api/assignments/mine → the caller's assignments. The Home screen shows
  * the soonest incomplete one ("Keyingi topshiriq"). `question_title` is the task
  * name; `due_at` is the deadline (null = no deadline); `completed` marks done. */

@@ -1,0 +1,161 @@
+/* ClassesScreen — the teacher's Klasslar (Govorim - Teacher.dc.html, A2 + A4).
+ * Teacher panel design; composed from shared/ui + tokens. Full-width per
+ * docs/04 §4.10, compact density per docs/03 §3.5 (scoped to .page). */
+
+.page {
+  --density-scale: 0.75;
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--s-5) * var(--density-scale));
+  width: 100%;
+}
+
+/* ---- A2 Guruhlar ---- */
+.groupList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: calc(var(--s-4) * var(--density-scale));
+  align-items: stretch;
+}
+.groupList > li {
+  display: flex;
+}
+
+.groupCard {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--s-3) * var(--density-scale));
+}
+.groupTop {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  min-width: 0;
+}
+.groupName {
+  flex: 1;
+  min-width: 0;
+}
+.groupActions {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  margin-top: auto;
+}
+/* The mockup gives "Topshiriq berish" the full remaining width and keeps
+   "Ochish" at its natural size. */
+.assignBtn {
+  flex: 1;
+}
+
+/* The dashed "+ Yangi guruh" tile — a real button occupying a grid cell. */
+.newGroup {
+  flex: 1;
+  min-height: 112px;
+  display: grid;
+  place-items: center;
+  padding: var(--s-4);
+  border: 1px dashed var(--line-2);
+  border-radius: var(--r-lg);
+  background: transparent;
+  color: var(--accent);
+  cursor: pointer;
+  transition:
+    background var(--motion-fast) var(--ease-standard),
+    border-color var(--motion-fast) var(--ease-standard);
+}
+.newGroup:hover {
+  background: var(--surface-2);
+  border-color: var(--accent);
+}
+.newGroup:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+/* ---- Create-group form (inside the Modal) ---- */
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-4);
+}
+.formActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--s-2);
+}
+
+/* ---- A4 O'quvchilar ---- */
+.studentList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--s-2) * var(--density-scale));
+}
+
+.studentRow {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  padding: var(--s-3) var(--s-4);
+  text-align: start;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  cursor: pointer;
+  transition: background var(--motion-fast) var(--ease-standard);
+}
+.studentRow:hover {
+  background: var(--surface-2);
+}
+.studentRow:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+.avatar {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  flex: none;
+  border-radius: var(--r-pill);
+  background: var(--surface-3);
+  color: var(--ink-soft);
+}
+
+.studentBody {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.score {
+  flex: none;
+  margin-inline-start: var(--s-2);
+}
+.score-success {
+  color: var(--success);
+}
+.score-warn {
+  color: var(--warn-ink);
+}
+.score-danger {
+  color: var(--danger);
+}
+
+.empty {
+  display: grid;
+  place-items: center;
+  text-align: center;
+  padding-block: var(--s-6);
+}

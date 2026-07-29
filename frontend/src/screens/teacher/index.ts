@@ -22,3 +22,13 @@ export type {
   AttentionTone,
 } from "./TeacherDashboardScreen";
 export { mockTeacher, mockTeacherStats, mockTeacherAttention } from "./teacher.mock";
+
+/** ClassesScreen — A2 Guruhlar + A4 O'quvchilar as one tabbed screen. */
+export { ClassesScreen, default as ClassesDemo } from "./ClassesScreen";
+export type {
+  ClassesScreenProps,
+  ClassesTabKey,
+  ClassGroup,
+  ClassStudent,
+} from "./ClassesScreen";
+export { mockClassGroups, mockClassStudents } from "./classes.mock";

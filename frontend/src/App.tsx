@@ -26,6 +26,7 @@ import { Navigate, Route, Routes } from "react-router-dom";
 import { Spinner } from "./shared/ui";
 import { PublicOnly, RequireAuth, RequireRole, RoleHome, TEACHER_ROLES } from "./app/guards";
 const TeacherDashboardPage = lazy(() => import("./app/routes/TeacherDashboardPage"));
+const ClassesPage = lazy(() => import("./app/routes/ClassesPage"));
 const PracticeHubPage = lazy(() => import("./app/routes/PracticeHubPage"));
 const ModuleDetailPage = lazy(() => import("./app/routes/ModuleDetailPage"));
 const PracticePage = lazy(() => import("./app/routes/PracticePage"));
@@ -77,10 +78,12 @@ export default function App() {
           <Route path="/" element={<RoleHome />} />
 
           {/* Teacher app (teacher/admin only) — its own /teacher/* space, its own
-              design and nav (never a re-skin of the student screens). Phase 1
-              ships A1 Obzor; Klasslar/Navbat/Kontent/Analitika follow. */}
+              design and nav (never a re-skin of the student screens). Phases 1–2
+              ship A1 Obzor + Klasslar; Navbat/Kontent/Analitika follow. */}
           <Route element={<RequireRole allow={TEACHER_ROLES} />}>
             <Route path="/teacher" element={<TeacherDashboardPage />} />
+            {/* Klasslar — Guruhlar | O'quvchilar tabs (?tab=students). */}
+            <Route path="/teacher/classes" element={<ClassesPage />} />
           </Route>
 
           {/* Student app (students only). */}
