@@ -74,33 +74,167 @@ public sealed class ClassroomService
     /// <summary>POST /groups/join — the current user joins the group with this code, idempotently.
     /// An invalid code → NotFound. ANY active user may join — membership is not restricted to the
     /// student role.</summary>
-    public async Task<ClassroomResult<GroupResponse>> JoinGroupAsync(
+    public async Task<ClassroomResult<JoinGroupResponse>> JoinGroupAsync(
         Guid userId, JoinGroupRequest payload, CancellationToken ct = default)
     {
         var user = await ActiveUserAsync(userId, ct);
-        if (user is null) return ClassroomResult<GroupResponse>.Unauthorized();
+        if (user is null) return ClassroomResult<JoinGroupResponse>.Unauthorized();
 
         var code = (payload.Code ?? string.Empty).Trim().ToUpperInvariant();  // codes are stored upper-case
         var group = await _db.Groups.FirstOrDefaultAsync(g => g.JoinCode == code, ct);
-        if (group is null) return ClassroomResult<GroupResponse>.NotFound();   // unknown join code
+        if (group is null) return ClassroomResult<JoinGroupResponse>.NotFound(); // unknown join code
 
         var already = await _db.GroupMembers.AnyAsync(
             gm => gm.GroupId == group.Id && gm.StudentId == user.Id, ct);
-        if (!already)                                                          // idempotent: re-joining is a no-op
+        if (already)                                                           // idempotent: re-joining is a no-op
+            return ClassroomResult<JoinGroupResponse>.Ok(await JoinOutAsync(group, pending: false, ct));
+
+        // NOT a member yet: file a request for the owning teacher instead of joining outright.
+        // Membership is now the teacher's decision (ApproveJoinRequestAsync is the ONLY path that
+        // writes a GroupMember from here), so nothing downstream — roster, gradebook, assignments —
+        // can see a student the teacher has not accepted.
+        var pendingAlready = await _db.GroupJoinRequests.AnyAsync(
+            r => r.GroupId == group.Id
+                 && r.StudentId == user.Id
+                 && r.Status == GroupJoinRequest.StatusPending, ct);
+        if (!pendingAlready)                                                   // idempotent: re-asking is a no-op
         {
             var now = DateTime.UtcNow;
-            _db.GroupMembers.Add(new GroupMember
+            _db.GroupJoinRequests.Add(new GroupJoinRequest
             {
                 Id = Guid.NewGuid(),
                 GroupId = group.Id,
                 StudentId = user.Id,
+                Status = GroupJoinRequest.StatusPending,
                 CreatedAt = now,
                 UpdatedAt = now,
             });
             // (Deferred) notifying the group's teacher — the notifications module is not wired in here.
             await _db.SaveChangesAsync(ct);
         }
-        return ClassroomResult<GroupResponse>.Ok(await GroupOutAsync(group, ct));
+        return ClassroomResult<JoinGroupResponse>.Ok(await JoinOutAsync(group, pending: true, ct));
+    }
+
+    /// <summary>
+    /// GET /groups/requests — the PENDING join requests across the caller's own groups, oldest
+    /// first (the longest-waiting student should be decided first). Teacher/admin only; a teacher
+    /// sees requests for groups they own and nothing else, an admin sees all.
+    /// </summary>
+    public async Task<ClassroomResult<IReadOnlyList<GroupJoinRequestResponse>>> ListJoinRequestsAsync(
+        Guid userId, CancellationToken ct = default)
+    {
+        var user = await ActiveUserAsync(userId, ct);
+        if (user is null) return ClassroomResult<IReadOnlyList<GroupJoinRequestResponse>>.Unauthorized();
+        if (!IsTeacher(user)) return ClassroomResult<IReadOnlyList<GroupJoinRequestResponse>>.Forbidden();
+
+        var q = _db.GroupJoinRequests
+            .Include(r => r.Group)
+            .Include(r => r.Student)
+            .Where(r => r.Status == GroupJoinRequest.StatusPending);
+
+        if (user.Role == UserRole.Teacher)                                     // admin: every group
+            q = q.Where(r => r.Group.TeacherId == user.Id);
+
+        var rows = await q.OrderBy(r => r.CreatedAt).ToListAsync(ct);
+
+        return ClassroomResult<IReadOnlyList<GroupJoinRequestResponse>>.Ok(rows
+            .Select(r => new GroupJoinRequestResponse(
+                Id: r.Id,
+                GroupId: r.GroupId,
+                GroupName: r.Group.Name,
+                JoinCode: r.Group.JoinCode,
+                StudentId: r.StudentId,
+                StudentName: r.Student.FullName,
+                StudentEmail: r.Student.Email,
+                CreatedAt: r.CreatedAt))
+            .ToList());
+    }
+
+    /// <summary>
+    /// POST /groups/requests/{id}/{approve|reject} — decide one pending request.
+    ///
+    /// <para><b>Ownership is the whole point.</b> A teacher may only decide a request for a group
+    /// they OWN; anyone else gets 404, never 403, so the existence of another teacher's request is
+    /// not leaked. Admin may decide any.</para>
+    ///
+    /// <para>Approving inserts the <see cref="GroupMember"/> and marks the request approved in the
+    /// SAME SaveChanges, so the two can never disagree. Approving is idempotent against a student
+    /// who somehow became a member already (the membership insert is skipped, the request is still
+    /// decided). A request that is not pending returns NotFound — deciding twice is not an error the
+    /// caller can act on, and the row is no longer in their queue either way.</para>
+    /// </summary>
+    public async Task<ClassroomOutcome> DecideJoinRequestAsync(
+        Guid userId, Guid requestId, bool approve, CancellationToken ct = default)
+    {
+        var user = await ActiveUserAsync(userId, ct);
+        if (user is null) return ClassroomOutcome.Unauthorized;
+        if (!IsTeacher(user)) return ClassroomOutcome.Forbidden;
+
+        var request = await _db.GroupJoinRequests
+            .Include(r => r.Group)
+            .FirstOrDefaultAsync(r => r.Id == requestId, ct);
+
+        if (request is null || request.Status != GroupJoinRequest.StatusPending)
+            return ClassroomOutcome.NotFound;
+        if (user.Role == UserRole.Teacher && request.Group.TeacherId != user.Id)
+            return ClassroomOutcome.NotFound;                                  // not yours ⇒ does not exist
+
+        var now = DateTime.UtcNow;
+        request.Status = approve ? GroupJoinRequest.StatusApproved : GroupJoinRequest.StatusRejected;
+        request.DecidedAt = now;
+        request.DecidedBy = user.Id;
+        request.UpdatedAt = now;
+
+        if (approve)
+        {
+            var already = await _db.GroupMembers.AnyAsync(
+                gm => gm.GroupId == request.GroupId && gm.StudentId == request.StudentId, ct);
+            if (!already)
+            {
+                _db.GroupMembers.Add(new GroupMember
+                {
+                    Id = Guid.NewGuid(),
+                    GroupId = request.GroupId,
+                    StudentId = request.StudentId,
+                    CreatedAt = now,
+                    UpdatedAt = now,
+                });
+            }
+        }
+
+        await _db.SaveChangesAsync(ct);
+        return ClassroomOutcome.Ok;
+    }
+
+    /// <summary>
+    /// GET /groups/requests/mine — the caller's OWN pending requests. Without this the student's
+    /// Home cannot tell "your request is waiting" apart from "you are in no group", and a join would
+    /// look like it silently failed.
+    /// </summary>
+    public async Task<IReadOnlyList<GroupJoinRequestResponse>?> MyJoinRequestsAsync(
+        Guid userId, CancellationToken ct = default)
+    {
+        var user = await ActiveUserAsync(userId, ct);
+        if (user is null) return null;
+
+        var rows = await _db.GroupJoinRequests
+            .Include(r => r.Group)
+            .Include(r => r.Student)
+            .Where(r => r.StudentId == user.Id && r.Status == GroupJoinRequest.StatusPending)
+            .OrderBy(r => r.CreatedAt)
+            .ToListAsync(ct);
+
+        return rows
+            .Select(r => new GroupJoinRequestResponse(
+                Id: r.Id,
+                GroupId: r.GroupId,
+                GroupName: r.Group.Name,
+                JoinCode: r.Group.JoinCode,
+                StudentId: r.StudentId,
+                StudentName: r.Student.FullName,
+                StudentEmail: r.Student.Email,
+                CreatedAt: r.CreatedAt))
+            .ToList();
     }
 
     /// <summary>
@@ -486,6 +620,21 @@ public sealed class ClassroomService
             if (!await _db.Groups.AnyAsync(g => g.JoinCode == code, ct))
                 return code;
         }
+    }
+
+    /// <summary><see cref="GroupOutAsync"/> plus the <c>pending</c> flag — the join response.</summary>
+    private async Task<JoinGroupResponse> JoinOutAsync(Group g, bool pending, CancellationToken ct)
+    {
+        var o = await GroupOutAsync(g, ct);
+        return new JoinGroupResponse(
+            Id: o.Id,
+            Name: o.Name,
+            JoinCode: o.JoinCode,
+            MemberCount: o.MemberCount,
+            TeacherId: o.TeacherId,
+            TeacherName: o.TeacherName,
+            CreatedAt: o.CreatedAt,
+            Pending: pending);
     }
 
     private async Task<GroupResponse> GroupOutAsync(Group g, CancellationToken ct)

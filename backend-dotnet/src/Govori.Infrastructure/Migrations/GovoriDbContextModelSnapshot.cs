@@ -257,6 +257,68 @@ namespace Govori.Infrastructure.Migrations
                     b.ToTable("groups", (string)null);
                 });
 
+            modelBuilder.Entity("Govori.Infrastructure.Entities.GroupJoinRequest", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at")
+                        .HasDefaultValueSql("now()");
+
+                    b.Property<DateTime?>("DecidedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("decided_at");
+
+                    b.Property<Guid?>("DecidedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("decided_by");
+
+                    b.Property<Guid>("GroupId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("group_id");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)")
+                        .HasDefaultValue("pending")
+                        .HasColumnName("status");
+
+                    b.Property<Guid>("StudentId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("student_id");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at")
+                        .HasDefaultValueSql("now()");
+
+                    b.HasKey("Id")
+                        .HasName("group_join_requests_pkey");
+
+                    b.HasIndex("GroupId", "StudentId")
+                        .IsUnique()
+                        .HasDatabaseName("uq_group_join_request_pending")
+                        .HasFilter("status = 'pending'");
+
+                    b.HasIndex(new[] { "GroupId" }, "ix_group_join_requests_group_id")
+                        .HasDatabaseName("ix_group_join_requests_group_id");
+
+                    b.HasIndex(new[] { "StudentId" }, "ix_group_join_requests_student_id")
+                        .HasDatabaseName("ix_group_join_requests_student_id");
+
+                    b.ToTable("group_join_requests", null, t =>
+                        {
+                            t.HasCheckConstraint("ck_group_join_request_status", "status IN ('pending', 'approved', 'rejected')");
+                        });
+                });
+
             modelBuilder.Entity("Govori.Infrastructure.Entities.GroupMember", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1194,6 +1256,27 @@ namespace Govori.Infrastructure.Migrations
                         .HasConstraintName("groups_teacher_id_fkey");
 
                     b.Navigation("Teacher");
+                });
+
+            modelBuilder.Entity("Govori.Infrastructure.Entities.GroupJoinRequest", b =>
+                {
+                    b.HasOne("Govori.Infrastructure.Entities.Group", "Group")
+                        .WithMany()
+                        .HasForeignKey("GroupId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("group_join_requests_group_id_fkey");
+
+                    b.HasOne("Govori.Infrastructure.Entities.User", "Student")
+                        .WithMany()
+                        .HasForeignKey("StudentId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("group_join_requests_student_id_fkey");
+
+                    b.Navigation("Group");
+
+                    b.Navigation("Student");
                 });
 
             modelBuilder.Entity("Govori.Infrastructure.Entities.GroupMember", b =>

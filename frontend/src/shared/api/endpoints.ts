@@ -16,6 +16,8 @@ import type {
   GroupResponse,
   GroupDetailResponse,
   GradebookRowResponse,
+  GroupJoinRequestResponse,
+  JoinGroupResponse,
   LeaderboardEntryResponse,
   LinksResponse,
   MeResponse,
@@ -314,10 +316,21 @@ export function myGroups(): Promise<GroupResponse[]> {
   return apiClient.get<GroupResponse[]>("/groups/mine");
 }
 
-/** POST /api/groups/join → the caller joins a teacher's group by its code. Auth
- * required; returns the joined group. Rejects (404) on an unknown/blank code. */
-export function joinGroup(code: string): Promise<GroupResponse> {
-  return apiClient.post<GroupResponse>("/groups/join", { code });
+/** POST /api/groups/join → the caller REQUESTS to join a teacher's group by its
+ * code. Auth required; 404 on an unknown/blank code.
+ *
+ * Joining does not grant membership: `pending: true` means the owning teacher
+ * still has to approve. Only `pending: false` (the caller was already a member)
+ * means they are in. Callers must branch on the flag — rendering "you're in the
+ * group" off a pending response is the mistake it guards against. */
+export function joinGroup(code: string): Promise<JoinGroupResponse> {
+  return apiClient.post<JoinGroupResponse>("/groups/join", { code });
+}
+
+/** GET /api/groups/requests/mine → the caller's OWN pending join requests, so a
+ * student who has asked sees "waiting for approval" instead of the join form. */
+export function myJoinRequests(): Promise<GroupJoinRequestResponse[]> {
+  return apiClient.get<GroupJoinRequestResponse[]>("/groups/requests/mine");
 }
 
 /** POST /api/groups/leave → the caller leaves their own group. Auth required;
@@ -366,6 +379,25 @@ export function teacherGroupDetail(id: string): Promise<GroupDetailResponse> {
 /** POST /api/groups → create a group; the server mints the join code. 201. */
 export function createGroup(name: string): Promise<GroupResponse> {
   return apiClient.post<GroupResponse>("/groups", { name });
+}
+
+/** GET /api/groups/requests → pending join requests across the caller's OWN
+ * groups, oldest first (teacher/admin; 403 for a student). Backs the "So'rovlar"
+ * tab. Server-scoped to owned groups — another teacher's requests are invisible. */
+export function teacherJoinRequests(): Promise<GroupJoinRequestResponse[]> {
+  return apiClient.get<GroupJoinRequestResponse[]>("/groups/requests");
+}
+
+/** POST /api/groups/requests/{id}/approve → admit the student (204). 404 when the
+ * request is missing, already decided, or belongs to another teacher's group. */
+export function approveJoinRequest(id: string): Promise<void> {
+  return apiClient.post<void>(`/groups/requests/${encodeURIComponent(id)}/approve`);
+}
+
+/** POST /api/groups/requests/{id}/reject → decline (204). Same 404 rule. The
+ * student may ask again later; rejection is not a permanent ban. */
+export function rejectJoinRequest(id: string): Promise<void> {
+  return apiClient.post<void>(`/groups/requests/${encodeURIComponent(id)}/reject`);
 }
 
 /** GET /api/reports/gradebook (?group_id) → one row per student the teacher may

@@ -115,7 +115,9 @@
       "tomorrow": "завтра {{time}}",
       "date": "{{date}}, {{time}}",
       "overdue": "просрочено"
-    }
+    },
+    "joinPending": "Заявка отправлена",
+    "joinPendingHint": "Дождитесь подтверждения преподавателя"
   },
   "practice": {
     "attemptsLeft_one": "осталась {{count}} попытка",
@@ -495,7 +497,13 @@
     "searchStudent": "Поиск ученика",
     "noStudents": "Учеников пока нет — пригласите по коду группы",
     "noMatches": "Ничего не найдено",
-    "notScored": "без оценки"
+    "notScored": "без оценки",
+    "tabRequests": "Заявки",
+    "requestsIntro": "Ученики отправили заявку на вступление по коду группы. Подтвердите или отклоните.",
+    "requestMeta": "Код: {{code}} · {{when}}",
+    "approve": "Подтвердить",
+    "reject": "Отклонить",
+    "noRequests": "Новых заявок нет"
   },
   "auth": {
     "phoneLabel": "Номер телефона",
@@ -739,5 +747,27 @@
     "phrasesLabelShort": "ПОЛЕЗНЫЕ ФРАЗЫ",
     "retry": "Ещё раз",
     "stubNote": "Ответы ИИ — примерные (ключ не подключён)."
+  },
+  "time": {
+    "justNow": "только что",
+    "yesterday": "вчера",
+    "minutesAgo_one": "{{count}} минуту назад",
+    "minutesAgo_few": "{{count}} минуты назад",
+    "minutesAgo_many": "{{count}} минут назад",
+    "hoursAgo_one": "{{count}} час назад",
+    "hoursAgo_few": "{{count}} часа назад",
+    "hoursAgo_many": "{{count}} часов назад",
+    "daysAgo_one": "{{count}} день назад",
+    "daysAgo_few": "{{count}} дня назад",
+    "daysAgo_many": "{{count}} дней назад",
+    "weeksAgo_one": "{{count}} неделю назад",
+    "weeksAgo_few": "{{count}} недели назад",
+    "weeksAgo_many": "{{count}} недель назад",
+    "monthsAgo_one": "{{count}} месяц назад",
+    "monthsAgo_few": "{{count}} месяца назад",
+    "monthsAgo_many": "{{count}} месяцев назад",
+    "yearsAgo_one": "{{count}} год назад",
+    "yearsAgo_few": "{{count}} года назад",
+    "yearsAgo_many": "{{count}} лет назад"
   }
 }

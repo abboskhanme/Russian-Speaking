@@ -71,6 +71,43 @@ public static class ClassroomEndpoints
             return MapNoContent(outcome, notFound: "Not a member of any group");
         }).RequireAuthorization();
 
+        // GET /api/groups/requests — pending join requests across the caller's OWN groups
+        // (teacher/admin). Literal path, registered before /{id:guid} for readability; "requests"
+        // fails the guid constraint anyway so the order is not load-bearing.
+        groups.MapGet("/requests", async (ClaimsPrincipal principal, ClassroomService svc, CancellationToken ct) =>
+        {
+            if (!TryGetUserId(principal, out var userId)) return Results.Unauthorized();
+            var r = await svc.ListJoinRequestsAsync(userId, ct);
+            return Map(r, StatusCodes.Status200OK, forbidden: "Teacher role required");
+        }).RequireAuthorization();
+
+        // GET /api/groups/requests/mine — the CALLER's own pending requests. Lets the student's Home
+        // say "waiting for approval" instead of rendering the join form as if nothing happened.
+        groups.MapGet("/requests/mine", async (ClaimsPrincipal principal, ClassroomService svc, CancellationToken ct) =>
+        {
+            if (!TryGetUserId(principal, out var userId)) return Results.Unauthorized();
+            var list = await svc.MyJoinRequestsAsync(userId, ct);
+            return list is null ? Results.Unauthorized() : Results.Ok(list);
+        }).RequireAuthorization();
+
+        // POST /api/groups/requests/{id}/approve — accept a student into the group → 204.
+        // 404 when the request is missing, already decided, OR belongs to another teacher's group:
+        // never leaks that someone else's request exists.
+        groups.MapPost("/requests/{id:guid}/approve", async (Guid id, ClaimsPrincipal principal, ClassroomService svc, CancellationToken ct) =>
+        {
+            if (!TryGetUserId(principal, out var userId)) return Results.Unauthorized();
+            var outcome = await svc.DecideJoinRequestAsync(userId, id, approve: true, ct);
+            return MapNoContent(outcome, notFound: "Join request not found", forbidden: "Teacher role required");
+        }).RequireAuthorization();
+
+        // POST /api/groups/requests/{id}/reject — decline → 204. Same 404 rule as approve.
+        groups.MapPost("/requests/{id:guid}/reject", async (Guid id, ClaimsPrincipal principal, ClassroomService svc, CancellationToken ct) =>
+        {
+            if (!TryGetUserId(principal, out var userId)) return Results.Unauthorized();
+            var outcome = await svc.DecideJoinRequestAsync(userId, id, approve: false, ct);
+            return MapNoContent(outcome, notFound: "Join request not found", forbidden: "Teacher role required");
+        }).RequireAuthorization();
+
         // GET /api/groups — teacher's own groups (?teacher_id for admin).
         groups.MapGet("", async (Guid? teacher_id, ClaimsPrincipal principal, ClassroomService svc, CancellationToken ct) =>
         {

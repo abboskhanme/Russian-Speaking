@@ -89,6 +89,40 @@
   gap: var(--s-2);
 }
 
+/* ---- A3 So'rovlar ---- */
+.requestList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--s-3) * var(--density-scale));
+}
+.requestCard {
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--s-3) * var(--density-scale));
+}
+.requestTop {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  min-width: 0;
+}
+.requestActions {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+}
+/* The mockup gives Tasdiqlash the width and keeps Rad compact + danger-tinted. */
+.approveBtn {
+  flex: 1;
+}
+.rejectBtn {
+  flex: none;
+  color: var(--danger);
+}
+
 /* ---- A4 O'quvchilar ---- */
 .studentList {
   list-style: none;

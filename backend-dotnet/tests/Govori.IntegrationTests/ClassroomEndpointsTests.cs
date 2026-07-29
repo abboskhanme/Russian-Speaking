@@ -17,7 +17,11 @@ namespace Govori.IntegrationTests;
 /// single idempotent unit:
 /// <list type="bullet">
 ///   <item>a teacher creates a group and gets a join code (201);</item>
-///   <item>a student joins by code and the roster is exactly that student (join is idempotent);</item>
+///   <item><b>join is a REQUEST, not a membership</b>: a student's join by code files a pending
+///   request (idempotently) and moves the roster not at all; the OWNING teacher's approve is what
+///   creates the membership. The queue is owner-scoped — another teacher neither sees nor can decide
+///   the request (404, never 403, so its existence is not leaked), and a student is 403 outright.
+///   Rejecting admits nobody, records who decided, and still lets the student ask again;</item>
 ///   <item><b>the S1 roster-bug fix</b>: the teacher assigns a task to [rostered student, OUTSIDER
 ///   student]; only the rostered student gets an assignment — the outsider (another teacher's
 ///   student) is filtered out, and NO assignment row is written for them;</item>
@@ -120,24 +124,126 @@ public sealed class ClassroomEndpointsTests : IClassFixture<ClassroomEndpointsTe
             createdGroupIds.Add(groupBId);
             var joinCodeB = createBDoc.RootElement.GetProperty("join_code").GetString()!;
 
-            // ── Students join by code (lowercase to prove normalization) ──
+            // ── Students REQUEST to join by code (lowercase to prove normalization) ──
+            // Joining no longer grants membership: it files a request the owning teacher decides.
             var joinResp = await Send(client, HttpMethod.Post, "/api/groups/join", tokenRoster, Json(new { code = joinCodeA.ToLowerInvariant() }));
             Assert.Equal(HttpStatusCode.OK, joinResp.StatusCode);
             using (var joinDoc = JsonDocument.Parse(await joinResp.Content.ReadAsStringAsync()))
-                Assert.Equal(1, joinDoc.RootElement.GetProperty("member_count").GetInt32());
+            {
+                Assert.True(joinDoc.RootElement.GetProperty("pending").GetBoolean());
+                // The roster must NOT have moved — approval is what admits a student.
+                Assert.Equal(0, joinDoc.RootElement.GetProperty("member_count").GetInt32());
+            }
 
-            // Idempotent: joining again keeps a single membership.
+            // Idempotent: asking again does NOT queue a second request.
             Assert.Equal(HttpStatusCode.OK,
                 (await Send(client, HttpMethod.Post, "/api/groups/join", tokenRoster, Json(new { code = joinCodeA }))).StatusCode);
+            await using (var ctx = CreateContext())
+            {
+                Assert.Equal(1, await ctx.GroupJoinRequests.CountAsync(
+                    r => r.GroupId == groupAId && r.StudentId == rosterStudentId && r.Status == "pending"));
+                Assert.Equal(0, await ctx.GroupMembers.CountAsync(gm => gm.GroupId == groupAId));
+            }
 
+            // The student can see their own pending request (drives Home's "waiting" state).
+            using (var mineReqDoc = JsonDocument.Parse(await (await Send(client, HttpMethod.Get, "/api/groups/requests/mine", tokenRoster)).Content.ReadAsStringAsync()))
+                Assert.Contains(mineReqDoc.RootElement.EnumerateArray(), r => r.GetProperty("group_id").GetGuid() == groupAId);
+
+            // ── The request queue is OWNER-SCOPED ──
+            Guid requestId;
+            using (var reqDoc = JsonDocument.Parse(await (await Send(client, HttpMethod.Get, "/api/groups/requests", tokenA)).Content.ReadAsStringAsync()))
+            {
+                var mine = reqDoc.RootElement.EnumerateArray()
+                    .Where(r => r.GetProperty("group_id").GetGuid() == groupAId).ToList();
+                Assert.Single(mine);
+                Assert.Equal(rosterStudentId, mine[0].GetProperty("student_id").GetGuid());
+                Assert.Equal(joinCodeA, mine[0].GetProperty("join_code").GetString());
+                requestId = mine[0].GetProperty("id").GetGuid();
+            }
+            // Teacher B never sees another teacher's request…
+            using (var reqBDoc = JsonDocument.Parse(await (await Send(client, HttpMethod.Get, "/api/groups/requests", tokenB)).Content.ReadAsStringAsync()))
+                Assert.DoesNotContain(reqBDoc.RootElement.EnumerateArray(), r => r.GetProperty("id").GetGuid() == requestId);
+            // …and cannot decide it — 404, not 403, so its existence is never leaked.
+            Assert.Equal(HttpStatusCode.NotFound,
+                (await Send(client, HttpMethod.Post, $"/api/groups/requests/{requestId}/approve", tokenB)).StatusCode);
+            // A student has no business in the queue at all.
+            Assert.Equal(HttpStatusCode.Forbidden,
+                (await Send(client, HttpMethod.Get, "/api/groups/requests", tokenRoster)).StatusCode);
+            // Still nobody in the group after those rejected attempts.
+            await using (var ctx = CreateContext())
+                Assert.Equal(0, await ctx.GroupMembers.CountAsync(gm => gm.GroupId == groupAId));
+
+            // ── The OWNER approves → membership appears, request leaves the queue ──
+            Assert.Equal(HttpStatusCode.NoContent,
+                (await Send(client, HttpMethod.Post, $"/api/groups/requests/{requestId}/approve", tokenA)).StatusCode);
+            await using (var ctx = CreateContext())
+            {
+                Assert.Equal(1, await ctx.GroupMembers.CountAsync(
+                    gm => gm.GroupId == groupAId && gm.StudentId == rosterStudentId));
+                Assert.Equal(0, await ctx.GroupJoinRequests.CountAsync(
+                    r => r.Id == requestId && r.Status == "pending"));
+            }
+            // Deciding twice is a no-op the caller cannot act on → 404.
+            Assert.Equal(HttpStatusCode.NotFound,
+                (await Send(client, HttpMethod.Post, $"/api/groups/requests/{requestId}/reject", tokenA)).StatusCode);
+
+            // Re-joining once already a member reports pending:false, not a fresh request.
+            using (var reJoinDoc = JsonDocument.Parse(await (await Send(client, HttpMethod.Post, "/api/groups/join", tokenRoster, Json(new { code = joinCodeA }))).Content.ReadAsStringAsync()))
+            {
+                Assert.False(reJoinDoc.RootElement.GetProperty("pending").GetBoolean());
+                Assert.Equal(1, reJoinDoc.RootElement.GetProperty("member_count").GetInt32());
+            }
+
+            // ── REJECT: the outsider asks to join group A and is declined ──
+            Assert.Equal(HttpStatusCode.OK,
+                (await Send(client, HttpMethod.Post, "/api/groups/join", tokenOutsider, Json(new { code = joinCodeA }))).StatusCode);
+            Guid rejectId;
+            using (var reqDoc = JsonDocument.Parse(await (await Send(client, HttpMethod.Get, "/api/groups/requests", tokenA)).Content.ReadAsStringAsync()))
+                rejectId = reqDoc.RootElement.EnumerateArray()
+                    .Single(r => r.GetProperty("student_id").GetGuid() == outsiderStudentId).GetProperty("id").GetGuid();
+            Assert.Equal(HttpStatusCode.NoContent,
+                (await Send(client, HttpMethod.Post, $"/api/groups/requests/{rejectId}/reject", tokenA)).StatusCode);
+            await using (var ctx = CreateContext())
+            {
+                // Rejection admits nobody…
+                Assert.Equal(0, await ctx.GroupMembers.CountAsync(
+                    gm => gm.GroupId == groupAId && gm.StudentId == outsiderStudentId));
+                // …and is attributable, not anonymous.
+                var decided = await ctx.GroupJoinRequests.SingleAsync(r => r.Id == rejectId);
+                Assert.Equal("rejected", decided.Status);
+                Assert.Equal(teacherAId, decided.DecidedBy);
+                Assert.NotNull(decided.DecidedAt);
+            }
+            // A rejected student may ask again — the partial unique index must not lock them out.
+            Assert.Equal(HttpStatusCode.OK,
+                (await Send(client, HttpMethod.Post, "/api/groups/join", tokenOutsider, Json(new { code = joinCodeA }))).StatusCode);
+            await using (var ctx = CreateContext())
+            {
+                Assert.Equal(1, await ctx.GroupJoinRequests.CountAsync(
+                    r => r.GroupId == groupAId && r.StudentId == outsiderStudentId && r.Status == "pending"));
+                // Cleared so the outsider stays OUT of group A for the S1 assertions below.
+                var pending = await ctx.GroupJoinRequests.SingleAsync(
+                    r => r.GroupId == groupAId && r.StudentId == outsiderStudentId && r.Status == "pending");
+                ctx.GroupJoinRequests.Remove(pending);
+                await ctx.SaveChangesAsync();
+            }
+
+            // ── The outsider becomes teacher B's student, via the same request→approve path ──
             Assert.Equal(HttpStatusCode.OK,
                 (await Send(client, HttpMethod.Post, "/api/groups/join", tokenOutsider, Json(new { code = joinCodeB }))).StatusCode);
+            using (var reqBDoc = JsonDocument.Parse(await (await Send(client, HttpMethod.Get, "/api/groups/requests", tokenB)).Content.ReadAsStringAsync()))
+            {
+                var id = reqBDoc.RootElement.EnumerateArray()
+                    .Single(r => r.GetProperty("group_id").GetGuid() == groupBId).GetProperty("id").GetGuid();
+                Assert.Equal(HttpStatusCode.NoContent,
+                    (await Send(client, HttpMethod.Post, $"/api/groups/requests/{id}/approve", tokenB)).StatusCode);
+            }
 
             // Invalid code → 404.
             Assert.Equal(HttpStatusCode.NotFound,
                 (await Send(client, HttpMethod.Post, "/api/groups/join", tokenOutsider, Json(new { code = "ZZZZZZ" }))).StatusCode);
 
-            // ── /groups/mine reflects the join for the student, and NOT the teacher ──
+            // ── /groups/mine reflects the approved membership for the student, and NOT the teacher ──
             using (var mineDoc = JsonDocument.Parse(await (await Send(client, HttpMethod.Get, "/api/groups/mine", tokenRoster)).Content.ReadAsStringAsync()))
                 Assert.Contains(mineDoc.RootElement.EnumerateArray(), g => g.GetProperty("id").GetGuid() == groupAId);
 

@@ -71,8 +71,9 @@ screen is worse than a missing card:**
   `SubmissionResponse` carries **no AI score** (only `teacher_band`), and
   `GradebookRowResponse` exposes only a lifetime `AvgBand`/`BestBand`. A trend
   needs two time windows — so this needs a backend change (Phase 6/D1).
-- [ ] "N ta guruhga qo'shilish so'rovi · Tasdiqlash kerak" (accent card) → needs
-  the join-request model (Phase 2b).
+- [ ] "N ta guruhga qo'shilish so'rovi · Tasdiqlash kerak" (accent card) → the
+  join-request model now EXISTS (Phase 2b, shipped). This card is just not wired
+  into A1 yet — `GET /api/groups/requests` already returns what it needs.
 - [ ] "Shu hafta sinf xatolari" (`родительный падеж · 12 o'quvchi qoqildi` +
   "Mashq ber") → needs error-pattern aggregation (Phase 6/D1).
 
@@ -98,10 +99,7 @@ Goal: the `Guruhlar | O'quvchilar` segmented screen.
   scored students sorted first.
 - [x] i18n uz/ru/en.
 
-**Two honest deviations from the mockup, both data-driven:**
-- **No `So'rovlar · N` tab.** Joining is instant via the group code, so there is
-  no pending-request model and any count would be invented. Gated on the Phase 2b
-  decision below; the tab model is a plain array, so it is a one-line addition.
+**One honest deviation from the mockup, data-driven:**
 - **No trend arrows** (`↑ 84` / `↓ 61` / `→ 72`). `GradebookRowResponse` carries
   only a lifetime `avg_band` — no second time window to compare against. The bare
   score ships now; the arrow needs the same backend work as the Obzor's trend
@@ -112,6 +110,46 @@ Goal: the `Guruhlar | O'quvchilar` segmented screen.
 `NMMEXJ`, card appeared, test group removed); both tabs render on real data in
 light+dark, desktop+mobile; `Klasslar` nav now resolves to `/teacher/classes`;
 student still blocked from it and all student routes error-free.
+
+### Phase 2b — So'rovlar (join approval) ✅ — *product decision: approval, per the mockup*
+
+**Backend**
+- [x] 🔨 `group_join_requests` table (additive — `group_members` keeps its exact
+  old meaning: a row there is still a REAL member, so every roster / gradebook /
+  assignment query is untouched). Partial unique index allows only ONE pending
+  row per (group, student), so a rejected student may ask again but can never
+  queue twice. `status` is `text` + CHECK, not a native PG enum — a new
+  `CREATE TYPE` would mean editing `GovoriDataSourceFactory` AND `GovoriDbContext`
+  for one additive table's three states.
+- [x] 🔨 `POST /api/groups/join` now files a REQUEST. Response is an additive
+  superset of `GroupResponse` with `pending` — old fields unchanged, so the wire
+  contract does not break.
+- [x] 🔨 `GET /api/groups/requests` (owner-scoped), `POST …/{id}/approve`,
+  `POST …/{id}/reject`, `GET /api/groups/requests/mine` (student's own).
+- [x] Ownership: another teacher gets **404, not 403** — the existence of someone
+  else's request is never leaked. Students get 403 on the queue outright.
+
+**Frontend**
+- [x] A3 So'rovlar tab with the live `· N` count; per-row Tasdiqlash / Rad, with
+  the row's buttons disabled mid-decision so a double-tap cannot fire twice.
+- [x] **Student waiting state** — Home gained a third state between "member" and
+  "no group". Without it a join would re-render the join form and read as a
+  silent failure, producing duplicate asks.
+
+**Bug found and fixed during verification:** relative times ("2 soat oldin") were
+built on `Intl.RelativeTimeFormat`, which looked right in Node. **Chromium ships a
+reduced ICU**: `uz` passes `supportedLocalesOf` and reports `resolvedOptions()
+.locale === "uz"`, but has no Uzbek relative-time data — it rendered `-2 h` and
+fell back to English `"this minute"`. Since uz is the DEFAULT language that was
+the main path. Replaced with `time.*` i18n keys, which also gets Russian's
+one/few/many from the CLDR rules already in use. Don't reach for
+`Intl.RelativeTimeFormat` here again.
+
+**Verified**: 206/0 across all four suites (86 Unit · 35 Arch · 35 Characterization
+· 50 Integration) against a scratch DB clone; migration applied to dev; live
+round-trip in the browser — student asks → sees "So'rov yuborildi" (survives
+reload) → teacher's queue shows `So'rovlar · 1` → approve → queue empties and the
+student's Home shows the teacher block with the roster at 7. Test rows removed.
 
 ## Phase 3 — A5 Guruh detali · A6 O'quvchi profili · A7 A'zo qo'shish
 **Backend**

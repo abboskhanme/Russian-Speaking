@@ -55,6 +55,40 @@ public sealed record GroupResponse(
     string? TeacherName,
     DateTime CreatedAt);
 
+/// <summary>
+/// Result of POST /api/groups/join. An ADDITIVE superset of <see cref="GroupResponse"/> — every
+/// field of the old response is still present at the same wire name, so a client that only knows
+/// the old shape keeps working; <c>pending</c> is the one new field.
+///
+/// <para><c>pending = true</c> means a join REQUEST was filed and the owning teacher must approve it
+/// before the caller is a member. <c>pending = false</c> means the caller already was a member
+/// (re-joining is a no-op). A caller that ignores the flag and assumes membership would be wrong,
+/// which is exactly why the flag is on the response rather than only on a separate lookup.</para>
+/// </summary>
+public sealed record JoinGroupResponse(
+    Guid Id,
+    string Name,
+    string JoinCode,
+    int MemberCount,
+    Guid? TeacherId,
+    string? TeacherName,
+    DateTime CreatedAt,
+    bool Pending);
+
+/// <summary>
+/// One pending join request, as the owning teacher sees it in the "So'rovlar" tab. Carries the group
+/// name + code so the row reads standalone ("Kod: KECHKI-3 · 2 soat oldin") without a second fetch.
+/// </summary>
+public sealed record GroupJoinRequestResponse(
+    Guid Id,
+    Guid GroupId,
+    string GroupName,
+    string JoinCode,
+    Guid StudentId,
+    string StudentName,
+    string StudentEmail,
+    DateTime CreatedAt);
+
 /// <summary>A group plus its roster — <see cref="GroupResponse"/> extended with its members.</summary>
 public sealed record GroupDetailResponse(
     Guid Id,

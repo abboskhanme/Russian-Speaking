@@ -108,7 +108,9 @@
       "tomorrow": "ertaga {{time}}",
       "date": "{{date}}, {{time}}",
       "overdue": "muddati o'tgan"
-    }
+    },
+    "joinPending": "So‘rov yuborildi",
+    "joinPendingHint": "O‘qituvchi tasdiqlashini kuting"
   },
   "practice": {
     "attemptsLeft_one": "{{count}} urinish qoldi",
@@ -481,7 +483,13 @@
     "searchStudent": "O‘quvchi qidirish",
     "noStudents": "Hali o‘quvchi yo‘q — guruh kodi bilan taklif qiling",
     "noMatches": "Hech narsa topilmadi",
-    "notScored": "baholanmagan"
+    "notScored": "baholanmagan",
+    "tabRequests": "So‘rovlar",
+    "requestsIntro": "O‘quvchilar guruh kodi bilan qo‘shilish so‘rovi yubordi. Tasdiqlang yoki rad eting.",
+    "requestMeta": "Kod: {{code}} · {{when}}",
+    "approve": "Tasdiqlash",
+    "reject": "Rad",
+    "noRequests": "Yangi so‘rov yo‘q"
   },
   "auth": {
     "phoneLabel": "Telefon raqam",
@@ -722,5 +730,21 @@
     "phrasesLabelShort": "FOYDALI IBORA",
     "retry": "Yana urinish",
     "stubNote": "AI javoblari namunaviy (kalit ulanmagan)."
+  },
+  "time": {
+    "justNow": "hozir",
+    "yesterday": "kecha",
+    "minutesAgo_one": "{{count}} daqiqa oldin",
+    "minutesAgo_other": "{{count}} daqiqa oldin",
+    "hoursAgo_one": "{{count}} soat oldin",
+    "hoursAgo_other": "{{count}} soat oldin",
+    "daysAgo_one": "{{count}} kun oldin",
+    "daysAgo_other": "{{count}} kun oldin",
+    "weeksAgo_one": "{{count}} hafta oldin",
+    "weeksAgo_other": "{{count}} hafta oldin",
+    "monthsAgo_one": "{{count}} oy oldin",
+    "monthsAgo_other": "{{count}} oy oldin",
+    "yearsAgo_one": "{{count}} yil oldin",
+    "yearsAgo_other": "{{count}} yil oldin"
   }
 }

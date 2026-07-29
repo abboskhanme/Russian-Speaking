@@ -4,7 +4,7 @@ import { Badge, Button, Card, Input, Modal, Tabs, Text, cx } from "../../shared/
 import type { TabItem } from "../../shared/ui";
 import { AppShell, Brand, NotificationsBell, teacherNavItems } from "../../widgets";
 import type { NavItem } from "../../widgets";
-import { mockClassGroups, mockClassStudents } from "./classes.mock";
+import { mockClassGroups, mockClassRequests, mockClassStudents } from "./classes.mock";
 import styles from "./ClassesScreen.module.css";
 
 /* -------------------------------------------------------------------------- */
@@ -37,13 +37,24 @@ export interface ClassStudent {
   score?: number;
 }
 
-/** Which tab is showing. `requests` (A3 So'rovlar) is intentionally absent —
- * see the screen doc comment. */
-export type ClassesTabKey = "groups" | "students";
+/** One student waiting for the teacher's decision (A3 So'rovlar). */
+export interface ClassJoinRequest {
+  id: string;
+  studentName: string;
+  initials?: string;
+  /** The code they used, shown as "Kod: KECHKI-3". */
+  joinCode: string;
+  /** Localized relative time ("2 soat oldin"). The caller formats it. */
+  when: string;
+}
+
+export type ClassesTabKey = "groups" | "requests" | "students";
 
 export interface ClassesScreenProps {
   groups: ClassGroup[];
   students: ClassStudent[];
+  /** Pending join requests, oldest first. */
+  requests: ClassJoinRequest[];
   activeTab?: ClassesTabKey;
   onTabChange?: (key: ClassesTabKey) => void;
   activeNavKey?: string;
@@ -52,6 +63,8 @@ export interface ClassesScreenProps {
   queuedCount?: number;
   /** Create a group from the "+ Yangi guruh" tile. Resolves when the server has it. */
   onCreateGroup?: (name: string) => Promise<void> | void;
+  /** Decide a join request. Resolves once the server has accepted the decision. */
+  onDecideRequest?: (id: string, approve: boolean) => Promise<void> | void;
   /** Open a group's detail (A5 — Phase 3). */
   onOpenGroup?: (id: string, group: ClassGroup) => void;
   /** Assign a task to a group (D3 — Phase 6). */
@@ -65,14 +78,12 @@ export interface ClassesScreenProps {
 /* -------------------------------------------------------------------------- */
 
 /**
- * ClassesScreen — the teacher's **Klasslar** (`Govorim - Teacher.dc.html`, A2 +
- * A4). One screen, a segmented control on top, exactly as the mockup draws it.
+ * ClassesScreen — the teacher's **Klasslar** (`Govorim - Teacher.dc.html`, A2 ·
+ * A3 · A4). One screen, the mockup's three-tab segmented control on top:
+ * `Guruhlar | So'rovlar · N | O'quvchilar`.
  *
- * The mockup's segmented control has THREE tabs — `Guruhlar | So'rovlar · 3 |
- * O'quvchilar`. **So'rovlar is deliberately not rendered**: joining is instant
- * via the group code today, so there is no pending-request model to list and any
- * count would be invented. It appears the moment that backend lands (plan Phase
- * 2b) — the tab model here is a plain array, so it is a one-line addition.
+ * So'rovlar carries a live count in its label because it is the only tab with
+ * work waiting in it — the mockup draws the same "· 3".
  *
  * Presentational and prop-driven: it fetches nothing. Full-width (docs/04 §4.10)
  * at compact density (docs/03 §3.5). Teacher panel design — not a student screen
@@ -81,12 +92,14 @@ export interface ClassesScreenProps {
 export function ClassesScreen({
   groups,
   students,
+  requests,
   activeTab = "groups",
   onTabChange,
   activeNavKey = "classes",
   onNavigate,
   queuedCount = 0,
   onCreateGroup,
+  onDecideRequest,
   onOpenGroup,
   onAssignGroup,
   onOpenStudent,
@@ -95,6 +108,12 @@ export function ClassesScreen({
 
   const tabs: TabItem[] = [
     { key: "groups", label: t("teacher.tabGroups") },
+    {
+      key: "requests",
+      label: requests.length
+        ? `${t("teacher.tabRequests")} · ${requests.length}`
+        : t("teacher.tabRequests"),
+    },
     { key: "students", label: t("teacher.tabStudents") },
   ];
 
@@ -122,14 +141,18 @@ export function ClassesScreen({
           aria-label={t("nav.classes")}
         />
 
-        {activeTab === "groups" ? (
+        {activeTab === "groups" && (
           <GroupsTab
             groups={groups}
             onCreateGroup={onCreateGroup}
             onOpenGroup={onOpenGroup}
             onAssignGroup={onAssignGroup}
           />
-        ) : (
+        )}
+        {activeTab === "requests" && (
+          <RequestsTab requests={requests} onDecideRequest={onDecideRequest} />
+        )}
+        {activeTab === "students" && (
           <StudentsTab students={students} onOpenStudent={onOpenStudent} />
         )}
       </div>
@@ -275,6 +298,100 @@ function GroupCard({
 }
 
 /* -------------------------------------------------------------------------- */
+/* A3 — So'rovlar (join requests)                                             */
+/* -------------------------------------------------------------------------- */
+
+function RequestsTab({
+  requests,
+  onDecideRequest,
+}: {
+  requests: ClassJoinRequest[];
+  onDecideRequest?: (id: string, approve: boolean) => Promise<void> | void;
+}) {
+  const { t } = useTranslation();
+  /** Ids currently being decided — the row's buttons disable so a double-tap
+   * cannot fire approve twice (the second would 404 once the first lands). */
+  const [busy, setBusy] = useState<Set<string>>(new Set());
+
+  const decide = async (id: string, approve: boolean) => {
+    if (busy.has(id)) return;
+    setBusy((s) => new Set(s).add(id));
+    try {
+      await onDecideRequest?.(id, approve);
+    } finally {
+      setBusy((s) => {
+        const next = new Set(s);
+        next.delete(id);
+        return next;
+      });
+    }
+  };
+
+  if (requests.length === 0) {
+    return (
+      <Card variant="flat" padding="md" className={styles.empty}>
+        <Text as="p" variant="body" color="muted">
+          {t("teacher.noRequests")}
+        </Text>
+      </Card>
+    );
+  }
+
+  return (
+    <>
+      <Text as="p" variant="body-s" color="muted">
+        {t("teacher.requestsIntro")}
+      </Text>
+
+      <ul className={styles.requestList}>
+        {requests.map((r) => (
+          <li key={r.id}>
+            <Card variant="outline" padding="md" className={styles.requestCard}>
+              <div className={styles.requestTop}>
+                <span className={styles.avatar} aria-hidden>
+                  <Text as="span" variant="body-s" weight="bold">
+                    {r.initials ?? deriveInitials(r.studentName)}
+                  </Text>
+                </span>
+                <span className={styles.studentBody}>
+                  <Text as="span" variant="body" weight="bold" truncate>
+                    {r.studentName}
+                  </Text>
+                  <Text as="span" variant="body-s" color="muted" truncate>
+                    {t("teacher.requestMeta", { code: r.joinCode, when: r.when })}
+                  </Text>
+                </span>
+              </div>
+
+              <div className={styles.requestActions}>
+                <Button
+                  variant="primary"
+                  size="sm"
+                  className={styles.approveBtn}
+                  disabled={busy.has(r.id)}
+                  onClick={() => void decide(r.id, true)}
+                >
+                  {t("teacher.approve")}
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className={styles.rejectBtn}
+                  disabled={busy.has(r.id)}
+                  onClick={() => void decide(r.id, false)}
+                >
+                  {t("teacher.reject")}
+                </Button>
+              </div>
+            </Card>
+          </li>
+        ))}
+      </ul>
+    </>
+  );
+}
+
+/* -------------------------------------------------------------------------- */
 /* A4 — O'quvchilar                                                           */
 /* -------------------------------------------------------------------------- */
 
@@ -411,6 +528,7 @@ export default function ClassesDemo() {
     <ClassesScreen
       groups={mockClassGroups}
       students={mockClassStudents}
+      requests={mockClassRequests}
       activeTab={tab}
       onTabChange={setTab}
       queuedCount={23}

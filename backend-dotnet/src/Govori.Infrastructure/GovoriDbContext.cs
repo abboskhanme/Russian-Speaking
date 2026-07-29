@@ -36,6 +36,8 @@ public partial class GovoriDbContext : DbContext
 
     public virtual DbSet<GroupMember> GroupMembers { get; set; }
 
+    public virtual DbSet<GroupJoinRequest> GroupJoinRequests { get; set; }
+
     public virtual DbSet<Notification> Notifications { get; set; }
 
     public virtual DbSet<Question> Questions { get; set; }
@@ -249,6 +251,52 @@ public partial class GovoriDbContext : DbContext
             entity.HasOne(d => d.Student).WithMany(p => p.GroupMembers)
                 .HasForeignKey(d => d.StudentId)
                 .HasConstraintName("group_members_student_id_fkey");
+        });
+
+        modelBuilder.Entity<GroupJoinRequest>(entity =>
+        {
+            entity.HasKey(e => e.Id).HasName("group_join_requests_pkey");
+
+            entity.ToTable("group_join_requests", t => t.HasCheckConstraint(
+                "ck_group_join_request_status",
+                "status IN ('pending', 'approved', 'rejected')"));
+
+            entity.HasIndex(e => e.GroupId, "ix_group_join_requests_group_id");
+
+            entity.HasIndex(e => e.StudentId, "ix_group_join_requests_student_id");
+
+            // PARTIAL unique: only one PENDING request per (group, student). A rejected student may
+            // ask again — a plain unique index would lock them out of the group forever.
+            entity.HasIndex(e => new { e.GroupId, e.StudentId })
+                .IsUnique()
+                .HasFilter("status = 'pending'")
+                .HasDatabaseName("uq_group_join_request_pending");
+
+            entity.Property(e => e.Id)
+                .ValueGeneratedNever()
+                .HasColumnName("id");
+            entity.Property(e => e.GroupId).HasColumnName("group_id");
+            entity.Property(e => e.StudentId).HasColumnName("student_id");
+            entity.Property(e => e.Status)
+                .HasMaxLength(16)
+                .HasDefaultValue(GroupJoinRequest.StatusPending)
+                .HasColumnName("status");
+            entity.Property(e => e.CreatedAt)
+                .HasDefaultValueSql("now()")
+                .HasColumnName("created_at");
+            entity.Property(e => e.UpdatedAt)
+                .HasDefaultValueSql("now()")
+                .HasColumnName("updated_at");
+            entity.Property(e => e.DecidedAt).HasColumnName("decided_at");
+            entity.Property(e => e.DecidedBy).HasColumnName("decided_by");
+
+            entity.HasOne(d => d.Group).WithMany()
+                .HasForeignKey(d => d.GroupId)
+                .HasConstraintName("group_join_requests_group_id_fkey");
+
+            entity.HasOne(d => d.Student).WithMany()
+                .HasForeignKey(d => d.StudentId)
+                .HasConstraintName("group_join_requests_student_id_fkey");
         });
 
         modelBuilder.Entity<Notification>(entity =>

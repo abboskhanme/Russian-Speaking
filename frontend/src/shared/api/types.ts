@@ -469,6 +469,29 @@ export interface GroupDetailResponse extends GroupResponse {
   members: GroupMemberResponse[];
 }
 
+/** POST /api/groups/join → an ADDITIVE superset of {@link GroupResponse}: every old field is
+ * still there, plus `pending`. `pending: true` means a join REQUEST was filed and the owning
+ * teacher must approve it — the caller is NOT a member yet. `pending: false` means they already
+ * were one (re-joining is a no-op). Treating a `pending` join as membership is exactly the bug
+ * this flag exists to prevent. */
+export interface JoinGroupResponse extends GroupResponse {
+  pending: boolean;
+}
+
+/** A pending join request. Used by BOTH sides: the teacher's "So'rovlar" tab
+ * (`GET /api/groups/requests`, their own groups only) and the student's own waiting state
+ * (`GET /api/groups/requests/mine`). Carries the group name + code so a row reads standalone. */
+export interface GroupJoinRequestResponse {
+  id: string;
+  group_id: string;
+  group_name: string;
+  join_code: string;
+  student_id: string;
+  student_name: string;
+  student_email: string;
+  created_at: string;
+}
+
 /** One student's line in `GET /api/reports/gradebook`. `avg_band` / `best_band`
  * are 0–100 speaking bands (null until the student has a graded attempt) — the
  * same scale `CefrScale` buckets into A1…C1. */

@@ -67,6 +67,15 @@ export interface HomeScreenProps {
   /** Join a group by code — wired only for a group-less student (NoGroupCard).
    * Rejects on a bad code so the card can surface the error. */
   onJoinGroup?: (code: string) => Promise<void>;
+  /**
+   * The group name the student is WAITING to be approved into, if any.
+   *
+   * Joining files a request the teacher must approve, so between asking and
+   * being admitted the student is in neither state: not a member, but not
+   * group-less either. Without this the join form would simply re-render and the
+   * request would look like it had silently failed.
+   */
+  pendingGroupName?: string | null;
   /** Open the group screen (classmates + group leaderboard) from the group row. */
   onOpenGroup?: () => void;
   activeNavKey?: string;
@@ -94,6 +103,7 @@ export function HomeScreen({
   onStart,
   onMessageTeacher,
   onJoinGroup,
+  pendingGroupName,
   onOpenGroup,
   activeNavKey = "home",
   onNavigate,
@@ -124,6 +134,8 @@ export function HomeScreen({
             onMessageTeacher={onMessageTeacher}
             onOpenGroup={onOpenGroup}
           />
+        ) : pendingGroupName ? (
+          <PendingGroupCard groupName={pendingGroupName} />
         ) : (
           <NoGroupCard onJoin={onJoinGroup} />
         )}
@@ -299,6 +311,33 @@ function TeacherSection({
         )}
       </Card>
     </section>
+  );
+}
+
+/**
+ * PendingGroupCard — "so'rov yuborildi, o'qituvchi tasdiqlashini kuting".
+ *
+ * The third state between {@link TeacherSection} (a member) and
+ * {@link NoGroupCard} (in no group and not waiting). It exists because joining
+ * only files a request: showing the join form again here would read as "that
+ * didn't work, try once more" and produce duplicate asks.
+ */
+function PendingGroupCard({ groupName }: { groupName: string }) {
+  const { t } = useTranslation();
+  return (
+    <Card variant="tint" padding="lg" className={styles.noGroup}>
+      <span className={styles.noGroupIcon} aria-hidden>
+        <PeopleGlyph />
+      </span>
+      <div className={styles.noGroupBody}>
+        <Text as="p" variant="title-s">
+          {t("home.joinPending")}
+        </Text>
+        <Text as="p" variant="body-s" color="ink-soft">
+          {groupName} · {t("home.joinPendingHint")}
+        </Text>
+      </div>
+    </Card>
   );
 }
 

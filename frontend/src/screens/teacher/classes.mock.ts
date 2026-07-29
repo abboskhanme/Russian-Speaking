@@ -1,4 +1,4 @@
-import type { ClassGroup, ClassStudent } from "./ClassesScreen";
+import type { ClassGroup, ClassJoinRequest, ClassStudent } from "./ClassesScreen";
 
 /**
  * Fixture for the Klasslar screen — lets it render standalone (the screen's
@@ -11,6 +11,12 @@ export const mockClassGroups: ClassGroup[] = [
   { id: "g-kechki-3", name: "Kechki-3", level: "B1", memberCount: 18, avgScore: 74, joinCode: "KECHKI-3" },
   { id: "g-ertalabki-1", name: "Ertalabki-1", level: "A2", memberCount: 21, avgScore: 48, joinCode: "ERTALABKI-1" },
   { id: "g-individual", name: "Individual", level: "B2", memberCount: 15, avgScore: 81, joinCode: "INDIV-2" },
+];
+
+export const mockClassRequests: ClassJoinRequest[] = [
+  { id: "r-1", studentName: "Aziz Karimov", joinCode: "KECHKI-3", when: "2 soat oldin" },
+  { id: "r-2", studentName: "Malika Yusupova", joinCode: "KECHKI-3", when: "5 soat oldin" },
+  { id: "r-3", studentName: "Rustam Nazarov", joinCode: "ERTALABKI-1", when: "kecha" },
 ];
 
 export const mockClassStudents: ClassStudent[] = [

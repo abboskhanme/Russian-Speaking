@@ -29,6 +29,7 @@ export type {
   ClassesScreenProps,
   ClassesTabKey,
   ClassGroup,
+  ClassJoinRequest,
   ClassStudent,
 } from "./ClassesScreen";
-export { mockClassGroups, mockClassStudents } from "./classes.mock";
+export { mockClassGroups, mockClassRequests, mockClassStudents } from "./classes.mock";

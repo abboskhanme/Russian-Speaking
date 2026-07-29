@@ -26,6 +26,9 @@ export default function HomePage() {
 
   const [today, setToday] = useState<HomeToday>({ goalMinutes: DAILY_GOAL_MIN, doneSeconds: 0 });
   const [group, setGroup] = useState<HomeGroup | null>(null);
+  /** Group the student has asked to join and is waiting on — see HomeScreen's
+   * `pendingGroupName`. Only meaningful while `group` is null. */
+  const [pendingGroupName, setPendingGroupName] = useState<string | null>(null);
   const [stats, setStats] = useState<HomeStats>({ level: null, weekMinutes: 0, currentStreak: 0 });
   const [loading, setLoading] = useState(true);
   const [reloadKey, setReloadKey] = useState(0);
@@ -39,8 +42,9 @@ export default function HomePage() {
       endpoints.profileStats(),
       endpoints.myGroups(),
       endpoints.assignmentsMine().catch(() => []),
+      endpoints.myJoinRequests().catch(() => []),
     ])
-      .then(([s, g, a]) => {
+      .then(([s, g, a, r]) => {
         if (!alive) return;
 
         if (s.status === "fulfilled") {
@@ -73,8 +77,13 @@ export default function HomePage() {
               ? { title: pending.question_title ?? "", dueAt: pending.due_at }
               : null,
           });
+          setPendingGroupName(null);        // a member — nothing to wait for
         } else {
           setGroup(null);
+          // Not a member: are they WAITING on a teacher's approval? Only this
+          // tells the group-less state apart from the just-asked state.
+          const req = r.status === "fulfilled" ? r.value[0] : undefined;
+          setPendingGroupName(req?.group_name ?? null);
         }
       })
       .finally(() => alive && setLoading(false));
@@ -109,6 +118,7 @@ export default function HomePage() {
       stats={stats}
       onStart={onStart}
       onJoinGroup={onJoinGroup}
+      pendingGroupName={pendingGroupName}
       onOpenGroup={() => navigate("/group")}
       activeNavKey="home"
       onNavigate={onNavigate}

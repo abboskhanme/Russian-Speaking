@@ -18,14 +18,22 @@
  */
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { ClassesScreen } from "../../screens/teacher";
-import type { ClassGroup, ClassStudent, ClassesTabKey } from "../../screens/teacher";
+import type {
+  ClassGroup,
+  ClassJoinRequest,
+  ClassStudent,
+  ClassesTabKey,
+} from "../../screens/teacher";
 import { endpoints } from "../../shared/api";
 import type {
   GradebookRowResponse,
   GroupDetailResponse,
+  GroupJoinRequestResponse,
   GroupResponse,
 } from "../../shared/api";
+import { relativeTime } from "../adapters";
 import { PageError, PageLoading } from "../PageState";
 import { TEACHER_NAV_PATH, useTeacherNavHandler } from "../nav";
 
@@ -40,16 +48,23 @@ function levelFromBand(band: number): string {
   return "C1";
 }
 
+const TABS: ClassesTabKey[] = ["groups", "requests", "students"];
+
 export default function ClassesPage() {
   const navigate = useNavigate();
+  const { t } = useTranslation();
   const onNavigate = useTeacherNavHandler();
   const [params, setParams] = useSearchParams();
 
-  const tab: ClassesTabKey = params.get("tab") === "students" ? "students" : "groups";
+  const raw = params.get("tab");
+  const tab: ClassesTabKey = TABS.includes(raw as ClassesTabKey)
+    ? (raw as ClassesTabKey)
+    : "groups";
 
   const [groups, setGroups] = useState<GroupResponse[]>([]);
   const [details, setDetails] = useState<GroupDetailResponse[]>([]);
   const [gradebook, setGradebook] = useState<GradebookRowResponse[]>([]);
+  const [requests, setRequests] = useState<GroupJoinRequestResponse[]>([]);
   const [queued, setQueued] = useState(0);
   const [loading, setLoading] = useState(true);
   const [failed, setFailed] = useState(false);
@@ -61,9 +76,10 @@ export default function ClassesPage() {
     setFailed(false);
 
     (async () => {
-      const [g, gb, subs] = await Promise.allSettled([
+      const [g, gb, req, subs] = await Promise.allSettled([
         endpoints.teacherGroups(),
         endpoints.teacherGradebook(),
+        endpoints.teacherJoinRequests(),
         endpoints.teacherSubmissions(),
       ]);
       if (!alive) return;
@@ -75,6 +91,7 @@ export default function ClassesPage() {
       }
       setGroups(g.value);
       setGradebook(gb.status === "fulfilled" ? gb.value : []);
+      setRequests(req.status === "fulfilled" ? req.value : []);
       setQueued(
         subs.status === "fulfilled"
           ? subs.value.filter((s) => s.status === "done" && s.reviewed_at === null).length
@@ -156,10 +173,34 @@ export default function ClassesPage() {
     });
   }, [details, scoreById]);
 
+  const joinRequests = useMemo<ClassJoinRequest[]>(
+    () =>
+      requests.map((r) => {
+        const rel = relativeTime(r.created_at);
+        return {
+          id: r.id,
+          studentName: r.student_name,
+          joinCode: r.join_code,
+          when: t(rel.key, { count: rel.count }),
+        };
+      }),
+    [requests, t],
+  );
+
   const createGroup = useCallback(async (name: string) => {
     const created = await endpoints.createGroup(name);
     // Optimistic: the new group has no members yet, so no roster fetch is needed.
     setGroups((prev) => [...prev, created]);
+  }, []);
+
+  const decideRequest = useCallback(async (id: string, approve: boolean) => {
+    if (approve) await endpoints.approveJoinRequest(id);
+    else await endpoints.rejectJoinRequest(id);
+    // Drop the row immediately — either decision removes it from the queue.
+    setRequests((prev) => prev.filter((r) => r.id !== id));
+    // An approval changes the roster (and so the counts, averages and student
+    // list), so refetch rather than guess at the new membership locally.
+    if (approve) setReloadKey((k) => k + 1);
   }, []);
 
   const setTab = useCallback(
@@ -179,12 +220,14 @@ export default function ClassesPage() {
     <ClassesScreen
       groups={groupCards}
       students={students}
+      requests={joinRequests}
       activeTab={tab}
       onTabChange={setTab}
       activeNavKey="classes"
       onNavigate={onNavigate}
       queuedCount={queued}
       onCreateGroup={createGroup}
+      onDecideRequest={decideRequest}
       // A5 / A6 / D3 land in later phases; until then they resolve back here.
       onOpenGroup={(id) => navigate(`${TEACHER_NAV_PATH.classes}/${encodeURIComponent(id)}`)}
       onAssignGroup={(id) => navigate(`/teacher/assign?group=${encodeURIComponent(id)}`)}
