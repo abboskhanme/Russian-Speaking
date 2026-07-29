@@ -4,9 +4,8 @@ namespace Govori.Api.RateLimiting;
 
 /// <summary>
 /// Process-local fixed-window counter — the DEFAULT store. Correct for a single API instance and
-/// keeps the rate-limit semantics (limits + per-IP/user keying + the fail-open decision, which is
-/// in <see cref="StoreBackedRateLimiter"/>) faithful to <c>ratelimit.py</c> without a Redis
-/// dependency at boot.
+/// keeps the full rate-limit semantics (limits + per-IP/user keying + the fail-open decision, which
+/// lives in <see cref="StoreBackedRateLimiter"/>) without requiring a Redis dependency at boot.
 ///
 /// <para>TODO(distributed, docs/07 §7.3): this counts PER-INSTANCE, so behind N replicas the
 /// effective limit is N×. Set <c>GOVORI_RATELIMIT_BACKEND=redis</c> to swap in

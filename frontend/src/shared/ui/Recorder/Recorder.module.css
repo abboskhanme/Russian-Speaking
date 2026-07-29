@@ -68,12 +68,16 @@
   background: var(--danger);
   box-shadow: var(--e-danger);
 }
-.stopIcon {
-  display: block;
-  width: 28px;
-  height: 28px;
-  border-radius: var(--r-xs);
-  background: var(--primary-on);
+/* Stop control = the red button + a "To'xtatish" label beneath it. */
+.stopWrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--s-2);
+}
+.stopLabel {
+  color: var(--danger);
+  letter-spacing: 0.01em;
 }
 
 /* ---- Timer + recording indicator ---- */

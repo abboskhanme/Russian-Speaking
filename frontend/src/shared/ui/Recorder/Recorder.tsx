@@ -6,6 +6,7 @@ import { Spinner } from "../Spinner/Spinner";
 import { Text } from "../Text/Text";
 import { Mascot } from "../Mascot/Mascot";
 import { Waveform } from "../Waveform/Waveform";
+import { FlowingWaveform } from "../FlowingWaveform/FlowingWaveform";
 import { VisuallyHidden } from "../VisuallyHidden/VisuallyHidden";
 import styles from "./Recorder.module.css";
 
@@ -46,7 +47,7 @@ const DEFAULT_LABELS: RecorderLabels = {
   start: "Yozishni boshlash",
   requesting: "Mikrofon so'ralmoqda…",
   recording: "Yozilyapti",
-  stop: "Yozishni to'xtatish",
+  stop: "To'xtatish",
   cancel: "Bekor qilish",
   prepTitle: "Fikringni yig'ib ol",
   prepHint: "Nima demoqchisan? Shoshilma — vaqting yetarli.",
@@ -537,11 +538,11 @@ export function Recorder({
               {labels.recording}
             </Text>
           </span>
-          <Waveform
-            mode="live"
+          {/* Same flowing-thread visual as the AI Suhbat composer — used
+              everywhere the app records voice. */}
+          <FlowingWaveform
             analyser={analyser}
-            barCount={40}
-            height={44}
+            height={72}
             className={styles.wave}
           />
           {showProgress && (
@@ -560,14 +561,19 @@ export function Recorder({
             </div>
           )}
           <div className={styles.controls}>
-            <button
-              type="button"
-              className={cx(styles.recordButton, styles.stop)}
-              onClick={stopRecording}
-              aria-label={labels.stop}
-            >
-              <span className={styles.stopIcon} aria-hidden />
-            </button>
+            <div className={styles.stopWrap}>
+              <button
+                type="button"
+                className={cx(styles.recordButton, styles.stop)}
+                onClick={stopRecording}
+                aria-label={labels.stop}
+              >
+                <StopGlyph />
+              </button>
+              <Text as="span" variant="body-s" weight="bold" className={styles.stopLabel}>
+                {labels.stop}
+              </Text>
+            </div>
             {onCancel && (
               <Button variant="ghost" size="sm" onClick={cancelRecording}>
                 {labels.cancel}
@@ -670,6 +676,15 @@ function MicIcon() {
         strokeLinecap="round"
         strokeLinejoin="round"
       />
+    </svg>
+  );
+}
+
+/** A crisp, softly-rounded stop square — the professional stop glyph. */
+function StopGlyph() {
+  return (
+    <svg width="30" height="30" viewBox="0 0 30 30" fill="none" aria-hidden>
+      <rect x="6.5" y="6.5" width="17" height="17" rx="5.5" fill="var(--primary-on)" />
     </svg>
   );
 }

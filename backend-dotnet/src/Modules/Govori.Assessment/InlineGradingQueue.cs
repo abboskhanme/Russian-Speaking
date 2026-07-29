@@ -6,8 +6,7 @@ namespace Govori.Assessment;
 
 /// <summary>
 /// Default <see cref="IGradingQueue"/> — runs the grading pipeline IN-PROCESS (docs/07 §7.7,
-/// Faza 3.4). The C# stand-in for <c>process_submission.delay(...)</c> until the durable queue
-/// lands.
+/// Faza 3.4). Stands in for a real background queue until the durable one lands.
 ///
 /// <para>It runs the pipeline SYNCHRONOUSLY in a FRESH DI scope (its own scoped
 /// <c>GovoriDbContext</c>, decoupled from the request's context and change-tracker) so grading is
@@ -16,7 +15,7 @@ namespace Govori.Assessment;
 /// so this is safe to call unconditionally from the submit path.</para>
 ///
 /// <para>TODO(Hangfire, Faza 3.9): replace with a durable background job (BackgroundJob.Enqueue),
-/// giving <c>task_acks_late</c> semantics + automatic retry, so submit returns before grading runs.</para>
+/// giving at-least-once delivery + automatic retry, so submit returns before grading runs.</para>
 /// </summary>
 public sealed class InlineGradingQueue : IGradingQueue
 {

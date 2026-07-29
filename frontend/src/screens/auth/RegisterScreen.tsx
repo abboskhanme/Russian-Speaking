@@ -26,7 +26,7 @@ import { RegisterStepper } from "./RegisterStepper";
 import { TryLink } from "./TryLink";
 import { PhoneIcon, UserIcon } from "./icons";
 import { formatDisplay, groupNational, isValidUz, nationalDigits, toE164 } from "./phone";
-import { districtsFor } from "./uz-regions";
+import { districtsFor } from "../../shared/uz-regions";
 import styles from "./Auth.module.css";
 
 type Step = "phone" | "code" | "address";
@@ -86,6 +86,7 @@ export default function RegisterScreen() {
   }
 
   async function submitCode() {
+    if (busy) return;
     setError(null);
     setInfo(null);
     setBusy(true);

@@ -1,18 +1,18 @@
 using System.Security.Cryptography;
 using System.Text;
+using Govori.Platform.Otp;
 using StackExchange.Redis;
 
 namespace Govori.Identity.Providers;
 
 /// <summary>
-/// Redis-backed OTP store — a 1:1 port of backend/app/services/otp.py against
-/// StackExchange.Redis (real impl targets <c>govori-redis:6379</c>).
+/// Redis-backed OTP store over StackExchange.Redis (the real implementation targets
+/// <c>govori-redis:6379</c>).
 ///
 /// <para><b>FAIL-CLOSED:</b> this store never swallows a Redis outage into a "pass". If Redis
 /// is unreachable the underlying call throws, and the caller
-/// (<see cref="AuthService.VerifyOtpAsync"/>) denies the verification. We NEVER let an
-/// unverifiable code through — matching the Python module's "verification fails CLOSED if
-/// Redis is down".</para>
+/// (<see cref="AuthService.VerifyOtpAsync"/>) denies the verification. Verification MUST fail
+/// closed when the store is down — an unverifiable code is never let through.</para>
 /// </summary>
 public sealed class RedisOtpStore : IOtpStore
 {
@@ -25,8 +25,9 @@ public sealed class RedisOtpStore : IOtpStore
         _options = options;
     }
 
-    private static RedisKey CodeKey(string key) => $"otp:{key.ToLowerInvariant()}";
-    private static RedisKey AttemptsKey(string key) => $"otp_attempts:{key.ToLowerInvariant()}";
+    // Derived in Platform so the Telegram burn path cannot drift from this one. See OtpRedisKeys.
+    private static RedisKey CodeKey(string key) => OtpRedisKeys.Code(key);
+    private static RedisKey AttemptsKey(string key) => OtpRedisKeys.Attempts(key);
 
     /// <summary>Mirrors <c>otp.generate_and_store</c>: store a fresh code with the TTL and
     /// reset the attempt counter.</summary>

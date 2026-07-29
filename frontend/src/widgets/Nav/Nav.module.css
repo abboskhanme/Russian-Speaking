@@ -197,6 +197,7 @@
 
 /* Centre FAB — the AI Suhbat CTA (mockup: raised, overlaps the top border). */
 .bottom .fab {
+  position: relative;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -221,4 +222,26 @@
 .bottom .fab .icon svg {
   width: 26px;
   height: 26px;
+}
+
+/* Count badge on the FAB — the teacher mockup's red pill on the Navbat button.
+   The bg-coloured ring lifts it off the primary circle underneath. */
+.bottom .fab .fabBadge {
+  position: absolute;
+  top: -3px;
+  right: -3px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 21px;
+  height: 21px;
+  padding: 0 5px;
+  border: 2px solid var(--bg);
+  border-radius: var(--r-pill);
+  background: var(--danger);
+  color: var(--danger-on);
+  font-size: 11px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
 }

@@ -6,7 +6,7 @@ namespace Govori.IntegrationTests;
 
 /// <summary>
 /// Exercises <see cref="MinioObjectStorage"/> (Govori.Platform.Storage) against the real
-/// govori-net MinIO container — the faithful .NET port of backend/app/services/storage.py.
+/// govori-net MinIO container.
 ///
 /// Round-trip: Put bytes under a unique key → Exists true → presigned GET (HTTP 200 + bytes
 /// match) → Delete → Exists false. Idempotent: the key is unique per run (Guid, not Random)
@@ -14,8 +14,8 @@ namespace Govori.IntegrationTests;
 ///
 /// Connects via GOVORI_S3_ENDPOINT (default http://govori-minio:9000), creds minioadmin,
 /// bucket govori-audio. PublicUrl is set to the same internal endpoint so the presigned URL
-/// is reachable from inside the Docker network (in prod the two hosts differ — see
-/// StorageOptions / the Python module docstring).
+/// is reachable from inside the Docker network (in prod the two hosts differ — a presigned URL must
+/// be signed for the host the CONSUMER reaches; see StorageOptions).
 /// </summary>
 public sealed class ObjectStorageTests
 {

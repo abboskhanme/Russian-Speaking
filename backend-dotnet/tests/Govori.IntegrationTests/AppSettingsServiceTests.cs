@@ -9,13 +9,13 @@ namespace Govori.IntegrationTests;
 /// <summary>
 /// The KEY deliverable for the Administration slice (docs/07 §3.7): the app_settings <b>tri-state</b>
 /// (None=unchanged / ""=clear→default / value=store) and the <b>~30s cache</b> (reads cache; writes
-/// invalidate). Faithful port of <c>backend/app/services/app_settings.py</c>.
+/// invalidate).
 ///
-/// <para>Driven at the SERVICE level against the real prod-shaped Postgres, with fresh DbContexts per
-/// operation (mirroring Python's fresh <c>SessionLocal()</c> per read) sharing ONE process-global
-/// <see cref="AppSettingsCache"/> (mirroring Python's module-level cache). This proves the cache
-/// contract deterministically without waiting real seconds — a direct DB write behind the service's
-/// back is NOT observed until the cache is invalidated.</para>
+/// <para>Driven at the SERVICE level against the real prod-shaped Postgres, with a fresh DbContext per
+/// operation (the scoped-service shape) all sharing ONE <see cref="AppSettingsCache"/> (the singleton
+/// shape). That cache is PROCESS-LOCAL, which these tests pin down: a direct DB write made behind the
+/// service's back is NOT observed until the cache is invalidated — so a settings change written by a
+/// different process is likewise invisible here until the entry expires.</para>
 ///
 /// <para>The two keys used are cleaned before and after, and the pre-existing <c>stt_provider</c> row
 /// is never touched, so the run is idempotent.</para>
@@ -33,7 +33,7 @@ public sealed class AppSettingsServiceTests : IDisposable
         var cs = Environment.GetEnvironmentVariable("GOVORI_TEST_DB")
                  ?? GovoriDataSourceFactory.DefaultConnectionString;
         _dataSource = GovoriDataSourceFactory.Build(cs);
-        // Env default for llm_provider (Python resolves it from Settings.LLM_PROVIDER).
+        // Env default for llm_provider: with no DB row, the service falls back to LLM_PROVIDER.
         _config = new ConfigurationBuilder()
             .AddInMemoryCollection(new Dictionary<string, string?> { ["LLM_PROVIDER"] = "auto" })
             .Build();
@@ -46,8 +46,8 @@ public sealed class AppSettingsServiceTests : IDisposable
         return new GovoriDbContext(b.Options);
     }
 
-    // A fresh service (fresh DbContext) over the SHARED cache — the real DI shape (scoped service,
-    // singleton cache), and the faithful analogue of Python's per-op session + module-global cache.
+    // A fresh service (fresh DbContext) over the SHARED cache — the real DI shape: scoped service,
+    // singleton process-local cache.
     private AppSettingsService NewService(IAppSettingsCache cache)
         => new(NewContext(), cache, _config);
 

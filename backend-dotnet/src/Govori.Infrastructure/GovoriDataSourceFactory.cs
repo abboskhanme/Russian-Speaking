@@ -20,7 +20,15 @@ namespace Govori.Infrastructure;
 /// </summary>
 public static class GovoriDataSourceFactory
 {
-    /// <summary>The govori-net schema DB connection string used as the default when no env var is set.</summary>
+    /// <summary>
+    /// Last-resort connection string, used only when no <c>GOVORI_DB</c>/configured
+    /// connection string is supplied. NOTE: the host below does not correspond to any
+    /// container in the current docker-compose stack (the database service is
+    /// <c>govori-db</c>, reachable as <c>db</c> on the <c>govori-net</c> network), so
+    /// falling through to this default will fail to connect rather than silently reach
+    /// the wrong database. Every host — API, worker, realtime, tests — is expected to
+    /// pass its connection string explicitly.
+    /// </summary>
     public const string DefaultConnectionString =
         "Host=govori-scaffold-db;Port=5432;Database=russpeak;Username=russpeak;Password=govori";
 
@@ -41,16 +49,26 @@ public static class GovoriDataSourceFactory
     /// <summary>
     /// Configures a <see cref="DbContextOptionsBuilder"/> for Govori: Npgsql over the given
     /// enum-aware data source plus <c>UseSnakeCaseNamingConvention()</c> (docs/07 §7.4 trap #2).
-    /// snake_case is the single naming mechanism; the scaffold's explicit
-    /// <c>HasColumnName</c>/<c>ToTable</c> calls were audited to agree with it exactly.
+    /// snake_case is the single naming mechanism; the explicit <c>HasColumnName</c>/
+    /// <c>ToTable</c> calls in the model agree with it exactly, so the two never disagree
+    /// about a name. It also governs the migrations history table, whose columns are
+    /// therefore migration_id / product_version rather than EF's default PascalCase —
+    /// deploy/ef-baseline.sh depends on that.
     /// </summary>
     public static DbContextOptionsBuilder UseGovori(this DbContextOptionsBuilder options, NpgsqlDataSource dataSource)
     {
         options.UseNpgsql(dataSource, o =>
         {
-            o.MapEnum<UserRole>("user_role");
-            o.MapEnum<QuestionType>("question_type");
-            o.MapEnum<SubmissionStatus>("submission_status");
+            // The schema MUST be passed explicitly here. This overload also contributes an
+            // "Npgsql:Enum:<key>" model annotation, and the key includes the schema — so an
+            // unqualified call registers `question_type` while
+            // GovoriDbContext.OnModelCreating registers `public.question_type`. EF treats
+            // those as two distinct enums and emits two CREATE TYPE statements for one PG
+            // type, which makes `dotnet ef database update` fail on an empty database with
+            // 42710 "type already exists". Qualifying both sides collapses them to one.
+            o.MapEnum<UserRole>("user_role", "public");
+            o.MapEnum<QuestionType>("question_type", "public");
+            o.MapEnum<SubmissionStatus>("submission_status", "public");
         });
         options.UseSnakeCaseNamingConvention();
         return options;

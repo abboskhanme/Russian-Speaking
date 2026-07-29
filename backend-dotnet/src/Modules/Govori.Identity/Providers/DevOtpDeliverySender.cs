@@ -25,7 +25,14 @@ public sealed class DevOtpDeliverySender : IOtpDeliverySender
 
     public string Channel => "dev";
 
-    public Task<OtpDeliveryResult> SendAsync(string phone, string code, CancellationToken ct = default)
+    /// <summary>
+    /// Logs the code; contacts nothing. <paramref name="requestId"/> is accepted for signature
+    /// parity but deliberately unused: dev delivery has NO Telegram step, so there is no ownership
+    /// proof to wait on and no state machine to advance. The status endpoint short-circuits the dev
+    /// channel to <c>sent</c> rather than reading a state this sender never writes — which also
+    /// keeps dev/test runs free of a Redis dependency they do not otherwise have.
+    /// </summary>
+    public Task<OtpDeliveryResult> SendAsync(string phone, string code, string requestId, CancellationToken ct = default)
     {
         _log.LogWarning(
             "OTP (dev delivery — Telegram bot not configured). phone={Phone} code={Code}  (dev code {DevCode} also accepted)",

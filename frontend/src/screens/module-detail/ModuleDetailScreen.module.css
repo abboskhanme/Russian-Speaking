@@ -1,0 +1,149 @@
+/* ModuleDetailScreen (D2) — the inside of one practice module. Composed from
+ * shared/ui + widgets + tokens; every colour / space / radius / motion value is a
+ * token. Full-width per docs/04 §4.10 — the root spans its column with no
+ * max-width + auto-margin centring; inner blocks align with flex/grid. */
+
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-6);
+  width: 100%;
+}
+
+/* ---- Hero: label · ring · name · count ---- */
+.hero {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--s-2);
+  width: 100%;
+  text-align: center;
+}
+.moduleLabel {
+  letter-spacing: 0.08em;
+}
+.name {
+  margin-top: var(--s-3);
+}
+
+/* ---- Progress ring ---- */
+.ring {
+  position: relative;
+  width: 132px;
+  height: 132px;
+  margin-top: var(--s-2);
+}
+.ringSvg {
+  /* Start the sweep at 12 o'clock rather than 3 o'clock. */
+  transform: rotate(-90deg);
+}
+.ringProgress {
+  /* --m-slow is zeroed under prefers-reduced-motion in tokens.css. */
+  transition: stroke-dashoffset var(--m-slow);
+}
+.ringCenter {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: 1px;
+}
+.ringPct {
+  color: var(--info);
+  line-height: 1;
+  letter-spacing: -0.03em;
+}
+.ringSign {
+  color: var(--info);
+  font-weight: 700;
+  font-size: 1.1rem;
+  line-height: 1;
+}
+
+/* ---- Tasks ---- */
+.tasksSection {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+}
+.tasksLabel {
+  margin-bottom: var(--s-2);
+}
+.tasksCard {
+  width: 100%;
+  overflow: hidden;
+}
+.taskList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+.taskRow {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  padding: var(--s-3) var(--s-4);
+  border-bottom: 1px solid var(--line);
+}
+.taskRow:last-child {
+  border-bottom: none;
+}
+.taskRowMuted {
+  opacity: 0.6;
+}
+
+/* ---- State chip ---- */
+.chip {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  flex: none;
+  border-radius: var(--r-pill);
+}
+.chip_done {
+  background: var(--success-tint);
+  color: var(--success);
+}
+.chip_current {
+  background: var(--warn-tint);
+  color: var(--warn);
+}
+.chip_locked {
+  background: var(--surface-3);
+  color: var(--faint);
+}
+
+.taskText {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-1);
+}
+.taskMeta {
+  letter-spacing: 0.02em;
+}
+.taskTitle {
+  min-width: 0;
+}
+
+.taskEnd {
+  flex: none;
+  display: flex;
+  align-items: center;
+}
+.bandScore {
+  min-width: 2.5ch;
+  text-align: right;
+}
+
+/* ---- Header back button ---- */
+.back {
+  display: inline-grid;
+  place-items: center;
+  padding-inline: var(--s-2);
+}

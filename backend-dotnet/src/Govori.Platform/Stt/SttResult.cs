@@ -1,14 +1,15 @@
 namespace Govori.Platform.Stt;
 
 /// <summary>
-/// STT output, a structural port of the <c>stt_result</c> dict returned by
-/// <c>stt.transcribe</c> (stt.py:318-325 / 369-376). Field names carry through to the
-/// <c>transcripts</c> JSONB columns (<c>word_timestamps</c>, <c>pronunciation</c>).
+/// STT output for one recording. Field names carry through to the <c>transcripts</c> JSONB
+/// columns (<c>word_timestamps</c>, <c>pronunciation</c>), so renaming a member changes stored
+/// data — migrate rather than rename.
 /// </summary>
 public sealed record SttResult
 {
-    /// <summary>The faithful, verbatim transcript — Azure <c>Lexical</c> (NOT <c>Display</c>), so
-    /// the learner's actual words/mistakes survive (stt.py:145). Whisper text on the fallback.</summary>
+    /// <summary>The faithful, verbatim transcript — Azure <c>Lexical</c>, NEVER <c>Display</c>:
+    /// Display silently normalises the text and would erase the learner's actual mistakes.
+    /// Whisper text on the fallback.</summary>
     public required string Text { get; init; }
 
     /// <summary>BCP-47 language tag (e.g. <c>ru-RU</c>).</summary>
@@ -44,8 +45,7 @@ public sealed record SttPhoneme(string? Phoneme, double? Accuracy);
 
 /// <summary>
 /// Pronunciation assessment aggregate (Azure PronunciationAssessment). <see cref="Pronunciation"/>
-/// is the overall <c>PronScore</c> — the ONLY field the frozen C5 scoring blend reads
-/// (<c>pron_score = pronunciation["pronunciation"]</c>, tasks.py:239).
+/// is the overall <c>PronScore</c> — the ONLY field the frozen C5 scoring blend reads.
 /// </summary>
 public sealed record SttPronunciation
 {
@@ -58,11 +58,11 @@ public sealed record SttPronunciation
     /// C5 blend folds in as <c>(text*4 + pron)/5</c>.</summary>
     public double? Pronunciation { get; init; }
 
-    /// <summary>Shadowing content check (our own <c>_reference_match</c>, stt.py:188-218).</summary>
+    /// <summary>Shadowing content check — computed in our own code, not by the STT backend.</summary>
     public SttReferenceMatch? ReferenceMatch { get; init; }
 }
 
-/// <summary>How much of the shadowing target the learner actually spoke (stt.py:210-218).</summary>
+/// <summary>How much of the shadowing target the learner actually spoke.</summary>
 public sealed record SttReferenceMatch(
     double Completeness, double Similarity, int MatchedWords,
     int ReferenceWords, int SpokenWords, bool OnTopic);

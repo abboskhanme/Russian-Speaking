@@ -8,33 +8,30 @@ namespace Govori.Classroom;
 
 /// <summary>
 /// Application service for the Classroom vertical slice (docs/07 §3.5, Faza 3.5) — teacher groups,
-/// assignments and the gradebook. Ported faithfully from Python:
+/// assignments and the gradebook. Its responsibilities:
 /// <list type="bullet">
-///   <item>groups: <c>backend/app/api/v1/groups.py</c> (create / join / mine / detail);</item>
-///   <item>assignments: <c>backend/app/api/v1/engagement.py</c> (create / module / list);</item>
-///   <item>gradebook: <c>backend/app/api/v1/reports.py</c> (<c>_relevant_submissions</c> + <c>_gradebook</c>).</item>
+///   <item>groups: create / join / leave / mine / list / detail-with-roster;</item>
+///   <item>assignments: single-task and whole-module creation, plus the teacher and student lists;</item>
+///   <item>gradebook: choosing which submissions a viewer may see, then one scored row per student.</item>
 /// </list>
 ///
-/// <para><b>S1 SECURITY FIX (the one intentional deviation — docs/07 §7.8, docs/08 Faza 3.5).</b>
-/// Python's <c>create_assignments</c> (engagement.py:400-404) resolves target students as
-/// <c>student_ids ∪ group members</c> and filters ONLY by <c>role == student</c> — it never checks
-/// that those students belong to the acting teacher, so ANY teacher could push an assignment onto
-/// ANY student. Its sibling <c>create_reviews</c> (engagement.py:250-258) DOES filter through the
-/// teacher's roster — the audit flagged this inconsistency as bug S1. This port applies the
-/// <c>create_reviews</c>-style roster filter to BOTH assignment-creation paths
-/// (<see cref="CreateAssignmentsAsync"/> / <see cref="CreateModuleAssignmentsAsync"/>) via
-/// <see cref="RosterStudentIds"/>. Admins still target anyone (super-user), exactly as
-/// <c>create_reviews</c> allows.</para>
+/// <para><b>S1 SECURITY FIX (docs/07 §7.8, docs/08 Faza 3.5).</b> Both assignment-creation paths
+/// (<see cref="CreateAssignmentsAsync"/> / <see cref="CreateModuleAssignmentsAsync"/>) resolve their
+/// targets as <c>StudentIds ∪ group members</c> and then run them through
+/// <see cref="RosterStudentIds"/>, so a teacher can only assign work to students on their OWN roster.
+/// Filtering by role alone is NOT enough — without the roster check any teacher could push an
+/// assignment onto any student, which the audit raised as bug S1. The review-queue path enforces the
+/// same rule. Admins still target anyone (super-user). Do not remove or weaken the filter.</para>
 ///
-/// <para>Role/ownership: <c>require_teacher</c> ⇒ teacher OR admin (403 otherwise);
-/// <c>get_current_user</c> ⇒ any active user (401 if missing/inactive). role/is_active are read
-/// from the DB, never trusted from the token — the endpoint only supplies the <c>sub</c>.</para>
+/// <para>Role/ownership: the teacher-only routes accept teacher OR admin (403 otherwise); the rest
+/// accept any active user (401 if missing/inactive). role/is_active are read from the DB, never
+/// trusted from the token — the endpoint only supplies the <c>sub</c>.</para>
 ///
-/// <para>Deferred vs Python (documented, not silently dropped): teacher/student NOTIFICATIONS on
-/// join/assign (notifications module not yet ported — commit=False side effects, not part of the
-/// core write); and the many non-core group endpoints (overview, add/remove member, regenerate,
-/// rename, delete, task due/delete, admin (re)assign-teacher) + CSV/analytics — out of this
-/// slice's scope.</para>
+/// <para>Deferred (documented, not silently dropped): teacher/student NOTIFICATIONS on join/assign
+/// (the notifications module is not wired into this slice — they are side effects that would ride on
+/// the same transaction, not part of the core write); and the many non-core group endpoints
+/// (overview, add/remove member, regenerate, rename, delete, task due/delete, admin
+/// (re)assign-teacher) + CSV/analytics — out of this slice's scope.</para>
 /// </summary>
 public sealed class ClassroomService
 {
@@ -42,13 +39,13 @@ public sealed class ClassroomService
 
     public ClassroomService(GovoriDbContext db) => _db = db;
 
-    // Unambiguous join-code alphabet — no 0/O/1/I (groups.py:44).
+    // Unambiguous join-code alphabet — no 0/O/1/I, so a code read aloud cannot be mistyped.
     private const string CodeAlphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
 
     // ─── Groups ─────────────────────────────────────────────────────────────
 
-    /// <summary>POST /groups — a teacher (or admin) creates a group and gets a join code
-    /// (groups.py:101-111). Empty name falls back to "Группа", mirroring Python.</summary>
+    /// <summary>POST /groups — a teacher (or admin) creates a group and gets a join code.
+    /// An empty name falls back to "Группа".</summary>
     public async Task<ClassroomResult<GroupResponse>> CreateGroupAsync(
         Guid userId, CreateGroupRequest payload, CancellationToken ct = default)
     {
@@ -57,7 +54,7 @@ public sealed class ClassroomService
         if (!IsTeacher(user)) return ClassroomResult<GroupResponse>.Forbidden();
 
         var name = (payload.Name ?? string.Empty).Trim();
-        if (name.Length == 0) name = "Группа";                       // groups.py:107
+        if (name.Length == 0) name = "Группа";
 
         var now = DateTime.UtcNow;
         var group = new Group
@@ -74,22 +71,22 @@ public sealed class ClassroomService
         return ClassroomResult<GroupResponse>.Ok(await GroupOutAsync(group, ct));
     }
 
-    /// <summary>POST /groups/join — the current user joins the group with this code, idempotently
-    /// (groups.py:160-197). Invalid code → NotFound. Any active user may join (get_current_user),
-    /// exactly as Python allows.</summary>
+    /// <summary>POST /groups/join — the current user joins the group with this code, idempotently.
+    /// An invalid code → NotFound. ANY active user may join — membership is not restricted to the
+    /// student role.</summary>
     public async Task<ClassroomResult<GroupResponse>> JoinGroupAsync(
         Guid userId, JoinGroupRequest payload, CancellationToken ct = default)
     {
         var user = await ActiveUserAsync(userId, ct);
         if (user is null) return ClassroomResult<GroupResponse>.Unauthorized();
 
-        var code = (payload.Code ?? string.Empty).Trim().ToUpperInvariant();  // groups.py:166
+        var code = (payload.Code ?? string.Empty).Trim().ToUpperInvariant();  // codes are stored upper-case
         var group = await _db.Groups.FirstOrDefaultAsync(g => g.JoinCode == code, ct);
-        if (group is null) return ClassroomResult<GroupResponse>.NotFound();   // groups.py:194-195
+        if (group is null) return ClassroomResult<GroupResponse>.NotFound();   // unknown join code
 
         var already = await _db.GroupMembers.AnyAsync(
             gm => gm.GroupId == group.Id && gm.StudentId == user.Id, ct);
-        if (!already)                                                          // idempotent (groups.py:169-173)
+        if (!already)                                                          // idempotent: re-joining is a no-op
         {
             var now = DateTime.UtcNow;
             _db.GroupMembers.Add(new GroupMember
@@ -100,14 +97,45 @@ public sealed class ClassroomService
                 CreatedAt = now,
                 UpdatedAt = now,
             });
-            // (Deferred) Python also notifies the group's teacher — notifications module not ported.
+            // (Deferred) notifying the group's teacher — the notifications module is not wired in here.
             await _db.SaveChangesAsync(ct);
         }
         return ClassroomResult<GroupResponse>.Ok(await GroupOutAsync(group, ct));
     }
 
-    /// <summary>GET /groups/mine — the groups the current user is a member of (groups.py:150-157).
-    /// Any active user; null ⇒ 401.</summary>
+    /// <summary>
+    /// POST /groups/leave — the CURRENT USER leaves their group(s). Backs the "Guruhdan chiqish"
+    /// danger action on the profile screen.
+    ///
+    /// <para><b>Self-service only, by construction.</b> The method takes no group id and no student
+    /// id: the delete is filtered on <c>StudentId == user.Id</c>, i.e. the authenticated caller's
+    /// own <c>GroupMember</c> rows and nothing else. There is no parameter through which a caller
+    /// could target another member, and no role check is needed because leaving your own group is
+    /// never a privileged action. The membership row is the only thing removed — the group, its
+    /// roster of other students and every submission survive untouched.</para>
+    ///
+    /// <para>Ok ⇒ 204; NotFound ⇒ 404 when the user belongs to no group; Unauthorized ⇒ 401 for a
+    /// missing/inactive user. Rows are plural because the schema does not forbid multi-group
+    /// membership, and leaving must not silently strand one.</para>
+    /// </summary>
+    public async Task<ClassroomOutcome> LeaveGroupAsync(Guid userId, CancellationToken ct = default)
+    {
+        var user = await ActiveUserAsync(userId, ct);
+        if (user is null) return ClassroomOutcome.Unauthorized;
+
+        // Scoped to the caller. Bounded by how many groups ONE user is in, so materialising is safe.
+        var mine = await _db.GroupMembers
+            .Where(gm => gm.StudentId == user.Id)
+            .ToListAsync(ct);
+        if (mine.Count == 0) return ClassroomOutcome.NotFound;
+
+        _db.GroupMembers.RemoveRange(mine);
+        await _db.SaveChangesAsync(ct);
+        return ClassroomOutcome.Ok;
+    }
+
+    /// <summary>GET /groups/mine — the groups the current user is a member of. Any active user;
+    /// null ⇒ 401.</summary>
     public async Task<IReadOnlyList<GroupResponse>?> MyGroupsAsync(Guid userId, CancellationToken ct = default)
     {
         var user = await ActiveUserAsync(userId, ct);
@@ -123,7 +151,7 @@ public sealed class ClassroomService
         return await GroupsOutAsync(groups, ct);
     }
 
-    /// <summary>GET /groups — the teacher's own groups, newest first (groups.py:135-147). Admin sees
+    /// <summary>GET /groups — the teacher's own groups, newest first. Admin sees
     /// every group, or one teacher's when <paramref name="teacherId"/> is given. Student ⇒ 403.</summary>
     public async Task<ClassroomResult<IReadOnlyList<GroupResponse>>> ListGroupsAsync(
         Guid userId, Guid? teacherId, CancellationToken ct = default)
@@ -142,8 +170,9 @@ public sealed class ClassroomService
         return ClassroomResult<IReadOnlyList<GroupResponse>>.Ok(await GroupsOutAsync(groups, ct));
     }
 
-    /// <summary>GET /groups/{id} — a group with its roster (groups.py:200-209). Teacher must own it;
-    /// admin may read any. Missing OR not-owned ⇒ NotFound (never leaks existence, groups.py:207).</summary>
+    /// <summary>GET /groups/{id} — a group with its roster. Teacher must own it; admin may read any.
+    /// Missing OR not-owned both return NotFound, so the response never leaks a group's existence to
+    /// a teacher who does not own it.</summary>
     public async Task<ClassroomResult<GroupDetailResponse>> GroupDetailAsync(
         Guid userId, Guid groupId, CancellationToken ct = default)
     {
@@ -155,7 +184,7 @@ public sealed class ClassroomService
         if (group is null || (user.Role != UserRole.Admin && group.TeacherId != user.Id))
             return ClassroomResult<GroupDetailResponse>.NotFound();
 
-        // Roster student ids for this group (groups.py:69-71).
+        // Roster student ids for this group.
         var memberIds = await _db.GroupMembers
             .Where(gm => gm.GroupId == group.Id)
             .Select(gm => gm.StudentId)
@@ -164,7 +193,7 @@ public sealed class ClassroomService
         var members = new List<GroupMemberResponse>();
         if (memberIds.Count > 0)
         {
-            // Total submissions per member — NOT scoped to this group (groups.py:72-80).
+            // Total submissions per member — deliberately NOT scoped to this group.
             var counts = (await _db.Submissions
                 .Where(s => memberIds.Contains(s.StudentId))
                 .GroupBy(s => s.StudentId)
@@ -176,7 +205,7 @@ public sealed class ClassroomService
                 .Where(u => memberIds.Contains(u.Id))
                 .ToDictionaryAsync(u => u.Id, ct);
 
-            foreach (var sid in memberIds)                          // keep roster query order (groups.py:85)
+            foreach (var sid in memberIds)                          // keep roster query order
             {
                 if (!users.TryGetValue(sid, out var u)) continue;
                 members.Add(new GroupMemberResponse(
@@ -203,7 +232,7 @@ public sealed class ClassroomService
     // ─── Assignments ────────────────────────────────────────────────────────
 
     /// <summary>POST /assignments — assign one task, with a deadline, to explicit students and/or a
-    /// whole group (engagement.py:380-429). Teacher may only assign their OWN question (admin: any).
+    /// whole group. A teacher may only assign their OWN question (admin: any).
     /// <b>S1 fix</b>: targets are filtered through the teacher's roster before rows are written.</summary>
     public async Task<ClassroomResult<IReadOnlyList<AssignmentResponse>>> CreateAssignmentsAsync(
         Guid userId, CreateAssignmentRequest payload, CancellationToken ct = default)
@@ -214,7 +243,7 @@ public sealed class ClassroomService
 
         var q = await _db.Questions.FirstOrDefaultAsync(x => x.Id == payload.QuestionId, ct);
         if (q is null || (user.Role != UserRole.Admin && q.TeacherId != user.Id))
-            return ClassroomResult<IReadOnlyList<AssignmentResponse>>.NotFound();  // engagement.py:386-388
+            return ClassroomResult<IReadOnlyList<AssignmentResponse>>.NotFound();  // missing, or not theirs
 
         var targetIds = await ResolveTargetsAsync(payload.StudentIds, payload.GroupId, ct);
         var validIds = await RosterStudentIds(user, targetIds, ct);               // S1 fix
@@ -236,15 +265,15 @@ public sealed class ClassroomService
             };
             _db.Assignments.Add(a);
             created.Add(a);
-            // (Deferred) Python notifies each student — notifications module not ported.
+            // (Deferred) notifying each student — the notifications module is not wired in here.
         }
         if (created.Count > 0) await _db.SaveChangesAsync(ct);
         return ClassroomResult<IReadOnlyList<AssignmentResponse>>.Ok(await AssignmentsOutAsync(created, ct));
     }
 
-    /// <summary>POST /assignments/module — assign every published task of a module in one go
-    /// (engagement.py:443-506). Teacher must own the module (admin: any). Skips tasks a student
-    /// already has an assignment for. <b>S1 fix</b>: same roster filter as the single-task path.</summary>
+    /// <summary>POST /assignments/module — assign every published task of a module in one go.
+    /// A teacher must own the module (admin: any). Skips tasks a student already has an
+    /// assignment for. <b>S1 fix</b>: same roster filter as the single-task path.</summary>
     public async Task<ClassroomResult<IReadOnlyList<AssignmentResponse>>> CreateModuleAssignmentsAsync(
         Guid userId, CreateModuleAssignmentRequest payload, CancellationToken ct = default)
     {
@@ -254,7 +283,7 @@ public sealed class ClassroomService
 
         var block = await _db.QuestionBlocks.FirstOrDefaultAsync(b => b.Id == payload.BlockId, ct);
         if (block is null || (user.Role != UserRole.Admin && block.TeacherId != user.Id))
-            return ClassroomResult<IReadOnlyList<AssignmentResponse>>.NotFound();  // engagement.py:450-452
+            return ClassroomResult<IReadOnlyList<AssignmentResponse>>.NotFound();  // missing, or not theirs
 
         var tasks = await _db.Questions
             .Where(x => x.BlockId == block.Id && !x.IsDeleted && x.IsPublished)
@@ -278,7 +307,7 @@ public sealed class ClassroomService
                 .ToHashSet();
             foreach (var task in tasks)
             {
-                if (existing.Contains(task.Id)) continue;            // avoid duplicates (engagement.py:481-483)
+                if (existing.Contains(task.Id)) continue;            // never assign the same task twice
                 var a = new Assignment
                 {
                     Id = Guid.NewGuid(),
@@ -298,8 +327,8 @@ public sealed class ClassroomService
         return ClassroomResult<IReadOnlyList<AssignmentResponse>>.Ok(await AssignmentsOutAsync(created, ct));
     }
 
-    /// <summary>GET /assignments — the teacher's own assignments, newest first (engagement.py:509-518).
-    /// Admin sees every teacher's. Student ⇒ 403.</summary>
+    /// <summary>GET /assignments — the teacher's own assignments, newest first. Admin sees every
+    /// teacher's. Student ⇒ 403.</summary>
     public async Task<ClassroomResult<IReadOnlyList<AssignmentResponse>>> ListAssignmentsTeacherAsync(
         Guid userId, CancellationToken ct = default)
     {
@@ -314,8 +343,8 @@ public sealed class ClassroomService
         return ClassroomResult<IReadOnlyList<AssignmentResponse>>.Ok(await AssignmentsOutAsync(items, ct));
     }
 
-    /// <summary>GET /assignments/mine — the current user's own assignments, newest first
-    /// (engagement.py:521-529). Any active user; null ⇒ 401.</summary>
+    /// <summary>GET /assignments/mine — the current user's own assignments, newest first.
+    /// Any active user; null ⇒ 401.</summary>
     public async Task<IReadOnlyList<AssignmentResponse>?> ListAssignmentsStudentAsync(
         Guid userId, CancellationToken ct = default)
     {
@@ -331,8 +360,8 @@ public sealed class ClassroomService
 
     // ─── Gradebook ──────────────────────────────────────────────────────────
 
-    /// <summary>GET /reports/gradebook — one row per student with attempts + stable average/best band
-    /// (reports.py:22-82). Teacher is scoped to their OWN questions AND their OWN roster; admin sees
+    /// <summary>GET /reports/gradebook — one row per student with attempts + stable average/best band.
+    /// A teacher is scoped to their OWN questions AND their OWN roster; admin sees
     /// everything. Optional <paramref name="groupId"/> narrows to that group's members. Student ⇒ 403.</summary>
     public async Task<ClassroomResult<IReadOnlyList<GradebookRowResponse>>> GradebookAsync(
         Guid userId, Guid? groupId, CancellationToken ct = default)
@@ -345,12 +374,12 @@ public sealed class ClassroomService
         return ClassroomResult<IReadOnlyList<GradebookRowResponse>>.Ok(await GradebookRowsAsync(subs, ct));
     }
 
-    // reports.py:22-46 — the submission set a gradebook/analytics view is allowed to see.
+    // The submission set a gradebook/analytics view is allowed to see.
     private async Task<List<Submission>> RelevantSubmissionsAsync(User user, Guid? groupId, CancellationToken ct)
     {
         var stmt = _db.Submissions.Include(s => s.Evaluation).AsQueryable();
 
-        if (user.Role == UserRole.Teacher)   // admin: no restriction (reports.py:26)
+        if (user.Role == UserRole.Teacher)   // admin: no restriction
         {
             // Own questions AND own students (roster) only — never a student this teacher doesn't teach.
             var roster = _db.GroupMembers
@@ -367,14 +396,14 @@ public sealed class ClassroomService
                 .Where(gm => gm.GroupId == groupId.Value)
                 .Select(gm => gm.StudentId)
                 .ToListAsync(ct);
-            if (memberIds.Count == 0) return [];                    // reports.py:43-44
+            if (memberIds.Count == 0) return [];                    // empty group ⇒ no rows at all
             stmt = stmt.Where(s => memberIds.Contains(s.StudentId));
         }
 
         return await stmt.ToListAsync(ct);
     }
 
-    // reports.py:49-73 — group by student, score with the shared C3 definition, sort by name.
+    // Group by student, score with the shared C3 definition, sort by name.
     private async Task<IReadOnlyList<GradebookRowResponse>> GradebookRowsAsync(List<Submission> subs, CancellationToken ct)
     {
         var byStudent = subs.GroupBy(s => s.StudentId).ToList();
@@ -410,7 +439,7 @@ public sealed class ClassroomService
 
     private static bool IsTeacher(User u) => u.Role is UserRole.Teacher or UserRole.Admin;
 
-    // Targets = explicit ids ∪ a whole group's members (engagement.py:392-398 / 432-437).
+    // Targets = explicit ids ∪ a whole group's members.
     private async Task<List<Guid>> ResolveTargetsAsync(List<Guid>? studentIds, Guid? groupId, CancellationToken ct)
     {
         var target = new HashSet<Guid>(studentIds ?? []);
@@ -427,9 +456,9 @@ public sealed class ClassroomService
 
     /// <summary>
     /// The S1 fix. Keep only targets that are students AND (unless the actor is an admin) belong to
-    /// the acting teacher's roster — a student who is a member of some group this teacher owns. Ports
-    /// the roster filter that <c>create_reviews</c> already had (engagement.py:250-258) onto the
-    /// assignment path, which lacked it (engagement.py:400-404).
+    /// the acting teacher's roster — a student who is a member of some group this teacher owns.
+    /// This is the check that stops one teacher assigning work to another teacher's students, so it
+    /// must stay on every assignment-creation path; the review-queue path applies the same rule.
     /// </summary>
     private async Task<List<Guid>> RosterStudentIds(User teacher, List<Guid> targetIds, CancellationToken ct)
     {
@@ -445,7 +474,7 @@ public sealed class ClassroomService
             .ToListAsync(ct);
     }
 
-    // groups.py:47-51 — a unique 6-char code from the unambiguous alphabet.
+    // A unique 6-char code drawn from the unambiguous alphabet; retries until it finds a free one.
     private async Task<string> GenerateCodeAsync(CancellationToken ct)
     {
         while (true)
@@ -484,8 +513,8 @@ public sealed class ClassroomService
     private async Task<string?> TeacherNameAsync(Guid teacherId, CancellationToken ct)
         => await _db.Users.Where(u => u.Id == teacherId).Select(u => u.FullName).FirstOrDefaultAsync(ct);
 
-    // engagement.py:321-377 — serialize assignments with the live completion state + level-relative
-    // band, using bulk lookups (a handful of queries, not per-row).
+    // Serialize assignments with the live completion state + level-relative band, using bulk lookups
+    // (a handful of queries, not one per row).
     private async Task<IReadOnlyList<AssignmentResponse>> AssignmentsOutAsync(List<Assignment> items, CancellationToken ct)
     {
         if (items.Count == 0) return [];
@@ -501,7 +530,7 @@ public sealed class ClassroomService
             .ToDictionaryAsync(q => q.Id, ct);
 
         // Candidate submissions for these (student, question) pairs, newest first — the first match
-        // per pair that is not older than the assignment wins (engagement.py:335-356).
+        // per pair that is not older than the assignment wins.
         var subs = await _db.Submissions
             .Include(s => s.Evaluation)
             .Where(s => studentIds.Contains(s.StudentId)

@@ -6,16 +6,14 @@ using Xunit;
 namespace Govori.Characterization;
 
 /// <summary>
-/// Second-highest stakes after bcrypt: tokens minted by the Python stack are in
-/// users' browsers right now. If .NET rejects them, every logged-in user is
-/// signed out at cutover.
+/// Second-highest stakes after bcrypt: the tokens in <c>jwt_vectors.json</c> are a
+/// frozen snapshot of tokens that are in users' browsers right now. If .NET
+/// rejects them, every logged-in user is signed out at cutover.
 ///
-/// Python (backend/app/core/security.py:22-30):
-///     payload = {"sub": subject, "type": token_type, "iat": now, "exp": now + delta}
-///     jwt.encode(payload, settings.SECRET_KEY, algorithm="HS256")
-///
-/// Four claims. No iss, no aud, no nbf, no jti, and crucially NO role — the role
-/// is read from the database on every request (api/deps.py:30-32).
+/// The pinned shape: HS256 over exactly four claims —
+/// <c>{"sub", "type", "iat", "exp"}</c>. No iss, no aud, no nbf, no jti, and
+/// crucially NO role: the role is read from the database on every request, so a
+/// role change takes effect immediately instead of waiting for a token to expire.
 /// </summary>
 public class JwtCharacterizationTests
 {
@@ -26,8 +24,9 @@ public class JwtCharacterizationTests
 
     private static TokenValidationParameters ValidationParams(bool validateLifetime = true) => new()
     {
-        // Raw UTF-8 bytes. python-jose does NOT base64-decode the key; a .NET
-        // port that does will reject every existing token.
+        // ⚠ RAW UTF-8 BYTES of the secret. The key is NOT base64-decoded — every
+        // existing token was signed over the raw bytes, so decoding here rejects
+        // all of them.
         IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(TestSecret)),
         ValidateIssuerSigningKey = true,
 
@@ -37,8 +36,9 @@ public class JwtCharacterizationTests
 
         ValidateLifetime = validateLifetime,
 
-        // .NET defaults to 5 minutes of slack; python-jose uses 0. Without this,
-        // .NET accepts tokens Python would already have expired.
+        // ⚠ Zero clock skew is deliberate. .NET defaults to FIVE MINUTES of
+        // slack, which would keep accepting tokens for five minutes past their
+        // `exp` — the tokens must expire exactly when they say they do.
         ClockSkew = TimeSpan.Zero,
     };
 
@@ -52,15 +52,15 @@ public class JwtCharacterizationTests
     }
 
     [Fact]
-    public void CSharp_reads_every_token_Python_minted()
+    public void CSharp_reads_every_token_in_the_frozen_corpus()
     {
         var handler = new JwtSecurityTokenHandler();
         handler.InboundClaimTypeMap.Clear();   // keep `sub` as `sub`, not ClaimTypes.NameIdentifier
 
         foreach (var c in Fx.Cases)
         {
-            // Fixtures are generated once and checked in, so their `exp` is in
-            // the past by the time CI runs. Lifetime is asserted separately.
+            // The vectors are frozen and checked in, so their `exp` is long past
+            // by the time CI runs. Lifetime is asserted separately.
             var principal = handler.ValidateToken(c.Token, ValidationParams(validateLifetime: false), out var validated);
 
             var jwt = Assert.IsType<JwtSecurityToken>(validated);
@@ -72,7 +72,7 @@ public class JwtCharacterizationTests
     }
 
     [Fact]
-    public void Python_tokens_carry_no_claims_beyond_the_four()
+    public void Frozen_tokens_carry_no_claims_beyond_the_four()
     {
         var handler = new JwtSecurityTokenHandler();
         foreach (var c in Fx.Cases)
@@ -89,10 +89,10 @@ public class JwtCharacterizationTests
     }
 
     [Fact]
-    public void A_token_minted_by_CSharp_has_the_same_shape_Python_emits()
+    public void A_token_minted_by_CSharp_has_the_same_shape_as_the_frozen_corpus()
     {
-        // Rollback safety: tokens issued by .NET must remain readable by the
-        // Python stack if we revert.
+        // Newly issued tokens must be shape-identical to the frozen ones, so any
+        // reader that accepts the corpus also accepts what this stack mints.
         var handler = new JwtSecurityTokenHandler();
         handler.OutboundClaimTypeMap.Clear();
 
@@ -103,7 +103,7 @@ public class JwtCharacterizationTests
                 new System.Security.Claims.Claim("sub", "33333333-3333-3333-3333-333333333333"),
                 new System.Security.Claims.Claim("type", "access"),
             ]),
-            notBefore: null,                     // Python emits no nbf
+            notBefore: null,                     // the frozen corpus carries no nbf
             expires: now.AddMinutes(30),
             issuedAt: now,
             signingCredentials: new SigningCredentials(
@@ -116,10 +116,10 @@ public class JwtCharacterizationTests
 
         Assert.Equal("HS256", parsed.Header.Alg);
 
-        // The security-critical absences the port MUST preserve. Unlike Python,
-        // .NET's token builder also stamps `nbf` (notBefore); that is harmless
-        // and standard — python-jose and browser clients both accept it — so it
-        // is not required to be absent. What must never appear are these:
+        // The security-critical absences that MUST be preserved. .NET's token
+        // builder additionally stamps `nbf` (notBefore), which the frozen corpus
+        // lacks; that is harmless and standard — every conforming JWT reader
+        // accepts it — so `nbf` is not required to be absent. These are:
         foreach (var absent in new[] { "iss", "aud", "jti", "role" })
             Assert.DoesNotContain(absent, claims);
     }

@@ -1,9 +1,9 @@
 namespace Govori.Identity.Providers;
 
 /// <summary>
-/// Google Sign-In config, mirroring the Python <c>Settings.GOOGLE_CLIENT_ID</c>
-/// (backend/app/core/config.py:97). Empty ⇒ Google sign-in is not configured
-/// (endpoint returns 503, matching Python's <c>_verify_google_token</c>).
+/// Google Sign-In config, bound from <c>GOOGLE_CLIENT_ID</c>. An empty client id means Google
+/// sign-in is NOT configured, and the <c>/api/auth/google</c> endpoint returns 503 until one is
+/// set — it never falls back to accepting an unverified token.
 /// </summary>
 public sealed class GoogleAuthOptions
 {

@@ -4,13 +4,13 @@ using Govori.Platform.Stt;
 namespace Govori.Guest;
 
 /// <summary>
-/// The Guest demo's behaviour (docs/07 §3.8), a faithful port of
-/// <c>backend/app/api/v1/guest.py</c>. Owns the phrase pick, the STT-driven demo assessment and the
-/// per-criterion score blend + rough CEFR level — all without an account and storing nothing.
+/// The Guest demo's behaviour (docs/07 §3.8). Owns the phrase pick, the STT-driven demo assessment
+/// and the per-criterion score blend + rough CEFR level — all without an account and storing nothing.
 ///
 /// <para>Thin endpoints (<see cref="GuestEndpoints"/>) call this; the scoring math lives here so it
 /// can be exercised directly. Reuses the SAME <see cref="ISttProvider"/> the grading pipeline uses,
-/// so the demo runs the identical Azure pronunciation assessment as the app (guest.py:4).</para>
+/// so the demo scores a visitor with the identical Azure pronunciation assessment the app runs for
+/// signed-in students.</para>
 /// </summary>
 public sealed class GuestService
 {
@@ -18,14 +18,16 @@ public sealed class GuestService
 
     public GuestService(ISttProvider stt) => _stt = stt;
 
-    /// <summary>A random demo phrase (guest.py:63-65).</summary>
+    /// <summary>A random phrase from the demo pool, so a visitor isn't shown the same sentence
+    /// on every visit.</summary>
     public string RandomPhrase() => GuestPhrases.Demo[Random.Shared.Next(GuestPhrases.Demo.Count)];
 
     /// <summary>
-    /// Assess a guest's spoken attempt at the phrase they were shown (guest.py:68-128). The
-    /// <paramref name="phrase"/> must be one we handed out — otherwise the first demo phrase is the
-    /// reference. Returns <c>null</c> when speech analysis fails (STT threw) — the endpoint maps that
-    /// to 503, mirroring guest.py:81-82. The caller has already validated the audio (non-empty, size).
+    /// Assess a guest's spoken attempt at the phrase they were shown. The <paramref name="phrase"/>
+    /// must be one we handed out — otherwise the first demo phrase is used as the reference, so a
+    /// caller can't have arbitrary text scored. Returns <c>null</c> when speech analysis fails (STT
+    /// threw); the endpoint maps that to 503. The caller has already validated the audio (non-empty,
+    /// within the size cap).
     /// </summary>
     public async Task<GuestAssessResponse?> AssessAsync(byte[] audio, string? phrase, CancellationToken ct)
     {
@@ -40,22 +42,23 @@ public sealed class GuestService
         }
         catch
         {
-            return null; // guest.py:81-82 → 503 "Speech analysis failed, try again"
+            return null; // the endpoint turns this into 503 "Speech analysis failed, try again"
         }
 
-        var pa = r.Pronunciation;                 // guest.py:84  pa = r.get("pronunciation") or {}
-        var match = pa?.ReferenceMatch;           // guest.py:85  match = pa.get("reference_match") or {}
-        var completeness = pa?.Completeness;      // guest.py:86
+        // Every pronunciation field is optional: STT may return no assessment block at all.
+        var pa = r.Pronunciation;
+        var match = pa?.ReferenceMatch;
+        var completeness = pa?.Completeness;
 
-        // Scripted repeat: "grammar" = how completely/correctly the target was reproduced
-        // (guest.py:89-91). Completeness if present, else similarity*100 from our own match.
+        // Scripted repeat: "grammar" here means how completely/correctly the target was reproduced.
+        // Completeness if present, else similarity*100 from our own reference match.
         double? grammar = completeness
             ?? (match is not null ? match.Similarity * 100 : (double?)null);
 
         double? accuracy = pa?.Accuracy, fluency = pa?.Fluency, prosody = pa?.Prosody;
 
         // Prosody (stress + intonation) is occasionally absent — fall back to a blend so the demo
-        // never shows a blank criterion (guest.py:93-96).
+        // never shows a blank criterion.
         double? stress = prosody ?? Blend(accuracy, fluency);
         int? intonation = prosody is not null ? Blend(prosody, fluency) : Blend(fluency, accuracy);
 
@@ -66,14 +69,15 @@ public sealed class GuestService
             Fluency: Round(fluency),          // ravonlik
             Grammar: Round(grammar));         // grammatika
 
-        // guest.py:104  overall = _round(pa.get("pronunciation")) or _blend(*criteria.values())
-        // Python `or`: falls through when the rounded PronScore is None OR 0.
+        // Overall = the provider's own PronScore when it gave a usable one. A missing score AND a
+        // rounded 0 both fall through to the blend of the five criteria — a hard 0 here means the
+        // provider declined to score, not that the speaker earned zero.
         var roundedPron = Round(pa?.Pronunciation);
         int? overall = roundedPron is null or 0
             ? Blend(criteria.Pronunciation, criteria.Stress, criteria.Intonation, criteria.Fluency, criteria.Grammar)
             : roundedPron;
 
-        // Weakest 3 spoken words (lowest per-word accuracy < 80) as concrete errors (guest.py:106-112).
+        // Weakest 3 spoken words (lowest per-word accuracy < 80) as concrete errors to show back.
         var errors = (r.Words ?? Array.Empty<SttWord>())
             .Where(w => !string.IsNullOrEmpty(w.Word) && w.Accuracy is not null)
             .Where(w => w.Accuracy!.Value < 80)
@@ -82,7 +86,8 @@ public sealed class GuestService
             .Select(w => new GuestWordError(w.Word!, (int)Math.Round(w.Accuracy!.Value, MidpointRounding.ToEven), w.ErrorType))
             .ToList();
 
-        // Did they actually say the given phrase? Gate on our own content check (guest.py:114-117).
+        // Did they actually say the given phrase? Gate on our own content check, defaulting to
+        // "off topic" when the match block is missing.
         var onTopic = match?.OnTopic ?? false;
 
         return new GuestAssessResponse(
@@ -94,17 +99,18 @@ public sealed class GuestService
             Level: Level(overall),
             OnTopic: onTopic,
             Completeness: Round(completeness),
-            Scored: pa is not null); // guest.py:127  scored = pa != {}
+            Scored: pa is not null); // false ⇒ transcript only, the UI must not show scores
     }
 
-    // ── scoring helpers (faithful ports of guest.py:39-60) ──────────────────────────────
+    // ── scoring helpers ────────────────────────────────────────────────────────────────
 
-    /// <summary>guest.py:39-40 <c>_round</c> — Python 3 <c>round()</c> is banker's rounding.</summary>
+    /// <summary>Round a score to a whole number, propagating <c>null</c>. Uses banker's rounding
+    /// (halves to even) so displayed scores stay stable against the stored values.</summary>
     internal static int? Round(double? v) =>
         v is null ? null : (int)Math.Round(v.Value, MidpointRounding.ToEven);
 
-    /// <summary>guest.py:43-45 <c>_blend</c> — mean of the non-null values, banker's-rounded, or
-    /// <c>null</c> when none are present.</summary>
+    /// <summary>Mean of the non-null values, banker's-rounded, or <c>null</c> when none are
+    /// present. Used to fill a criterion the provider didn't report.</summary>
     internal static int? Blend(params double?[] values)
     {
         var xs = values.Where(v => v is not null).Select(v => v!.Value).ToList();
@@ -114,7 +120,8 @@ public sealed class GuestService
     private static int? Blend(params int?[] values) =>
         Blend(values.Select(v => (double?)v).ToArray());
 
-    /// <summary>guest.py:48-60 <c>_level</c> — rough CEFR estimate from the overall score.</summary>
+    /// <summary>Rough CEFR estimate from the overall score. An unscored attempt shows A1 rather
+    /// than nothing, so the demo always ends on a level.</summary>
     internal static string Level(int? overall) => overall switch
     {
         null => "A1",

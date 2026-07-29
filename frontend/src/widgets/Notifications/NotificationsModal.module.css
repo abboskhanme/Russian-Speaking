@@ -1,0 +1,264 @@
+/* NotificationsModal — body of the full-window Modal (docs/03 §3.6).
+ * Tokens only; the root stretches (no max-width + auto margins — §3.8). */
+
+.wrap {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-4);
+  width: 100%;
+}
+
+/* ---- Toolbar ------------------------------------------------------------ */
+
+.toolbar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--s-2);
+  padding-bottom: var(--s-3);
+  border-bottom: 1.5px solid var(--line);
+}
+
+.spacer {
+  flex: 1 1 auto;
+}
+
+.actions {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+}
+
+/* Label wrapping the select-all box: the whole thing is the tap target. */
+.selectAll {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-2);
+  min-height: 44px;
+  padding-right: var(--s-2);
+  border-radius: var(--r-xs);
+  cursor: pointer;
+  user-select: none;
+}
+
+/* Fully custom control. `accent-color` alone only tints the CHECKED state, so
+ * iOS/Safari still painted the unchecked box as its dark default square, which
+ * read as a filled/selected checkbox. Drawing it ourselves keeps it on-palette
+ * and identical across engines. The tick is a mask rather than a background
+ * image so its colour stays a token instead of a hardcoded fill in a data URI. */
+.checkbox {
+  appearance: none;
+  -webkit-appearance: none;
+  flex: none;
+  width: 20px;
+  height: 20px;
+  margin: 0;
+  cursor: pointer;
+  border: 1.5px solid var(--line-2);
+  border-radius: var(--r-sm);
+  background: var(--surface);
+  display: grid;
+  place-content: center;
+  transition:
+    background-color var(--m-fast),
+    border-color var(--m-fast);
+}
+.checkbox:hover:not(:disabled) {
+  border-color: var(--primary);
+}
+.checkbox:checked,
+.checkbox:indeterminate {
+  background: var(--primary);
+  border-color: var(--primary);
+}
+/* The glyph itself: a tick when checked, a dash when partially selected. */
+.checkbox:checked::before,
+.checkbox:indeterminate::before {
+  content: "";
+  width: 20px;
+  height: 20px;
+  background: var(--primary-on);
+  -webkit-mask-position: center;
+  mask-position: center;
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+}
+.checkbox:checked::before {
+  -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none'%3E%3Cpath d='M5 12.5 10 17l9-10' stroke='%23000' stroke-width='2.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none'%3E%3Cpath d='M5 12.5 10 17l9-10' stroke='%23000' stroke-width='2.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+}
+.checkbox:indeterminate::before {
+  -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none'%3E%3Cpath d='M6 12h12' stroke='%23000' stroke-width='2.6' stroke-linecap='round'/%3E%3C/svg%3E");
+  mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none'%3E%3Cpath d='M6 12h12' stroke='%23000' stroke-width='2.6' stroke-linecap='round'/%3E%3C/svg%3E");
+}
+.checkbox:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+.checkbox:focus-visible {
+  outline: var(--focus-ring-width) solid var(--focus-ring);
+  outline-offset: var(--focus-ring-offset);
+}
+@media (prefers-reduced-motion: reduce) {
+  .checkbox {
+    transition: none;
+  }
+}
+
+/* ---- Confirm step (in-modal — never window.confirm) --------------------- */
+
+.confirm {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-3);
+  padding: var(--s-4);
+  border: 1.5px solid var(--danger);
+  border-radius: var(--r-md);
+  background: var(--danger-tint);
+}
+
+.confirmActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-2);
+}
+
+/* ---- List --------------------------------------------------------------- */
+
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.row {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--s-1);
+  padding-left: var(--s-1);
+  border: 1.5px solid var(--line);
+  border-radius: var(--r-md);
+  background: var(--surface);
+  transition:
+    background-color var(--m-instant),
+    border-color var(--m-instant);
+}
+
+/* Unread is drawn AND stated: the tint here is doubled by the dot's
+ * screen-reader label in the row, so it is never colour-only. */
+.rowUnread {
+  border-color: var(--primary-tint-2);
+  background: var(--primary-tint);
+}
+
+/* 44×44 hit area around the checkbox so a thumb can never miss it and hit the
+ * row body (which would navigate) instead. */
+.rowCheck {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 44px;
+  height: 44px;
+  margin-top: var(--s-2);
+  border-radius: var(--r-xs);
+  cursor: pointer;
+}
+
+/* Sibling of the checkbox, never its parent — no interactive nesting. */
+.rowBody {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-1);
+  padding: var(--s-3) var(--s-3) var(--s-3) var(--s-2);
+  text-align: start;
+  font: inherit;
+  color: inherit;
+  text-decoration: none;
+  background: transparent;
+  border: none;
+  border-radius: var(--r-md);
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: background-color var(--m-instant);
+}
+.rowBody:hover {
+  background: var(--surface-2);
+}
+.rowBody:focus-visible {
+  outline: var(--focus-ring-width) solid var(--focus-ring);
+  outline-offset: calc(var(--focus-ring-offset) * -1);
+}
+
+.rowHead {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+}
+
+.rowTitle {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.dot {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border-radius: var(--r-pill);
+  background: var(--primary);
+}
+
+.time {
+  display: block;
+}
+
+/* ---- Empty / error / loading -------------------------------------------- */
+
+/* Centred in the remaining height rather than pinned under the header, so an
+ * empty inbox reads as a deliberate state instead of a page that failed to
+ * load. `min-height:0` lets it shrink inside the modal's flex body. */
+.state {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--s-3);
+  padding: var(--s-10) var(--s-5);
+  text-align: center;
+}
+
+/* Muted bell above the empty-state line — decorative, aria-hidden in the TSX. */
+.stateIcon {
+  display: grid;
+  place-items: center;
+  width: 56px;
+  height: 56px;
+  border-radius: var(--r-pill);
+  background: var(--surface-2, var(--bg));
+  color: var(--faint);
+}
+
+.skeletonRow {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+  padding: var(--s-4);
+  border: 1.5px solid var(--line);
+  border-radius: var(--r-md);
+  background: var(--surface);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .row,
+  .rowBody {
+    transition: none;
+  }
+}

@@ -11,20 +11,35 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-dotnet@v4
         with:
-          python-version: "3.12"
-      - name: Install backend (with dev extras)
-        working-directory: backend
-        run: |
-          python -m pip install --upgrade pip
-          pip install ".[dev]"
-      - name: Lint (ruff)
-        working-directory: backend
-        run: ruff check .
-      - name: Tests (pytest)
-        working-directory: backend
-        run: pytest -q
+          dotnet-version: "9.0.x"
+
+      - name: Restore
+        working-directory: backend-dotnet
+        run: dotnet restore Govori.sln
+
+      - name: Build
+        working-directory: backend-dotnet
+        run: dotnet build Govori.sln --no-restore -c Release
+
+      # Unit / Arch / Characterization run with no external dependencies.
+      # Govori.IntegrationTests is DELIBERATELY excluded: it needs a live
+      # Postgres + Redis + MinIO and mutates rows in setup, so it belongs in a
+      # compose-backed job rather than here. Run it locally via docker compose.
+      - name: Test (Unit)
+        working-directory: backend-dotnet
+        run: dotnet test tests/Govori.UnitTests --no-build -c Release --verbosity normal
+
+      - name: Test (Architecture)
+        working-directory: backend-dotnet
+        run: dotnet test tests/Govori.ArchTests --no-build -c Release --verbosity normal
+
+      # Reads the frozen JSON goldens from tests/characterization/fixtures at the
+      # REPO ROOT, which is why this runs from the checkout rather than a subdir.
+      - name: Test (Characterization)
+        working-directory: backend-dotnet
+        run: dotnet test tests/Govori.Characterization --no-build -c Release --verbosity normal
 
   frontend:
     runs-on: ubuntu-latest

@@ -1,7 +1,12 @@
-/* TeacherDashboardScreen — the teacher's Boshqaruv paneli (docs/04 teacher
- * flows, Faza 4.9). Composed from shared/ui + widgets; every colour / space /
- * radius / shadow / motion value is a token. Full-width per docs/04 §4.10 — the
- * page root spans its column with no max-width + auto-margin centring.
+/* TeacherDashboardScreen — the teacher's A1 «Obzor · bugun kimga yordam kerak»
+ * (RussianDesign/Govori/Govorim - Teacher.dc.html). Composed from shared/ui +
+ * widgets; every colour / space / radius / shadow / motion value is a token.
+ * Full-width per docs/04 §4.10 — the page root spans its column with no
+ * max-width + auto-margin centring.
+ *
+ * The teacher panel is its own design, not a restyled student screen: the
+ * mockup's own rhythm is a greeting row, a stack of bordered attention cards,
+ * then a 3-up counter row pinned to the bottom of the flow.
  *
  * Compact density (docs/03 §3.5): the page sets --density-scale to 0.75 so the
  * vertical rhythm here is ×0.75 of the comfortable student screens; the scale is
@@ -16,19 +21,12 @@
   width: 100%;
 }
 
-/* ---- Header (greeting + quick actions) ---- */
+/* ---- Header: greeting + avatar ---- */
 .head {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: var(--s-4);
-  flex-wrap: wrap;
-}
-.headMain {
-  display: flex;
-  align-items: center;
-  gap: var(--s-3);
-  min-width: 0;
 }
 .headText {
   display: flex;
@@ -36,187 +34,116 @@
   gap: var(--s-1);
   min-width: 0;
 }
-.headName {
-  display: flex;
-  align-items: center;
-  gap: var(--s-2);
-  flex-wrap: wrap;
-}
-.headActions {
-  display: flex;
-  align-items: center;
-  gap: var(--s-2);
-  flex-wrap: wrap;
-}
 
-/* ---- Quick-stats row ---- */
-.stats {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: calc(var(--s-4) * var(--density-scale));
-}
-.statTile {
-  display: flex;
-  align-items: center;
-  gap: var(--s-3);
-}
-.statIcon {
+/* The profile entry — a button, since the teacher nav has no Profil item. */
+.avatar {
   display: grid;
   place-items: center;
-  width: 42px;
-  height: 42px;
+  width: 44px;
+  height: 44px;
   flex: none;
-  border-radius: var(--r-sm);
+  padding: 0;
+  border: 0;
+  border-radius: var(--r-pill);
+  background: var(--accent-tint);
+  color: var(--accent);
+  letter-spacing: 0.02em;
+  cursor: pointer;
+  transition: filter var(--motion-fast) var(--ease-standard);
 }
-.statMeta {
-  display: flex;
-  flex-direction: column;
-  gap: 0;
-  min-width: 0;
+.avatar:hover {
+  filter: brightness(0.96);
 }
-
-/* Tones — reuse the DS semantic tint/ink pairs (docs/03 §3.2). */
-.tone-primary {
-  background: var(--primary-tint);
-  color: var(--primary);
-}
-.tone-info {
-  background: var(--info-tint);
-  color: var(--info);
-}
-.tone-warn {
-  background: var(--warn-tint);
-  color: var(--warn-ink);
+.avatar:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
 }
 
-/* ---- Section scaffold (groups + activity) ---- */
+/* ---- Section scaffold ---- */
 .section {
   display: flex;
   flex-direction: column;
   gap: calc(var(--s-3) * var(--density-scale));
 }
-.sectionHead {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--s-3);
-}
 
-/* ---- Groups grid ---- */
-.groupGrid {
+/* ---- E'tibor talab qiladi ---- */
+.attentionList {
   list-style: none;
   margin: 0;
   padding: 0;
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
-  gap: calc(var(--s-4) * var(--density-scale));
-}
-.groupCard {
-  height: 100%;
   display: flex;
   flex-direction: column;
   gap: calc(var(--s-3) * var(--density-scale));
 }
-.groupTop {
+
+/* A whole-card button: the mockup's rows are tappable end-to-end, with the
+   chevron as the affordance. The 4px tinted left edge carries the tone. */
+.attentionCard {
+  width: 100%;
   display: flex;
   align-items: center;
   gap: var(--s-3);
-  min-width: 0;
+  padding: var(--s-4);
+  text-align: start;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-left: 4px solid var(--tone-edge);
+  border-radius: var(--r-md);
+  cursor: pointer;
+  transition:
+    background var(--motion-fast) var(--ease-standard),
+    border-color var(--motion-fast) var(--ease-standard);
 }
-.groupTitle {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  min-width: 0;
-}
-.groupChips {
-  display: flex;
-  align-items: center;
-  gap: var(--s-2);
-  flex-wrap: wrap;
-}
-.chip {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--s-1);
-  padding: var(--s-1) var(--s-2);
-  border-radius: var(--r-xs);
+.attentionCard:hover {
   background: var(--surface-2);
 }
-.chipCode {
-  background: var(--primary-tint);
-}
-.groupActions {
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  gap: var(--s-2);
-  margin-top: auto;
+.attentionCard:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
 }
 
-/* ---- Needs-review / recent activity list ---- */
-.activityList {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: calc(var(--s-2) * var(--density-scale));
-}
-.activityRow {
-  display: flex;
-  align-items: center;
-  gap: var(--s-3);
-}
-.avatar {
+.attentionIcon {
   display: grid;
   place-items: center;
   width: 38px;
   height: 38px;
   flex: none;
-  border-radius: var(--r-pill);
-  background: var(--accent-tint);
-  color: var(--accent);
-  letter-spacing: 0.02em;
+  border-radius: var(--r-sm);
+  background: var(--tone-tint);
+  color: var(--tone-ink);
 }
-.activityBody {
+
+.attentionBody {
   flex: 1;
   min-width: 0;
   display: flex;
   flex-direction: column;
   gap: 2px;
 }
-.activityTitleRow {
-  display: flex;
-  align-items: center;
-  gap: var(--s-2);
-  min-width: 0;
-}
-.score {
+
+.chevron {
+  flex: none;
   display: grid;
   place-items: center;
-  width: 40px;
-  height: 40px;
-  flex: none;
-  border-radius: var(--r-sm);
+  color: var(--muted);
 }
-.score-success {
-  background: var(--success-tint);
-  color: var(--success);
+
+/* Tones — the card sets the trio of custom props its parts consume, so the tint
+   pairs stay in one place (docs/03 §3.2 semantic tint/ink pairs). */
+.tone-danger {
+  --tone-edge: var(--danger);
+  --tone-tint: var(--danger-tint);
+  --tone-ink: var(--danger);
 }
-.score-warn {
-  background: var(--warn-tint);
-  color: var(--warn-ink);
+.tone-warn {
+  --tone-edge: var(--warn);
+  --tone-tint: var(--warn-tint);
+  --tone-ink: var(--warn-ink);
 }
-.score-danger {
-  background: var(--danger-tint);
-  color: var(--danger);
-}
-.activityTag {
-  flex: none;
-}
-.activityAction {
-  flex: none;
+.tone-accent {
+  --tone-edge: var(--accent);
+  --tone-tint: var(--accent-tint);
+  --tone-ink: var(--accent);
 }
 
 .empty {
@@ -226,26 +153,22 @@
   padding-block: var(--s-6);
 }
 
-/* ---- Responsive ---- */
-@media (max-width: 720px) {
-  .stats {
-    grid-template-columns: 1fr;
-  }
-  .head {
-    align-items: flex-start;
-  }
-  .headActions {
-    width: 100%;
-  }
-  .headActions > * {
-    flex: 1;
-  }
+/* ---- Stat tiles (bottom row) ---- */
+.stats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: calc(var(--s-3) * var(--density-scale));
+}
+.statTile {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  min-width: 0;
 }
 
+/* ---- Responsive ---- */
 @media (max-width: 560px) {
-  /* On the narrowest columns the status tag drops out; the score chip + the
-     Grade CTA carry the meaning, and colour is never the only signal. */
-  .activityTag {
-    display: none;
+  .attentionCard {
+    padding: var(--s-3);
   }
 }

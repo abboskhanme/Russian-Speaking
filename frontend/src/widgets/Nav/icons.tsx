@@ -69,15 +69,26 @@ export function ChatIcon(props: IconProps) {
   );
 }
 
-/** Speak — microphone (the mobile "Gapirish" FAB in the mockup). */
+/**
+ * AI Suhbat / Speak — a solid microphone for the raised centre FAB (the white
+ * mic on the orange FAB in the mockup): a filled capsule body, the pickup holder
+ * arc, and a stem + base. Drawn with `currentColor` so it inherits the FAB's ink.
+ */
 export function MicIcon(props: IconProps) {
   return (
     <svg {...base(props)}>
-      <rect x="9" y="3" width="6" height="11" rx="3" fill="currentColor" />
+      <rect x="9" y="2.5" width="6" height="11" rx="3" fill="currentColor" />
       <path
-        d="M6 11a6 6 0 0 0 12 0M12 17v4"
+        d="M5.75 11a6.25 6.25 0 0 0 12.5 0"
+        fill="none"
         stroke="currentColor"
-        strokeWidth={2}
+        strokeWidth={1.9}
+        strokeLinecap="round"
+      />
+      <path
+        d="M12 17.25V20.5M8.5 20.5h7"
+        stroke="currentColor"
+        strokeWidth={1.9}
         strokeLinecap="round"
       />
     </svg>
@@ -142,7 +153,54 @@ export function GradebookIcon(props: IconProps) {
   );
 }
 
-/** Progress — bar chart. */
+/* ── Teacher-only glyphs, traced from `Govorim - Teacher.dc.html`'s bottom bar.
+ * The teacher nav is its own model (Bosh · Klasslar · Navbat · Kontent ·
+ * Analitika), so these are NOT the student icons under new names. ────────── */
+
+/**
+ * Navbat — the grading queue on the raised centre FAB. A clipboard with a tick:
+ * the teacher's counterpart to the student's {@link MicIcon}, and semantically
+ * the opposite end of the same loop (they record, the teacher signs off).
+ */
+export function QueueIcon(props: IconProps) {
+  return (
+    <svg {...base(props)}>
+      <rect x="6" y="4" width="12" height="17" rx="2.5" stroke="currentColor" strokeWidth={1.9} />
+      <path
+        d="M9 4.5V3.5h6v1"
+        stroke="currentColor"
+        strokeWidth={1.9}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <path
+        d="m9 12.5 2 2 4-4"
+        stroke="currentColor"
+        strokeWidth={1.9}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+/** Kontent — modules & scenarios (stacked layers). */
+export function ContentIcon(props: IconProps) {
+  return (
+    <svg {...base(props)}>
+      <path
+        d="M12 3 3 8l9 5 9-5z"
+        stroke="currentColor"
+        strokeWidth={1.8}
+        strokeLinejoin="round"
+      />
+      <path d="M3 13l9 5 9-5" stroke="currentColor" strokeWidth={1.8} strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+/** Progress — bar chart. Also the teacher's Analitika glyph: both mockups draw
+ * this exact path, so it is genuinely one icon rather than a student import. */
 export function ProgressIcon(props: IconProps) {
   return (
     <svg {...base(props)}>

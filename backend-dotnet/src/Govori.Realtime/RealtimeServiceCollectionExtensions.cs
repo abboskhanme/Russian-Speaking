@@ -15,14 +15,14 @@ namespace Govori.Realtime;
 /// <summary>
 /// Composition-root wiring shared by <c>Govori.Api</c> (enqueues + hosts the hub endpoint) and
 /// <c>Govori.Worker</c> (runs the Hangfire server + publishes events). Keeps the Hangfire and
-/// SignalR setup — storage, backplane, retry policy, job registration — in one faithful place
-/// (docs/07 §7.3, §7.7; docs/08 Faza 3.9/3.10).
+/// SignalR setup — storage, backplane, retry policy, job registration — in ONE place so the two
+/// hosts cannot drift apart (docs/07 §7.3, §7.7; docs/08 Faza 3.9/3.10).
 /// </summary>
 public static class RealtimeServiceCollectionExtensions
 {
     /// <summary>
     /// SignalR + the attempt-progress <see cref="IGradingEvents"/> implementation. The hub speaks
-    /// snake_case JSON (matching the Python <c>SubmissionOut</c> wire shape); the Redis backplane
+    /// snake_case JSON, matching the REST wire shape clients already parse; the Redis backplane
     /// (govori-redis) is ON by default so a Worker-side publish reaches API-side clients, and can be
     /// turned off (<c>GOVORI_SIGNALR_BACKPLANE=false</c>) for a single-process host such as an
     /// integration test where in-memory delivery is enough.
@@ -53,9 +53,9 @@ public static class RealtimeServiceCollectionExtensions
     /// <summary>
     /// Hangfire (Postgres storage) + the durable grading queue. The <paramref name="runServer"/>
     /// host (Govori.Worker) also starts the processing server and registers the bounded automatic
-    /// retry that stands in for Celery's <c>task_acks_late</c>; the API is a client that only
-    /// enqueues. Hangfire creates its OWN <c>hangfire</c> schema — ADDITIVE, it never touches the
-    /// existing tables or <c>alembic_version</c>.
+    /// retry policy; the API is a client that only enqueues. Hangfire creates and owns its OWN
+    /// <c>hangfire</c> schema — that is the ONLY schema it may touch. The application's own tables
+    /// belong to EF Core migrations and Hangfire must never create, alter or drop them.
     /// </summary>
     public static IServiceCollection AddGovoriHangfire(
         this IServiceCollection services, IConfiguration config, bool runServer)
@@ -80,8 +80,9 @@ public static class RealtimeServiceCollectionExtensions
 
         if (runServer)
         {
-            // task_acks_late analogue (Python max_retries=3): bound Hangfire's automatic retry to 3
-            // attempts. Safe because the pipeline is idempotent (resume-from-transcript + Evaluation
+            // Bound Hangfire's automatic retry to 3 attempts, with LATE acknowledgement semantics:
+            // a job is only settled once it completes, so a crashed worker's job is re-queued.
+            // Safe because the pipeline is idempotent (resume-from-transcript + Evaluation
             // DELETE-then-INSERT). Replace the default 10-attempt policy — done once, in the single
             // Worker process, so the static filter collection isn't mutated from a shared test host.
             foreach (var existing in GlobalJobFilters.Filters
@@ -100,9 +101,10 @@ public static class RealtimeServiceCollectionExtensions
     }
 
     /// <summary>
-    /// Register the recurring maintenance jobs (the Celery beat port, docs/07 §7.7) — same job ids
-    /// and cadence as <c>beat_schedule</c>: stuck-submission recovery every 5 min, orphan-upload and
-    /// test-submission cleanup hourly. Call on the built Worker host only (the destructive jobs are
+    /// Register the recurring maintenance schedule (docs/07 §7.7): stuck-submission recovery every
+    /// 5 min, orphan-upload and test-submission cleanup hourly. The job ids are stable identifiers —
+    /// renaming one orphans the existing schedule row rather than updating it.
+    /// Call on the built Worker host only (the destructive jobs are
     /// additionally guarded by <see cref="MaintenanceOptions.Enabled"/>).
     /// </summary>
     public static void AddGovoriRecurringJobs(this IServiceProvider services)
@@ -112,17 +114,22 @@ public static class RealtimeServiceCollectionExtensions
         manager.AddOrUpdate<MaintenanceJobs>(
             "fail-stuck-submissions",
             job => job.FailStuckSubmissionsAsync(CancellationToken.None),
-            "*/5 * * * *");                                   // every 5 minutes (Python 300s)
+            "*/5 * * * *");                                   // every 5 minutes
 
         manager.AddOrUpdate<MaintenanceJobs>(
             "cleanup-orphan-uploads",
             job => job.CleanupOrphanUploadsAsync(CancellationToken.None),
-            Cron.Hourly());                                   // hourly (Python 3600s)
+            Cron.Hourly());                                   // hourly
 
         manager.AddOrUpdate<MaintenanceJobs>(
             "cleanup-test-submissions",
             job => job.CleanupTestSubmissionsAsync(CancellationToken.None),
-            Cron.Hourly());                                   // hourly (Python 3600s)
+            Cron.Hourly());                                   // hourly
+
+        manager.AddOrUpdate<MaintenanceJobs>(
+            "purge-expired-audio",
+            job => job.PurgeExpiredAudioAsync(CancellationToken.None),
+            Cron.Daily());                                    // daily — reclaim answer audio >90 days
     }
 
     // Hangfire storage uses the SAME Postgres as EF Core — resolved exactly like GovoriDbContext

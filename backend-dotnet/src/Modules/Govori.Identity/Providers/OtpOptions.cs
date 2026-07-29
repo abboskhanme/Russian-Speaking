@@ -1,10 +1,10 @@
 namespace Govori.Identity.Providers;
 
 /// <summary>
-/// OTP generation config for the phone-OTP flow. <see cref="CodeLength"/> stays 4–6 digits; the
-/// TTL + attempt limit mirror the Python <c>Settings</c> (backend/app/core/config.py) EMAIL_OTP_*
-/// values, reused as-is for phone codes. Email verification is gone from the auth flow, so there
-/// is no <c>EmailVerificationEnabled</c> flag any more.
+/// OTP generation config for the phone-OTP flow. <see cref="CodeLength"/> stays 4–6 digits. The
+/// TTL and attempt limit are bound from the <c>EMAIL_OTP_*</c> environment variables, whose names
+/// are kept for deployment compatibility even though the codes are now delivered by phone. Email
+/// verification is gone from the auth flow, so there is no <c>EmailVerificationEnabled</c> flag.
 /// </summary>
 public sealed class OtpOptions
 {

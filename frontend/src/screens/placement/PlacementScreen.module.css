@@ -15,8 +15,8 @@
 
 .themeToggle {
   position: absolute;
-  top: var(--s-4);
-  inset-inline-end: var(--s-4);
+  top: max(var(--s-4), env(safe-area-inset-top));
+  inset-inline-end: max(var(--s-4), env(safe-area-inset-right));
   z-index: var(--z-raised);
 }
 
@@ -24,7 +24,9 @@
   flex: 1;
   display: grid;
   place-items: center;
-  padding: var(--s-6);
+  /* Safe-area aware so a full-screen step never touches the edges. */
+  padding: max(var(--s-6), env(safe-area-inset-top)) max(var(--s-6), env(safe-area-inset-right))
+    max(var(--s-6), env(safe-area-inset-bottom)) max(var(--s-6), env(safe-area-inset-left));
 }
 
 /* Shared column: every step is a centred 460px column (auth-family focal flow). */

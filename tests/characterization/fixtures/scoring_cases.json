@@ -1,5 +1,5 @@
 {
-  "_doc": "services/scoring.py:26-55. PURE functions of Submission objects — characterized by feeding the REAL effective_band/rolling_avg/best_band duck-typed stand-ins. effective_band = teacher_band if not None else (level_score if not None else overall_band); None if ungraded. rolling_avg = round(mean of newest `window` effective bands, 2), None if none graded. best_band = round(max effective band, 2), None if none graded. created_at is an integer tick (ordering only). Ties keep original list order (stable sort).",
+  "_doc": "FROZEN GOLDEN — owned by Govori.Characterization; the specification, not a derived artifact. Pins the PURE band-aggregation functions over a student's submissions. effective_band = teacher_band if not None else (level_score if not None else overall_band); None if ungraded. rolling_avg = round(mean of newest `window` effective bands, 2), None if none graded. best_band = round(max effective band, 2), None if none graded. created_at is an integer tick (ordering only). Ties keep original list order (stable sort).",
   "recent_window": 10,
   "cases": [
     {

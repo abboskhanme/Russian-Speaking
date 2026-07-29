@@ -70,10 +70,24 @@ docker exec "$CTR" psql -U verify -d verify -A -F' = ' -t -c \
 echo -n "    graded evaluations: "
 docker exec "$CTR" psql -U verify -d verify -A -t -c "SELECT count(*) FROM evaluations" 2>/dev/null || echo "?"
 
-echo -n "    alembic revision: "
-docker exec "$CTR" psql -U verify -d verify -A -t -c "SELECT version_num FROM alembic_version" 2>/dev/null || echo "?"
-if [ -f "$DIR/alembic_revision.txt" ]; then
-  echo "    (production said: $(cat "$DIR/alembic_revision.txt"))"
+# Schema version: EF Core owns the schema, but a dump taken before the
+# ef-baseline.sh adoption still carries the legacy alembic marker — report
+# whichever the restored copy actually has. Two queries rather than one CASE:
+# Postgres plans every CASE branch, so naming a dropped table anywhere in the
+# expression errors even when that branch is unreachable.
+echo -n "    schema version: "
+EF_VER=$(docker exec "$CTR" psql -U verify -d verify -A -t -v ON_ERROR_STOP=1 \
+  -c 'SELECT max(migration_id) FROM "__EFMigrationsHistory"' 2>/dev/null || true)
+AL_VER=$(docker exec "$CTR" psql -U verify -d verify -A -t -v ON_ERROR_STOP=1 \
+  -c 'SELECT max(version_num) FROM alembic_version' 2>/dev/null || true)
+if   [ -n "${EF_VER// /}" ]; then echo "ef:${EF_VER}"
+elif [ -n "${AL_VER// /}" ]; then echo "alembic:${AL_VER}"
+else echo "unknown"; fi
+if [ -f "$DIR/schema_version.txt" ]; then
+  echo "    (production said: $(cat "$DIR/schema_version.txt"))"
+elif [ -f "$DIR/alembic_revision.txt" ]; then
+  # Backup taken by an older revision of backup-prod.sh.
+  echo "    (production said: alembic:$(cat "$DIR/alembic_revision.txt"))"
 fi
 
 echo "==> [5/5] Audio archive"

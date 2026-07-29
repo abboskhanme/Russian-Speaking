@@ -1,0 +1,87 @@
+/* SkillsTab — the "Ko'nikmalar" tab body. A raised level/trend card over a
+ * "KO'NIKMALAR" card of four skill rows. Full-width (docs/04 §4.10); every
+ * colour / space / radius value is a token. The indigo accent is `--info`. */
+
+.tab {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-5);
+  width: 100%;
+}
+
+/* ---- Current level + band trend ---- */
+.levelCard {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+}
+.empty {
+  margin: 0;
+}
+.levelRow {
+  display: flex;
+  align-items: baseline;
+  gap: var(--s-3);
+  flex-wrap: wrap;
+}
+.levelValue {
+  line-height: 1;
+}
+.levelLabel {
+  min-width: 0;
+}
+.trend {
+  margin: 0;
+}
+.chart {
+  margin-top: var(--s-2);
+}
+
+/* ---- The four sub-skills ---- */
+.skillsSection {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-3);
+  width: 100%;
+}
+.skillsLabel {
+  margin: 0;
+}
+.skillList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-4);
+}
+.skillRow {
+  display: grid;
+  grid-template-columns: minmax(84px, auto) 1fr auto;
+  align-items: center;
+  gap: var(--s-3);
+}
+.skillName {
+  min-width: 0;
+}
+.skillTrack {
+  display: block;
+  width: 100%;
+  height: 8px;
+  border-radius: var(--r-pill);
+  background: var(--line);
+  overflow: hidden;
+}
+.skillFill {
+  display: block;
+  height: 100%;
+  border-radius: var(--r-pill);
+  background: var(--info);
+  /* --m-base is zeroed under prefers-reduced-motion in tokens.css. */
+  transition: width var(--m-base);
+}
+.skillScore {
+  min-width: 2.5ch;
+  text-align: right;
+  color: var(--info);
+}

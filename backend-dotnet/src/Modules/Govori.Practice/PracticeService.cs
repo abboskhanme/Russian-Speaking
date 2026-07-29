@@ -8,23 +8,23 @@ using Microsoft.EntityFrameworkCore;
 namespace Govori.Practice;
 
 /// <summary>
-/// Application service for the Practice vertical slice (docs/07 §7.2 — keeps the API thin),
-/// ported from backend/app/api/v1/submissions.py (the student attempt/submit flow). Consumes
-/// <see cref="GovoriDbContext"/>, <see cref="IObjectStorage"/> and — for the freemium gate —
-/// <see cref="CatalogService"/>.
+/// Application service for the Practice vertical slice (docs/07 §7.2 — keeps the API thin).
+/// It owns the student attempt/submit flow: submitting an audio answer, listing attempts, and
+/// reading one attempt's status/detail. Consumes <see cref="GovoriDbContext"/>,
+/// <see cref="IObjectStorage"/> and — for the freemium gate — <see cref="CatalogService"/>.
 ///
 /// <para><b>Freemium-gate reuse (task decision 3a).</b> The 402 paywall calls
-/// <see cref="CatalogService.NeedsPremiumAsync"/> directly rather than re-implementing
-/// <c>needs_premium</c>/<c>task_index</c> here. That method is the single, characterization-frozen
+/// <see cref="CatalogService.NeedsPremiumAsync"/> directly rather than re-implementing the
+/// premium/position rules here. That method is the single, characterization-frozen
 /// (C4/C9) source of truth, already proven through real SQL by <c>CatalogAccessSqlParityTests</c>,
 /// so reusing it eliminates the divergence risk two copies would create. Reachability
 /// (<see cref="CanReachAsync"/>) reuses <see cref="CatalogService.StudentTeacherIdsAsync"/> for the
 /// same reason. The cost is a Practice→Catalog module edge; if a future ArchTest forbids that, the
 /// clean refactor is to lift the access logic into a shared kernel both modules consume.</para>
 ///
-/// <para><b>402 is raised ONLY at submit</b> (docs/08 Faza 3.3, C4) and ONLY after reachability,
-/// mirroring submissions.py:117-143 — and, crucially, BEFORE the audio is stored, so a gated
-/// student's attempt produces neither an upload nor a row.</para>
+/// <para><b>402 is raised ONLY at submit</b> (docs/08 Faza 3.3, C4), ONLY after the reachability
+/// check, and — crucially — BEFORE the audio is stored, so a gated student's attempt produces
+/// neither an upload nor a row.</para>
 /// </summary>
 public sealed class PracticeService
 {
@@ -41,7 +41,7 @@ public sealed class PracticeService
         _grading = grading;
     }
 
-    // Python _EXT_BY_CONTENT_TYPE (submissions.py:43-49); unknown → "webm".
+    // Storage-key extension for a recorded answer's content type; anything unknown → "webm".
     private static string ExtForContentType(string? contentType) => contentType switch
     {
         "audio/webm" => "webm",
@@ -53,23 +53,24 @@ public sealed class PracticeService
     };
 
     /// <summary>
-    /// Submit an audio answer, a faithful port of <c>create_submission</c> (submissions.py:105-158).
-    /// Guard order is preserved: 404 (no question) → [non-admin] 403 (not reachable) → 402 (freemium
-    /// gate) → store audio → create the <c>pending</c> Submission → (TODO: enqueue grading) → 201.
+    /// Submit an audio answer. The guard ORDER is load-bearing and must not be rearranged:
+    /// 404 (no question) → [non-admin] 403 (not reachable) → 402 (freemium gate) → store audio →
+    /// create the <c>pending</c> Submission → enqueue grading → 201. Every rejection happens before
+    /// the upload, so a rejected attempt leaves no object and no row behind.
     /// </summary>
     public async Task<SubmitResult> SubmitAsync(Guid userId, SubmitAudio audio, CancellationToken ct = default)
     {
-        // role/is_active come from the DB per request, never the token (deps.py:30-32, §7.5).
+        // role/is_active come from the DB per request, never from the token (§7.5).
         var student = await _db.Users.FirstOrDefaultAsync(u => u.Id == userId, ct);
         if (student is null || !student.IsActive)
             return new SubmitResult(SubmitStatus.Unauthorized);
 
         var question = await _db.Questions.FirstOrDefaultAsync(q => q.Id == audio.QuestionId, ct);
         if (question is null)
-            return new SubmitResult(SubmitStatus.QuestionNotFound);         // submissions.py:110-112
+            return new SubmitResult(SubmitStatus.QuestionNotFound);
 
-        // A submission counts against a still-open assignment for class-leaderboard scoping
-        // (submissions.py:116; active_assignment, questions.py:39-52).
+        // A submission counts against a still-open assignment (no due date, or not yet past it)
+        // for class-leaderboard scoping.
         var now = DateTime.UtcNow;
         var assignment = await _db.Assignments.FirstOrDefaultAsync(
             a => a.StudentId == student.Id
@@ -79,22 +80,21 @@ public sealed class PracticeService
 
         if (student.Role != UserRole.Admin)                                 // admin bypasses both gates
         {
-            // Reachable via its module, a still-open assignment, or a pending review item
-            // (submissions.py:117-136).
+            // Reachable via its module, a still-open assignment, or a pending review item.
             var inReview = await _db.ReviewItems.AnyAsync(
                 r => r.StudentId == student.Id && r.QuestionId == question.Id && !r.Completed, ct);
             var reachable = await CanReachAsync(student, question, ct) || assignment is not null || inReview;
             if (!reachable)
-                return new SubmitResult(SubmitStatus.Forbidden);            // submissions.py:132-136
+                return new SubmitResult(SubmitStatus.Forbidden);
 
             // Positional freemium gate — the ONLY 402 in the app, raised here at submit and
-            // BEFORE any upload (submissions.py:139-143). Reuses Catalog's frozen decision.
+            // BEFORE any upload. Reuses Catalog's frozen decision.
             if (await _catalog.NeedsPremiumAsync(student, question, ct))
                 return new SubmitResult(SubmitStatus.PaymentRequired);
         }
 
-        // Store the audio only once the gates have passed (Python new_key("answers", ext) scheme,
-        // storage.py:40-41 / submissions.py:94). A gated student never reaches this line.
+        // Store the audio only once the gates have passed, under the "answers" key prefix.
+        // A gated student never reaches this line.
         var key = _storage.NewKey("answers", ExtForContentType(audio.ContentType));
         await _storage.PutAsync(key, audio.Content, audio.ContentType, ct);
 
@@ -113,10 +113,9 @@ public sealed class PracticeService
         _db.Submissions.Add(submission);
         await _db.SaveChangesAsync(ct);
 
-        // Enqueue grading (Faza 3.4) — the C# equivalent of process_submission.delay(sub.id)
-        // (submissions.py:157). The default in-process queue runs the STT + analysis pipeline
-        // synchronously in its OWN scope, and short-circuits (leaving the attempt pending) until real
-        // STT/Grader providers are wired — so submit stays fast and non-graded exactly as today.
+        // Hand the new attempt to the grading pipeline (Faza 3.4). The default in-process queue
+        // runs the STT + analysis pipeline in its OWN scope, and short-circuits (leaving the
+        // attempt pending) until real STT/Grader providers are wired — so submit stays fast.
         // TODO(Hangfire, Faza 3.9): swap in the durable background queue so grading is off-request.
         await _grading.EnqueueAsync(submission.Id, ct);
 
@@ -125,10 +124,10 @@ public sealed class PracticeService
     }
 
     /// <summary>
-    /// List attempts, a port of <c>list_submissions</c> (submissions.py:199-238). Real (non-shadow)
-    /// answers only (<c>reference_text IS NULL</c>). Students see only their own; teachers see
-    /// answers to their own questions from their own roster; admins see all. Newest first, paged.
-    /// Returns <c>null</c> when the user is missing/inactive (→ 401), like <c>get_current_user</c>.
+    /// List attempts. Real (non-shadow) answers only (<c>reference_text IS NULL</c>). Students see
+    /// only their own; teachers see answers to their own questions from their own roster; admins
+    /// see all. Newest first, paged. Returns <c>null</c> when the user is missing/inactive, which
+    /// the endpoint turns into a 401.
     /// </summary>
     public async Task<IReadOnlyList<SubmissionResponse>?> ListAsync(
         Guid userId, Guid? questionId, int limit, int offset, CancellationToken ct = default)
@@ -137,10 +136,10 @@ public sealed class PracticeService
         if (user is null || !user.IsActive)
             return null;
 
-        limit = Math.Clamp(limit, 1, 200);                                  // Python Query ge=1, le=200
-        offset = Math.Max(offset, 0);                                       // Python Query ge=0
+        limit = Math.Clamp(limit, 1, 200);                                  // page size is capped at 200
+        offset = Math.Max(offset, 0);                                       // never page backwards
 
-        // Shadowing practice (reference_text set) is excluded from the answer list (submissions.py:207).
+        // Shadowing practice (reference_text set) is excluded from the answer list.
         var query = _db.Submissions.Where(s => s.ReferenceText == null);
 
         if (user.Role == UserRole.Student)
@@ -149,7 +148,8 @@ public sealed class PracticeService
         }
         else if (user.Role == UserRole.Teacher)
         {
-            // Answers to the teacher's OWN questions AND only from their own roster (submissions.py:213-223).
+            // Answers to the teacher's OWN questions AND only from their own roster — both
+            // conditions apply; neither alone grants visibility.
             var roster = _db.GroupMembers
                 .Where(gm => gm.Group.TeacherId == user.Id)
                 .Select(gm => gm.StudentId);
@@ -177,9 +177,9 @@ public sealed class PracticeService
     }
 
     /// <summary>
-    /// Attempt status/detail, a port of <c>get_submission</c> (submissions.py:255-274). Anyone may
-    /// read their OWN attempt; a student may read only their own; a teacher only their own students'
-    /// answers to their own questions. Missing → 404 (never leaks existence).
+    /// Attempt status/detail. Anyone may read their OWN attempt; a student may read only their own;
+    /// a teacher only their own students' answers to their own questions. Missing OR not visible
+    /// → 404 (never leaks existence).
     /// </summary>
     public async Task<GetResult> GetAsync(Guid userId, Guid submissionId, CancellationToken ct = default)
     {
@@ -194,10 +194,10 @@ public sealed class PracticeService
         if (submission is null)
             return new GetResult(GetStatus.NotFound);
 
-        // Visibility, mirroring get_submission (submissions.py:267-273): the owner always may read
-        // it (incl. a teacher/admin's own shadowing practice, which has no question and would trip
-        // the roster check below); a student reads only their own; a teacher only their own
-        // students' answers to their own questions.
+        // Visibility: the owner always may read their own attempt — this ownership check must come
+        // FIRST, because a teacher/admin's own shadowing practice has no question and would
+        // otherwise trip the roster check below. Beyond that, a student reads only their own; a
+        // teacher only their own students' answers to their own questions.
         var visible =
             submission.StudentId == user.Id
             || (user.Role != UserRole.Student
@@ -210,17 +210,82 @@ public sealed class PracticeService
     }
 
     /// <summary>
-    /// Module-path reachability for one task (submissions.py can_reach → access.py:37-51). Reuses
-    /// <see cref="CatalogService.StudentTeacherIdsAsync"/> for the teacher-ids lookup so the group
-    /// membership query is not duplicated.
+    /// One attempt's FULL detail (audio + transcript + AI evaluation) for the student result screen.
+    /// Same visibility rule as <see cref="GetAsync"/>. The audio is presigned only while it survives
+    /// (the retention job sets <c>AudioDeletedAt</c> after 90 days, keeping the row + transcript +
+    /// scores) — a purged attempt returns <c>AudioExpired = true</c> and a null URL.
+    /// </summary>
+    public async Task<AttemptDetailResult> GetDetailAsync(Guid userId, Guid submissionId, CancellationToken ct = default)
+    {
+        var user = await _db.Users.FirstOrDefaultAsync(u => u.Id == userId, ct);
+        if (user is null || !user.IsActive)
+            return new AttemptDetailResult(GetStatus.Unauthorized);
+
+        var sub = await _db.Submissions
+            .Include(s => s.Question)
+            .Include(s => s.Evaluation)
+            .Include(s => s.Transcript)
+            .FirstOrDefaultAsync(s => s.Id == submissionId, ct);
+        if (sub is null)
+            return new AttemptDetailResult(GetStatus.NotFound);
+
+        var visible =
+            sub.StudentId == user.Id
+            || (user.Role != UserRole.Student
+                && !(user.Role == UserRole.Teacher && await TeacherDeniedAsync(user.Id, sub, ct)));
+        if (!visible)
+            return new AttemptDetailResult(GetStatus.NotFound);                 // never leaks existence
+
+        var expired = sub.AudioDeletedAt is not null;
+        var audioUrl = expired ? null : await _storage.GetPresignedUrlAsync(sub.AudioKey, ct: ct);
+
+        var e = sub.Evaluation;
+        var band = e is not null
+            ? Math.Clamp((int)Math.Round(e.OverallBand, MidpointRounding.AwayFromZero), 0, 100)
+            : (int?)null;
+
+        var detail = new AttemptDetailResponse(
+            Id: sub.Id,
+            Status: sub.Status.ToString().ToLowerInvariant(),
+            CreatedAt: sub.CreatedAt,
+            CompletedAt: sub.CompletedAt,
+            QuestionTitle: sub.Question?.Title,
+            QuestionTopic: sub.Question?.Topic,
+            QuestionLevel: sub.Question?.Level,
+            ReferenceText: sub.ReferenceText,
+            ModelAnswerText: sub.ModelAnswerText ?? sub.Question?.ModelAnswerText,
+            AudioUrl: audioUrl,
+            AudioDurationSec: sub.AudioDurationSec,
+            AudioExpired: expired,
+            Transcript: sub.Transcript?.Text,
+            Band: band,
+            OverallBand: e?.OverallBand,
+            FluencyScore: e?.FluencyScore,
+            LexicalScore: e?.LexicalScore,
+            GrammarScore: e?.GrammarScore,
+            PronunciationScore: e?.PronunciationScore,
+            RelevanceScore: e?.RelevanceScore,
+            Feedback: e?.Feedback,
+            Corrections: e?.Corrections,
+            TeacherBand: sub.TeacherBand,
+            TeacherComment: sub.TeacherComment,
+            ReviewedAt: sub.ReviewedAt);
+
+        return new AttemptDetailResult(GetStatus.Ok, detail);
+    }
+
+    /// <summary>
+    /// Module-path reachability for one task: can this student open it through the published
+    /// catalog at all? Reuses <see cref="CatalogService.StudentTeacherIdsAsync"/> for the
+    /// teacher-ids lookup so the group membership query is not duplicated.
     /// </summary>
     private async Task<bool> CanReachAsync(User student, Question q, CancellationToken ct)
     {
         if (q.BlockId is null)
-            return false;                                                   // access.py:48-49
+            return false;                                                   // a task with no module is unreachable
         var block = await _db.QuestionBlocks.FirstOrDefaultAsync(b => b.Id == q.BlockId.Value, ct);
         if (block is null || !block.IsPublished)
-            return false;                                                   // access.py:39-40
+            return false;                                                   // unpublished modules hide their tasks
         if (block.Visibility == "public")
             return true;                                                    // official public curriculum
         var teacherIds = await _catalog.StudentTeacherIdsAsync(student.Id, ct);
@@ -229,7 +294,7 @@ public sealed class PracticeService
 
     /// <summary>
     /// A teacher may view an attempt only if it answers their OWN question AND the student is in
-    /// their roster. Port of <c>_teacher_denied</c> (submissions.py:241-252).
+    /// their roster. Returns true when EITHER condition fails, i.e. when the view must be denied.
     /// </summary>
     private async Task<bool> TeacherDeniedAsync(Guid teacherId, Submission sub, CancellationToken ct)
     {
@@ -240,12 +305,15 @@ public sealed class PracticeService
         return !inRoster;
     }
 
-    // Presign the audio URL (local SigV4 signing — no network), then project. Mirrors _to_out
-    // (submissions.py:67-80): audio_url + denormalized student/question labels.
+    // Presign the audio URL (local SigV4 signing — no network), then project: the wire shape
+    // carries audio_url plus denormalized student/question labels so clients need no extra fetch.
     private async Task<SubmissionResponse> ToResponseAsync(
         Submission sub, User? student, Question? question, CancellationToken ct)
     {
-        var audioUrl = await _storage.GetPresignedUrlAsync(sub.AudioKey, ct: ct);
+        // Don't hand out a URL for audio the retention job has purged (the object is gone).
+        var audioUrl = sub.AudioDeletedAt is not null
+            ? null
+            : await _storage.GetPresignedUrlAsync(sub.AudioKey, ct: ct);
         return Project(sub, student, question, audioUrl);
     }
 
@@ -266,7 +334,7 @@ public sealed class PracticeService
             QuestionTitle: question?.Title,
             QuestionTopic: question?.Topic,
             QuestionLevel: question?.Level,
-            // Prefer the fresh per-attempt exemplar; fall back to the question's stored one (submissions.py:77-79).
+            // Prefer the fresh per-attempt exemplar; fall back to the question's stored one.
             ModelAnswerText: sub.ModelAnswerText ?? question?.ModelAnswerText,
             TeacherComment: sub.TeacherComment,
             TeacherBand: sub.TeacherBand,
@@ -285,3 +353,6 @@ public sealed record SubmitResult(SubmitStatus Status, SubmissionResponse? Submi
 public enum GetStatus { Ok, Unauthorized, NotFound }
 
 public sealed record GetResult(GetStatus Status, SubmissionResponse? Submission = null);
+
+/// <summary>Outcome of <see cref="PracticeService.GetDetailAsync"/> (reuses <see cref="GetStatus"/>).</summary>
+public sealed record AttemptDetailResult(GetStatus Status, AttemptDetailResponse? Detail = null);

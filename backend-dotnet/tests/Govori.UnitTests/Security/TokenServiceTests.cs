@@ -7,16 +7,16 @@ namespace Govori.UnitTests.Security;
 
 /// <summary>
 /// Drives the PRODUCTION TokenService. Two obligations:
-///   1. Tokens it mints have exactly Python's shape (sub/type/iat/exp; never
+///   1. Tokens it mints have exactly the pinned shape (sub/type/iat/exp; never
 ///      iss/aud/jti/role) and round-trip through Decode.
-///   2. Its key handling is byte-compatible with the Python-minted fixtures —
+///   2. Its key handling is byte-compatible with the frozen golden token vectors —
 ///      tokens in users' browsers today must still validate at cutover.
 /// </summary>
 public class TokenServiceTests
 {
     private static readonly JwtFixture Fx = Fixtures.Load<JwtFixture>("jwt_vectors.json");
 
-    // The four claims Python emits; and the ones that must NEVER appear.
+    // The four claims a token must carry; and the ones that must NEVER appear.
     private static readonly string[] RequiredClaims = { "sub", "type", "iat", "exp" };
     private static readonly string[] ForbiddenClaims = { "iss", "aud", "jti", "role" };
 
@@ -66,7 +66,7 @@ public class TokenServiceTests
         var claims = svc.Decode(svc.CreateEmailVerifyToken("User@Example.COM"));
 
         Assert.NotNull(claims);
-        Assert.Equal("user@example.com", claims!["sub"]);   // Python: email.lower()
+        Assert.Equal("user@example.com", claims!["sub"]);   // the subject is lowercased
         Assert.Equal("email_verify", claims["type"]);
         AssertClaimShape(claims);
     }
@@ -92,12 +92,13 @@ public class TokenServiceTests
         Assert.Null(svc.Decode("not.a.jwt"));
     }
 
-    // ----- (2) key compatibility with the Python fixtures -----
+    // ----- (2) key compatibility with the frozen golden token vectors -----
 
     /// <summary>
-    /// Validation params identical to TokenService.Decode (raw-UTF-8 key,
-    /// ValidateIssuer/Audience=false, ClockSkew=Zero) but with lifetime
-    /// disabled, because the checked-in fixture tokens are already expired.
+    /// Validation params identical to TokenService.Decode — ⚠ the key is the RAW
+    /// UTF-8 BYTES of the secret, never base64-decoded — plus
+    /// ValidateIssuer/Audience=false and ClockSkew=Zero. Only lifetime validation
+    /// is disabled, because the checked-in golden tokens are long expired.
     /// </summary>
     private static TokenValidationParameters FixtureParams() => new()
     {
@@ -118,10 +119,10 @@ public class TokenServiceTests
     }
 
     [Fact]
-    public void TokenService_key_handling_reads_every_Python_minted_token()
+    public void TokenService_key_handling_reads_every_golden_token()
     {
         // Constructing a TokenService with the fixture secret proves its key
-        // derivation (raw UTF-8) is the same one that reads the Python tokens.
+        // derivation (RAW UTF-8 bytes) is the same one that reads the golden tokens.
         _ = NewService(Fx.TestSecret);
 
         var handler = new JwtSecurityTokenHandler();
@@ -143,8 +144,8 @@ public class TokenServiceTests
     public void A_TokenService_built_with_the_fixture_secret_mints_tokens_those_params_accept()
     {
         // Closes the loop: a token minted by TokenService(test_secret) validates
-        // under the very same params that read the Python fixtures → identical
-        // key handling on both the read and write path.
+        // under the very same params that read the golden vectors → identical
+        // key handling on both the read and the write path.
         var svc = NewService(Fx.TestSecret);
         var minted = svc.CreateAccessToken("33333333-3333-3333-3333-333333333333");
 

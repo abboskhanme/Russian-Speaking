@@ -1,0 +1,109 @@
+/* ModuleCompleteScreen (D3) — the module "done" celebration. Composed from
+ * shared/ui + widgets + tokens; every colour / space / radius value is a token.
+ * Full-width per docs/04 §4.10 — the root spans its column with no max-width +
+ * auto-margin centring; inner blocks align with flex/grid. */
+
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-6);
+  width: 100%;
+}
+
+/* ---- Celebration ---- */
+.hero {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--s-2);
+  width: 100%;
+  text-align: center;
+  padding-top: var(--s-2);
+}
+.title {
+  margin-top: var(--s-3);
+}
+
+/* ---- Stat cells ---- */
+.statGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--s-3);
+  width: 100%;
+}
+
+/* ---- Certificate card (decorative) ---- */
+.certCard {
+  display: flex;
+  align-items: center;
+  gap: var(--s-4);
+  width: 100%;
+}
+.certIcon {
+  display: grid;
+  place-items: center;
+  width: 48px;
+  height: 48px;
+  flex: none;
+  border-radius: var(--r-pill);
+  background: var(--warn-tint);
+  font-size: 26px;
+  line-height: 1;
+}
+.certBody {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-1);
+}
+.certBtn {
+  flex: none;
+}
+
+/* ---- Next module ---- */
+.nextSection {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+}
+.nextLabel {
+  margin-bottom: var(--s-2);
+}
+.nextCard {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  width: 100%;
+}
+.nextInfo {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-1);
+}
+.nextLock {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  flex: none;
+  border-radius: var(--r-pill);
+  background: var(--surface-3);
+  color: var(--faint);
+}
+.nextCta {
+  margin-top: var(--s-4);
+}
+
+.allDone {
+  padding-block: var(--s-6);
+}
+
+/* ---- Header back button ---- */
+.back {
+  display: inline-grid;
+  place-items: center;
+  padding-inline: var(--s-2);
+}

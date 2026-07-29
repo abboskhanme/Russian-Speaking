@@ -1,13 +1,20 @@
-import type { ReactNode } from "react";
+import { useCallback, useId, useRef, useState, type ChangeEvent } from "react";
 import { useTranslation } from "react-i18next";
-import { Badge, Button, Card, Text, VisuallyHidden, cx } from "../../shared/ui";
-import { AppShell, Brand, ThemeToggle, studentNavItems } from "../../widgets";
+import { isApiError } from "../../shared/api";
+import { Badge, Card, Spinner, Tabs, Text, VisuallyHidden } from "../../shared/ui";
+import { AppShell, Brand, NotificationsBell, studentNavItems } from "../../widgets";
 import type { NavItem, ThemeMode } from "../../widgets";
+import { InfoTab } from "./tabs/InfoTab";
+import type { InfoTabProps } from "./tabs/InfoTab";
+import { ResultsTab } from "./tabs/ResultsTab";
+import { SettingsTab } from "./tabs/SettingsTab";
 import {
-  mockLanguage,
-  mockPremium,
+  mockGroup,
+  mockLinks,
+  mockProfileAchievements,
   mockProfileUser,
-  mockSettings,
+  mockResults,
+  mockStats,
 } from "./profile.mock";
 import styles from "./ProfileScreen.module.css";
 
@@ -15,66 +22,133 @@ import styles from "./ProfileScreen.module.css";
 /* Public contract                                                            */
 /* -------------------------------------------------------------------------- */
 
+/** The three inner places of Profil: Ma'lumot · Natijalar · Sozlamalar. */
+export type ProfileTabKey = "info" | "results" | "settings";
+
+/** The three UI languages offered (docs/04 §4.7 — onboarding step 1). */
+export type AppLanguage = "uz" | "ru" | "en";
+
 export interface ProfileUser {
   /** Display name (e.g. "Aziz Karimov"). */
   name: string;
-  /** Account email — the muted identity line. */
-  email: string;
-  /** CEFR level badge (e.g. "A2"). Hidden when omitted. */
-  level?: string;
-  /** Human level caption (e.g. "boshlang'ich") shown beside the level. */
-  levelLabel?: string;
+  /** The real phone the account was created with. Null on legacy rows. */
+  phone: string | null;
+  /** Registration "Manzil" region (e.g. "Toshkent shahri"). */
+  region: string | null;
+  /** Registration "Manzil" district inside {@link region} (e.g. "Chilonzor
+   * tumani"). Null until the address step or the Ma'lumot edit dialog sets it. */
+  district: string | null;
+  /** CEFR level badge (e.g. "A2"). Hidden when null — see `levelLabel`. */
+  level: string | null;
+  /** Human level caption (e.g. "boshlang'ich"), null exactly when `level` is. */
+  levelLabel: string | null;
+  /** Account creation timestamp, ISO-8601 — the "Ro'yxatdan o'tgan" row. */
+  registeredAt: string;
   /** Avatar image URL. Falls back to initials derived from `name`. */
   avatarUrl?: string;
   /** Verified account — shows a success check beside the name. */
   verified?: boolean;
 }
 
-export interface ProfilePremium {
-  /** Whether the student is on a paid plan. */
-  active: boolean;
-  /** Plan name shown when `active` (default "Premium"). */
-  planLabel?: string;
-  /**
-   * Free-plan attempts remaining (freemium: 3 free attempts). Shown in the
-   * free-plan caption when provided.
-   */
-  attemptsLeft?: number;
-  /** Renewal / validity caption shown when `active` (e.g. "1-avgustgacha"). */
-  renewsLabel?: string;
+/** The student's group, or null when they learn independently. */
+export interface ProfileGroup {
+  /** Group name as shown in the tile (e.g. "B1 · Kechki-3"). */
+  name: string;
+  teacherName: string | null;
+  memberCount: number;
 }
 
-/** The three UI languages offered (docs/04 §4.7 — onboarding step 1). */
-export type AppLanguage = "uz" | "ru" | "en";
+/** The "Natijalar" tiles + the headline XP total. */
+export interface ProfileStats {
+  attempts: number;
+  /** Average band 0–100, or null before the first graded attempt. */
+  avgBand: number | null;
+  currentStreak: number;
+  /** Total practice seconds; rendered as hours to 1dp ("6.4 soat"). */
+  totalPracticeSec: number;
+  /** Lifetime XP — the headline gamification number, shown as the XP banner. */
+  xp: number;
+}
 
-/** Editable rows that route to a dedicated editor via `onEditSetting`. */
-export type ProfileSettingKey = "dailyGoal" | "notifications";
+/** One row of "SO'NGGI NATIJALAR". */
+export interface ProfileResult {
+  id: string;
+  title: string;
+  band: number;
+  createdAt: string;
+  /** Direction versus the chronologically previous graded attempt. */
+  trend: "up" | "down" | "flat";
+}
 
-export interface ProfileSettings {
-  /** Daily practice goal, in minutes (5 / 10 / 20 — docs/04 §4.7). */
-  dailyGoalMinutes: number;
-  /** Whether reminder notifications are enabled. */
-  notifications: boolean;
+/** One "YUTUQLAR" tile. `key` indexes the title in the locale files. */
+export interface ProfileAchievement {
+  key: string;
+  progress: number;
+  target: number;
+  unlocked: boolean;
+}
+
+/** Outbound Telegram links behind the "Yordam markazi" sheet. */
+export interface ProfileLinks {
+  tgSupportUrl: string;
+  tgChannelUrl: string;
 }
 
 export interface ProfileScreenProps {
   user: ProfileUser;
-  premium: ProfilePremium;
-  /** The currently selected UI language. */
+  /** Null → the group block is replaced by an "independent learner" state. */
+  group: ProfileGroup | null;
+  stats: ProfileStats;
+  results: ProfileResult[];
+  achievements: ProfileAchievement[];
   language: AppLanguage;
-  settings: ProfileSettings;
-  /** Pick a UI language (uz / ru / en). */
+  theme: ThemeMode;
+  notifications: boolean;
+  /** Premium subscribers are never shown the Pro upsell card. */
+  isPremium: boolean;
+  /** Null while `/api/settings/links` is still in flight. */
+  links: ProfileLinks | null;
+  /**
+   * Controlled tab selection. Omit both this and `onChangeTab` to let the
+   * screen own the choice internally (the usual case).
+   */
+  activeTab?: ProfileTabKey;
+  onChangeTab?: (key: ProfileTabKey) => void;
+  onLeaveGroup?: () => void;
+  /** Natijalar tab — open one attempt's detail (submission id). */
+  onOpenResult?: (id: string) => void;
+  /** Natijalar tab — open the full "Barcha natijalar" history. */
+  onSeeAllResults?: () => void;
+  /**
+   * Ma'lumot tab — persist the edited name + viloyat + tuman, then refresh the
+   * user. Omit it and the tab renders read-only (no "Tahrirlash" control).
+   * See {@link InfoTabProps.onSaveInfo} for the reject-to-report contract.
+   */
+  onSaveInfo?: InfoTabProps["onSaveInfo"];
+  /** Ma'lumot tab — phone change step 1 (send a code to the NEW number). Must
+   * be supplied together with {@link onConfirmPhoneChange}. */
+  onRequestPhoneChange?: InfoTabProps["onRequestPhoneChange"];
+  /** Ma'lumot tab — phone change step 2 (confirm the Telegram-delivered code). */
+  onConfirmPhoneChange?: InfoTabProps["onConfirmPhoneChange"];
+  /**
+   * Identity-card avatar — upload/replace the account photo from the picked file.
+   * Omit it and the identity card renders read-only (no camera badge). The screen
+   * stays presentational: ProfilePage owns the request + the auth-user refresh, so
+   * a rejection (e.g. a server 400) must propagate for the card to show it inline.
+   */
+  onChangeAvatar?: (file: File) => Promise<void>;
+  /** Identity-card avatar — remove the current photo. Only offered when the user
+   * has an avatar. Like {@link onChangeAvatar}, rejections propagate to the card. */
+  onRemoveAvatar?: () => Promise<void>;
   onChangeLanguage?: (language: AppLanguage) => void;
-  /** Start the upgrade flow (only reachable on the free plan). */
+  onChangeTheme?: (theme: ThemeMode) => void;
+  onChangeNotifications?: (on: boolean) => void;
+  /** Start the upgrade flow (only reachable off the Pro card). */
   onUpgrade?: () => void;
-  /** Open the editor for a settings row (daily goal / notifications). */
-  onEditSetting?: (key: ProfileSettingKey) => void;
-  /** Sign out (the danger action). */
   onLogout?: () => void;
   /** Active nav key (defaults to "profile"). */
   activeNavKey?: string;
   onNavigate?: (key: string, item: NavItem) => void;
-  onToggleTheme?: (mode: ThemeMode) => void;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -82,31 +156,73 @@ export interface ProfileScreenProps {
 /* -------------------------------------------------------------------------- */
 
 /**
- * ProfileScreen — the student's "Profil" place (docs/04 §4.9: Contact +
- * PremiumInfo folded into settings). Composed entirely from `shared/ui` +
- * `widgets` + tokens. Presentational and prop-driven: it fetches nothing and
- * owns no state.
+ * ProfileScreen — the student's "Profil" place (docs/04 §4.9), split into the
+ * three inner places the owner's mockup specifies: Ma'lumot (identity, address
+ * and group), Natijalar (stats, recent results, achievements) and Sozlamalar
+ * (preferences, the Pro upsell, help and sign-out).
  *
- * Layout is full-width (docs/04 §4.10): AppShell frame → identity card
- * (avatar · name · level · email) → premium-status card (free vs premium, with
- * an upgrade CTA when free) → language selector → settings list (daily goal ·
- * notifications · theme) → the logout danger action. Every colour / space /
- * radius / motion value is a token.
+ * The identity card sits ABOVE the tab strip and is shared by all three tabs —
+ * it scrolls away with the content rather than sticking, matching the mockup.
+ * Everything below the strip is delegated to a tab component; this file owns
+ * only the frame, the tab semantics and the prop distribution.
+ *
+ * Presentational and prop-driven: it fetches nothing and owns no server state.
+ * The single piece of state it may own is which tab is showing, and even that
+ * defers to `activeTab`/`onChangeTab` when the caller wants control. Layout is
+ * full-width (docs/04 §4.10); every colour / space / radius / motion value is
+ * a token.
  */
 export function ProfileScreen({
   user,
-  premium,
+  group,
+  stats,
+  results,
+  achievements,
   language,
-  settings,
+  theme,
+  notifications,
+  isPremium,
+  links,
+  activeTab,
+  onChangeTab,
+  onLeaveGroup,
+  onOpenResult,
+  onSeeAllResults,
+  onSaveInfo,
+  onRequestPhoneChange,
+  onConfirmPhoneChange,
+  onChangeAvatar,
+  onRemoveAvatar,
   onChangeLanguage,
+  onChangeTheme,
+  onChangeNotifications,
   onUpgrade,
-  onEditSetting,
   onLogout,
   activeNavKey = "profile",
   onNavigate,
-  onToggleTheme,
 }: ProfileScreenProps) {
   const { t } = useTranslation();
+  const panelId = useId();
+
+  // Uncontrolled by default; `activeTab` wins the moment the caller passes one.
+  const [ownTab, setOwnTab] = useState<ProfileTabKey>("info");
+  const current = activeTab ?? ownTab;
+
+  const selectTab = useCallback(
+    (key: string) => {
+      const next = key as ProfileTabKey;
+      if (activeTab === undefined) setOwnTab(next);
+      onChangeTab?.(next);
+    },
+    [activeTab, onChangeTab],
+  );
+
+  const items = [
+    { key: "info", label: t("profile.tabs.info"), panelId },
+    { key: "results", label: t("profile.tabs.results"), panelId },
+    { key: "settings", label: t("profile.tabs.settings"), panelId },
+  ];
+
   return (
     <AppShell
       brand={<Brand />}
@@ -121,72 +237,75 @@ export function ProfileScreen({
           {t("nav.profile")}
         </Text>
       }
-      headerEnd={<ThemeToggle onChange={onToggleTheme} />}
+      headerEnd={<NotificationsBell />}
     >
       <div className={styles.page}>
-        <UserCard user={user} />
+        <IdentityCard
+          user={user}
+          onChangeAvatar={onChangeAvatar}
+          onRemoveAvatar={onRemoveAvatar}
+        />
 
-        <PremiumCard premium={premium} onUpgrade={onUpgrade} />
+        <Tabs
+          items={items}
+          activeKey={current}
+          onChange={selectTab}
+          aria-label={t("nav.profile")}
+        />
 
-        <section className={styles.section} aria-label={t("profile.appLanguage")}>
-          <Text
-            as="h2"
-            variant="label"
-            color="faint"
-            className={styles.sectionLabel}
-          >
-            {t("profile.language")}
-          </Text>
-          <LanguageSelector value={language} onChange={onChangeLanguage} />
-        </section>
+        {/* One panel node reused across tabs: the tab strip is the only thing
+            that changes identity, so a single labelled region keeps assistive
+            tech oriented instead of announcing three separate landmarks. */}
+        <div
+          id={panelId}
+          role="tabpanel"
+          tabIndex={-1}
+          aria-label={t(`profile.tabs.${current}`)}
+          className={styles.panel}
+        >
+          {current === "info" && (
+            <InfoTab
+              user={{
+                name: user.name,
+                phone: user.phone,
+                region: user.region,
+                district: user.district,
+                level: user.level,
+                levelLabel: user.levelLabel,
+                registeredAt: user.registeredAt,
+              }}
+              group={group}
+              onLeaveGroup={onLeaveGroup}
+              onSaveInfo={onSaveInfo}
+              onRequestPhoneChange={onRequestPhoneChange}
+              onConfirmPhoneChange={onConfirmPhoneChange}
+            />
+          )}
 
-        <section className={styles.section} aria-label={t("profile.settings")}>
-          <Text
-            as="h2"
-            variant="label"
-            color="faint"
-            className={styles.sectionLabel}
-          >
-            {t("profile.settings")}
-          </Text>
-          <ul className={styles.settingsList}>
-            <li>
-              <SettingRow
-                tone="primary"
-                icon={<TargetGlyph />}
-                label={t("profile.dailyGoal")}
-                description={t("profile.dailyGoalDesc")}
-                value={t("units.minutes", { count: settings.dailyGoalMinutes })}
-                onEdit={() => onEditSetting?.("dailyGoal")}
-              />
-            </li>
-            <li>
-              <SettingRow
-                tone="info"
-                icon={<BellGlyph />}
-                label={t("profile.notifications")}
-                description={t("profile.notificationsDesc")}
-                value={settings.notifications ? t("profile.on") : t("profile.off")}
-                onEdit={() => onEditSetting?.("notifications")}
-              />
-            </li>
-            <li>
-              <SettingRow
-                tone="accent"
-                icon={<ContrastGlyph />}
-                label={t("profile.appearance")}
-                description={t("profile.appearanceDesc")}
-                control={<ThemeToggle onChange={onToggleTheme} />}
-              />
-            </li>
-          </ul>
-        </section>
+          {current === "results" && (
+            <ResultsTab
+              stats={stats}
+              results={results}
+              achievements={achievements}
+              onOpenResult={onOpenResult}
+              onSeeAll={onSeeAllResults}
+            />
+          )}
 
-        <div className={styles.logoutRow}>
-          <Button variant="danger" onClick={onLogout}>
-            <LogoutGlyph />
-            {t("profile.logout")}
-          </Button>
+          {current === "settings" && (
+            <SettingsTab
+              language={language}
+              theme={theme}
+              notifications={notifications}
+              isPremium={isPremium}
+              links={links}
+              onChangeLanguage={onChangeLanguage}
+              onChangeTheme={onChangeTheme}
+              onChangeNotifications={onChangeNotifications}
+              onUpgrade={onUpgrade}
+              onLogout={onLogout}
+            />
+          )}
         </div>
       </div>
     </AppShell>
@@ -194,25 +313,134 @@ export function ProfileScreen({
 }
 
 /* -------------------------------------------------------------------------- */
-/* Identity card                                                              */
+/* Identity card — shared by all three tabs                                   */
 /* -------------------------------------------------------------------------- */
 
-function UserCard({ user }: { user: ProfileUser }) {
-  const { t } = useTranslation();
-  const level = [user.level, user.levelLabel].filter(Boolean).join(" · ");
-  return (
-    <Card variant="raised" padding="lg" className={styles.userCard}>
-      <span className={styles.avatar} aria-hidden>
-        {user.avatarUrl ? (
-          <img className={styles.avatarImg} src={user.avatarUrl} alt="" />
-        ) : (
-          initials(user.name)
-        )}
-      </span>
+/** Client-side avatar guards, mirroring the server: raster only (svg is rejected
+ * as a stored-XSS vector), at most 5 MB. Enforced before upload so an obviously
+ * bad pick fails instantly; the server re-checks regardless. */
+const AVATAR_ACCEPT = "image/jpeg,image/png,image/webp";
+const AVATAR_TYPES = ["image/jpeg", "image/png", "image/webp"];
+const AVATAR_MAX_BYTES = 5 * 1024 * 1024;
 
-      <div className={styles.userMeta}>
-        <div className={styles.userNameRow}>
-          <Text as="h2" variant="title-l" truncate className={styles.userName}>
+function IdentityCard({
+  user,
+  onChangeAvatar,
+  onRemoveAvatar,
+}: {
+  user: ProfileUser;
+  onChangeAvatar?: (file: File) => Promise<void>;
+  onRemoveAvatar?: () => Promise<void>;
+}) {
+  const { t } = useTranslation();
+  const fileRef = useRef<HTMLInputElement>(null);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const editable = Boolean(onChangeAvatar);
+  const removable = Boolean(user.avatarUrl) && Boolean(onRemoveAvatar);
+
+  const openPicker = useCallback(() => {
+    setError(null);
+    fileRef.current?.click();
+  }, []);
+
+  const runAvatarError = useCallback(
+    (err: unknown): string => {
+      if (isApiError(err)) {
+        // A network failure has status 0; a server 400 carries its localised detail.
+        return err.status === 0 ? t("auth.errors.network") : err.detail || t("auth.errors.generic");
+      }
+      return t("auth.errors.generic");
+    },
+    [t],
+  );
+
+  const onFilePicked = useCallback(
+    async (e: ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0];
+      // Reset the input so re-picking the SAME file still fires `change`.
+      e.target.value = "";
+      if (!file || !onChangeAvatar) return;
+
+      setError(null);
+      if (!AVATAR_TYPES.includes(file.type)) {
+        setError(t("profile.avatar.errorType"));
+        return;
+      }
+      if (file.size > AVATAR_MAX_BYTES) {
+        setError(t("profile.avatar.errorSize"));
+        return;
+      }
+
+      setBusy(true);
+      try {
+        await onChangeAvatar(file);
+      } catch (err) {
+        setError(runAvatarError(err));
+      } finally {
+        setBusy(false);
+      }
+    },
+    [onChangeAvatar, runAvatarError, t],
+  );
+
+  const onRemove = useCallback(async () => {
+    if (!onRemoveAvatar) return;
+    setError(null);
+    setBusy(true);
+    try {
+      await onRemoveAvatar();
+    } catch (err) {
+      setError(runAvatarError(err));
+    } finally {
+      setBusy(false);
+    }
+  }, [onRemoveAvatar, runAvatarError]);
+
+  return (
+    <Card variant="raised" padding="lg" className={styles.identityCard}>
+      <div className={styles.avatarBlock}>
+        <span className={styles.avatar} aria-hidden>
+          {user.avatarUrl ? (
+            <img className={styles.avatarImg} src={user.avatarUrl} alt="" />
+          ) : (
+            initials(user.name)
+          )}
+        </span>
+
+        {busy && (
+          <span className={styles.avatarBusy}>
+            <Spinner size="sm" label={t("profile.avatar.uploading")} />
+          </span>
+        )}
+
+        {editable && (
+          <>
+            <button
+              type="button"
+              className={styles.avatarCameraBtn}
+              onClick={openPicker}
+              disabled={busy}
+              aria-label={t("profile.avatar.change")}
+            >
+              <CameraGlyph />
+            </button>
+            <input
+              ref={fileRef}
+              type="file"
+              accept={AVATAR_ACCEPT}
+              className={styles.avatarInput}
+              onChange={onFilePicked}
+              aria-label={t("profile.avatar.aria")}
+            />
+          </>
+        )}
+      </div>
+
+      <div className={styles.identityMeta}>
+        <div className={styles.identityNameRow}>
+          <Text as="h2" variant="title-l" truncate className={styles.identityName}>
             {user.name}
           </Text>
           {user.verified && (
@@ -221,213 +449,40 @@ function UserCard({ user }: { user: ProfileUser }) {
               <VisuallyHidden>{t("profile.verifiedAccount")}</VisuallyHidden>
             </span>
           )}
-          {user.level && (
-            <Badge variant="primary" size="md">
-              {user.level}
-            </Badge>
-          )}
         </div>
 
-        <Text as="p" variant="body" color="muted" truncate>
-          {user.email}
-        </Text>
-
-        {level && (
-          <Text as="p" variant="body-s" color="faint">
-            {t("profile.levelLine", { level })}
+        {user.phone && (
+          <Text as="p" variant="body" color="muted" truncate>
+            {user.phone}
           </Text>
         )}
-      </div>
-    </Card>
-  );
-}
 
-/* -------------------------------------------------------------------------- */
-/* Premium status                                                             */
-/* -------------------------------------------------------------------------- */
-
-function PremiumCard({
-  premium,
-  onUpgrade,
-}: {
-  premium: ProfilePremium;
-  onUpgrade?: () => void;
-}) {
-  const { t } = useTranslation();
-  const active = premium.active;
-  const plan = premium.planLabel ?? "Premium";
-  const caption = active
-    ? premium.renewsLabel
-      ? `${plan} · ${premium.renewsLabel}`
-      : t("profile.premiumAllOpen", { plan })
-    : premium.attemptsLeft !== undefined
-      ? t("profile.freeAttemptsLeft", { count: premium.attemptsLeft })
-      : t("profile.premiumPitch");
-
-  return (
-    <Card variant="tint" padding="lg" className={styles.premiumCard}>
-      <span className={styles.premiumIcon} aria-hidden>
-        <CrownGlyph />
-      </span>
-
-      <div className={styles.premiumBody}>
-        <div className={styles.premiumHead}>
-          <Text as="p" variant="title-s">
-            {active ? plan : t("profile.freePlan")}
-          </Text>
-          <Badge variant={active ? "success" : "neutral"} size="md">
-            {active ? t("profile.active") : t("profile.free")}
-          </Badge>
-        </div>
-
-        <Text as="p" variant="body-s" color="ink-soft">
-          {caption}
-        </Text>
-
-        {!active && (
-          <div className={styles.premiumActions}>
-            <Button variant="primary" onClick={onUpgrade}>
-              {t("profile.upgrade")}
-            </Button>
+        {(removable || error) && (
+          <div className={styles.avatarActions}>
+            {removable && (
+              <button
+                type="button"
+                className={styles.avatarRemoveBtn}
+                onClick={onRemove}
+                disabled={busy}
+              >
+                {t("profile.avatar.remove")}
+              </button>
+            )}
+            {error && (
+              <Text as="p" variant="body-s" color="danger" className={styles.avatarError} role="alert">
+                {error}
+              </Text>
+            )}
           </div>
         )}
       </div>
-    </Card>
-  );
-}
 
-/* -------------------------------------------------------------------------- */
-/* Language selector (presentational single-select)                           */
-/* -------------------------------------------------------------------------- */
-
-interface LanguageMeta {
-  code: AppLanguage;
-  /** Endonym (the language's own name). */
-  native: string;
-  /** Short latin caption. */
-  caption: string;
-}
-
-const LANGUAGES: LanguageMeta[] = [
-  { code: "uz", native: "O'zbekcha", caption: "Uzbek" },
-  { code: "ru", native: "Русский", caption: "Russian" },
-  { code: "en", native: "English", caption: "English" },
-];
-
-function LanguageSelector({
-  value,
-  onChange,
-}: {
-  value: AppLanguage;
-  onChange?: (language: AppLanguage) => void;
-}) {
-  const { t } = useTranslation();
-  return (
-    <div className={styles.langGroup} role="group" aria-label={t("profile.appLanguage")}>
-      {LANGUAGES.map((lang) => {
-        const selected = lang.code === value;
-        return (
-          <button
-            key={lang.code}
-            type="button"
-            className={cx(styles.langOption, selected && styles.langOptionActive)}
-            aria-pressed={selected}
-            onClick={() => onChange?.(lang.code)}
-          >
-            <Text as="span" variant="title-s">
-              {lang.native}
-            </Text>
-            <Text as="span" variant="body-s" color="muted">
-              {lang.caption}
-            </Text>
-          </button>
-        );
-      })}
-    </div>
-  );
-}
-
-/* -------------------------------------------------------------------------- */
-/* Settings row                                                               */
-/* -------------------------------------------------------------------------- */
-
-type SettingTone = "primary" | "info" | "accent";
-
-interface SettingRowProps {
-  tone: SettingTone;
-  icon: ReactNode;
-  label: string;
-  description?: string;
-  /** Current value caption (shown before the chevron on editable rows). */
-  value?: string;
-  /** Makes the whole row a button that opens the editor. */
-  onEdit?: () => void;
-  /** A trailing control (e.g. ThemeToggle) — the row is then static, not a button. */
-  control?: ReactNode;
-}
-
-const SETTING_TONE: Record<SettingTone, string> = {
-  primary: styles.settingIconPrimary,
-  info: styles.settingIconInfo,
-  accent: styles.settingIconAccent,
-};
-
-function SettingRow({
-  tone,
-  icon,
-  label,
-  description,
-  value,
-  onEdit,
-  control,
-}: SettingRowProps) {
-  const inner = (
-    <>
-      <span className={cx(styles.settingIcon, SETTING_TONE[tone])} aria-hidden>
-        {icon}
-      </span>
-
-      <span className={styles.settingText}>
-        <Text as="span" variant="title-s">
-          {label}
-        </Text>
-        {description && (
-          <Text as="span" variant="body-s" color="muted">
-            {description}
-          </Text>
-        )}
-      </span>
-
-      {control ? (
-        <span className={styles.settingControl}>{control}</span>
-      ) : (
-        <span className={styles.settingValue}>
-          {value && (
-            <Text as="span" variant="body" color="ink-soft" weight="semibold">
-              {value}
-            </Text>
-          )}
-          <ChevronGlyph />
-        </span>
+      {user.level && (
+        <Badge variant="primary" size="md" className={styles.identityLevel}>
+          {user.level}
+        </Badge>
       )}
-    </>
-  );
-
-  // A trailing interactive control (theme toggle) keeps the row static so the
-  // control is the only tap target — never a button nested in a button.
-  if (onEdit && !control) {
-    return (
-      <Card variant="outline" padding="md" interactive asChild>
-        <button type="button" className={styles.settingRow} onClick={onEdit}>
-          {inner}
-        </button>
-      </Card>
-    );
-  }
-
-  return (
-    <Card variant="outline" padding="md" className={styles.settingRow}>
-      {inner}
     </Card>
   );
 }
@@ -460,126 +515,16 @@ function CheckGlyph() {
   );
 }
 
-function CrownGlyph() {
+function CameraGlyph() {
   return (
-    <svg
-      className={styles.glyph}
-      width="24"
-      height="24"
-      viewBox="0 0 24 24"
-      aria-hidden
-    >
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden>
       <path
-        d="M4 8l4 4 4-6 4 6 4-4v9a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1z"
-        fill="currentColor"
-      />
-    </svg>
-  );
-}
-
-function TargetGlyph() {
-  return (
-    <svg
-      className={styles.glyph}
-      width="20"
-      height="20"
-      viewBox="0 0 24 24"
-      fill="none"
-      aria-hidden
-    >
-      <circle cx="12" cy="12" r="8" stroke="currentColor" strokeWidth="1.9" />
-      <circle cx="12" cy="12" r="3.4" stroke="currentColor" strokeWidth="1.9" />
-    </svg>
-  );
-}
-
-function BellGlyph() {
-  return (
-    <svg
-      className={styles.glyph}
-      width="20"
-      height="20"
-      viewBox="0 0 24 24"
-      fill="none"
-      aria-hidden
-    >
-      <path
-        d="M6 16V10a6 6 0 0 1 12 0v6l1.5 2.5H4.5z"
+        d="M4.5 8.5a2 2 0 0 1 2-2h1l1-1.6a1.4 1.4 0 0 1 1.2-.65h4.6a1.4 1.4 0 0 1 1.2.65l1 1.6h1a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2h-13a2 2 0 0 1-2-2z"
         stroke="currentColor"
         strokeWidth="1.8"
         strokeLinejoin="round"
       />
-      <path
-        d="M10 19.5a2 2 0 0 0 4 0"
-        stroke="currentColor"
-        strokeWidth="1.8"
-        strokeLinecap="round"
-      />
-    </svg>
-  );
-}
-
-function ContrastGlyph() {
-  return (
-    <svg
-      className={styles.glyph}
-      width="20"
-      height="20"
-      viewBox="0 0 24 24"
-      fill="none"
-      aria-hidden
-    >
-      <circle cx="12" cy="12" r="8.2" stroke="currentColor" strokeWidth="1.9" />
-      <path d="M12 3.8v16.4a8.2 8.2 0 0 0 0-16.4z" fill="currentColor" />
-    </svg>
-  );
-}
-
-function ChevronGlyph() {
-  return (
-    <svg
-      className={styles.chevron}
-      width="18"
-      height="18"
-      viewBox="0 0 24 24"
-      fill="none"
-      aria-hidden
-    >
-      <path
-        d="M9 6l6 6-6 6"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
-  );
-}
-
-function LogoutGlyph() {
-  return (
-    <svg
-      className={styles.glyph}
-      width="18"
-      height="18"
-      viewBox="0 0 24 24"
-      fill="none"
-      aria-hidden
-    >
-      <path
-        d="M15 8V6a1 1 0 0 0-1-1H6a1 1 0 0 0-1 1v12a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1v-2"
-        stroke="currentColor"
-        strokeWidth="1.9"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-      <path
-        d="M10 12h9m0 0-3-3m3 3-3 3"
-        stroke="currentColor"
-        strokeWidth="1.9"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
+      <circle cx="12" cy="12.5" r="3.2" stroke="currentColor" strokeWidth="1.8" />
     </svg>
   );
 }
@@ -590,19 +535,21 @@ function LogoutGlyph() {
 
 /**
  * ProfileScreenDemo — drop-in standalone preview wired to the mock fixture, so
- * the Profile screen renders end-to-end with no backend.
+ * all three Profile tabs render end-to-end with no backend.
  */
 export default function ProfileScreenDemo() {
   return (
     <ProfileScreen
       user={mockProfileUser}
-      premium={mockPremium}
-      language={mockLanguage}
-      settings={mockSettings}
-      onChangeLanguage={() => undefined}
-      onUpgrade={() => undefined}
-      onEditSetting={() => undefined}
-      onLogout={() => undefined}
+      group={mockGroup}
+      stats={mockStats}
+      results={mockResults}
+      achievements={mockProfileAchievements}
+      language="uz"
+      theme="light"
+      notifications
+      isPremium={false}
+      links={mockLinks}
       onNavigate={() => undefined}
     />
   );

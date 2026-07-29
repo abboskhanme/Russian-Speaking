@@ -1,0 +1,248 @@
+/* SettingsTab — the "Sozlamalar" tab body (docs/04 §4.9).
+ * Every colour / space / radius / shadow / motion value is a token. Full-width
+ * per docs/04 §4.10: the root spans its column with no max-width + auto-margin
+ * centring; inner blocks align with flex, never a centred narrow wrapper. */
+
+.tab {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-6);
+  width: 100%;
+}
+
+/* ---- Grouped row card ---- */
+
+/* Rows run edge to edge, so the card clips them to its own radius. That clips
+   an outward focus ring too — rows draw theirs inward (see .row:focus-visible). */
+.group {
+  overflow: hidden;
+}
+
+.groupList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+/* Hairline between rows only — never after the last one. */
+.groupItem + .groupItem {
+  border-top: 1.5px solid var(--line);
+}
+
+.row {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  padding: var(--s-4);
+  text-align: start;
+  background: transparent;
+  border: 0;
+  color: var(--ink);
+  font: inherit;
+  transition: background-color var(--m-instant);
+}
+
+button.row {
+  cursor: pointer;
+}
+
+button.row:hover {
+  background: var(--surface-2);
+}
+
+button.row:active {
+  background: var(--surface-3);
+}
+
+button.row:focus-visible {
+  outline: var(--focus-ring-width) solid var(--focus-ring);
+  /* Inward, so the clipping .group cannot swallow the ring. */
+  outline-offset: calc(var(--focus-ring-offset) * -1);
+}
+
+.rowIcon {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  flex: none;
+  border-radius: var(--r-sm);
+}
+
+.rowIconPrimary {
+  background: var(--primary-tint);
+  color: var(--primary);
+}
+.rowIconAccent {
+  background: var(--accent-tint);
+  color: var(--accent);
+}
+.rowIconInfo {
+  background: var(--info-tint);
+  color: var(--info);
+}
+.rowIconDanger {
+  background: var(--danger-tint);
+  color: var(--danger);
+}
+
+.rowLabel {
+  flex: 1;
+  min-width: 0;
+}
+
+.rowValue {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  flex: none;
+  color: var(--muted);
+}
+
+.rowControl {
+  display: flex;
+  align-items: center;
+  flex: none;
+}
+
+/* ---- PRO upsell (free plan only) ---- */
+
+.proCard {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-3);
+  border-color: var(--primary);
+  background: var(--surface);
+}
+
+/* Straddles the top border, as in the mockup. */
+.proBadge {
+  position: absolute;
+  top: 0;
+  left: var(--s-5);
+  transform: translateY(-50%);
+}
+
+/* ---- Modal bodies ---- */
+
+.sheetBody {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-3);
+}
+
+/* ---- Option list (til / mavzu) ---- */
+
+.options {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+}
+
+.option {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  width: 100%;
+  padding: var(--s-3) var(--s-4);
+  text-align: start;
+  background: var(--surface);
+  border: 1.5px solid var(--line);
+  border-radius: var(--r-md);
+  color: var(--ink);
+  font: inherit;
+  cursor: pointer;
+  transition:
+    border-color var(--m-instant),
+    background-color var(--m-instant),
+    color var(--m-instant);
+}
+
+.option:hover {
+  border-color: var(--line-2);
+}
+
+.option:focus-visible {
+  outline: var(--focus-ring-width) solid var(--focus-ring);
+  outline-offset: var(--focus-ring-offset);
+}
+
+/* Colour is a reinforcement here, not the signal: the check mark carries it
+   visually and aria-checked carries it to assistive tech. */
+.optionSelected {
+  border-color: var(--primary);
+  background: var(--primary-tint);
+  color: var(--primary);
+}
+
+.optionLabel {
+  flex: 1;
+  min-width: 0;
+}
+
+.optionCheck {
+  display: grid;
+  place-items: center;
+  flex: none;
+  color: var(--primary);
+}
+
+/* ---- Help links ---- */
+
+.linkList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+  margin-top: var(--s-1);
+}
+
+.linkRow {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  padding: var(--s-3);
+  border: 1.5px solid var(--line);
+  border-radius: var(--r-md);
+  background: var(--surface);
+  color: var(--ink);
+  text-decoration: none;
+  transition:
+    border-color var(--m-instant),
+    background-color var(--m-instant);
+}
+
+a.linkRow:hover {
+  border-color: var(--line-2);
+  background: var(--surface-2);
+}
+
+a.linkRow:focus-visible {
+  outline: var(--focus-ring-width) solid var(--focus-ring);
+  outline-offset: var(--focus-ring-offset);
+}
+
+/* Links not loaded yet: visibly inert, no dead href. */
+.linkRowDisabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.linkArrow {
+  display: grid;
+  place-items: center;
+  flex: none;
+  margin-inline-start: auto;
+}
+
+/* ---- Inline glyphs ---- */
+
+.glyph {
+  display: block;
+}
+
+.chevron {
+  display: block;
+  color: var(--faint);
+}

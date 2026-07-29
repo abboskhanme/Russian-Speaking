@@ -28,7 +28,7 @@ mening ishim. Halol baho:
 | Yo'qotish | Ta'sir | Yumshatish |
 |---|---|---|
 | **Gemini uchun rasmiy .NET SDK yo'q** | O'rta | Gemini REST API sodda. `IGraderProvider` ortiga yashiriladi (A4 qarori baribir shuni talab qiladi). |
-| Azure Speech SDK Linux'da native kutubxona talab qiladi | Past | Docker image'ga `libasound2`, `libssl3`, `ca-certificates` — hozirgi Python image'da ham xuddi shu. |
+| Azure Speech SDK Linux'da native kutubxona talab qiladi | Past | Docker image'ga `libasound2`, `libssl3`, `ca-certificates` qo'shiladi. |
 | **9 398 qator yetuk Python qayta yoziladi** | **Yuqori** | Faza 1 — *characterization testlar*. Bu yagona himoya. §7.6 |
 | `resume-from-transcript`, breaker, scoring — auditda "yetuk muhandislik" deb baholangan | **Yuqori** | Ular **qayta o'ylanmaydi** — bir xil semantika bilan ko'chiriladi. Testlar buni isbotlaydi. |
 
@@ -40,11 +40,11 @@ mening ishim. Halol baho:
 ## 7.2 Yechim tuzilishi
 
 ```
-backend/                        ← .NET 9 solution (eski Python `backend/` arxivga ko'chadi)
+backend-dotnet/                 ← .NET 9 solution — backend'ning yagona manbai
 ├── Govori.sln
 ├── src/
 │   ├── Govori.Api/             ASP.NET Core host · endpointlar · DI · auth · SignalR hub
-│   ├── Govori.Worker/          Hangfire host — grading pipeline (ex-Celery)
+│   ├── Govori.Worker/          Hangfire host — grading pipeline + davriy ishlar
 │   ├── Govori.Contracts/       DTO'lar → OpenAPI → frontend TS klienti
 │   ├── Govori.Domains/
 │   │   ├── Govori.Identity/        User, auth, Google, OTP, rollar
@@ -64,7 +64,7 @@ backend/                        ← .NET 9 solution (eski Python `backend/` arxi
 │   │   └── Govori.Platform.Media/     Pexels
 │   └── Govori.Infrastructure/  EF Core DbContext · migratsiyalar · repozitoriylar
 └── tests/
-    ├── Govori.Characterization/  ← Python xatti-harakatini qotiradi. FAZA 1. Eng muhim.
+    ├── Govori.Characterization/  ← muzlatilgan etalon fixture'larning egasi. Eng muhim.
     ├── Govori.UnitTests/
     ├── Govori.IntegrationTests/  Testcontainers: haqiqiy Postgres + Redis + MinIO
     ├── Govori.GoldenSet/         AI grader regressiyasi (docs/02 §2.7)
@@ -96,7 +96,7 @@ backend/                        ← .NET 9 solution (eski Python `backend/` arxi
 | Test | **xUnit + Testcontainers + WireMock.NET** | Haqiqiy Postgres, mock provider |
 | Kuzatuv | **OpenTelemetry + Serilog** | Trace: HTTP → Hangfire → Azure/Gemini |
 | Kontrakt | **OpenAPI → TS klient** (`kiota` yoki `openapi-typescript`) | Frontend tiplari backenddan |
-| Rate limit | **ASP.NET Core RateLimiter** + Redis | `core/ratelimit.py` semantikasi saqlanadi (fail-open!) |
+| Rate limit | **ASP.NET Core RateLimiter** + Redis | **fail-open**: Redis o'lsa limiter o'tkazib yuboradi, API o'lmaydi |
 
 ---
 
@@ -122,8 +122,10 @@ backend/                        ← .NET 9 solution (eski Python `backend/` arxi
 2. **`Submission` → `Attempt` renomi CUTOVER'DA QILINMAYDI.** C# da klass nomi `Attempt`
    bo'lishi mumkin, lekin `[Table("submissions")]` — jadval o'sha. Rename keyin, alohida,
    2 bosqichli migratsiya bilan (docs/02 §2.3).
-3. **Alembic tarixi saqlanadi.** EF Core baseline `c1d2e3f4a5b6` (prod head) dan boshlanadi.
-   `alembic_version` jadvaliga **tegilmaydi** — rollback uchun Python backend ishlay olishi kerak.
+3. **Sxema EF Core migratsiyalariga tegishli.** Baseline migratsiya prodda mavjud bo'lgan
+   sxemani **aynan** aks ettiradi (17 jadval), shundan keyin sxema faqat ko'rib chiqilgan
+   EF Core migratsiyasi orqali o'zgaradi. Kod (DTO, servis, endpoint) o'zgarishi
+   sxemani o'zgartirmasligi kerak — "NO SCHEMA CHANGE" izohlari shuni bildiradi.
 4. **EF Core sxemani hech qachon o'zi yaratmaydi.** `EnsureCreated()` **taqiqlanadi**.
    Faqat aniq, ko'rib chiqilgan migratsiyalar.
 5. **Har migratsiya prod dump nusxasida sinovdan o'tadi**, keyin prodda.
@@ -134,32 +136,32 @@ backend/                        ← .NET 9 solution (eski Python `backend/` arxi
 |---|---|
 | **Native PG enum'lar** (`user_role`, `question_type`, `submission_status`) | `NpgsqlDataSourceBuilder.MapEnum<UserRole>("user_role")` — nom **aynan** mos kelishi shart |
 | **`snake_case`** ustun nomlari | `EFCore.NamingConventions` → `UseSnakeCaseNamingConvention()` |
-| **JSONB** (`word_timestamps`, `pronunciation`, `feedback`, `corrections`) | `.HasColumnType("jsonb")` + `System.Text.Json`. ⚠️ Python `json` bilan bir xil serializatsiya |
+| **JSONB** (`word_timestamps`, `pronunciation`, `feedback`, `corrections`) | `.HasColumnType("jsonb")` + `System.Text.Json`. ⚠️ Serializatsiya prodda **allaqachon saqlangan** hujjat shakliga mos kelishi shart — eski qatorlar o'qilmay qolmasin |
 | **UUID PK, klient tomonda generatsiya** (`uuid.uuid4()`) | `.ValueGeneratedNever()` + C# da `Guid.CreateVersion7()` EMAS — `Guid.NewGuid()` (v4, bir xil) |
 | **TIMESTAMPTZ** | `DateTime` EMAS → **`DateTimeOffset`** yoki `DateTime` + `UtcNow`. Npgsql `Kind=Utc` talab qiladi |
-| `updated_at onupdate=now()` | Python-tomonda edi → EF Core `SaveChanges` interceptor |
+| `updated_at onupdate=now()` | Bazada emas, **ilova tomonida** qo'yiladi → EF Core `SaveChanges` interceptor |
 | `password_hash` **nullable** (Google akkauntlar) | Login'da `null` tekshiruvi **verify'dan oldin** — aks holda zaiflik |
 
 ---
 
 ## 7.5 Auth — cutover'ning eng nozik joyi
 
-**Isbotlangan (`backend/app/core/security.py` o'qildi):**
+**Prodda mavjud ma'lumot bilan moslik shartlari** (mavjud ~50 foydalanuvchi qulflanib
+qolmasligi uchun):
 
-```python
-bcrypt.hashpw(password.encode("utf-8")[:72], bcrypt.gensalt())   # → $2b$12$...
-jwt.encode({"sub", "type", "iat", "exp"}, SECRET_KEY, "HS256")   # claim'lar shu, boshqa yo'q
-```
+- Parol hash'lari — bcrypt, `$2b$12$` formatida; parol **UTF-8 baytlarida 72 baytga kesiladi**.
+- JWT — `HS256`, claim'lar **faqat** `sub`, `type`, `iat`, `exp`.
 
-**C# ekvivalenti — majburiy detallar:**
+**C# tomonidagi majburiy detallar:**
 
 ```csharp
 // Parol — mavjud hashlar o'zgarishsiz tekshiriladi
 BCrypt.Net.BCrypt.Verify(password, hash);          // $2b$12$ ni o'qiydi
 BCrypt.Net.BCrypt.HashPassword(password, 12);      // yangi hashlar ham $2b$12$
 
-// ⚠️ 72-BAYT KESISH: Python BAYTni kesadi, belgini emas.
+// ⚠️ 72-BAYT KESISH: kesish BAYT bo'yicha, belgi bo'yicha EMAS.
 // Kirill parolda 72-bayt chegarasi belgi o'rtasiga tushsa — digest farq qiladi.
+// Mavjud hashlar shu qoida bilan yaratilgan; o'zgartirilsa loginlar buziladi.
 var bytes = Encoding.UTF8.GetBytes(password);
 var truncated = bytes.AsSpan(0, Math.Min(72, bytes.Length));
 
@@ -169,13 +171,13 @@ options.TokenValidationParameters = new() {
     ValidateIssuer   = false,   // token'da `iss` yo'q
     ValidateAudience = false,   // token'da `aud` yo'q
     ValidateLifetime = true,
-    ClockSkew        = TimeSpan.Zero,   // .NET default 5 daqiqa — python-jose'da 0
+    ClockSkew        = TimeSpan.Zero,   // .NET default 5 daqiqa — bu yerda 0 bo'lishi shart
 };
 JwtSecurityTokenHandler.DefaultInboundClaimTypeMap.Clear();  // `sub` → `sub` bo'lib qolsin
 ```
 
 **⚠️ Rol token'da YO'Q.** Har so'rovda DB'dan `User` o'qiladi va `role` + `is_active` tekshiriladi
-(`deps.py:30-32`). Faqat claim'ga tayangan port: (a) bloklangan foydalanuvchini 30 daqiqa
+Faqat claim'ga tayanish: (a) bloklangan foydalanuvchini 30 daqiqa
 ichkarida qoldiradi, (b) rol o'zgarishini ko'rmaydi. **DB o'qish saqlanishi shart.**
 
 **Chiqish sharti (DoD):** prod dump nusxasidan **haqiqiy foydalanuvchi hash'i** bilan C# login
@@ -185,12 +187,14 @@ testi o'tadi. Bu Faza 2 ning yakuniy testi.
 
 ## 7.6 Characterization testlar — portning yagona himoyasi
 
-**Muammo:** hozirgi Python testlari — 1 fayl, 13 test, 5 funksiya. Auditning xulosasi:
-*"the port cannot be validated against this suite"*. Ya'ni C# ni "to'g'ri ko'chirdim" deb
-aytishga **asos yo'q**.
+**Muammo:** eski test to'plami — 1 fayl, 13 test, 5 funksiya. Auditning xulosasi:
+*"the port cannot be validated against this suite"*. Ya'ni portni "to'g'ri ko'chirdim" deb
+aytishga **asos yo'q** edi.
 
-**Yechim:** Python'ni qayta yozishdan **oldin**, uning xatti-harakatini testga qotiramiz.
-Keyin C# **aynan o'sha testlardan** o'tadi.
+**Yechim:** platformaning eng nozik arifmetikasi va kriptografiyasi JSON fixture'larga
+**qotirildi**. Bugun bu fixture'lar — **muzlatilgan etalon (frozen golden)**: ular
+spetsifikatsiyaning o'zi, hech qayerdan generatsiya qilinmaydi, va C# testlari ularga
+qarshi tasdiqlanadi.
 
 | # | Nima qotiriladi | Nega aynan bu |
 |---|---|---|
@@ -205,22 +209,26 @@ Keyin C# **aynan o'sha testlardan** o'tadi.
 | C9 | `task_index` tartibi `(sort_order, created_at)` | Freemium pozitsiyasi shunga bog'liq |
 | C10 | `normalize_uz_phone` | Ro'yxatdan o'tish |
 
-**Usul:** har biri uchun Python'da parametrlashtirilgan test → JSON fixture (kirish → kutilgan chiqish)
-→ C# xUnit **o'sha JSON fixture'ni** o'qiydi. Bitta haqiqat manbai, ikki til.
+**Usul:** har bir holat uchun JSON fixture (kirish → kutilgan chiqish) → C# xUnit
+**o'sha fixture'ni** o'qiydi va tasdiqlaydi. Bitta haqiqat manbai.
 
 ```
 tests/characterization/
-├── fixtures/            ← Python generatsiya qiladi, C# iste'mol qiladi
+├── fixtures/            ← MUZLATILGAN ETALON. Repoga commit qilingan, generatsiya qilinmaydi.
 │   ├── bcrypt_corpus.json      (prod hashlar, anonimlashtirilgan)
 │   ├── jwt_vectors.json
 │   ├── scoring_cases.json
-│   ├── freemium_matrix.json
+│   ├── needs_premium_cases.json
 │   └── ...
-├── python/test_characterize.py  ← fixture'ni generatsiya qiladi VA tasdiqlaydi
-└── (C# tomoni: tests/Govori.Characterization/)
+└── (C# tomoni: backend-dotnet/tests/Govori.Characterization/ — fixture'larning egasi)
 ```
 
-> Bu **Faza 1**. Kod yozishdan oldin. Bularsiz rewrite — ko'r-ko'rona.
+> **Qoida:** qizil characterization testi = **kod chetga chiqdi**. Fixture'ni emas, **kodni**
+> tuzating. Fixture'ni o'zgartirish = mahsulotning ko'rinadigan xatti-harakatini o'zgartirish;
+> bu faqat ataylab, ko'rib chiqilgan qaror bo'lishi mumkin.
+>
+> Testlar `fixtures/` ni **repo ildizidan** qidiradi — shuning uchun ular repo ildizi
+> ulangan holda ishga tushirilishi kerak (faqat `backend-dotnet/` ulansa, xato beradi).
 
 ---
 
@@ -274,8 +282,9 @@ Attempt(pending)
 | S9 | `.dockerignore` yo'q → `.env` va `backups/` build context'ga ketadi | — | ✅ |
 
 **Saqlanadigan (ataylab shunday, buzmang):**
-- Rate limiter **fail-open** (Redis o'lsa API o'lmasin) — `ratelimit.py:52`.
-- OTP **fail-closed** (Redis o'lsa kod tasdiqlanmasin) — `otp.py:5`.
+- Rate limiter **fail-open**: Redis o'lsa so'rov o'tkaziladi (API o'lmasin). Bu ataylab.
+- OTP **fail-closed**: Redis o'lsa kod **tasdiqlanmaydi** (tasdiqlab bo'lmaydigan kod o'tkazilmaydi).
+  Bu ikkalasi qarama-qarshi yo'nalishda — chalkashtirilmasin.
 - Rate limit identity: `u:{sub}` yoki `ip:{...}` — 20-30 o'quvchi bitta NAT ortida bo'lgani uchun.
 
 ---

@@ -1,8 +1,8 @@
 # 09 · Docker — .NET stack
 
-Professional, self-contained Docker stack for the **.NET 9** rewrite. Independent of
-the legacy Python `docker-compose.yml` / `.prod.yml` (own project name `govori-dotnet`,
-own network + volumes).
+Professional, self-contained Docker stack for the **.NET 9** backend. It owns its own
+project name (`govori-dotnet`), network and volumes, so it never collides with any other
+stack running on the same host.
 
 ## Ishga tushirish
 
@@ -42,13 +42,19 @@ docker compose down -v       # to'xtatish + BAZANI TOZALASH (qayta seed bo'ladi)
 
 ## Ma'lumot (schema) haqida — muhim
 
-Backend **database-first**: EF Core sxemani **hech qachon yaratmaydi**. Shuning uchun:
+Sxema egasi — **EF Core migratsiyalari** (baseline migratsiyadan boshlab). Konteyner
+ishga tushganda sxema **avtomatik yaratilmaydi**; migratsiyalar ataylab qo'lda qo'llanadi.
+Shuning uchun:
 - **Dev:** bo'sh `db` volume birinchi ishga tushganda `backups/russpeak_20260711_111407.sql.gz`
-  demo dump'idan avtoseed bo'ladi (17 jadval + demo ma'lumot, Alembic head `c1d2e3f4a5b6`).
+  demo dump'idan avtoseed bo'ladi (17 jadval + demo ma'lumot — prod sxemasining nusxasi).
   Qayta boshlash: `down -v` → keyingi `up` yangidan seed qiladi.
 - **Prod (cutover):** `db` servisini olib tashlab, `GOVORI_DB` / `ConnectionStrings__Govori`
   ni **mavjud prod bazaga** yo'naltiring (seed mount kerak emas). Hangfire o'zining
   `hangfire` sxemasini qo'shadi (additive — mavjud jadvallarga tegmaydi).
+- ⚠️ **To'ldirilgan bazada `dotnet ef database update` ishlatilmaydi** — baseline
+  migratsiya mavjud sxemani qaytadan yaratmoqchi bo'ladi va birinchi `CREATE TABLE` da
+  yiqiladi. Bunday bazani EF tarixiga **bir marta** `deploy/ef-baseline.sh` orqali
+  qabul qildiring; keyingi migratsiyalar odatdagidek qo'llanadi.
 
 ## Prod'da nima farq qiladi
 - Real prod Postgres / S3 (MinIO emas) ulanadi; `S3_PUBLIC_URL` real domenga.

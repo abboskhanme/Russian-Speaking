@@ -82,13 +82,33 @@ ssh "$HOST" "cat ${COMPOSE_DIR}/.env" > "$OUT/env.txt" 2>/dev/null || echo "WARN
 chmod 600 "$OUT/env.txt" 2>/dev/null || true
 
 # ---------------------------------------------------------------------------
-# 4. Record the Alembic revision — the schema contract the C# port must match.
+# 4. Record the schema version — the contract any restore must match.
+#
+# EF Core owns the schema (see deploy/ef-baseline.sh). A database that has not
+# been adopted yet still carries the old alembic_version marker, so read
+# whichever exists and NEVER let a missing table abort the backup: this script
+# runs `set -Eeuo pipefail`, and an unguarded SELECT against a dropped table
+# would kill the run at step 4 of 5 — losing the row counts below and failing
+# exactly when a migration is in flight and the backup matters most.
 # ---------------------------------------------------------------------------
-echo "==> [4/5] Alembic revision + row counts"
-ssh "$HOST" "docker exec -e PGPASSWORD=\"\$(docker exec ${DB_CTR} printenv POSTGRES_PASSWORD)\" ${DB_CTR} \
-  psql -U \"\$(docker exec ${DB_CTR} printenv POSTGRES_USER)\" \
-       -d \"\$(docker exec ${DB_CTR} printenv POSTGRES_DB)\" -A -t \
-       -c 'SELECT version_num FROM alembic_version'" > "$OUT/alembic_revision.txt"
+echo "==> [4/5] Schema version + row counts"
+# Two separate queries with a shell fallback, NOT one CASE expression: Postgres
+# parses every branch of a CASE at plan time, so naming a dropped table in an
+# unreachable branch still errors with "relation does not exist".
+ssh "$HOST" "
+  run_sql() {
+    docker exec -e PGPASSWORD=\"\$(docker exec ${DB_CTR} printenv POSTGRES_PASSWORD)\" ${DB_CTR} \
+      psql -U \"\$(docker exec ${DB_CTR} printenv POSTGRES_USER)\" \
+           -d \"\$(docker exec ${DB_CTR} printenv POSTGRES_DB)\" -A -t -v ON_ERROR_STOP=1 -c \"\$1\" 2>/dev/null
+  }
+  ef=\"\$(run_sql 'SELECT max(migration_id) FROM \\\"__EFMigrationsHistory\\\"')\"
+  if [ -n \"\$ef\" ]; then
+    echo \"ef:\$ef\"
+  else
+    al=\"\$(run_sql 'SELECT max(version_num) FROM alembic_version')\"
+    if [ -n \"\$al\" ]; then echo \"alembic:\$al\"; else echo unknown; fi
+  fi
+" > "$OUT/schema_version.txt" || echo "unknown" > "$OUT/schema_version.txt"
 
 # Row counts: the ground truth we verify every future migration against.
 ssh "$HOST" "docker exec -e PGPASSWORD=\"\$(docker exec ${DB_CTR} printenv POSTGRES_PASSWORD)\" ${DB_CTR} \
@@ -102,7 +122,7 @@ echo
 echo "    ${OUT}"
 ls -lh "$OUT"
 echo
-echo "    Alembic revision: $(cat "$OUT/alembic_revision.txt")"
+echo "    Schema version: $(cat "$OUT/schema_version.txt")"
 echo "    Row counts:"
 sed 's/^/      /' "$OUT/row_counts.csv"
 echo

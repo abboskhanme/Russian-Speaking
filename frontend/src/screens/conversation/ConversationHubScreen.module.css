@@ -1,0 +1,109 @@
+/* ConversationHubScreen — the AI Suhbat landing: intro · scenario grid · the
+ * "Erkin mavzu" free-topic card. Full-width; every colour / space / radius is a
+ * token. Mirrors the old Suhbat-tab grid, now a top-level destination. */
+
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-4);
+  width: 100%;
+}
+
+.intro {
+  margin: 0;
+}
+
+/* ---- Scenario grid ---- */
+.grid {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--s-3);
+  width: 100%;
+}
+.cell {
+  min-width: 0;
+  display: flex;
+}
+
+/* ---- Tile (a real button) ---- */
+.tile {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--s-2);
+  text-align: start;
+  /* Reset native button chrome so only the Card styling shows. */
+  appearance: none;
+  border: 0;
+  background: none;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+}
+
+/* Tinted icon square (tone → token). */
+.icon {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border-radius: var(--r-md);
+  font-size: 22px;
+  line-height: 1;
+}
+.tonePeach {
+  background: var(--accent-tint);
+}
+.toneBlue {
+  background: var(--info-tint);
+}
+.toneGreen {
+  background: var(--success-tint);
+}
+.toneAmber {
+  background: var(--warn-tint);
+}
+
+.title {
+  min-width: 0;
+}
+.tileMeta {
+  min-width: 0;
+}
+
+/* ---- Erkin mavzu (free-topic) card ---- */
+.free {
+  width: 100%;
+}
+.freeBtn {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  width: 100%;
+  text-align: start;
+  appearance: none;
+  border: 0;
+  background: none;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+}
+.freeMascot {
+  flex: none;
+}
+.freeBody {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.freeChevron {
+  flex: none;
+  display: inline-flex;
+  color: var(--primary);
+}

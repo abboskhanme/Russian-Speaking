@@ -7,35 +7,58 @@ using Microsoft.AspNetCore.Routing;
 namespace Govori.Engagement;
 
 /// <summary>
-/// The Engagement domain's HTTP surface (docs/07 §3.6, Faza 3.6), ported from
-/// backend/app/api/v1/{engagement,notifications}.py. Follows the MODULAR-ENDPOINT PATTERN established
+/// The Engagement domain's HTTP surface (docs/07 §3.6, Faza 3.6) — the leaderboard, the spaced-
+/// repetition review queue and in-app notifications. Follows the MODULAR-ENDPOINT PATTERN established
 /// by <c>MapIdentityEndpoints</c>/<c>MapCatalogEndpoints</c>/<c>MapPracticeEndpoints</c>/
 /// <c>MapClassroomEndpoints</c>: a single <c>Map*Endpoints</c> extension the composition root calls.
 ///
 /// <para>Endpoints are thin (§7.2 — no <c>DbContext</c> here): parse the access-token <c>sub</c> →
 /// <see cref="EngagementService"/> → map the domain outcome to HTTP. All role/ownership/roster
-/// decisions live in the service. Error bodies use <c>{ "detail": ... }</c> to match FastAPI.</para>
+/// decisions live in the service. Error bodies use the <c>{ "detail": ... }</c> shape used across the
+/// API.</para>
 ///
-/// <para>Path note: Python routes are <c>/api/v1/leaderboard</c>, <c>/api/v1/review</c>,
-/// <c>/api/v1/notifications…</c>; the <c>/v1</c> segment is dropped to match the sibling modules'
+/// <para>Path note: these routes are <c>/api/leaderboard</c>, <c>/api/review</c> and
+/// <c>/api/notifications…</c> — no <c>/v1</c> segment, matching the sibling modules'
 /// <c>/api/…</c> convention (reconciled at the gateway during cutover). The XP/streak/SRS-scheduling
-/// AWARD paths (gamification.py) have no HTTP route in Python either — they run in the grading worker
-/// — so they stay service methods (<see cref="EngagementService.AwardSubmissionAsync"/> etc.), not
-/// endpoints.</para>
+/// AWARD paths have no HTTP route at all — they run in the grading worker — so they stay service
+/// methods (<see cref="EngagementService.AwardSubmissionAsync"/> etc.), not endpoints.</para>
 /// </summary>
 public static class EngagementEndpoints
 {
     public static IEndpointRouteBuilder MapEngagementEndpoints(this IEndpointRouteBuilder app)
     {
         MapLeaderboard(app);
+        MapProgress(app);
         MapReview(app);
         MapNotifications(app);
         return app;
     }
 
+    private static void MapProgress(IEndpointRouteBuilder app)
+    {
+        var progress = app.MapGroup("/api/progress");
+
+        // GET /api/progress/skills — the caller's own skill breakdown + derived level + band trend.
+        progress.MapGet("/skills", async (ClaimsPrincipal principal, EngagementService svc, CancellationToken ct) =>
+        {
+            if (!TryGetUserId(principal, out var userId)) return Results.Unauthorized();
+            var r = await svc.SkillsAsync(userId, ct);
+            return r is null ? Results.Unauthorized() : Results.Ok(r);
+        }).RequireAuthorization();
+
+        // GET /api/progress/leaderboard?period=weekly|monthly|all — the caller's ranking summary.
+        progress.MapGet("/leaderboard", async (
+            string? period, ClaimsPrincipal principal, EngagementService svc, CancellationToken ct) =>
+        {
+            if (!TryGetUserId(principal, out var userId)) return Results.Unauthorized();
+            var r = await svc.LeaderboardSummaryAsync(userId, period, ct);
+            return Map(r, StatusCodes.Status200OK, forbidden: "Leaderboard is for students");
+        }).RequireAuthorization();
+    }
+
     private static void MapLeaderboard(IEndpointRouteBuilder app)
     {
-        // GET /api/leaderboard — ranked board (?group_id, ?period=weekly|all). engagement.py:36-172.
+        // GET /api/leaderboard — ranked board (?group_id, ?period=weekly|all).
         app.MapGet("/api/leaderboard", async (
             Guid? group_id, string? period, ClaimsPrincipal principal, EngagementService svc, CancellationToken ct) =>
         {
@@ -49,7 +72,7 @@ public static class EngagementEndpoints
     {
         var review = app.MapGroup("/api/review");
 
-        // GET /api/review — the student's due, still-open reviews. engagement.py:176-215.
+        // GET /api/review — the student's due, still-open reviews.
         review.MapGet("", async (ClaimsPrincipal principal, EngagementService svc, CancellationToken ct) =>
         {
             if (!TryGetUserId(principal, out var userId)) return Results.Unauthorized();
@@ -57,7 +80,7 @@ public static class EngagementEndpoints
             return list is null ? Results.Unauthorized() : Results.Ok(list);
         }).RequireAuthorization();
 
-        // POST /api/review — teacher queues review(s) for a student/group → 201. engagement.py:218-317.
+        // POST /api/review — teacher queues review(s) for a student/group → 201.
         review.MapPost("", async (CreateReviewsRequest body, ClaimsPrincipal principal, EngagementService svc, CancellationToken ct) =>
         {
             if (!TryGetUserId(principal, out var userId)) return Results.Unauthorized();
@@ -70,7 +93,7 @@ public static class EngagementEndpoints
     {
         var notifications = app.MapGroup("/api/notifications");
 
-        // GET /api/notifications — newest first, capped (?unread_only, ?limit). notifications.py:15-26.
+        // GET /api/notifications — newest first, capped (?unread_only, ?limit).
         notifications.MapGet("", async (
             bool? unread_only, int? limit, ClaimsPrincipal principal, EngagementService svc, CancellationToken ct) =>
         {
@@ -79,7 +102,7 @@ public static class EngagementEndpoints
             return list is null ? Results.Unauthorized() : Results.Ok(list);
         }).RequireAuthorization();
 
-        // GET /api/notifications/unread-count. notifications.py:29-39.
+        // GET /api/notifications/unread-count — how many of the user's notifications are unread.
         notifications.MapGet("/unread-count", async (ClaimsPrincipal principal, EngagementService svc, CancellationToken ct) =>
         {
             if (!TryGetUserId(principal, out var userId)) return Results.Unauthorized();
@@ -87,7 +110,7 @@ public static class EngagementEndpoints
             return count is null ? Results.Unauthorized() : Results.Ok(new UnreadCountResponse(count.Value));
         }).RequireAuthorization();
 
-        // POST /api/notifications/read-all → 204. notifications.py:42-52.
+        // POST /api/notifications/read-all → 204.
         notifications.MapPost("/read-all", async (ClaimsPrincipal principal, EngagementService svc, CancellationToken ct) =>
         {
             if (!TryGetUserId(principal, out var userId)) return Results.Unauthorized();
@@ -95,7 +118,7 @@ public static class EngagementEndpoints
             return ok ? Results.NoContent() : Results.Unauthorized();
         }).RequireAuthorization();
 
-        // POST /api/notifications/{id}/read → 204. notifications.py:55-65.
+        // POST /api/notifications/{id}/read → 204.
         notifications.MapPost("/{id:guid}/read", async (Guid id, ClaimsPrincipal principal, EngagementService svc, CancellationToken ct) =>
         {
             if (!TryGetUserId(principal, out var userId)) return Results.Unauthorized();
@@ -103,7 +126,7 @@ public static class EngagementEndpoints
             return MapNoContent(outcome, notFound: "Notification not found");
         }).RequireAuthorization();
 
-        // DELETE /api/notifications/{id} → 204. notifications.py:68-78.
+        // DELETE /api/notifications/{id} → 204.
         notifications.MapDelete("/{id:guid}", async (Guid id, ClaimsPrincipal principal, EngagementService svc, CancellationToken ct) =>
         {
             if (!TryGetUserId(principal, out var userId)) return Results.Unauthorized();
@@ -111,7 +134,7 @@ public static class EngagementEndpoints
             return MapNoContent(outcome, notFound: "Notification not found");
         }).RequireAuthorization();
 
-        // DELETE /api/notifications → 204 (clear all). notifications.py:81-87.
+        // DELETE /api/notifications → 204 (clear all).
         notifications.MapDelete("", async (ClaimsPrincipal principal, EngagementService svc, CancellationToken ct) =>
         {
             if (!TryGetUserId(principal, out var userId)) return Results.Unauthorized();
@@ -120,8 +143,8 @@ public static class EngagementEndpoints
         }).RequireAuthorization();
     }
 
-    // A valid *access* token carrying a parseable `sub` (a refresh token is rejected, mirroring
-    // deps.py:25). role/is_active are read from the DB in the service, never trusted from the token.
+    // A valid *access* token carrying a parseable `sub`; a refresh token is deliberately rejected
+    // here. role/is_active are read from the DB in the service, never trusted from the token.
     private static bool TryGetUserId(ClaimsPrincipal principal, out Guid userId)
     {
         userId = Guid.Empty;

@@ -28,19 +28,18 @@ public enum AssessmentOutcome
 }
 
 /// <summary>
-/// The grading pipeline (docs/07 §7.7, Faza 3.4) — a faithful port of Celery's
-/// <c>process_submission</c> (<c>backend/app/workers/tasks.py:94-324</c>). Turns a <c>pending</c>
-/// submission into a scored <c>Evaluation</c>:
+/// The grading pipeline (docs/07 §7.7, Faza 3.4) — the work of grading ONE submission. Turns a
+/// <c>pending</c> submission into a scored <c>Evaluation</c>:
 /// <code>
 ///   load → [resume? reuse Transcript : STT] → (shadowing? done) → grade → C5 score → persist → done
 /// </code>
 ///
-/// <para><b>Ported nuances (docs/07 §7.7, kept verbatim):</b></para>
+/// <para><b>Nuances that must be preserved (docs/07 §7.7):</b></para>
 /// <list type="bullet">
 ///   <item><b>Resume-from-transcript</b> — a persisted <c>Transcript</c> is reused and STT is
 ///   SKIPPED (no re-billing Azure); the pron score for the C5 blend comes from the stored JSONB.</item>
 ///   <item><b>Lazy audio</b> — bytes are downloaded only when STT actually runs.</item>
-///   <item><b>C5 scoring</b> — <see cref="Scoring"/> (<c>_with_pron</c> + orthoepy penalty), frozen.</item>
+///   <item><b>C5 scoring</b> — <see cref="Scoring"/> (pronunciation blend + orthoepy penalty), frozen.</item>
 ///   <item><b>Evaluation DELETE-then-INSERT</b> — <c>submission_id</c> is unique; a re-run must not collide.</item>
 ///   <item><b>Faithful transcript</b> — the STT text is written verbatim (memory: transcript must stay faithful).</item>
 /// </list>
@@ -59,8 +58,9 @@ public sealed class AssessmentService
     private readonly IGradingEvents _events;
     private readonly ILogger<AssessmentService> _logger;
 
-    // JSONB columns are written as snake_case JSON to match the Python dict shape the frontend
-    // already consumes (summary/strengths/orthoepy_errors, word/start/end, reference_match…), and
+    // JSONB columns are written as snake_case JSON. These key names are WIRE-COMPATIBILITY:
+    // the frontend already reads them (summary/strengths/orthoepy_errors, word/start/end,
+    // reference_match…), so renaming a property here breaks stored rows and clients alike.
     // Cyrillic is emitted literally (not \uXXXX) so the stored JSON stays human-readable.
     private static readonly JsonSerializerOptions JsonbOptions = new()
     {
@@ -91,22 +91,21 @@ public sealed class AssessmentService
         _logger = logger;
     }
 
-    /// <summary>Run the grading pipeline for one submission. Mirrors <c>process_submission</c>.</summary>
+    /// <summary>Run the grading pipeline for one submission.</summary>
     public async Task<AssessmentOutcome> RunAsync(Guid submissionId, CancellationToken ct = default)
     {
         var sub = await _db.Submissions
             .Include(s => s.Question)
             .FirstOrDefaultAsync(s => s.Id == submissionId, ct);
         if (sub is null)
-            return AssessmentOutcome.NotFound;                              // tasks.py:98-99
+            return AssessmentOutcome.NotFound;
 
         var isShadowing = !string.IsNullOrWhiteSpace(sub.ReferenceText);
 
         // GUARD (Faza 3.4/3.9): the prod Azure/Whisper/Gemini/OpenAI providers are TODO stubs with
         // no keys (IsConfigured=false). When nothing real is wired, DEFER — leave the attempt
-        // pending for the durable worker (Hangfire) to pick up once providers land. This mirrors
-        // today's Python, where an attempt with no worker/keys simply stays pending. Fakes (tests)
-        // report IsConfigured=true, so the full pipeline runs.
+        // pending for the durable worker (Hangfire) to pick up once providers land, rather than
+        // failing it. Fakes (tests) report IsConfigured=true, so the full pipeline runs.
         if (!_stt.IsConfigured || (!isShadowing && !_grader.IsConfigured))
         {
             _logger.LogInformation(
@@ -119,17 +118,18 @@ public sealed class AssessmentService
 
         try
         {
-            sub.Status = SubmissionStatus.Processing;                       // tasks.py:101-102
+            sub.Status = SubmissionStatus.Processing;                       // claim it before any slow work
             await _db.SaveChangesAsync(ct);
             await EmitAsync(submissionId, GradingState.Transcribing, "processing", null);
 
-            var filename = sub.AudioKey.Split('/')[^1];                     // tasks.py:105
+            var filename = sub.AudioKey.Split('/')[^1];
 
-            // Lazy audio: a resume that already has a Transcript never re-downloads (tasks.py:109-115).
+            // Lazy audio: a resume that already has a Transcript never re-downloads.
             byte[]? audio = null;
             async Task<byte[]> LoadAudioAsync() => audio ??= await _storage.GetBytesAsync(sub.AudioKey, ct);
 
-            // RESUME-FROM-TRANSCRIPT (tasks.py:120-130): reuse a persisted Transcript, skip STT.
+            // RESUME-FROM-TRANSCRIPT: reuse a persisted Transcript and skip STT, so a retried job
+            // never re-bills the STT provider for audio it has already transcribed.
             var transcript = await _db.Transcripts.FirstOrDefaultAsync(t => t.SubmissionId == sub.Id, ct);
             SttResult stt;
             if (transcript is not null)
@@ -147,8 +147,8 @@ public sealed class AssessmentService
             }
             else
             {
-                var bytes = await LoadAudioAsync();                          // tasks.py:133
-                stt = await _stt.TranscribeAsync(bytes, filename, sub.ReferenceText, ct); // tasks.py:138-140
+                var bytes = await LoadAudioAsync();
+                stt = await _stt.TranscribeAsync(bytes, filename, sub.ReferenceText, ct);
                 var nowT = DateTime.UtcNow;
                 transcript = new Transcript
                 {
@@ -164,15 +164,15 @@ public sealed class AssessmentService
                 };
                 _db.Transcripts.Add(transcript);
                 if (stt.DurationSec is not null && sub.AudioDurationSec is null)
-                    sub.AudioDurationSec = stt.DurationSec;                 // tasks.py:154-155
+                    sub.AudioDurationSec = stt.DurationSec;                 // only if the client sent none
                 await _db.SaveChangesAsync(ct);
             }
 
-            // SHADOWING (tasks.py:162-188): pronunciation-only. No LLM, no academic Evaluation.
+            // SHADOWING: pronunciation-only. No LLM call, and no academic Evaluation row.
             if (isShadowing)
             {
-                // TODO(orthoepy): best-effort Gemini-audio orthoepy pass on its OWN breaker
-                //   (llm.detect_orthoepy) writing pronunciation.orthoepy_errors — deferred.
+                // TODO(orthoepy): best-effort Gemini-audio orthoepy pass on its OWN breaker,
+                //   writing pronunciation.orthoepy_errors — deferred.
                 sub.Status = SubmissionStatus.Done;
                 sub.CompletedAt = DateTime.UtcNow;
                 await _db.SaveChangesAsync(ct);
@@ -184,7 +184,8 @@ public sealed class AssessmentService
 
             await EmitAsync(submissionId, GradingState.Grading, "processing", null);
 
-            // GRADE (tasks.py:190-217). Picture tasks best-effort feed the image (tasks.py:194-199).
+            // GRADE. Picture tasks feed the image to the grader best-effort: if the fetch fails we
+            // grade text-only rather than failing the whole attempt.
             var question = sub.Question;
             byte[]? imageBytes = null;
             string? imageMime = null;
@@ -205,7 +206,7 @@ public sealed class AssessmentService
 
             var grade = await _grader.AnalyzeAsync(new GraderRequest
             {
-                // TODO(html_to_text): Python strips HTML from prompt/instruction (tasks.py:205-207).
+                // TODO(html_to_text): strip HTML from prompt/instruction before sending to the grader.
                 QuestionPrompt = question?.PromptText ?? string.Empty,
                 TranscriptText = stt.Text,
                 Instruction = question?.InstructionText,
@@ -218,11 +219,11 @@ public sealed class AssessmentService
 
             await EmitAsync(submissionId, GradingState.Scoring, "processing", null);
 
-            // ORTHOEPY (tasks.py:219-232) — separate best-effort AUDIO pass on its own breaker.
+            // ORTHOEPY — a separate best-effort AUDIO pass on its own breaker.
             // Deferred; the C5 penalty term is fully implemented and exercised by the fixture test.
             const int orthoepyErrors = 0;
 
-            // C5 SCORING (tasks.py:239-247): pron blend + orthoepy penalty. FROZEN — see Scoring.
+            // C5 SCORING: pronunciation blend + orthoepy penalty. FROZEN — see Scoring.
             var pronScore = stt.Pronunciation?.Pronunciation;
             var overallBand = Scoring.Level(grade.Scores.Overall, pronScore, orthoepyErrors);
             var levelScore = Scoring.Level(grade.Scores.LevelOverall, pronScore, orthoepyErrors);
@@ -245,7 +246,7 @@ public sealed class AssessmentService
                 LexicalScore = grade.Scores.Lexical,
                 GrammarScore = grade.Scores.Grammar,
                 RelevanceScore = grade.Scores.Relevance,
-                PronunciationScore = pronScore is null ? null : Math.Round(pronScore.Value, 1), // tasks.py:255
+                PronunciationScore = pronScore is null ? null : Math.Round(pronScore.Value, 1), // 1 dp
                 OverallBand = overallBand,
                 LevelScore = levelScore,
                 Feedback = JsonSerializer.Serialize(feedback, JsonbOptions),
@@ -255,11 +256,12 @@ public sealed class AssessmentService
                 UpdatedAt = nowE,
             };
 
-            // DELETE-then-INSERT (tasks.py:268-271): submission_id is unique; a re-run must not collide.
+            // DELETE-then-INSERT: submission_id is UNIQUE, so a re-run must clear the previous
+            // Evaluation first or it would collide. This is what makes re-grading idempotent.
             await _db.Evaluations.Where(e => e.SubmissionId == sub.Id).ExecuteDeleteAsync(ct);
             _db.Evaluations.Add(evaluation);
 
-            sub.Status = SubmissionStatus.Done;                            // tasks.py:278-279
+            sub.Status = SubmissionStatus.Done;                            // only after the Evaluation is staged
             sub.CompletedAt = DateTime.UtcNow;
             await _db.SaveChangesAsync(ct);
             await EmitAsync(submissionId, GradingState.Done, "done", null);
@@ -275,8 +277,8 @@ public sealed class AssessmentService
             // submission failed here; the pipeline is idempotent (resume-from-transcript +
             // Evaluation DELETE-then-INSERT), so a Hangfire auto-retry (worker crash / transient
             // error) safely re-runs from where it left off without re-billing STT.
-            // TODO: terminal-vs-transient split — SoftTimeLimit / CircuitOpen are NOT retried
-            //   (same wall), only genuinely transient errors retry (tasks.py:302-322).
+            // TODO: terminal-vs-transient split — SoftTimeLimit / CircuitOpen must NOT be retried
+            //   (they would hit the same wall); only genuinely transient errors should retry.
             _logger.LogError(ex, "grading failed (submission {SubmissionId})", submissionId);
             await MarkFailedAsync(submissionId, ex.Message, ct);
             var message = ex.Message.Length > 1000 ? ex.Message[..1000] : ex.Message;
@@ -305,7 +307,8 @@ public sealed class AssessmentService
     }
 
     // Mark the submission failed via a direct UPDATE so a poisoned change-tracker (from the failed
-    // SaveChanges) can't get in the way. Mirrors tasks.py:309-319 (rollback → set failed → commit).
+    // SaveChanges) can't get in the way: the status write must land even when the tracked entities
+    // are unusable, or the attempt would be left stuck in `processing`.
     private async Task MarkFailedAsync(Guid submissionId, string message, CancellationToken ct)
     {
         try

@@ -1,0 +1,102 @@
+/* AllResultsScreen — the full "Barcha natijalar" history list. Full-width;
+ * every colour / space / radius is a token. */
+
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-4);
+  width: 100%;
+}
+.back {
+  display: inline-grid;
+  place-items: center;
+  padding-inline: var(--s-2);
+}
+.head {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.title {
+  min-width: 0;
+}
+
+.listCard {
+  width: 100%;
+  overflow: hidden;
+}
+.list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+.item {
+  display: block;
+}
+.item:not(:last-child) {
+  border-bottom: 1px solid var(--line);
+}
+.rowBtn {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  width: 100%;
+  padding: var(--s-3) var(--s-4);
+  appearance: none;
+  border: 0;
+  background: none;
+  font: inherit;
+  color: inherit;
+  text-align: start;
+  cursor: pointer;
+  transition: background var(--m-instant);
+}
+.rowBtn:hover {
+  background: var(--surface-2);
+}
+.rowBtn:focus-visible {
+  outline: var(--focus-ring-width) solid var(--focus-ring);
+  outline-offset: -2px;
+}
+
+.bandDot {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border-radius: var(--r-pill);
+  background: var(--primary-tint);
+  color: var(--primary);
+}
+.text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-1);
+}
+.trendCell {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-2);
+}
+.trend {
+  font-weight: var(--fw-bold);
+}
+.trendUp {
+  color: var(--success);
+}
+.trendDown {
+  color: var(--danger);
+}
+.trendFlat {
+  color: var(--ink-soft);
+}
+.chevron {
+  display: inline-flex;
+  color: var(--ink-soft);
+}

@@ -6,9 +6,9 @@ namespace Govori.Characterization;
 /// <summary>
 /// C5 — the REAL scoring port. Unlike <see cref="ScoringCharacterizationTests"/> (which
 /// reimplements the arithmetic inline), this drives the ACTUAL production function
-/// <see cref="Govori.Assessment.Scoring"/> used by the grading pipeline against the frozen
-/// Python-generated fixture <c>pron_math_cases.json</c>. Every case must match — this is the proof
-/// that the C# grading pipeline scores identically to <c>workers/tasks.py:239-247</c>.
+/// <see cref="Govori.Assessment.Scoring"/> used by the grading pipeline against the frozen golden
+/// fixture <c>pron_math_cases.json</c>. Every case must match — this is the proof that the grading
+/// pipeline still produces the exact scores the fixture specifies.
 /// </summary>
 public class AssessmentScoringPortTests
 {
@@ -18,7 +18,8 @@ public class AssessmentScoringPortTests
         var fx = Fixtures.Load<PronMathFixture>("pron_math_cases.json");
         Assert.NotEmpty(fx.Cases);
 
-        // The frozen penalty constants must equal the production ones (a Python change surfaces here).
+        // The production penalty constants must still equal the frozen ones: tuning either constant
+        // silently reprices every score, so it has to fail here rather than in the field.
         Assert.Equal(Scoring.OrthoepyPenaltyPerError, fx.PenaltyPerError);
         Assert.Equal(Scoring.OrthoepyPenaltyCap, fx.PenaltyCap);
 
@@ -28,7 +29,7 @@ public class AssessmentScoringPortTests
             Assert.True(
                 Math.Abs(actual - c.Expected) < 1e-9,
                 $"C5 port mismatch: text={c.TextScore} pron={c.PronScore?.ToString() ?? "null"} " +
-                $"errs={c.OrthoepyErrors} → C#={actual} vs Python={c.Expected}");
+                $"errs={c.OrthoepyErrors} → actual={actual} vs expected={c.Expected}");
         }
     }
 

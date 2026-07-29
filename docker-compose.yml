@@ -5,25 +5,28 @@
 #   docker compose -f docker-compose.dotnet.yml up -d --build
 #
 # Brings up (each HEALTHY, dependency-ordered):
-#   govori-db     — Postgres 16, AUTO-SEEDED from the demo dump on first run
-#                   (database-first: EF never creates the schema).
+#   govori-db     — Postgres 16, AUTO-SEEDED from the demo dump on first run.
+#                   EF Core owns the schema from the baseline migration onward;
+#                   it is never auto-created at container start.
 #   govori-redis  — OTP store + SignalR backplane + rate-limit backend.
 #   govori-minio (+ govori-minio-init) — S3 object storage + the audio bucket.
 #   govori-api    — ASP.NET Core (REST /api/*, SignalR /hubs/attempts, /health, /metrics).
-#   govori-worker — Hangfire server + recurring maintenance jobs (ex-Celery).
+#   govori-worker — Hangfire server: grading pipeline + recurring maintenance jobs.
 #   govori-web    — nginx serving the Vite SPA + reverse-proxying /api and /hubs to the api.
 #
-# INDEPENDENT of the legacy Python docker-compose.yml / .prod.yml (own project name,
-# network, volumes). Container/image/volume names are explicit & professional; ports
-# are parameterised in .env to avoid host clashes.
+# SELF-CONTAINED: its own project name, network and volumes, so it never collides with
+# another stack on the same host. Container/image/volume names are explicit & professional;
+# ports are parameterised in .env to avoid host clashes.
 # ─────────────────────────────────────────────────────────────────────────────
 
 name: govori
 
 # Shared backend env (Api + Worker). Values resolve from .env with sane dev defaults.
 x-backend-env: &backend-env
-  # Postgres — database-first. For prod cutover point these at the existing prod DB
-  # and REMOVE the seed mount on `db` below.
+  # Postgres. To point at an existing populated DB (e.g. prod), set these to it and
+  # REMOVE the seed mount on `db` below. Adopt that DB into EF's migration history
+  # ONCE with deploy/ef-baseline.sh — never run `ef database update` against a
+  # populated database, the baseline migration would try to recreate the schema.
   ConnectionStrings__Govori: "Host=db;Port=5432;Database=${POSTGRES_DB:-russpeak};Username=${POSTGRES_USER:-russpeak};Password=${POSTGRES_PASSWORD:-govori}"
   GOVORI_DB: "Host=db;Port=5432;Database=${POSTGRES_DB:-russpeak};Username=${POSTGRES_USER:-russpeak};Password=${POSTGRES_PASSWORD:-govori}"
   # Redis (service DNS name stays `redis` — see networks note).
@@ -76,6 +79,10 @@ services:
       # graded submissions, XP, reviews, notifications). Idempotent; runs after dev users.
       # DEV ONLY — do not mount for prod.
       - ./deploy/seed/30-sample-data.sql:/docker-entrypoint-initdb.d/30-sample-data.sql:ro
+      # Rich 8-week Progress/leaderboard history per student (real skills incl pronunciation,
+      # rising band-trend, recent weekly XP, streaks) so the Progress screen is populated, not
+      # empty. Idempotent; runs after the sample data. DEV ONLY — do not mount for prod.
+      - ./deploy/seed/35-progress-sample-data.sql:/docker-entrypoint-initdb.d/35-progress-sample-data.sql:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-russpeak} -d ${POSTGRES_DB:-russpeak}"]
       interval: 5s

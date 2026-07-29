@@ -7,7 +7,10 @@ namespace Govori.Infrastructure.Entities;
 // must equal the PG label EXACTLY, in the SAME ORDER as CREATE TYPE.
 // Mapped at the ADO layer via NpgsqlDataSourceBuilder.MapEnum<T>(...) in
 // GovoriDataSourceFactory, and at the EF model layer via HasPostgresEnum<T>(...)
-// in GovoriDbContext. Do NOT let these scaffold as string/int.
+// in GovoriDbContext. Both registrations are required: drop either one and the
+// value silently round-trips as a string or int instead of the native enum.
+// The member order below is also the order CREATE TYPE emits in the migration,
+// so reordering members rewrites the PG type — append new labels at the end.
 
 /// <summary>PG type <c>public.user_role</c> — CREATE TYPE user_role AS ENUM ('teacher','student','admin').</summary>
 public enum UserRole

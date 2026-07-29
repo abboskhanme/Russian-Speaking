@@ -7,6 +7,15 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <!-- Govori.Platform owns the ITelegramBindingStore CONTRACT (both hosts depend on it); this
+         project owns the DbContext, so the EF-backed IMPLEMENTATION lives here. The arrow points
+         Infrastructure→Platform and never back: Platform references only Govori.Contracts, so this
+         edge is acyclic and leaves the "Platform never depends on a domain or a host" guardrail
+         (Govori.ArchTests, BoundaryRuleTests rule 1) untouched. -->
+    <ProjectReference Include="..\Govori.Platform\Govori.Platform.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
     <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="9.0.4">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>

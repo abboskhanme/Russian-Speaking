@@ -1,6 +1,9 @@
 /**
- * screens/auth/uz-regions — Uzbekistan regions (viloyat) → districts (tuman),
- * the data behind the registration "Manzil" step's cascading dropdowns.
+ * shared/uz-regions — Uzbekistan regions (viloyat) → districts (tuman), the
+ * data behind every cascading Viloyat→Tuman pair in the app: the registration
+ * "Manzil" step and the Profile "Ma'lumot" edit dialog. Plain reference data
+ * with no React or API dependency, so it lives in `shared/` rather than inside
+ * either screen — there must only ever be ONE copy of this table.
  *
  * Coverage: all 14 top-level administrative units — Toshkent shahri (the capital
  * city, shown first to match the mockup default), the 12 viloyats, and the

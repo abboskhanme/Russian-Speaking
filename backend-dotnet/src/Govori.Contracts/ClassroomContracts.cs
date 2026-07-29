@@ -1,21 +1,21 @@
 namespace Govori.Contracts;
 
 // ─── Classroom domain DTOs (docs/07 §3.5, Faza 3.5) ─────────────────────────
-// Ported from backend/app/schemas/group.py, gamification.py (Assignment*) and report.py
-// (GradebookRow). Every field serializes snake_case via the host's global
-// JsonNamingPolicy.SnakeCaseLower (Program.cs), so `JoinCode` → "join_code",
-// `StudentIds` → "student_ids", etc. — matching the Python API shapes exactly.
+// Groups + assignments + the gradebook. Every field serializes snake_case via the host's
+// global JsonNamingPolicy.SnakeCaseLower (Program.cs), so `JoinCode` → "join_code",
+// `StudentIds` → "student_ids", etc. The snake_case wire shape is LOAD-BEARING: existing
+// clients depend on it, so property renames must preserve the serialized name.
 
 // ── Requests ──
 
-/// <summary>Body of POST /api/groups — group.py <c>GroupCreate</c> ({ "name": ... }).</summary>
+/// <summary>Body of POST /api/groups — creates a group. JSON: <c>{ "name": ... }</c>.</summary>
 public sealed record CreateGroupRequest(string? Name);
 
-/// <summary>Body of POST /api/groups/join — group.py <c>JoinGroup</c> ({ "code": ... }).</summary>
+/// <summary>Body of POST /api/groups/join — join by invite code. JSON: <c>{ "code": ... }</c>.</summary>
 public sealed record JoinGroupRequest(string? Code);
 
 /// <summary>
-/// Body of POST /api/assignments — gamification.py <c>AssignmentCreate</c>. Targets are the
+/// Body of POST /api/assignments — assign one question. Targets are the
 /// union of explicit <c>student_ids</c> and the whole <c>group_id</c>'s members; both are then
 /// filtered through the teacher's roster (S1 fix — see ClassroomService).
 /// </summary>
@@ -26,8 +26,8 @@ public sealed record CreateAssignmentRequest(
     DateTime? DueAt);
 
 /// <summary>
-/// Body of POST /api/assignments/module — gamification.py <c>ModuleAssignmentCreate</c>:
-/// assign every published task of a module to a group / students in one call.
+/// Body of POST /api/assignments/module — assign every published task of a module to a
+/// group / students in one call.
 /// </summary>
 public sealed record CreateModuleAssignmentRequest(
     Guid BlockId,
@@ -37,7 +37,7 @@ public sealed record CreateModuleAssignmentRequest(
 
 // ── Responses ──
 
-/// <summary>A student row inside a group's roster — group.py <c>GroupMemberOut</c>.</summary>
+/// <summary>A student row inside a group's roster.</summary>
 public sealed record GroupMemberResponse(
     Guid Id,
     string FullName,
@@ -45,7 +45,7 @@ public sealed record GroupMemberResponse(
     bool IsPremium,
     int SubmissionCount);
 
-/// <summary>A group, as the teacher/owner sees it in lists — group.py <c>GroupOut</c>.</summary>
+/// <summary>A group, as the teacher/owner sees it in lists.</summary>
 public sealed record GroupResponse(
     Guid Id,
     string Name,
@@ -55,7 +55,7 @@ public sealed record GroupResponse(
     string? TeacherName,
     DateTime CreatedAt);
 
-/// <summary>A group plus its roster — group.py <c>GroupDetailOut</c> (GroupOut + members).</summary>
+/// <summary>A group plus its roster — <see cref="GroupResponse"/> extended with its members.</summary>
 public sealed record GroupDetailResponse(
     Guid Id,
     string Name,
@@ -67,7 +67,7 @@ public sealed record GroupDetailResponse(
     IReadOnlyList<GroupMemberResponse> Members);
 
 /// <summary>
-/// One assignment with its live completion state — gamification.py <c>AssignmentOut</c>.
+/// One assignment with its live completion state.
 /// <c>OverallBand</c> is the level-relative <c>effective_band</c> of the matching submission
 /// (field name kept for API compatibility), not the absolute C2 band.
 /// </summary>
@@ -85,7 +85,7 @@ public sealed record AssignmentResponse(
     Guid? SubmissionId,
     double? OverallBand);
 
-/// <summary>One student's line in the gradebook — report.py <c>GradebookRow</c>.</summary>
+/// <summary>One student's line in the gradebook.</summary>
 public sealed record GradebookRowResponse(
     Guid StudentId,
     string FullName,

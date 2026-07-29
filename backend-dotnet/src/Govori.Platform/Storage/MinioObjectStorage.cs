@@ -9,8 +9,7 @@ namespace Govori.Platform.Storage;
 /// <see cref="IObjectStorage"/> backed by <c>AWSSDK.S3</c> against an S3-compatible store
 /// (MinIO in dev). Path-style addressing, SigV4.
 ///
-/// Faithful port of <c>backend/app/services/storage.py</c>. Two clients exist for the
-/// same reason the Python module keeps two (storage.py:5-10, 34-37):
+/// TWO CLIENTS EXIST ON PURPOSE — do not collapse them into one:
 ///   * <see cref="_internal"/> — signed for the internal Docker host (<c>S3_ENDPOINT_URL</c>);
 ///     used for server-side put/get/head/delete.
 ///   * <see cref="_public"/> — signed for the public host (<c>S3_PUBLIC_URL</c>); used ONLY
@@ -19,7 +18,7 @@ namespace Govori.Platform.Storage;
 /// </summary>
 public sealed class MinioObjectStorage : IObjectStorage, IDisposable
 {
-    // Python defaults, preserved: presigned_put expires=1800 (storage.py:44), presigned_get expires=3600 (storage.py:52).
+    // Presign expiries clients rely on: uploads 1800 s (30 min), downloads 3600 s (1 h).
     private static readonly TimeSpan DefaultUploadExpiry = TimeSpan.FromSeconds(1800);
     private static readonly TimeSpan DefaultDownloadExpiry = TimeSpan.FromSeconds(3600);
 
@@ -53,19 +52,19 @@ public sealed class MinioObjectStorage : IObjectStorage, IDisposable
     private static AmazonS3Config MakeConfig(string serviceUrl, string region) => new()
     {
         ServiceURL = serviceUrl,
-        ForcePathStyle = true,          // MinIO: path-style, not virtual-hosted buckets (Python addressing_style="path")
-        AuthenticationRegion = region,  // SigV4 region placeholder (Python region_name)
+        ForcePathStyle = true,          // REQUIRED for MinIO: path-style addressing, not virtual-hosted buckets
+        AuthenticationRegion = region,  // SigV4 region placeholder — MinIO ignores it but signing needs a value
     };
 
-    // AWSSDK always mints presigned URLs as https:// regardless of the ServiceURL scheme.
-    // boto3 honours the endpoint scheme (http for MinIO in dev), so match that. Safe: SigV4
-    // does not sign the URI scheme, so rewriting https→http keeps the signature valid.
+    // AWSSDK always mints presigned URLs as https:// regardless of the ServiceURL scheme, so a
+    // plain-http endpoint (MinIO in dev) would hand the browser an unreachable URL. Safe to fix
+    // up: SigV4 does not sign the URI scheme, so rewriting https→http keeps the signature valid.
     private string NormalizeScheme(string url) =>
         _publicUsesHttp && url.StartsWith("https://", StringComparison.OrdinalIgnoreCase)
             ? string.Concat("http://", url.AsSpan("https://".Length))
             : url;
 
-    /// <summary>Mirrors Python <c>new_key</c> (storage.py:40-41): <c>{prefix}/{uuid4-hex}.{ext}</c>.</summary>
+    /// <summary>Builds a fresh key of the form <c>{prefix}/{uuid-hex}.{ext}</c>.</summary>
     public string NewKey(string prefix, string ext)
     {
         var cleanExt = ext.TrimStart('.');

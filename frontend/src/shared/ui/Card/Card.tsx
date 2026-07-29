@@ -4,7 +4,7 @@ import { Slot } from "@radix-ui/react-slot";
 import { cx } from "../utils/cx";
 import styles from "./Card.module.css";
 
-export type CardVariant = "flat" | "raised" | "outline" | "tint";
+export type CardVariant = "flat" | "raised" | "outline" | "tint" | "panel";
 export type CardPadding = "none" | "sm" | "md" | "lg";
 
 const padClass: Record<CardPadding, string> = {

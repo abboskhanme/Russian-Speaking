@@ -24,8 +24,8 @@ Bu papka — bitta manba (single source of truth). Eski `ARCHITECTURE.md`, `PROJ
 
 ## ⚠️ 2026-07-17 — kurs o'zgarishi
 
-Backend **Python/FastAPI** dan **C#/.NET 9** ga ko'chiriladi; baza **Postgres qoladi va
-ma'lumoti saqlanadi**; frontend React+TS qoladi, lekin dizayn va kod to'liq yangi.
+Backend **C#/.NET 9** ga ko'chirildi; baza **Postgres qoldi va ma'lumoti saqlandi**;
+frontend React+TS qoldi, lekin dizayn va kod to'liq yangi.
 
 Shuning uchun:
 - `02-ARCHITECTURE-V2.md` — **backend qismi eskirgan** (SQLAlchemy/Celery/Pydantic).

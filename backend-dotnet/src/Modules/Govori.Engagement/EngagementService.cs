@@ -1,22 +1,25 @@
+using System.Globalization;
 using Govori.Contracts;
 using Govori.Infrastructure;
 using Govori.Infrastructure.Entities;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 
 namespace Govori.Engagement;
 
 /// <summary>
 /// Application service for the Engagement vertical slice (docs/07 §3.6, Faza 3.6) — XP, streaks
 /// (with freezes), the leaderboard, the spaced-repetition (SRS) review queue and in-app
-/// notifications. Ported faithfully from Python:
+/// notifications. Its responsibilities:
 /// <list type="bullet">
-///   <item>XP / streak / SRS scheduling award logic: <c>backend/app/services/gamification.py</c>
-///     (<c>xp_for_band</c>, <c>award_submission</c>, <c>award_practice</c>, <c>_update_streak</c>,
-///     <c>schedule_review</c>) — called from the grading worker, not an HTTP route;</item>
-///   <item>leaderboard + review read/create: <c>backend/app/api/v1/engagement.py</c>
-///     (<c>leaderboard</c>, <c>my_reviews</c>, <c>create_reviews</c>);</item>
-///   <item>notifications: <c>backend/app/api/v1/notifications.py</c> + the <c>notify</c> helper in
-///     <c>backend/app/services/notifications.py</c>.</item>
+///   <item>the XP / streak / SRS-scheduling award logic (<see cref="XpForBand"/>,
+///     <see cref="AwardSubmissionAsync"/>, <see cref="AwardPracticeAsync"/>, <c>UpdateStreak</c>,
+///     <see cref="ScheduleReviewAsync"/>) — driven by the grading worker, not by an HTTP route;</item>
+///   <item>the leaderboard and the review queue's read/create paths
+///     (<see cref="LeaderboardAsync"/>, <see cref="MyReviewsAsync"/>,
+///     <see cref="CreateReviewsAsync"/>);</item>
+///   <item>in-app notifications — listing, unread count, mark-read, delete/clear, plus the internal
+///     <c>Notify</c> helper the write paths use to raise one.</item>
 /// </list>
 ///
 /// <para><b>C8 (FROZEN).</b> <see cref="XpForBand"/> is the anti-farming XP curve
@@ -24,72 +27,81 @@ namespace Govori.Engagement;
 /// fixture <c>tests/characterization/fixtures/xp_cases.json</c> and driven through this REAL
 /// production method by <c>Govori.Characterization.EngagementXpPortTests</c>. Do not "improve" it.</para>
 ///
-/// <para><b>Roster filter (mirrors Classroom's S1 fix).</b> <see cref="CreateReviewsAsync"/> already
-/// had a roster filter in Python (engagement.py:250-258) — a teacher may only queue reviews for
-/// students on their own roster (admins: anyone). This port keeps it via <see cref="RosterStudentIds"/>.</para>
+/// <para><b>Roster filter (same rule as Classroom's S1 fix).</b> <see cref="CreateReviewsAsync"/>
+/// enforces that a teacher may only queue reviews for students on their OWN roster (admins: anyone),
+/// via <see cref="RosterStudentIds"/>. Do not widen it — it is what stops one teacher pushing review
+/// work onto another teacher's students.</para>
 ///
-/// <para><b>S6 (NOT fixed here — faithful port).</b> <c>_update_streak</c> keys off the SERVER date
-/// (Python <c>date.today()</c>), not the user's timezone (docs/07 §7.8 bug S6). This port mirrors it
-/// with <c>DateOnly.FromDateTime(DateTime.UtcNow)</c>. The award methods expose an optional
-/// <c>today</c> seam so the worker (and deterministic tests) can supply the date explicitly; a
-/// TZ-correct fix is deferred to when user-timezone plumbing lands.</para>
+/// <para><b>S6 (known limitation, deliberately not fixed here).</b> <c>UpdateStreak</c> keys off the
+/// SERVER date — <c>DateOnly.FromDateTime(DateTime.UtcNow)</c> — and NOT the user's timezone
+/// (docs/07 §7.8 bug S6), so a student's day rolls over at UTC midnight rather than their local one.
+/// The award methods expose an optional <c>today</c> seam so the worker (and deterministic tests) can
+/// supply the date explicitly; a TZ-correct fix is deferred to when user-timezone plumbing lands.</para>
 ///
-/// <para>Role/auth: leaderboard + review-list + all notification routes are <c>get_current_user</c>
-/// (any active user; null ⇒ 401). <see cref="CreateReviewsAsync"/> is <c>require_teacher</c>
-/// (teacher OR admin; 403 otherwise). role/is_active are read from the DB, never trusted from the
-/// token — the endpoint supplies only the <c>sub</c>.</para>
+/// <para>Role/auth: the leaderboard, the review list and every notification route accept any active
+/// user (null ⇒ 401). <see cref="CreateReviewsAsync"/> requires teacher OR admin (403 otherwise).
+/// role/is_active are read from the DB, never trusted from the token — the endpoint supplies only
+/// the <c>sub</c>.</para>
 /// </summary>
 public sealed class EngagementService
 {
     private readonly GovoriDbContext _db;
+    private readonly ILogger<EngagementService>? _logger;
 
-    public EngagementService(GovoriDbContext db) => _db = db;
+    // The logger is OPTIONAL (nullable, default null) so the worker-side award paths and the tests
+    // that construct this service directly (new EngagementService(ctx)) keep compiling; DI supplies a
+    // real ILogger in both hosts. It is only used to record the best-effort rank_delta choice on the
+    // progress leaderboard (never to fabricate a number).
+    public EngagementService(GovoriDbContext db, ILogger<EngagementService>? logger = null)
+    {
+        _db = db;
+        _logger = logger;
+    }
 
-    // ─── Frozen constants (gamification.py:15-19) ─────────────────────────────
+    // ─── Frozen constants ─────────────────────────────────────────────────────
 
-    /// <summary>Flag a skill for SRS review below this 0–100 score (gamification.py:15).</summary>
+    /// <summary>Flag a skill for SRS review below this 0–100 score.</summary>
     public const double ReviewThreshold = 67.0;
 
-    /// <summary>Graduated spaced-repetition intervals in days, by review round (gamification.py:17).</summary>
+    /// <summary>Graduated spaced-repetition intervals in days, indexed by review round.</summary>
     public static readonly int[] ReviewIntervalsDays = { 1, 3, 7, 16, 35 };
 
-    /// <summary>Earn one streak freeze on every Nth consecutive day (gamification.py:19).</summary>
+    /// <summary>Earn one streak freeze on every Nth consecutive day.</summary>
     public const int FreezeEarnEvery = 5;
 
-    /// <summary>Fixed XP for a non-graded practice attempt (gamification.py:52).</summary>
+    /// <summary>Fixed XP for a non-graded practice attempt.</summary>
     public const int PracticeXp = 5;
 
-    // ─── C8: XP curve (gamification.py:24-31) — FROZEN ────────────────────────
+    // ─── C8: XP curve — FROZEN ────────────────────────────────────────────────
 
     /// <summary>
     /// XP scales linearly with the 0–100 score (<c>score/4</c> → 25 XP at 100%), but answers below
     /// 27% earn nothing (anti-farming floor). <c>null → 0</c>. Uses banker's rounding
-    /// (<see cref="MidpointRounding.ToEven"/>) to match Python's <c>int(round(pct/4))</c>. FROZEN by
+    /// (<see cref="MidpointRounding.ToEven"/>), so an exact .5 settles on the even integer. FROZEN by
     /// the C8 fixture — do not change the math.
     /// </summary>
     public static int XpForBand(double? score)
     {
-        var pct = score ?? 0;                                        // Python `score or 0`
+        var pct = score ?? 0;                                        // an ungraded answer counts as 0
         if (pct < 27) return 0;
         return (int)Math.Round(pct / 4.0, MidpointRounding.ToEven);
     }
 
-    // ─── XP / streak award (gamification.py:34-91) ────────────────────────────
+    // ─── XP / streak award ────────────────────────────────────────────────────
 
     /// <summary>
-    /// Award XP for a graded submission and roll the daily streak (gamification.py:34-49). Only real
-    /// students accrue XP/streak (teacher/admin runs earn nothing); a non-answered attempt earns
-    /// nothing. XP basis is the level-relative score when present, else the absolute band. Best-effort
-    /// in Python; here it commits its own unit of work.
+    /// Award XP for a graded submission and roll the daily streak. Only real students accrue
+    /// XP/streak (teacher/admin runs earn nothing); a non-answered attempt earns nothing. The XP basis
+    /// is the level-relative score when present, else the absolute band. Commits its own unit of work.
     /// </summary>
     public async Task AwardSubmissionAsync(
         Submission sub, Evaluation evaluation, bool answered = true, DateOnly? today = null, CancellationToken ct = default)
     {
         var user = await _db.Users.FirstOrDefaultAsync(u => u.Id == sub.StudentId, ct);
-        if (user is null || user.Role != UserRole.Student) return;  // gamification.py:37-38
-        if (!answered) return;                                      // gamification.py:41-42
+        if (user is null || user.Role != UserRole.Student) return;  // only students accrue XP
+        if (!answered) return;                                      // a skipped attempt earns nothing
 
-        // Level-relative score (motivating) when available, else the absolute overall (gamification.py:45).
+        // Level-relative score (motivating) when available, else the absolute overall band.
         double? basis = evaluation.LevelScore ?? evaluation.OverallBand;
         var amount = XpForBand(basis);
 
@@ -104,19 +116,19 @@ public sealed class EngagementService
             CreatedAt = now,
             UpdatedAt = now,
         });
-        user.Xp += amount;                                          // gamification.py:48
+        user.Xp += amount;                                          // denormalised running total
         UpdateStreak(user, today ?? DateOnly.FromDateTime(DateTime.UtcNow));
         await _db.SaveChangesAsync(ct);
     }
 
     /// <summary>
     /// Reward a non-graded practice attempt (shadowing) with a fixed <see cref="PracticeXp"/> and roll
-    /// the streak (gamification.py:55-66). Teacher/admin runs earn nothing.
+    /// the streak. Teacher/admin runs earn nothing.
     /// </summary>
     public async Task AwardPracticeAsync(Submission sub, DateOnly? today = null, CancellationToken ct = default)
     {
         var user = await _db.Users.FirstOrDefaultAsync(u => u.Id == sub.StudentId, ct);
-        if (user is null || user.Role != UserRole.Student) return;  // gamification.py:60-61
+        if (user is null || user.Role != UserRole.Student) return;  // only students accrue XP
 
         var now = DateTime.UtcNow;
         _db.XpEvents.Add(new XpEvent
@@ -134,7 +146,8 @@ public sealed class EngagementService
         await _db.SaveChangesAsync(ct);
     }
 
-    // gamification.py:69-91 — daily streak with freeze bridging + freeze earning. Mutates `user`.
+    // Daily streak: bridge missed days with earned freezes, and earn a new freeze every Nth day.
+    // Mutates `user` in place; the caller owns the commit.
     private static void UpdateStreak(User user, DateOnly today)
     {
         var last = user.LastPracticeDate;
@@ -164,7 +177,7 @@ public sealed class EngagementService
                     user.CurrentStreak = 1;                         // streak broken
                 }
             }
-            // gap <= 0 (a last-practice date in the future): unchanged, mirroring Python.
+            // gap <= 0 (a last-practice date in the future): leave the streak untouched.
         }
 
         user.LastPracticeDate = today;
@@ -173,26 +186,27 @@ public sealed class EngagementService
             user.StreakFreezes += 1;                                // earn a freeze on every Nth day
     }
 
-    // ─── SRS scheduling (gamification.py:94-127) ──────────────────────────────
+    // ─── SRS scheduling ───────────────────────────────────────────────────────
 
     /// <summary>
     /// Mark prior open reviews for this (student, question) done, then schedule a new review for the
-    /// single weakest skill dimension below <see cref="ReviewThreshold"/> (gamification.py:94-127).
-    /// Dimensions are considered in the order fluency → lexical → grammar → relevance; the lowest wins,
-    /// ties break to the earliest in that order (mirrors Python <c>min</c> over an ordered dict). Only
-    /// real students accrue reviews.
+    /// single weakest skill dimension below <see cref="ReviewThreshold"/>.
+    /// Dimensions are considered in the order fluency → lexical → grammar → relevance; the lowest wins
+    /// and a tie resolves to the FIRST dimension in that order, so the order is part of the contract —
+    /// do not reorder it. Only real students accrue reviews.
     /// </summary>
     public async Task ScheduleReviewAsync(Submission sub, Evaluation evaluation, CancellationToken ct = default)
     {
         var student = await _db.Users.FirstOrDefaultAsync(u => u.Id == sub.StudentId, ct);
-        if (student is null || student.Role != UserRole.Student) return;  // gamification.py:97-98
+        if (student is null || student.Role != UserRole.Student) return;  // only students get reviews
 
         var prior = await _db.ReviewItems
             .Where(r => r.StudentId == sub.StudentId && r.QuestionId == sub.QuestionId && !r.Completed)
             .ToListAsync(ct);
-        foreach (var r in prior) r.Completed = true;                // gamification.py:99-107
+        foreach (var r in prior) r.Completed = true;                // this attempt supersedes them
 
-        // gamification.py:109-116 — insertion order matters (Python dict); first-min on ties.
+        // Listing order is significant: the scan below keeps the FIRST minimum, so this order is
+        // what breaks ties between equally weak dimensions.
         var dims = new (string Dim, double? Score)[]
         {
             ("fluency", evaluation.FluencyScore),
@@ -231,10 +245,10 @@ public sealed class EngagementService
         await _db.SaveChangesAsync(ct);
     }
 
-    // ─── Leaderboard (engagement.py:36-172) ───────────────────────────────────
+    // ─── Leaderboard ──────────────────────────────────────────────────────────
 
     /// <summary>
-    /// Ranked by the chosen period's XP with the other period as tiebreak (engagement.py:36-172).
+    /// Ranked by the chosen period's XP with the other period as tiebreak.
     /// <paramref name="period"/> "weekly" (default) ranks by last-7-day XP then all-time; "all" ranks
     /// by all-time then this week's. With <paramref name="groupId"/> the board is scoped to that
     /// group's members, scored ONLY from XP earned on that group's assigned tasks (a student who is
@@ -247,10 +261,10 @@ public sealed class EngagementService
         var user = await ActiveUserAsync(userId, ct);
         if (user is null) return EngagementResult<IReadOnlyList<LeaderboardEntryResponse>>.Unauthorized();
 
-        var allTime = period == "all";                              // engagement.py:51
-        var weekAgo = DateTime.UtcNow.AddDays(-7);                  // engagement.py:52
+        var allTime = period == "all";                              // anything else ⇒ weekly
+        var weekAgo = DateTime.UtcNow.AddDays(-7);                  // rolling 7 days, not a calendar week
 
-        // ── Group/class board: scored from this group's ASSIGNED tasks only (engagement.py:55-101) ──
+        // ── Group/class board: scored from this group's ASSIGNED tasks only ──
         if (groupId is not null)
         {
             if (user.Role == UserRole.Student)
@@ -258,7 +272,7 @@ public sealed class EngagementService
                 var isMember = await _db.GroupMembers.AnyAsync(
                     gm => gm.GroupId == groupId.Value && gm.StudentId == user.Id, ct);
                 if (!isMember)
-                    return EngagementResult<IReadOnlyList<LeaderboardEntryResponse>>.Forbidden();  // engagement.py:62-63
+                    return EngagementResult<IReadOnlyList<LeaderboardEntryResponse>>.Forbidden();  // non-members may not peek
             }
 
             var members = await _db.Users
@@ -267,7 +281,7 @@ public sealed class EngagementService
                 .Select(x => x.u)
                 .ToListAsync(ct);
 
-            // XP from submissions linked to an assignment of THIS group (engagement.py:72-77).
+            // XP from submissions linked to an assignment of THIS group.
             var rows = await _db.XpEvents
                 .Where(xe => xe.SubmissionId != null)
                 .Join(_db.Submissions, xe => xe.SubmissionId!.Value, s => s.Id, (xe, s) => new { xe, s })
@@ -286,8 +300,8 @@ public sealed class EngagementService
                     weekly[r.StudentId] = weekly.GetValueOrDefault(r.StudentId) + r.Amount;
             }
 
-            // sorted(reverse=True) keeps the original (query) order on full ties — matched by a stable
-            // OrderByDescending/ThenByDescending (engagement.py:84-89).
+            // OrderByDescending/ThenByDescending are STABLE, so students tied on BOTH figures keep
+            // the order the member query returned them in.
             IEnumerable<User> ranked = allTime
                 ? members.OrderByDescending(s => total.GetValueOrDefault(s.Id))
                          .ThenByDescending(s => weekly.GetValueOrDefault(s.Id))
@@ -305,7 +319,7 @@ public sealed class EngagementService
             return EngagementResult<IReadOnlyList<LeaderboardEntryResponse>>.Ok(groupList);
         }
 
-        // ── Global board: all students, all XP; rank in SQL (engagement.py:103-138) ──
+        // ── Global board: all students, all XP; rank in SQL ──
         var weeklyByStudent = _db.XpEvents
             .Where(x => x.CreatedAt >= weekAgo)
             .GroupBy(x => x.StudentId)
@@ -340,7 +354,8 @@ public sealed class EngagementService
             CurrentStreak: r.CurrentStreak,
             IsMe: r.Id == user.Id)).ToList();
 
-        // engagement.py:139-171 — a student outside the top 50 gets their true rank appended.
+        // A student who fell outside the top 50 gets their true rank appended, so they always see
+        // themselves on the board.
         if (user.Role == UserRole.Student && !top.Any(e => e.IsMe))
         {
             var myWeekly = await _db.XpEvents
@@ -348,7 +363,7 @@ public sealed class EngagementService
                 .SumAsync(x => (long?)x.Amount, ct) ?? 0L;
             var myXp = (long)user.Xp;
 
-            // rank = students (within scope) strictly ahead of me + 1 (engagement.py:148-160).
+            // rank = students (within scope) strictly ahead of me + 1.
             var better = await _db.Users
                 .Where(u => u.Role == UserRole.Student)
                 .Select(u => new
@@ -376,11 +391,272 @@ public sealed class EngagementService
         return EngagementResult<IReadOnlyList<LeaderboardEntryResponse>>.Ok(top);
     }
 
-    // ─── SRS review queue (engagement.py:176-317) ─────────────────────────────
+    // ─── Progress: skills breakdown + band trend (Ko'nikmalar tab) ─────────────
+
+    /// <summary>Cap on the number of weekly points the band trend carries (docs contract: "~8–12").</summary>
+    private const int TrendWeekCap = 12;
+
+    /// <summary>
+    /// <c>GET /api/progress/skills</c> — the caller's four skill averages, derived CEFR level and the
+    /// weekly band trend, all computed from existing columns (NO schema change). Every query is scoped
+    /// to the caller's own submissions, so a student can never observe another's skills. <c>null</c> ⇒
+    /// the user is missing/inactive (401 at the endpoint).
+    ///
+    /// <para><b>Skills.</b> The four are ALWAYS returned in the fixed order fluency → pronunciation →
+    /// lexical → grammar, each the AVG of that column rounded to a whole 0..100. SQL <c>AVG</c> ignores
+    /// NULLs, so <c>PronunciationScore</c> (nullable) averages only the graded ones; a skill with no
+    /// scores at all yields <c>0</c> (empty bar), never a crash.</para>
+    ///
+    /// <para><b>Level + band.</b> <c>Band</c> is the mean <c>OverallBand</c> to 1dp; <c>Level</c> /
+    /// <c>LevelLabel</c> derive from that SAME rounded value via the shared <see cref="CefrScale"/>
+    /// (thresholds live there, never duplicated). All three are <c>null</c> together when nothing is
+    /// graded.</para>
+    ///
+    /// <para><b>Trend + delta.</b> The caller's evaluations are bucketed by ISO week (keyed on the
+    /// submission date), averaged per week and emitted oldest→newest, capped to the last
+    /// <see cref="TrendWeekCap"/> points; <c>WeekIndex</c> is a 0-based x-axis sequence.
+    /// <c>BandDelta</c> is <c>Band</c> minus the earliest trend point's band; with fewer than 2 weekly
+    /// points it is <c>null</c> and <c>DeltaWeeks</c> is <c>0</c>, else <c>DeltaWeeks</c> is the number
+    /// of weekly points spanned.</para>
+    /// </summary>
+    public async Task<ProgressSkillsResponse?> SkillsAsync(Guid userId, CancellationToken ct = default)
+    {
+        // Missing/inactive ⇒ null ⇒ 401 (matches the ProfileService read slice). Nothing else off the
+        // user row is needed for the skills view.
+        if (!await _db.Users.AnyAsync(u => u.Id == userId && u.IsActive, ct)) return null;
+
+        // One grouped aggregate for the four skill means + the average band. Each mean is a (double?)
+        // AVG so an empty set is SQL NULL (→ 0 / "nothing graded") rather than an exception, and the
+        // nullable pronunciation column is averaged over its non-null rows only.
+        var agg = await _db.Evaluations
+            .Where(e => e.Submission.StudentId == userId)
+            .GroupBy(e => e.Submission.StudentId)
+            .Select(g => new
+            {
+                Fluency = g.Average(e => (double?)e.FluencyScore),
+                Pronunciation = g.Average(e => (double?)e.PronunciationScore),
+                Lexical = g.Average(e => (double?)e.LexicalScore),
+                Grammar = g.Average(e => (double?)e.GrammarScore),
+                Band = g.Average(e => (double?)e.OverallBand),
+            })
+            .FirstOrDefaultAsync(ct);
+
+        // Fixed order, always all four; a null (no scores) mean reads 0.
+        var skills = new List<ProgressSkillResponse>
+        {
+            new("fluency", Score0To100(agg?.Fluency)),
+            new("pronunciation", Score0To100(agg?.Pronunciation)),
+            new("lexical", Score0To100(agg?.Lexical)),
+            new("grammar", Score0To100(agg?.Grammar)),
+        };
+
+        // Band to 1dp; the level is derived from that SAME rounded value so the badge never disagrees
+        // with the number printed next to it at a bucket boundary.
+        var band = agg?.Band is { } b ? Math.Round(b, 1, MidpointRounding.AwayFromZero) : (double?)null;
+        var (level, levelLabel) = CefrScale.FromAverageBand(band);
+
+        // Weekly band trend: pull the caller's (date, band) pairs and bucket by ISO week in memory —
+        // this is one student's own history (bounded), and ISOWeek has no SQL translation.
+        var points = await _db.Evaluations
+            .Where(e => e.Submission.StudentId == userId)
+            .Select(e => new { e.Submission.CreatedAt, e.OverallBand })
+            .ToListAsync(ct);
+
+        var weekly = points
+            .GroupBy(p => (Year: ISOWeek.GetYear(p.CreatedAt), Week: ISOWeek.GetWeekOfYear(p.CreatedAt)))
+            .Select(gr => new { gr.Key.Year, gr.Key.Week, Avg = gr.Average(x => x.OverallBand) })
+            .OrderBy(x => x.Year).ThenBy(x => x.Week)   // ISO year+week ⇒ chronological
+            .ToList();
+
+        // Cap to the last N weeks (oldest→newest), then index 0-based for the x-axis.
+        var capped = weekly.Count > TrendWeekCap ? weekly.Skip(weekly.Count - TrendWeekCap).ToList() : weekly;
+        var trend = capped
+            .Select((w, i) => new ProgressTrendPointResponse(i, Math.Round(w.Avg, 1, MidpointRounding.AwayFromZero)))
+            .ToList();
+
+        // band_delta needs ≥ 2 weekly points; it is the current band minus the earliest window point.
+        double? bandDelta = null;
+        var deltaWeeks = 0;
+        if (trend.Count >= 2 && band is { } cur)
+        {
+            bandDelta = Math.Round(cur - trend[0].Band, 1, MidpointRounding.AwayFromZero);
+            deltaWeeks = trend.Count;
+        }
+
+        return new ProgressSkillsResponse(level, levelLabel, band, bandDelta, deltaWeeks, trend, skills);
+    }
+
+    // A nullable skill mean → the whole 0..100 the UI bar reads; null (no scores) ⇒ 0.
+    private static int Score0To100(double? mean)
+        => mean is { } m ? Math.Clamp((int)Math.Round(m, MidpointRounding.AwayFromZero), 0, 100) : 0;
+
+    // ─── Progress: leaderboard summary (Reyting tab) ───────────────────────────
+
+    /// <summary>
+    /// <c>GET /api/progress/leaderboard?period=weekly|monthly|all</c> — the caller's standing in the
+    /// student ranking for the chosen period plus a small neighbour window. Missing/inactive ⇒
+    /// Unauthorized (401); a non-student caller ⇒ Forbidden (403, the ranking population is students).
+    ///
+    /// <para><b>period XP</b>: weekly = XpEvents in the last 7 days, monthly = last 30 days, all =
+    /// <c>User.Xp</c>. Students are ranked by period XP, tie-broken by all-time XP. <b>my_rank</b> =
+    /// students strictly ahead + 1 (competition ranking), computed in SQL — the full population is
+    /// never loaded. <b>percentile</b> = <c>ceil(my_rank / total * 100)</c> clamped 1..100.
+    /// <b>league</b>: percentile ≤ 10 → gold, ≤ 35 → silver, else bronze. <b>neighbours</b> is a
+    /// sliding window of ≤ 5 rows (2 above + caller + 2 below, shifted to stay in-bounds), ascending by
+    /// rank, always including the caller — fetched as two small SQL slices, never a full scan.
+    /// <b>rank_delta</b> is best-effort: previousRank − my_rank from each student's cumulative XpEvents
+    /// as of the period-start boundary; <c>null</c> for "all" (no previous period).</para>
+    /// </summary>
+    public async Task<EngagementResult<ProgressLeaderboardResponse>> LeaderboardSummaryAsync(
+        Guid userId, string? period, CancellationToken ct = default)
+    {
+        var user = await ActiveUserAsync(userId, ct);
+        if (user is null) return EngagementResult<ProgressLeaderboardResponse>.Unauthorized();
+        if (user.Role != UserRole.Student)
+            return EngagementResult<ProgressLeaderboardResponse>.Forbidden();   // only students are ranked
+
+        var normalized = period switch { "monthly" => "monthly", "all" => "all", _ => "weekly" };
+        var allTime = normalized == "all";
+        var now = DateTime.UtcNow;
+        var periodStart = normalized == "monthly" ? now.AddDays(-30) : now.AddDays(-7);  // unused when allTime
+
+        var total = await _db.Users.CountAsync(u => u.Role == UserRole.Student, ct);
+
+        long myAllTime = user.Xp;
+        long myPeriodXp = allTime
+            ? myAllTime
+            : await _db.XpEvents
+                .Where(x => x.StudentId == user.Id && x.CreatedAt >= periodStart)
+                .SumAsync(x => (long?)x.Amount, ct) ?? 0L;
+
+        // Per-student ranking projection: all-time XP + the period XP. For "all" the period XP is just
+        // User.Xp (no XpEvent scan); otherwise it is a correlated SUM of the in-window events. An
+        // ANONYMOUS type is used deliberately — EF binds member access on it (pushing it to a derived
+        // table), whereas a named positional record makes it re-inline the constructor and fail to
+        // translate. The set is never materialized: callers only COUNT it or Take() a ≤2-row slice.
+        var students = _db.Users.Where(u => u.Role == UserRole.Student);
+        var proj = allTime
+            ? students.Select(u => new { u.Id, u.FullName, AllTime = (long)u.Xp, PeriodXp = (long)u.Xp })
+            : students.Select(u => new
+            {
+                u.Id,
+                u.FullName,
+                AllTime = (long)u.Xp,
+                PeriodXp = _db.XpEvents
+                    .Where(x => x.StudentId == u.Id && x.CreatedAt >= periodStart)
+                    .Sum(x => (long?)x.Amount) ?? 0L,
+            });
+
+        // Rank = students strictly ahead of me (period XP, then all-time) + 1 — one SQL COUNT.
+        var ahead = await proj.CountAsync(
+            r => r.PeriodXp > myPeriodXp || (r.PeriodXp == myPeriodXp && r.AllTime > myAllTime), ct);
+        var myRank = ahead + 1;
+
+        var percentile = total == 0
+            ? 100
+            : Math.Clamp((int)Math.Ceiling((double)myRank / total * 100), 1, 100);
+        var league = percentile <= 10 ? "gold" : percentile <= 35 ? "silver" : "bronze";
+
+        // Sliding neighbour window: aim 2 above + me + 2 below, shift toward the side with room so the
+        // window stays size ≤ 5 even at the ends (rank 1 → 1..5; last → final 5). Start symmetric, then
+        // fill the remaining slots into whichever side still has students — clamped so neither side can
+        // go negative or exceed its availability.
+        var aboveAvail = myRank - 1;
+        var belowAvail = total - myRank;
+        var target = Math.Min(5, total);            // total rows incl. me, never past the population
+        var wantAbove = Math.Min(2, aboveAvail);
+        var wantBelow = Math.Min(2, belowAvail);
+        var slots = target - 1 - wantAbove - wantBelow;   // ≥ 0
+        if (slots > 0)
+        {
+            var addBelow = Math.Min(slots, belowAvail - wantBelow);
+            wantBelow += addBelow;
+            slots -= addBelow;
+            wantAbove += Math.Min(slots, aboveAvail - wantAbove);
+        }
+
+        // The 2 students immediately above me = the smallest advantage among those ahead. Ordering the
+        // ahead-set ascending gives closest-first; reversed below to ascending-rank order. Take(0) at an
+        // edge is a cheap LIMIT 0, so the query shape stays uniform.
+        var aboveRows = await proj
+            .Where(r => r.PeriodXp > myPeriodXp || (r.PeriodXp == myPeriodXp && r.AllTime > myAllTime))
+            .OrderBy(r => r.PeriodXp).ThenBy(r => r.AllTime).ThenBy(r => r.Id)
+            .Take(wantAbove)
+            .Select(r => new { r.Id, r.FullName, r.PeriodXp })
+            .ToListAsync(ct);
+
+        // The 2 immediately below me = the highest XP among those NOT ahead and not me (closest-first).
+        var belowRows = await proj
+            .Where(r => r.Id != user.Id
+                        && !(r.PeriodXp > myPeriodXp || (r.PeriodXp == myPeriodXp && r.AllTime > myAllTime)))
+            .OrderByDescending(r => r.PeriodXp).ThenByDescending(r => r.AllTime).ThenBy(r => r.Id)
+            .Take(wantBelow)
+            .Select(r => new { r.Id, r.FullName, r.PeriodXp })
+            .ToListAsync(ct);
+
+        var neighbors = new List<ProgressLeaderboardRowResponse>(aboveRows.Count + 1 + belowRows.Count);
+        // aboveRows is closest-first (rank my_rank-1, my_rank-2, …) → reverse to ascending rank.
+        aboveRows.Reverse();
+        for (var i = 0; i < aboveRows.Count; i++)
+            neighbors.Add(new ProgressLeaderboardRowResponse(
+                myRank - (aboveRows.Count - i), aboveRows[i].Id, aboveRows[i].FullName, (int)aboveRows[i].PeriodXp, false));
+        neighbors.Add(new ProgressLeaderboardRowResponse(myRank, user.Id, user.FullName, (int)myPeriodXp, true));
+        for (var i = 0; i < belowRows.Count; i++)
+            neighbors.Add(new ProgressLeaderboardRowResponse(
+                myRank + i + 1, belowRows[i].Id, belowRows[i].FullName, (int)belowRows[i].PeriodXp, false));
+
+        var rankDelta = await RankDeltaAsync(user.Id, myRank, allTime, periodStart, ct);
+
+        return EngagementResult<ProgressLeaderboardResponse>.Ok(new ProgressLeaderboardResponse(
+            Period: normalized,
+            League: league,
+            MyRank: myRank,
+            TotalStudents: total,
+            Percentile: percentile,
+            MyXp: (int)myPeriodXp,
+            CurrentStreak: user.CurrentStreak,
+            RankDelta: rankDelta,
+            Neighbors: neighbors));
+    }
+
+    // Best-effort previous-period rank delta: rank the caller by cumulative XpEvents BEFORE the
+    // period-start boundary, then previousRank − my_rank (positive ⇒ climbed). Null for "all" (there
+    // is no previous period). One grouped SUM over the pre-boundary events — comparable in cost to the
+    // weekly board — so it is computed rather than skipped; the choice is logged, never fabricated.
+    private async Task<int?> RankDeltaAsync(Guid meId, int myRank, bool allTime, DateTime periodStart, CancellationToken ct)
+    {
+        if (allTime)
+        {
+            _logger?.LogDebug("progress leaderboard rank_delta: period=all has no previous period → null (rank {MyRank})", myRank);
+            return null;
+        }
+
+        var myPrev = await _db.XpEvents
+            .Where(x => x.StudentId == meId && x.CreatedAt < periodStart)
+            .SumAsync(x => (long?)x.Amount, ct) ?? 0L;
+
+        // Students with more cumulative XP than me as of the boundary. A student with no pre-boundary
+        // events has cumulative 0 and is only "ahead" when my own pre-boundary total is negative
+        // (impossible), so absentees are correctly not counted.
+        var prevAhead = await _db.XpEvents
+            .Where(x => x.CreatedAt < periodStart)
+            .GroupBy(x => x.StudentId)
+            .Select(g => new { StudentId = g.Key, Cum = (long)g.Sum(x => x.Amount) })
+            .CountAsync(r => r.Cum > myPrev, ct);
+
+        var previousRank = prevAhead + 1;
+        var delta = previousRank - myRank;
+        _logger?.LogDebug(
+            "progress leaderboard rank_delta: period={Period}Start prevRank={PrevRank} myRank={MyRank} → {Delta}",
+            periodStart, previousRank, myRank, delta);
+        return delta;
+    }
+
+    // ─── SRS review queue ─────────────────────────────────────────────────────
 
     /// <summary>
     /// GET /review — the student's DUE, still-open reviews, one per question (dedup keeps the earliest
-    /// due), ordered by due date (engagement.py:176-215). Any active user; null ⇒ 401.
+    /// due), ordered by due date. Any active user; null ⇒ 401.
     /// </summary>
     public async Task<IReadOnlyList<ReviewItemResponse>?> MyReviewsAsync(Guid userId, CancellationToken ct = default)
     {
@@ -403,7 +679,7 @@ public sealed class EngagementService
         var outList = new List<ReviewItemResponse>();
         foreach (var it in items)
         {
-            if (!seen.Add(it.QuestionId)) continue;                 // one row per question (engagement.py:199-202)
+            if (!seen.Add(it.QuestionId)) continue;                 // one row per question
             qmap.TryGetValue(it.QuestionId, out var q);
             outList.Add(new ReviewItemResponse(
                 Id: it.Id,
@@ -419,7 +695,7 @@ public sealed class EngagementService
 
     /// <summary>
     /// POST /review — a teacher adds question(s) to a student's / group's review queue, due now and
-    /// tagged "teacher" (engagement.py:218-317). Teacher may only target their OWN questions and their
+    /// tagged "teacher". A teacher may only target their OWN questions and their
     /// OWN roster (admins: anyone). Duplicates of an already-open (student, question) review are
     /// skipped; a student is only notified when something was actually added.
     /// </summary>
@@ -431,16 +707,16 @@ public sealed class EngagementService
         if (!IsTeacher(teacher)) return EngagementResult<IReadOnlyList<ReviewItemResponse>>.Forbidden();
 
         var questionIds = payload.QuestionIds ?? [];
-        // Validate the questions belong to this teacher (admin: any) — engagement.py:229-234.
+        // Validate the questions belong to this teacher (admin: any).
         var qquery = _db.Questions.Where(q => questionIds.Contains(q.Id));
         if (teacher.Role != UserRole.Admin)
             qquery = qquery.Where(q => q.TeacherId == teacher.Id);
         var questions = await qquery.ToDictionaryAsync(q => q.Id, ct);
         if (questions.Count == 0)
-            return EngagementResult<IReadOnlyList<ReviewItemResponse>>.NotFound();  // engagement.py:233-234
+            return EngagementResult<IReadOnlyList<ReviewItemResponse>>.NotFound();  // none matched / none theirs
 
         var targetIds = await ResolveTargetsAsync(payload.StudentIds, payload.GroupId, ct);
-        var validIds = await RosterStudentIds(teacher, targetIds, ct);              // engagement.py:250-258 roster filter
+        var validIds = await RosterStudentIds(teacher, targetIds, ct);              // own-roster students only
         if (validIds.Count == 0)
             return EngagementResult<IReadOnlyList<ReviewItemResponse>>.BadRequest("No target students");
 
@@ -493,10 +769,10 @@ public sealed class EngagementService
         return EngagementResult<IReadOnlyList<ReviewItemResponse>>.Ok(outList);
     }
 
-    // ─── Notifications (notifications.py:15-87) ───────────────────────────────
+    // ─── Notifications ────────────────────────────────────────────────────────
 
     /// <summary>GET /notifications — the current user's notifications, newest first, capped at
-    /// <paramref name="limit"/> (notifications.py:15-26). <paramref name="unreadOnly"/> filters to
+    /// <paramref name="limit"/>. <paramref name="unreadOnly"/> filters to
     /// unread. Any active user; null ⇒ 401.</summary>
     public async Task<IReadOnlyList<NotificationResponse>?> ListNotificationsAsync(
         Guid userId, bool unreadOnly, int limit, CancellationToken ct = default)
@@ -504,7 +780,7 @@ public sealed class EngagementService
         var user = await ActiveUserAsync(userId, ct);
         if (user is null) return null;
 
-        var capped = Math.Clamp(limit, 1, 100);                     // Python Query(ge=1, le=100)
+        var capped = Math.Clamp(limit, 1, 100);                     // hard bound on page size
         var q = _db.Notifications.Where(n => n.UserId == user.Id);
         if (unreadOnly) q = q.Where(n => !n.IsRead);
         var items = await q
@@ -514,7 +790,7 @@ public sealed class EngagementService
         return items.Select(ToResponse).ToList();
     }
 
-    /// <summary>GET /notifications/unread-count (notifications.py:29-39). Any active user; null ⇒ 401.</summary>
+    /// <summary>GET /notifications/unread-count. Any active user; null ⇒ 401.</summary>
     public async Task<int?> UnreadCountAsync(Guid userId, CancellationToken ct = default)
     {
         var user = await ActiveUserAsync(userId, ct);
@@ -522,8 +798,8 @@ public sealed class EngagementService
         return await _db.Notifications.CountAsync(n => n.UserId == user.Id && !n.IsRead, ct);
     }
 
-    /// <summary>POST /notifications/read-all — mark all the user's notifications read
-    /// (notifications.py:42-52). Returns false ⇒ 401 (no active user).</summary>
+    /// <summary>POST /notifications/read-all — mark all the user's notifications read.
+    /// Returns false ⇒ 401 (no active user).</summary>
     public async Task<bool> MarkAllReadAsync(Guid userId, CancellationToken ct = default)
     {
         var user = await ActiveUserAsync(userId, ct);
@@ -534,7 +810,7 @@ public sealed class EngagementService
         return true;
     }
 
-    /// <summary>POST /notifications/{id}/read — mark one notification read (notifications.py:55-65).
+    /// <summary>POST /notifications/{id}/read — mark one notification read.
     /// Missing OR not owned ⇒ NotFound.</summary>
     public async Task<EngagementOutcome> MarkReadAsync(Guid userId, Guid notificationId, CancellationToken ct = default)
     {
@@ -547,7 +823,7 @@ public sealed class EngagementService
         return EngagementOutcome.Ok;
     }
 
-    /// <summary>DELETE /notifications/{id} — delete one notification (notifications.py:68-78).
+    /// <summary>DELETE /notifications/{id} — delete one notification.
     /// Missing OR not owned ⇒ NotFound.</summary>
     public async Task<EngagementOutcome> DeleteNotificationAsync(Guid userId, Guid notificationId, CancellationToken ct = default)
     {
@@ -560,7 +836,7 @@ public sealed class EngagementService
         return EngagementOutcome.Ok;
     }
 
-    /// <summary>DELETE /notifications — clear all the user's notifications (notifications.py:81-87).
+    /// <summary>DELETE /notifications — clear all the user's notifications.
     /// Returns false ⇒ 401.</summary>
     public async Task<bool> ClearAllAsync(Guid userId, CancellationToken ct = default)
     {
@@ -570,8 +846,8 @@ public sealed class EngagementService
         return true;
     }
 
-    /// <summary>Create an in-app notification (services/notifications.py:11-31). Adds to the change
-    /// tracker only — the caller owns the commit (Python <c>commit=False</c>).</summary>
+    /// <summary>Create an in-app notification. Adds it to the change tracker ONLY — the caller owns
+    /// the commit, so the notification lands in the same transaction as the write that raised it.</summary>
     private void Notify(Guid userId, string type, string title, string? body, string? link)
     {
         var now = DateTime.UtcNow;
@@ -596,7 +872,7 @@ public sealed class EngagementService
 
     private static bool IsTeacher(User u) => u.Role is UserRole.Teacher or UserRole.Admin;
 
-    // Targets = explicit ids ∪ a whole group's members (engagement.py:236-243).
+    // Targets = explicit ids ∪ a whole group's members.
     private async Task<List<Guid>> ResolveTargetsAsync(List<Guid>? studentIds, Guid? groupId, CancellationToken ct)
     {
         var target = new HashSet<Guid>(studentIds ?? []);
@@ -611,8 +887,9 @@ public sealed class EngagementService
         return target.ToList();
     }
 
-    // engagement.py:250-258 — keep only targets that are students AND (unless admin) on the acting
-    // teacher's roster (a member of some group this teacher owns).
+    // Keep only targets that are students AND (unless the actor is an admin) on the acting teacher's
+    // roster — a member of some group this teacher owns. This restriction is what stops a teacher
+    // queueing work for another teacher's students; do not widen it.
     private async Task<List<Guid>> RosterStudentIds(User teacher, List<Guid> targetIds, CancellationToken ct)
     {
         if (targetIds.Count == 0) return [];

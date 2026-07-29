@@ -1,26 +1,40 @@
 /**
- * App — the student router (docs/08 Faza 4.1 / 4.8).
+ * App — the app router (docs/08 Faza 4.1 / 4.8 · Teacher panel Faza 4.9).
  *
- * Maps the 5 student destinations to their screens and lazy-loads each route so
- * every screen is its own bundle (the §4.1 code-split budget). The `Nav` active
- * state and navigation are wired per-page via `app/nav` (`activeNavKey` +
- * `onNavigate`). Unknown paths fall back to Home.
+ * Lazy-loads each route so every screen is its own bundle (the §4.1 code-split
+ * budget). The `Nav` active state + navigation are wired per-page via `app/nav`
+ * (`activeNavKey` + `onNavigate`).
  *
- *   /          → Home
- *   /practice  → Practice
- *   /chat      → AI Suhbat (placeholder — Faza 6.5)
- *   /progress  → Progress
- *   /profile   → Profile
+ * Role split: authed users land on `/`, which {@link RoleHome} resolves — a
+ * teacher/admin is sent to the teacher app under `/teacher/*`, a student stays on
+ * the student Home. {@link RequireRole} then keeps each subtree to its own role
+ * (a student can't reach `/teacher/*`, a teacher can't reach the student
+ * screens). Unknown paths fall back to `/`, which re-resolves per role.
+ *
+ *   /                        → Home (student) · redirect to /teacher (teacher)
+ *   /practice                → Mashq hub (Modullar · Topshiriqlar · Suhbat)
+ *   /practice/module/:id     → module detail (D2) + complete (D3)
+ *   /task?task=:id           → the task recording screen
+ *   /chat/:scenarioId        → AI conversation (E3 chat + E4 summary, stubbed)
+ *   /progress                → Progress
+ *   /profile                 → Profile
+ *   /teacher                 → teacher A1 Obzor (its own nav: Bosh · Klasslar ·
+ *                              Navbat · Kontent · Analitika)
  */
 import { Suspense, lazy } from "react";
 import { Navigate, Route, Routes } from "react-router-dom";
 import { Spinner } from "./shared/ui";
-import { PublicOnly, RequireAuth } from "./app/guards";
-
-const HomePage = lazy(() => import("./app/routes/HomePage"));
+import { PublicOnly, RequireAuth, RequireRole, RoleHome, TEACHER_ROLES } from "./app/guards";
+const TeacherDashboardPage = lazy(() => import("./app/routes/TeacherDashboardPage"));
+const PracticeHubPage = lazy(() => import("./app/routes/PracticeHubPage"));
+const ModuleDetailPage = lazy(() => import("./app/routes/ModuleDetailPage"));
 const PracticePage = lazy(() => import("./app/routes/PracticePage"));
-const ChatPage = lazy(() => import("./app/routes/ChatPage"));
+const ConversationHubPage = lazy(() => import("./app/routes/ConversationHubPage"));
+const ConversationPage = lazy(() => import("./app/routes/ConversationPage"));
 const ProgressPage = lazy(() => import("./app/routes/ProgressPage"));
+const GroupPage = lazy(() => import("./app/routes/GroupPage"));
+const AllResultsPage = lazy(() => import("./app/routes/AllResultsPage"));
+const AttemptDetailPage = lazy(() => import("./app/routes/AttemptDetailPage"));
 const ProfilePage = lazy(() => import("./app/routes/ProfilePage"));
 const LoginPage = lazy(() => import("./app/routes/LoginPage"));
 const RegisterPage = lazy(() => import("./app/routes/RegisterPage"));
@@ -57,15 +71,39 @@ export default function App() {
             user can revisit it too). Uses the auth-less guest placement endpoints. */}
         <Route path="/try" element={<TryPlacementPage />} />
 
-        {/* Student app: redirect to /login when unauthenticated. */}
+        {/* Authed app: redirect to /login when unauthenticated. */}
         <Route element={<RequireAuth />}>
-          {/* One-time post-register placement ("dastlabki sinov"). */}
-          <Route path="/placement" element={<PlacementPage />} />
-          <Route path="/" element={<HomePage />} />
-          <Route path="/practice" element={<PracticePage />} />
-          <Route path="/chat" element={<ChatPage />} />
-          <Route path="/progress" element={<ProgressPage />} />
-          <Route path="/profile" element={<ProfilePage />} />
+          {/* Role-aware root: teacher/admin → /teacher, student → student Home. */}
+          <Route path="/" element={<RoleHome />} />
+
+          {/* Teacher app (teacher/admin only) — its own /teacher/* space, its own
+              design and nav (never a re-skin of the student screens). Phase 1
+              ships A1 Obzor; Klasslar/Navbat/Kontent/Analitika follow. */}
+          <Route element={<RequireRole allow={TEACHER_ROLES} />}>
+            <Route path="/teacher" element={<TeacherDashboardPage />} />
+          </Route>
+
+          {/* Student app (students only). */}
+          <Route element={<RequireRole allow={["student"]} />}>
+            {/* One-time post-register placement ("dastlabki sinov"). */}
+            <Route path="/placement" element={<PlacementPage />} />
+            {/* Mashq hub + its drill-downs. The recording screen lives at /task so
+                /practice is free for the hub (now just Modullar · Topshiriqlar). */}
+            <Route path="/practice" element={<PracticeHubPage />} />
+            <Route path="/practice/module/:moduleId" element={<ModuleDetailPage />} />
+            <Route path="/task" element={<PracticePage />} />
+            {/* AI Suhbat — the centre FAB's own destination: the scenario grid,
+                then each scenario's chat. */}
+            <Route path="/chat" element={<ConversationHubPage />} />
+            <Route path="/chat/:scenarioId" element={<ConversationPage />} />
+            <Route path="/progress" element={<ProgressPage />} />
+            {/* Group view (classmates + group leaderboard), reached from Home. */}
+            <Route path="/group" element={<GroupPage />} />
+            {/* Results drill-down: Profile → all history → one attempt's detail. */}
+            <Route path="/results" element={<AllResultsPage />} />
+            <Route path="/results/:id" element={<AttemptDetailPage />} />
+            <Route path="/profile" element={<ProfilePage />} />
+          </Route>
         </Route>
 
         <Route path="*" element={<Navigate to="/" replace />} />

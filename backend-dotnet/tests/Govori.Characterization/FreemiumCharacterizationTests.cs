@@ -3,15 +3,14 @@ using Xunit;
 namespace Govori.Characterization;
 
 /// <summary>
-/// C4 — needs_premium: the freemium paywall decision (services/access.py:78-89).
+/// C4 — needs_premium: the freemium paywall decision.
 ///
-/// The Python function is NOT pure — its signature is needs_premium(db, student, q)
-/// and it reads the DB (the module row + a positional COUNT via task_index). The
-/// fixture was produced by driving the REAL function with a fake Session that
-/// injects those two reads, so every branch/short-circuit below is the production
-/// code's own; only the module row and the index are supplied.
+/// The real decision is NOT pure: it also reads the DB (the module row plus a
+/// positional COUNT via task_index). The golden fixture supplies exactly those two
+/// reads as data, so the branch/short-circuit ladder reproduced below can be
+/// exercised as a pure function over every recorded combination.
 ///
-/// Decision (access.py:81-89):
+/// Decision:
 ///   non-student OR premium              → False
 ///   no module OR visibility != public   → False   (teacher/group content never self-paywalled)
 ///   FREE_TASKS_PER_MODULE (n) &lt;= 0       → False   (whole module free)
@@ -26,7 +25,7 @@ public class FreemiumCharacterizationTests
     {
         if (c.Role != "student" || c.IsPremium)
             return false;
-        // block = db.get(QuestionBlock, q.block_id) if q.block_id else None
+        // A block is only in play when the question names one AND that row exists.
         var hasBlock = c.BlockIdPresent && c.BlockExists;
         if (!hasBlock || c.Visibility != "public")
             return false;                       // teacher-governed content is never self-serve paywalled
@@ -43,13 +42,13 @@ public class FreemiumCharacterizationTests
     }
 
     [Fact]
-    public void Needs_premium_matches_Python_on_every_case()
+    public void Needs_premium_matches_the_golden_fixture_on_every_case()
     {
         foreach (var c in Fx.Cases)
             Assert.True(c.Expected == NeedsPremium(c),
                 $"needs_premium mismatch: role={c.Role} premium={c.IsPremium} " +
                 $"blockPresent={c.BlockIdPresent} blockExists={c.BlockExists} vis={c.Visibility ?? "null"} " +
-                $"n={c.FreeTasksPerModule} idx={c.TaskIndex} → C#={NeedsPremium(c)} vs Python={c.Expected}");
+                $"n={c.FreeTasksPerModule} idx={c.TaskIndex} → actual={NeedsPremium(c)} vs expected={c.Expected}");
     }
 
     [Fact]

@@ -4,12 +4,15 @@ using Microsoft.EntityFrameworkCore.Design;
 namespace Govori.Infrastructure;
 
 /// <summary>
-/// Design-time factory so <c>dotnet ef migrations add / dbcontext scaffold</c> work
-/// WITHOUT a running application host (docs/07 §7.4 — migrations are the only sanctioned
-/// way the schema ever changes; <c>EnsureCreated()</c> is forbidden per rule 4).
+/// Design-time factory so <c>dotnet ef migrations add</c> and <c>dotnet ef database update</c>
+/// work WITHOUT a running application host. Migrations are the only sanctioned way the
+/// schema ever changes; <c>EnsureCreated()</c> is forbidden because it builds the schema
+/// behind EF's back and leaves the migrations history empty.
 ///
 /// Reads the connection string from the <c>GOVORI_DB</c> environment variable, falling
-/// back to the govori-net schema DB (<see cref="GovoriDataSourceFactory.DefaultConnectionString"/>).
+/// back to <see cref="GovoriDataSourceFactory.DefaultConnectionString"/>. Point
+/// <c>GOVORI_DB</c> at a scratch database to verify a migration before it touches
+/// anything real.
 /// Uses the shared <see cref="GovoriDataSourceFactory"/> so the enum mapping + snake_case
 /// convention are identical to runtime.
 /// </summary>

@@ -9,12 +9,16 @@
  *   • Attaches `Authorization: Bearer <access>` from the token store when a
  *     token exists (skip with `auth: false` for the login/register calls).
  *   • Throws a typed {@link ApiError} on any non-2xx, carrying the status + the
- *     FastAPI-style `{ detail }` message so callers can branch on 401/403/402…
- *   • On a 401 for an authenticated request it clears the tokens and redirects
- *     to `/login` (an expired session mid-app), UNLESS `skipAuthRedirect` is set
- *     — the login form and the boot `/me` hydration surface their own 401.
+ *     `{ detail }` message the API returns, so callers can branch on 401/403/402…
+ *   • On a 401 for an authenticated request it first tries a SILENT REFRESH
+ *     (exchange the stored refresh token for a fresh pair via `/auth/refresh`)
+ *     and replays the request once. Only if the refresh also fails does it clear
+ *     the tokens and redirect to `/login`, UNLESS `skipAuthRedirect` is set (the
+ *     login form + boot `/me` surface their own 401). So the session lasts the
+ *     refresh token's lifetime (7 days, and sliding — every refresh reissues it).
  */
 import { tokenStore } from "../auth/tokens";
+import type { TokenResponse } from "./types";
 
 export const API_BASE = "/api";
 
@@ -53,6 +57,9 @@ export interface RequestOptions {
   skipAuthRedirect?: boolean;
   /** AbortSignal for cancellable polls. */
   signal?: AbortSignal;
+  /** @internal Marks the single automatic replay after a silent token refresh,
+   * so a second 401 doesn't loop. Callers never set this. */
+  retried?: boolean;
 }
 
 function redirectToLogin(): void {
@@ -62,6 +69,39 @@ function redirectToLogin(): void {
   if (path !== "/login" && path !== "/register") {
     window.location.assign("/login");
   }
+}
+
+/** In-flight refresh, so a burst of 401s triggers exactly ONE token exchange. */
+let refreshInFlight: Promise<boolean> | null = null;
+
+/**
+ * Exchange the stored refresh token for a fresh access + refresh pair (the
+ * backend rotates both). Single-flight. Resolves `true` when the tokens were
+ * renewed, `false` when there's no refresh token or the server rejected it
+ * (expired / invalid) — in which case the session is genuinely over.
+ */
+function tryRefresh(): Promise<boolean> {
+  const rt = tokenStore.refresh;
+  if (!rt) return Promise.resolve(false);
+  if (!refreshInFlight) {
+    // `auth: false` (no bearer) + `skipAuthRedirect` so this call never itself
+    // recurses into a refresh, and a rejected refresh token doesn't redirect here.
+    refreshInFlight = request<TokenResponse>("/auth/refresh", {
+      method: "POST",
+      body: { refresh_token: rt },
+      auth: false,
+      skipAuthRedirect: true,
+    })
+      .then((res) => {
+        tokenStore.set(res.access_token, res.refresh_token);
+        return true;
+      })
+      .catch(() => false)
+      .finally(() => {
+        refreshInFlight = null;
+      });
+  }
+  return refreshInFlight;
 }
 
 /**
@@ -79,6 +119,7 @@ export async function request<T>(
     auth = true,
     skipAuthRedirect = false,
     signal,
+    retried = false,
   } = opts;
 
   const isForm = typeof FormData !== "undefined" && body instanceof FormData;
@@ -125,7 +166,15 @@ export async function request<T>(
   }
 
   if (!res.ok) {
-    if (res.status === 401 && auth && !skipAuthRedirect) redirectToLogin();
+    if (res.status === 401 && auth) {
+      // Access token likely expired → silently refresh and replay ONCE. Only a
+      // failed refresh (or a second 401) means the session is really over.
+      if (!retried) {
+        const refreshed = await tryRefresh();
+        if (refreshed) return request<T>(path, { ...opts, retried: true });
+      }
+      if (!skipAuthRedirect) redirectToLogin();
+    }
     const detail =
       (parsed && typeof parsed === "object" && "detail" in parsed
         ? String((parsed as { detail: unknown }).detail)

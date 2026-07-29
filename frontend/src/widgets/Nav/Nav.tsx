@@ -101,13 +101,17 @@ function NavEntry({ item, active, isBottom, onNavigate }: NavEntryProps) {
   const icon = (
     <span className={styles.icon} aria-hidden>
       {item.icon}
-      {isBottom && hasBadge && <span className={styles.badgeDot} />}
+      {isBottom && hasBadge && !isFab && <span className={styles.badgeDot} />}
     </span>
   );
 
+  // The FAB is the one bottom-bar slot with room for a real number, and the
+  // teacher's Navbat count is the point of it (the teacher mockup draws the
+  // count, not a dot). Elsewhere on the bottom bar a badge stays a quiet dot.
   const content = isFab ? (
     <>
       {icon}
+      {hasBadge && <span className={styles.fabBadge}>{item.badge}</span>}
       <VisuallyHidden>{item.label}</VisuallyHidden>
     </>
   ) : (

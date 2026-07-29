@@ -4,11 +4,11 @@ namespace Govori.Characterization;
 
 /// <summary>
 /// C9 — task_index: the 0-based freemium position of a task among its module
-/// siblings (services/access.py:54-75).
+/// siblings.
 ///
-/// The count itself is a Postgres COUNT(*) (db.scalar) and cannot run without a
-/// database, so what is characterized is the ordering PREDICATE it delegates to
-/// SQL — transcribed from access.py:61-71. A sibling counts as "before" the
+/// In production the count is a Postgres COUNT(*), which cannot run without a
+/// database, so what is characterized here is the ordering PREDICATE that the SQL
+/// encodes. A sibling counts as "before" the
 /// target iff it is in the same module, published, not deleted, and strictly
 /// earlier in the (sort_order, created_at) key. Ties (equal key) are NOT before
 /// (strict &lt;), so the target never counts itself.
@@ -20,7 +20,7 @@ public class TaskOrderCharacterizationTests
     private static int TaskIndex(TaskIndexTarget target, IEnumerable<TaskIndexRow> siblings)
     {
         if (!target.BlockIdPresent)
-            return 0;                                   // access.py:57-58 — no module → 0
+            return 0;                                   // no module ⇒ no siblings ⇒ position 0
 
         var count = 0;
         foreach (var r in siblings)
@@ -42,13 +42,13 @@ public class TaskOrderCharacterizationTests
     }
 
     [Fact]
-    public void Task_index_matches_Python_on_every_case()
+    public void Task_index_matches_the_golden_fixture_on_every_case()
     {
         foreach (var c in Fx.Cases)
         {
             var actual = TaskIndex(c.Target, c.Siblings);
             Assert.True(c.ExpectedIndex == actual,
-                $"task_index mismatch in '{c.Name}': C#={actual} vs Python={c.ExpectedIndex}");
+                $"task_index mismatch in '{c.Name}': actual={actual} vs expected={c.ExpectedIndex}");
         }
     }
 

@@ -1,0 +1,68 @@
+/* NotificationsBell — icon button + unread badge (docs/03 §3.6 Actions).
+ * Geometry is deliberately identical to ThemeToggle (44×44, --r-sm, 1.5px
+ * --line-2) so swapping it into `headerEnd` keeps the top bar's rhythm and the
+ * touch-target rule (§3.9). Tokens only. */
+
+.bell {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 44px;
+  height: 44px;
+  border-radius: var(--r-sm);
+  border: 1.5px solid var(--line-2);
+  background: var(--surface);
+  color: var(--ink-soft);
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition:
+    background-color var(--m-instant),
+    color var(--m-instant),
+    border-color var(--m-instant),
+    transform var(--m-fast);
+}
+.bell:hover {
+  background: var(--surface-2);
+  color: var(--ink);
+  border-color: var(--primary);
+}
+.bell:active {
+  transform: scale(var(--tap-scale));
+}
+.bell:focus-visible {
+  outline: var(--focus-ring-width) solid var(--focus-ring);
+  outline-offset: var(--focus-ring-offset);
+}
+
+.icon {
+  display: inline-flex;
+}
+.icon svg {
+  width: 20px;
+  height: 20px;
+}
+
+/* The badge is decorative duplication — the button's aria-label already states
+ * the count in words, so nothing here is colour-only. */
+.badge {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 var(--s-1);
+  border-radius: var(--r-pill);
+  background: var(--danger);
+  color: var(--primary-on);
+  font-family: var(--font-sans);
+  font-size: var(--t-label-size);
+  font-weight: var(--fw-bold);
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+  pointer-events: none;
+}

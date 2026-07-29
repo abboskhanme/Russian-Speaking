@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1
-# Govori.Worker — generic host: Hangfire server + recurring maintenance jobs +
-# SignalR publish over the Redis backplane (the ex-Celery grading host). docs/07 §7.7.
+# Govori.Worker — the grading pipeline host: Hangfire server + recurring maintenance jobs +
+# SignalR publish over the Redis backplane. docs/07 §7.7.
 #
 # Runtime = aspnet:9.0 (NOT the plain runtime) because the Worker
 # FrameworkReferences Microsoft.AspNetCore.App for AddSignalR / IHubContext.
@@ -11,9 +11,15 @@
 FROM mcr.microsoft.com/dotnet/sdk:9.0 AS build
 WORKDIR /src
 
+# `--mount=type=cache` on the NuGet folder makes builds resilient to nuget.org
+# flakiness: downloaded packages persist across builds, so a retry after a
+# mid-restore timeout resumes from cache. Restore + publish share the SAME cache
+# so `--no-restore` publish still finds them. Requires BuildKit (see `# syntax`).
 COPY . .
-RUN dotnet restore src/Govori.Worker/Govori.Worker.csproj
-RUN dotnet publish src/Govori.Worker/Govori.Worker.csproj \
+RUN --mount=type=cache,target=/root/.nuget/packages \
+        dotnet restore src/Govori.Worker/Govori.Worker.csproj
+RUN --mount=type=cache,target=/root/.nuget/packages \
+        dotnet publish src/Govori.Worker/Govori.Worker.csproj \
         -c Release \
         -o /app/publish \
         --no-restore \

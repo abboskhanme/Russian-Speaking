@@ -9,11 +9,12 @@
     "chat": "AI Chat",
     "progress": "Progress",
     "profile": "Profile",
-    "dashboard": "Dashboard",
-    "groups": "Groups",
-    "assignments": "Assignments",
-    "gradebook": "Gradebook",
-    "landmark": "Main navigation"
+    "landmark": "Main navigation",
+    "teacherHome": "Home",
+    "classes": "Classes",
+    "queue": "Queue",
+    "content": "Content",
+    "analytics": "Analytics"
   },
   "common": {
     "continue": "Continue",
@@ -44,7 +45,8 @@
     "daysUnit_other": "days",
     "minutes_one": "{{count}} minute",
     "minutes_other": "{{count}} minutes",
-    "minutesUnit": "minutes"
+    "minutesUnit": "minutes",
+    "hoursUnit": "h"
   },
   "home": {
     "todayAria": "Today",
@@ -78,7 +80,35 @@
     "taskCount_other": "{{count}} tasks",
     "continueKicker": "Continue",
     "continueEmptyTitle": "No exercises yet",
-    "continueEmptyBody": "New tasks will appear here."
+    "continueEmptyBody": "New tasks will appear here.",
+    "todayLabel": "TODAY'S PRACTICE",
+    "todayTitle": "{{min}} minutes today",
+    "todayTagline": "Warm-up · speaking · fix yesterday's mistake",
+    "start": "Start",
+    "teacherSection": "YOUR TEACHER",
+    "teacherRole": "Teacher · Russian",
+    "message": "Message",
+    "groupLine": "Group: {{name}}",
+    "students": "{{count}} students",
+    "nextAssignment": "Next assignment · {{when}}",
+    "noAssignment": "No new assignments",
+    "summary": "SUMMARY",
+    "statLevel": "Level",
+    "statWeek": "This week",
+    "statWeekUnit": "min",
+    "statStreak": "Streak",
+    "greetHi": "Hi, {{name}}",
+    "noGroup": "You're not in a group yet",
+    "noGroupHint": "You're practicing solo — ask your teacher for a group code.",
+    "joinPlaceholder": "Group code",
+    "joinCta": "Join",
+    "joinError": "Invalid code or group not found.",
+    "when": {
+      "today": "today {{time}}",
+      "tomorrow": "tomorrow {{time}}",
+      "date": "{{date}}, {{time}}",
+      "overdue": "overdue"
+    }
   },
   "practice": {
     "attemptsLeft_one": "{{count}} attempt left",
@@ -148,7 +178,56 @@
     "today": "today",
     "achievements": "Achievements",
     "unlocked": "Unlocked",
-    "achievementProgressAria": "{{title}} progress"
+    "achievementProgressAria": "{{title}} progress",
+    "xpBadge": "{{count}} XP",
+    "tabs": {
+      "skills": "Skills",
+      "achievements": "Achievements",
+      "leaderboard": "Leaderboard"
+    },
+    "skills": {
+      "currentLevel": "CURRENT LEVEL",
+      "trendUp": "+{{points}} in {{weeks}} weeks",
+      "trendDown": "{{points}} in {{weeks}} weeks",
+      "trendFlat": "No change in {{weeks}} weeks",
+      "sectionLabel": "SKILLS",
+      "fluency": "Fluency",
+      "pronunciation": "Pronunciation",
+      "lexical": "Vocabulary",
+      "grammar": "Grammar",
+      "empty": "Skills aren't scored yet. Complete your first task."
+    },
+    "ach": {
+      "header": "Achievements",
+      "count": "{{unlocked}} / {{total}}",
+      "unlocked": "Unlocked"
+    },
+    "lb": {
+      "period": {
+        "weekly": "Weekly",
+        "monthly": "Monthly",
+        "all": "All time"
+      },
+      "appWide": "ACROSS THE APP",
+      "rank": "place",
+      "totalStudents": "total students",
+      "bestPct": "top",
+      "ladder": "Rank ladder",
+      "topPct": "Top {{pct}}%",
+      "meThisWeek": "{{rank}}th this week",
+      "meThisMonth": "{{rank}}th this month",
+      "meAllTime": "{{rank}}th place",
+      "meDeltaUp": "{{xp}} XP · ↑ up {{n}} places",
+      "meDeltaDown": "{{xp}} XP · ↓ down {{n}} places",
+      "meDeltaFlat": "{{xp}} XP · no change",
+      "meNoDelta": "{{xp}} XP",
+      "nearby": "AROUND YOU",
+      "empty": "No ranking yet. Earn XP to climb.",
+      "leagueOltin": "Gold league",
+      "leagueKumush": "Silver league",
+      "leagueBronza": "Bronze league",
+      "xpSuffix": "XP"
+    }
   },
   "profile": {
     "appLanguage": "App language",
@@ -173,35 +252,217 @@
     "freePlan": "Free plan",
     "active": "Active",
     "free": "Free",
-    "upgrade": "Upgrade to Premium"
+    "upgrade": "Upgrade to Premium",
+    "tabs": {
+      "info": "Info",
+      "results": "Results",
+      "settings": "Settings"
+    },
+    "info": {
+      "fullName": "Full name",
+      "phone": "Phone",
+      "region": "Region",
+      "district": "District",
+      "level": "Level",
+      "registered": "Joined",
+      "notSet": "Not set",
+      "registeredValue": "{{month}} {{year}}",
+      "edit": "Edit",
+      "editTitle": "Edit your details",
+      "namePlaceholder": "Aziz Karimov"
+    },
+    "phone": {
+      "change": "Change",
+      "changeTitle": "Change phone number",
+      "changeNote": "Enter your new number. The confirmation code arrives in Telegram — the bot checks that the number really is yours.",
+      "newLabel": "New phone number",
+      "send": "Send code",
+      "taken": "That number is already linked to another account. Please use a different one."
+    },
+    "group": {
+      "sectionLabel": "GROUP AND TEACHER",
+      "teacherRole": "Teacher",
+      "groupTile": "Group",
+      "membersTile": "Classmates",
+      "leave": "Leave the group",
+      "leaveConfirmTitle": "Leave the group?",
+      "leaveConfirmBody": "You'll lose the group's assignments and your link to the teacher. You'll need the group code to rejoin.",
+      "empty": "You are not in a group yet. Ask your teacher for a group code."
+    },
+    "stats": {
+      "attempts": "Attempts",
+      "avgBand": "Average score",
+      "streakDays": "Streak (days)",
+      "totalPractice": "Total practice",
+      "xp": "XP"
+    },
+    "sections": {
+      "recentResults": "RECENT RESULTS",
+      "achievements": "ACHIEVEMENTS"
+    },
+    "achievements": {
+      "locked": "Locked",
+      "summary": "{{count}}/{{total}} unlocked",
+      "items": {
+        "first_step": {
+          "title": "First step",
+          "desc": "You completed your first task"
+        },
+        "attempts_10": {
+          "title": "Good start",
+          "desc": "You completed 10 tasks"
+        },
+        "attempts_50": {
+          "title": "Hard worker",
+          "desc": "You completed 50 tasks"
+        },
+        "attempts_100": {
+          "title": "Century",
+          "desc": "You completed 100 tasks"
+        },
+        "streak_3": {
+          "title": "Three days",
+          "desc": "3 days in a row"
+        },
+        "streak_7": {
+          "title": "Weekly habit",
+          "desc": "7 days in a row"
+        },
+        "streak_30": {
+          "title": "Monthly flame",
+          "desc": "30 days in a row"
+        },
+        "streak_100": {
+          "title": "Hundred-day peak",
+          "desc": "100 days in a row"
+        },
+        "level_a2": {
+          "title": "Level A2",
+          "desc": "You reached level A2"
+        },
+        "level_b1": {
+          "title": "Level B1",
+          "desc": "You reached level B1"
+        },
+        "level_b2": {
+          "title": "Level B2",
+          "desc": "You reached level B2"
+        },
+        "score_80": {
+          "title": "Top marks",
+          "desc": "Scored 80+ on a task"
+        },
+        "score_90": {
+          "title": "Perfection",
+          "desc": "Scored 90+ on a task"
+        },
+        "practice_1h": {
+          "title": "One hour",
+          "desc": "1 hour of practice total"
+        },
+        "practice_5h": {
+          "title": "Marathoner",
+          "desc": "5 hours of practice total"
+        },
+        "group_member": {
+          "title": "In a team",
+          "desc": "You joined a group"
+        },
+        "xp_100": {
+          "title": "Spark",
+          "desc": "Earned 100 XP"
+        },
+        "xp_500": {
+          "title": "Rising star",
+          "desc": "Earned 500 XP"
+        },
+        "xp_1000": {
+          "title": "Diamond",
+          "desc": "Earned 1000 XP"
+        },
+        "xp_2500": {
+          "title": "Crown",
+          "desc": "Earned 2500 XP"
+        },
+        "xp_5000": {
+          "title": "Legend",
+          "desc": "Earned 5000 XP"
+        }
+      }
+    },
+    "relativeDate": {
+      "today": "Today",
+      "yesterday": "Yesterday",
+      "daysAgo_one": "{{count}} day ago",
+      "daysAgo_other": "{{count}} days ago",
+      "weeksAgo_one": "{{count}} week ago",
+      "weeksAgo_other": "{{count}} weeks ago"
+    },
+    "settingsRows": {
+      "language": "Interface language",
+      "theme": "Theme",
+      "themeLight": "Light",
+      "themeDark": "Dark"
+    },
+    "pro": {
+      "badge": "PRO",
+      "title": "Govori Pro",
+      "body": "Unlimited attempts, live conversation, phoneme drills.",
+      "cta": "Go Pro · 35 000 so'm/month"
+    },
+    "help": {
+      "row": "Help centre",
+      "modalTitle": "Help centre",
+      "body": "Got a question, or something not working? Our Telegram group has the answers, and for anything urgent you can message the admin directly.",
+      "telegramGroup": "Telegram group",
+      "telegramAdmin": "Telegram admin"
+    },
+    "privacy": {
+      "row": "Privacy policy",
+      "modalTitle": "Privacy policy",
+      "body": "Govori stores only your name, phone number and voice answers. We use them to grade your answers and show your progress. Your recordings are visible to you and your teacher only — we never sell them to third parties or use them for advertising.",
+      "appInfoTitle": "About the app",
+      "appInfoBody": "Govori is an app for practising spoken Russian by voice. If you'd like your account or data deleted for good, message the admin on Telegram."
+    },
+    "results": {
+      "empty": "No results yet.",
+      "seeAll": "All results",
+      "openAria": "Open the “{{title}}” result"
+    },
+    "trend": {
+      "up": "Improved",
+      "down": "Declined",
+      "flat": "Unchanged"
+    },
+    "avatar": {
+      "change": "Change photo",
+      "remove": "Remove photo",
+      "uploading": "Uploading…",
+      "errorType": "Only JPG, PNG or WebP images",
+      "errorSize": "Image must be under 5 MB",
+      "aria": "Profile picture"
+    },
+    "xp": {
+      "total": "Total XP",
+      "caption": "Earned from completed exercises"
+    }
   },
   "teacher": {
     "role": "Teacher",
-    "createGroup": "New group",
-    "createAssignment": "Assign task",
-    "statsAria": "Class overview",
-    "activeStudents": "Active students",
-    "groupsStat": "Groups",
-    "pendingReviews": "In review queue",
-    "groups": "Groups",
-    "newGroup": "+ New group",
-    "members_one": "{{count}} student",
-    "members_other": "{{count}} students",
-    "avgBand": "Avg",
-    "joinCode": "Code",
-    "assign": "Assign",
-    "openGroup": "Open",
-    "reviewQueue": "Needs review",
-    "pendingCount_one": "{{count}} pending",
-    "pendingCount_other": "{{count}} pending",
-    "noReviews": "All caught up — nothing to review",
-    "scoreAria": "Score {{score}}",
-    "grade": "Grade",
-    "status": {
-      "lowConfidence": "Low confidence",
-      "flagged": "Flagged",
-      "graded": "Graded"
-    }
+    "statsAria": "Class metrics",
+    "avatarAria": "Profile",
+    "attention": "Needs attention",
+    "attentionAria": "Items needing attention",
+    "lowConfidence_one": "{{count}} answer — low AI confidence",
+    "lowConfidence_other": "{{count}} answers — low AI confidence",
+    "lowConfidenceHint": "Go to the review queue",
+    "dropped_one": "{{count}} student dropped {{points}} points",
+    "dropped_other": "{{count}} students dropped {{points}} points",
+    "droppedHint": "View profile",
+    "allClear": "Nothing needs your attention right now",
+    "statGroups": "Groups",
+    "statStudents": "Students",
+    "statQueue": "In queue"
   },
   "auth": {
     "phoneLabel": "Phone number",
@@ -224,13 +485,29 @@
     "otp": {
       "title": "Confirm the code",
       "sentTo": "A confirmation code was sent to:",
+      "getCode": "Get the code",
       "openTelegram": "Open in Telegram",
+      "sentDirect": "The code was sent to your Telegram.",
+      "openTelegramHint": "Open Telegram and link your number — the code will arrive there.",
       "devHint": "Dev mode · confirmation code",
       "codeLabel": "Confirmation code",
       "resend": "Resend code",
       "verify": "Confirm",
       "needName": "This phone is new. Enter your name and confirm the new code to sign up.",
       "resent": "A new code was sent."
+    },
+    "otpStatus": {
+      "sent": "The code was sent to Telegram.",
+      "expired": "The code has expired. Request a new one.",
+      "mismatch": {
+        "title": "The number doesn't match",
+        "text": "Your Telegram number doesn't match the number you entered in the app. For your security this code has been cancelled."
+      },
+      "notOwnContact": {
+        "title": "That's not your number",
+        "text": "You forwarded someone else's contact. Please send only your own number. For your security this code has been cancelled."
+      },
+      "startOver": "Enter the number again"
     },
     "errors": {
       "badCode": "The code is wrong or expired",
@@ -259,8 +536,172 @@
       "finish": "Finish and start"
     }
   },
+  "notifications": {
+    "title": "Notifications",
+    "bellAria_zero": "Notifications — nothing unread",
+    "bellAria_one": "Notifications — {{count}} unread",
+    "bellAria_other": "Notifications — {{count}} unread",
+    "selectAll": "Select all",
+    "selectRow": "Select notification: {{title}}",
+    "unread": "Unread",
+    "selected_one": "{{count}} selected",
+    "selected_other": "{{count}} selected",
+    "deleteSelected": "Delete selected",
+    "clearAll": "Clear all",
+    "confirmDeleteSelected_one": "Delete {{count}} notification? This can't be undone.",
+    "confirmDeleteSelected_other": "Delete {{count}} notifications? This can't be undone.",
+    "confirmClearAll": "Delete all notifications? This can't be undone.",
+    "confirm": "Delete",
+    "cancel": "Cancel",
+    "empty": "No notifications yet."
+  },
   "errors": {
     "loadTitle": "Couldn't load data",
     "loadBody": "Check your connection and try again."
+  },
+  "months": {
+    "1": "January",
+    "2": "February",
+    "3": "March",
+    "4": "April",
+    "5": "May",
+    "6": "June",
+    "7": "July",
+    "8": "August",
+    "9": "September",
+    "10": "October",
+    "11": "November",
+    "12": "December"
+  },
+  "mashq": {
+    "title": "Practice",
+    "tabs": {
+      "modules": "Modules",
+      "assignments": "Assignments",
+      "chat": "Chat"
+    },
+    "modules": {
+      "crumb": "Practice",
+      "heading": "Modules",
+      "filter": {
+        "all": "All",
+        "active": "In progress",
+        "done": "Completed"
+      },
+      "meta": "{{level}} · {{done}}/{{total}}",
+      "metaDone": "{{level}} · {{done}}/{{total}} · completed",
+      "metaNotStarted": "{{level}} · 0/{{total}} · not started",
+      "metaLocked": "{{level}} · Pro",
+      "teacherBadge": "TEACHER",
+      "continue": "Continue",
+      "start": "Start",
+      "open": "Open",
+      "empty": "No modules yet.",
+      "promoTitle": "Live chat with AI",
+      "promoBody": "Talk: at the shop, at the doctor, in an interview."
+    },
+    "detail": {
+      "label": "MODULE",
+      "tasksLabel": "TASKS",
+      "taskCount": "{{done}}/{{total}} tasks",
+      "taskN": "Task {{n}}",
+      "taskCurrent": "Task {{n}} · current",
+      "start": "Start",
+      "locked": "Locked"
+    },
+    "complete": {
+      "title": "Module complete!",
+      "tasks": "tasks",
+      "average": "average",
+      "time": "time",
+      "timeValue": "{{h}}h {{m}}'",
+      "timeMinutes": "{{m}}'",
+      "certTitle": "Certificate ready",
+      "certBody": "Download or share",
+      "nextLabel": "NEXT MODULE",
+      "nextMeta": "{{level}} · {{count}} tasks",
+      "nextCta": "Next module",
+      "allDone": "All modules complete 🎉"
+    },
+    "assignments": {
+      "heading": "Assignments",
+      "empty": "No assignments yet.",
+      "due": "{{when}}",
+      "overdue": "overdue",
+      "noDue": "no deadline",
+      "start": "Start",
+      "done": "Done",
+      "score": "{{band}} pts",
+      "from": "From your teacher",
+      "when": {
+        "today": "today {{time}}",
+        "tomorrow": "tomorrow {{time}}",
+        "date": "{{date}}, {{time}}"
+      }
+    }
+  },
+  "results": {
+    "allTitle": "All results",
+    "count": "{{count}} results",
+    "attempt": "Practice",
+    "audio": "Recorded answer",
+    "audioExpired": "Audio expired — recordings are kept for 3 months.",
+    "audioNone": "No audio available.",
+    "transcript": "What you said",
+    "scores": "Score breakdown",
+    "criteria": {
+      "fluency": "Fluency",
+      "lexical": "Vocabulary",
+      "grammar": "Grammar",
+      "pronunciation": "Pronunciation",
+      "relevance": "Relevance"
+    },
+    "feedback": "AI feedback",
+    "corrections": "Corrections",
+    "modelAnswer": "Model answer",
+    "teacher": "Teacher's note",
+    "teacherBand": "Teacher's score: {{band}}",
+    "status": {
+      "pending": "Grading…",
+      "processing": "Grading…",
+      "failed": "Grading failed."
+    }
+  },
+  "groupBoard": {
+    "meta": "{{teacher}} · {{count}} students",
+    "classmates": "CLASSMATES",
+    "you": "You",
+    "xp": "XP",
+    "streak": "🔥 {{count}}",
+    "empty": "The leaderboard is empty for now.",
+    "open": "Open {{name}} group"
+  },
+  "suhbat": {
+    "heading": "Chat",
+    "intro": "Pick a topic — the AI asks in text, and you answer by speaking.",
+    "freeTitle": "Free topic",
+    "freeBody": "Talk about anything — the AI keeps the conversation going in text.",
+    "scenarioMeta": "{{level}} · ~{{min}} min",
+    "goalLabel": "Goal: {{goal}}",
+    "finish": "Finish",
+    "listen": "Listen",
+    "pause": "Pause",
+    "answer": "Answer",
+    "recording": "Recording",
+    "send": "Send",
+    "cancel": "Cancel",
+    "voiceMessage": "Voice message",
+    "micDenied": "Microphone access denied",
+    "micError": "Couldn't record audio",
+    "typingHint": "AI is typing…",
+    "endedTitle": "Chat ended",
+    "goalReached": "Goal reached",
+    "goalMissed": "Goal not reached",
+    "turns": "turns",
+    "fluency": "fluency",
+    "phrasesLabel": "{{count}} useful phrases",
+    "phrasesLabelShort": "USEFUL PHRASES",
+    "retry": "Try again",
+    "stubNote": "AI replies are sample (no key connected)."
   }
 }

@@ -4,12 +4,10 @@ namespace Govori.Api.RateLimiting;
 
 /// <summary>
 /// A <see cref="RateLimiter"/> whose window state lives in an <see cref="IRateLimitStore"/> (in
-/// memory or Redis), NOT in the limiter object. This is the faithful port of
-/// <c>backend/app/core/ratelimit.py</c>'s per-request check and the home of the CRITICAL
-/// <b>fail-open</b> rule: it counts one hit and rejects only when the count exceeds the limit, and
-/// <b>if the store throws (backend unavailable) it ALLOWS the request</b> — mirroring
-/// <c>except RedisError: return</c> (ratelimit.py:50-52). Rate limiting must never take the API down
-/// — the exact OPPOSITE of the OTP store, which is fail-CLOSED.
+/// memory or Redis), NOT in the limiter object. It performs the per-request check and is the home of
+/// the CRITICAL <b>fail-open</b> rule: it counts one hit and rejects only when the count exceeds the
+/// limit, and <b>if the store throws (backend unavailable) it ALLOWS the request</b>. Rate limiting
+/// must never take the API down — the exact OPPOSITE of the OTP store, which is fail-CLOSED.
 ///
 /// <para>Because all state is in the store, this limiter is cheap and stateless: the partitioned
 /// limiter may dispose and recreate it per key without losing counts (the store keeps them).</para>
@@ -45,14 +43,14 @@ internal sealed class StoreBackedRateLimiter : RateLimiter
         }
         catch
         {
-            return RateLimitLeases.Acquired; // FAIL OPEN — ratelimit.py:52
+            return RateLimitLeases.Acquired; // FAIL OPEN — a store outage must never reject traffic
         }
     }
 
     // The RateLimiter middleware uses this SYNCHRONOUS fast-path as its primary check, so it must
     // enforce (not no-op). The in-memory store completes synchronously; the opt-in Redis store is
     // awaited here (blocking is acceptable on the opt-in distributed path). Any store error → ALLOW
-    // (FAIL OPEN — ratelimit.py:52), the same rule as the async path.
+    // (FAIL OPEN), the same rule as the async path.
     protected override RateLimitLease AttemptAcquireCore(int permitCount)
     {
         try
@@ -63,7 +61,7 @@ internal sealed class StoreBackedRateLimiter : RateLimiter
         }
         catch
         {
-            return RateLimitLeases.Acquired; // FAIL OPEN — ratelimit.py:52
+            return RateLimitLeases.Acquired; // FAIL OPEN — a store outage must never reject traffic
         }
     }
 }

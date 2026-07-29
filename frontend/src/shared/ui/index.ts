@@ -7,15 +7,18 @@
  * once at the app root so these `var(--…)` references resolve.
  *
  * First tier (this sprint):
- *   Actions     — Button
+ *   Actions     — Button, Switch
  *   Forms       — Input
- *   Containment — Card
- *   Data        — Badge
+ *   Containment — Card, Tabs, Modal
+ *   Data        — Badge, StatTile
  *   Feedback    — Spinner, Skeleton
  *   Foundations — Text, VisuallyHidden
  */
 export { Button } from "./Button";
 export type { ButtonProps, ButtonVariant, ButtonSize } from "./Button";
+
+export { Switch } from "./Switch";
+export type { SwitchProps } from "./Switch";
 
 export { Input } from "./Input";
 export type { InputProps } from "./Input";
@@ -23,8 +26,17 @@ export type { InputProps } from "./Input";
 export { Card } from "./Card";
 export type { CardProps, CardVariant, CardPadding } from "./Card";
 
+export { Tabs } from "./Tabs";
+export type { TabsProps, TabItem } from "./Tabs";
+
+export { Modal } from "./Modal";
+export type { ModalProps } from "./Modal";
+
 export { Badge } from "./Badge";
 export type { BadgeProps, BadgeVariant, BadgeSize } from "./Badge";
+
+export { StatTile } from "./StatTile";
+export type { StatTileProps, StatTileSize } from "./StatTile";
 
 export { Spinner } from "./Spinner";
 export type { SpinnerProps, SpinnerSize } from "./Spinner";
@@ -50,6 +62,9 @@ export type { MascotProps, MascotMood } from "./Mascot";
 
 export { Waveform } from "./Waveform";
 export type { WaveformProps, WaveformMode } from "./Waveform";
+
+export { FlowingWaveform } from "./FlowingWaveform/FlowingWaveform";
+export type { FlowingWaveformProps } from "./FlowingWaveform/FlowingWaveform";
 
 export { Recorder } from "./Recorder";
 export type { RecorderProps, RecorderLabels } from "./Recorder";

@@ -1,5 +1,6 @@
 /**
- * screens/home — the student's Bosh sahifa (docs/04 §4.1, §4.5).
+ * screens/home — the student's Bosh sahifa (docs/04 §4.1, §4.5), rebuilt to the
+ * owner's mockup: today's-practice hero + teacher/group block + QISQACHA summary.
  * Presentational + prop-driven; composed from `shared/ui` + `widgets` + tokens.
  *
  *   HomeScreen      — the controllable, prop-driven screen.
@@ -9,17 +10,14 @@ export { HomeScreen, default as HomeScreenDemo } from "./HomeScreen";
 export type {
   HomeScreenProps,
   HomeUser,
-  HomeDailyGoal,
-  HomeStreak,
-  HomeContinueTarget,
-  HomeContinueSteps,
-  HomeModule,
-  ModuleStatus,
+  HomeToday,
+  HomeGroup,
+  HomeAssignment,
+  HomeStats,
 } from "./HomeScreen";
 export {
-  mockUser,
-  mockDailyGoal,
-  mockStreak,
-  mockContinue,
-  mockModules,
+  mockHomeUser,
+  mockHomeToday,
+  mockHomeGroup,
+  mockHomeStats,
 } from "./home.mock";

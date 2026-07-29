@@ -1,14 +1,14 @@
 import type { TFunction } from "i18next";
 import type { NavItem } from "./Nav";
 import {
-  AssignmentsIcon,
-  ChatIcon,
-  GradebookIcon,
+  ContentIcon,
   GroupsIcon,
   HomeIcon,
+  MicIcon,
   PracticeIcon,
   ProfileIcon,
   ProgressIcon,
+  QueueIcon,
 } from "./icons";
 
 /** Stable keys for the 5 student destinations (docs/03 §3.8, §4.8). */
@@ -35,7 +35,7 @@ export function studentNavItems(t: TFunction): NavItem[] {
     {
       key: "chat",
       label: t("nav.chat"),
-      icon: <ChatIcon />,
+      icon: <MicIcon />,
       emphasized: true,
     },
     { key: "progress", label: t("nav.progress"), icon: <ProgressIcon /> },
@@ -43,28 +43,41 @@ export function studentNavItems(t: TFunction): NavItem[] {
   ];
 }
 
-/** Stable keys for the 5 teacher destinations (docs/04 teacher flows, Faza 4.9). */
+/** Stable keys for the 5 teacher destinations, taken from the teacher mockup's
+ * bottom bar (`Govorim - Teacher.dc.html`). */
 export type TeacherNavKey =
-  | "dashboard"
-  | "groups"
-  | "assignments"
-  | "gradebook"
-  | "profile";
+  | "home"
+  | "classes"
+  | "queue"
+  | "content"
+  | "analytics";
 
 /**
- * The 5-item teacher nav model: Boshqaruv · Guruhlar · Topshiriqlar · Jurnal ·
- * Profil — the teacher counterpart to {@link studentNavItems}. Same factory
- * shape (labels flow through i18n via `t("nav.<key>")`, icons wired, the
- * consumer supplies `activeKey` + `onNavigate`), so it drops straight into
- * `AppShell`. Teachers get a denser, tool-oriented set rather than the student
- * gamified nav — no emphasised centre FAB.
+ * The teacher nav model: **Bosh · Klasslar · Navbat · Kontent · Analitika**.
+ *
+ * The teacher panel is its own product, not a re-skin of the student one — this
+ * is the mockup's own bar, NOT {@link studentNavItems} with different labels.
+ * Two consequences worth stating: there is **no Profil item** (the Obzor header
+ * avatar is the profile entry), and the raised centre FAB is **Navbat** — the
+ * grading queue — where the student bar puts the mic. Only the factory *shape*
+ * is shared (labels via `t("nav.<key>")`, `activeKey` + `onNavigate` supplied by
+ * the consumer) so both drop into `AppShell`.
+ *
+ * @param pendingReviews attempts waiting in the queue. When > 0 it rides the FAB
+ * as a badge, exactly like the mockup's red count.
  */
-export function teacherNavItems(t: TFunction): NavItem[] {
+export function teacherNavItems(t: TFunction, pendingReviews = 0): NavItem[] {
   return [
-    { key: "dashboard", label: t("nav.dashboard"), icon: <HomeIcon /> },
-    { key: "groups", label: t("nav.groups"), icon: <GroupsIcon /> },
-    { key: "assignments", label: t("nav.assignments"), icon: <AssignmentsIcon /> },
-    { key: "gradebook", label: t("nav.gradebook"), icon: <GradebookIcon /> },
-    { key: "profile", label: t("nav.profile"), icon: <ProfileIcon /> },
+    { key: "home", label: t("nav.teacherHome"), icon: <HomeIcon /> },
+    { key: "classes", label: t("nav.classes"), icon: <GroupsIcon /> },
+    {
+      key: "queue",
+      label: t("nav.queue"),
+      icon: <QueueIcon />,
+      emphasized: true,
+      badge: pendingReviews > 0 ? pendingReviews : undefined,
+    },
+    { key: "content", label: t("nav.content"), icon: <ContentIcon /> },
+    { key: "analytics", label: t("nav.analytics"), icon: <ProgressIcon /> },
   ];
 }

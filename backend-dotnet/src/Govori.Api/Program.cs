@@ -14,6 +14,7 @@ using Govori.Identity;
 using Govori.Identity.Providers;
 using Govori.Identity.Security;
 using Govori.Infrastructure;
+using Govori.Infrastructure.Telegram;
 using Govori.Platform.Grader;
 using Govori.Platform.Storage;
 using Govori.Platform.Stt;
@@ -99,8 +100,10 @@ try
             tags: new[] { "ready" });
 
     // ── Identity / Auth vertical slice (docs/07 §7.5, Faza 3.1) ─────────────
-    // Auth options mirror the Python Settings (backend/app/core/config.py): SecretKey
-    // ← SECRET_KEY; expiries default to the Python values (30 min / 7 d / 20 min).
+    // Auth options come straight from configuration: SecretKey ← SECRET_KEY (required — the host
+    // refuses to boot without it). Token lifetimes are WIRE CONTRACTS shared with already-issued
+    // tokens and the frontend's refresh logic: 30 min access / 7 d refresh / 20 min email-verify.
+    // Changing a default silently changes how long every live session survives.
     var authOptions = new IdentityAuthOptions
     {
         SecretKey = builder.Configuration["SECRET_KEY"]
@@ -125,9 +128,17 @@ try
     builder.Services.AddSingleton<TokenService>();
     builder.Services.AddScoped<AuthService>();
 
+    // Profile read slice (GET /api/profile/{stats,results,achievements}). Folded into the Identity
+    // module rather than a ninth domain: docs/07 §7.2 freezes the module list at eight (encoded in
+    // Govori.ArchTests.ArchitectureMap), Identity already owns the profile surface (/api/auth/me),
+    // and MeResponse.Level is derived from the SAME average band this service computes.
+    builder.Services.AddScoped<ProfileService>();
+
     // ── Catalog / student read path (docs/07 §7.2, Faza 3.2) ────────────────
-    // FreeTasksPerModule ← FREE_TASKS_PER_MODULE (Python config.py:35, default 3): the positional
-    // freemium threshold for official public modules. CatalogService owns the two-layer lock.
+    // FreeTasksPerModule ← FREE_TASKS_PER_MODULE, DEFAULT 3. This is a POSITIONAL threshold, not a
+    // quota: within an official public module the first N tasks *by order* are free and everything
+    // after index N-1 is paywalled — it does not count how many a student has attempted.
+    // CatalogService owns the resulting two-layer (sequential + freemium) lock.
     builder.Services.AddSingleton(new CatalogOptions
     {
         FreeTasksPerModule = builder.Configuration.GetValue("FREE_TASKS_PER_MODULE", 3),
@@ -135,7 +146,7 @@ try
     builder.Services.AddScoped<CatalogService>();
 
     // ── Platform.Storage (docs/07 §7.2 — S3/MinIO object storage) ───────────
-    // StorageOptions binds from the prod S3_* env keys (config.py:38-43), falling back to the
+    // StorageOptions binds from the prod S3_* env keys, falling back to the
     // integration-test keys (GOVORI_S3_*) so the same host works in the govori-net test env.
     // PublicUrl defaults to the internal endpoint: presigned URLs must be signed for the host the
     // consumer reaches (in-network tests reach MinIO at the same host — see StorageOptions docs).
@@ -203,25 +214,32 @@ try
 
     // ── Classroom / groups + assignments + gradebook (docs/07 §3.5, Faza 3.5) ──
     // ClassroomService owns teacher groups (create/join/roster), assignments (single + module) and
-    // the teacher-scoped gradebook. Ported from groups.py/engagement.py/reports.py; it also carries
-    // the S1 roster-filter SECURITY FIX on assignment creation (§7.8). Scoped (scoped DbContext).
+    // the teacher-scoped gradebook. It also carries the S1 roster-filter SECURITY FIX on assignment
+    // creation (§7.8): assignments only ever reach students on the target group's roster. Scoped
+    // (scoped DbContext).
     builder.Services.AddScoped<ClassroomService>();
 
     // ── Engagement / XP + streak + leaderboard + SRS + notifications (docs/07 §3.6, Faza 3.6) ──
     // EngagementService owns the frozen C8 XP curve (XpForBand), the daily streak (with freezes), the
     // leaderboard (SQL-side ranking), the spaced-repetition review queue and in-app notifications.
-    // Ported from gamification.py (award/streak/schedule — worker-driven, no HTTP route) +
-    // engagement.py/notifications.py (leaderboard/review/notifications HTTP surface). Scoped (scoped
-    // DbContext).
+    // NOTE the split: the AWARD paths (XP grant, streak bump, SRS scheduling) are WORKER-DRIVEN and
+    // deliberately have NO HTTP route — they only ever run from the grading pipeline, so a client can
+    // never self-award. Only the read surface (leaderboard / review queue / notifications) is exposed
+    // over HTTP. Scoped (scoped DbContext).
     builder.Services.AddScoped<EngagementService>();
+
+    // The grading job's XP reward seam (IGradingRewarder → SubmissionRewarder). Registered here too
+    // because the API can run grading INLINE (InlineGradingQueue) when it hosts no separate Worker,
+    // and GradingJob resolves the rewarder from whichever host runs it.
+    builder.Services.AddScoped<Govori.Contracts.IGradingRewarder, Govori.Engagement.SubmissionRewarder>();
 
     // ── Administration / app settings + admin user management (docs/07 §3.7, Faza 3.7) ──
     // AppSettingsService owns the tri-state app_settings read/write (None=unchanged / ""=clear /
-    // value=store) with env-var fallback, behind the process-global ~30s AppSettingsCache (SINGLETON,
-    // mirroring Python's module-level cache; invalidated on every write). AdministrationService owns
+    // value=store) with env-var fallback, behind the ~30s AppSettingsCache (SINGLETON). That cache is
+    // PROCESS-LOCAL: it is invalidated on every write made through THIS process, so a settings change
+    // applied by another instance is not seen until the entry expires. AdministrationService owns
     // the admin-only user surface (stats, teacher/student list-search-update-delete) and the freemium
-    // is_premium grant/revoke + (de)activate. Ported from admin.py / admin_settings.py /
-    // settings_public.py. Both services scoped (scoped DbContext).
+    // is_premium grant/revoke + (de)activate. Both services scoped (scoped DbContext).
     builder.Services.AddSingleton<IAppSettingsCache>(new AppSettingsCache());
     builder.Services.AddScoped<AppSettingsService>();
     builder.Services.AddScoped<AdministrationService>();
@@ -229,15 +247,15 @@ try
     // ── Guest / auth-less demo (docs/07 §3.8, Faza 3.8) ─────────────────────
     // GuestService owns the public "try one phrase" demo (phrase pick + the SAME Azure
     // pronunciation assessment the app uses, via the shared ISttProvider seam, + score blend + rough
-    // CEFR level). Ported from guest.py; stores nothing, requires no account. TTS behind ITtsProvider
-    // mirrors the STT seam — a real Azure port is a TODO stub (IsConfigured=false) so /guest/tts
-    // safely returns 503 until a key lands, exactly like Python raising with no key. Scoped
-    // (matches the module convention); the providers are singletons.
+    // CEFR level). It stores nothing and requires no account. TTS behind ITtsProvider mirrors the STT
+    // seam — a real Azure port is a TODO stub (IsConfigured=false) so /guest/tts safely returns 503
+    // until a key lands rather than failing some other way. Scoped (matches the module convention);
+    // the providers are singletons.
     builder.Services.AddSingleton<ITtsProvider, AzureTtsProvider>(); // TODO(Faza 3.4): real Azure TTS
     builder.Services.AddScoped<GuestService>();
 
     // ── Rate limiting (docs/07 §7.3, §3.8) ──────────────────────────────────
-    // ASP.NET Core RateLimiter mirroring backend/app/core/ratelimit.py: per-user-or-IP fixed-window
+    // ASP.NET Core RateLimiter: per-user-or-IP fixed-window
     // policies (email_code / login / guest_assess / guest_tts) and — CRITICAL — FAIL-OPEN (a store
     // outage ALLOWS the request; rate limiting must never take the API down). Default counter is
     // in-memory; GOVORI_RATELIMIT_BACKEND=redis swaps in the (implemented) cross-instance store.
@@ -270,11 +288,32 @@ try
     // External providers behind interfaces — real impls here; integration tests swap fakes
     // via ConfigureTestServices so they never hit real Redis/Google/Telegram.
     builder.Services.AddSingleton<IOtpStore, RedisOtpStore>();      // Redis-backed, FAIL-CLOSED
+
+    // "User X is changing their number to Y", keyed by USER ID, TTL = the OTP's own. Backs
+    // POST /api/auth/phone/change/request → /confirm. Not a second OTP system: the code is still
+    // minted, delivered and verified by the seams above — this only records WHICH user asked for
+    // WHICH number, which is what stops one caller confirming another's pending change. Same lazy
+    // Redis wrapper shape as IOtpStore, so it costs nothing until a change is actually started.
+    builder.Services.AddSingleton<IPendingPhoneChangeStore, RedisPendingPhoneChangeStore>();
     builder.Services.AddHttpClient<IGoogleTokenVerifier, GoogleTokenVerifier>(); // Google tokeninfo
 
+    // Telegram OTP deep-link + delivery-state store. Registered UNCONDITIONALLY (unlike the sender
+    // below, which is chosen by config): GET /api/auth/otp/status depends on it whatever the active
+    // channel is, and a minimal-API handler cannot take an optionally-registered service. Same shape
+    // as IOtpStore above — a lazily-connecting Redis wrapper that costs nothing until first use. In
+    // dev delivery the status endpoint short-circuits before ever touching it.
+    builder.Services.AddSingleton<ITelegramOtpLinkStore, RedisTelegramOtpLinkStore>();
+
+    // Proven Telegram↔phone pairs (telegram_bindings). SINGLETON is safe because
+    // EfTelegramBindingStore opens its own DI scope per call rather than capturing a scoped
+    // DbContext. Registered in BOTH hosts; the API side carries it so the wiring is symmetric and
+    // the table has a single, shared access path.
+    builder.Services.AddSingleton<ITelegramBindingStore, EfTelegramBindingStore>();
+
     // OTP delivery (phone → Telegram). If TELEGRAM_BOT_TOKEN + TELEGRAM_BOT_USERNAME are set, use the
-    // FREE-bot deep-link sender: it stashes {phone,code} behind a start-token in Redis and returns a
-    // t.me/<bot>?start=<token> link (the Worker's poller DMs the code when the user presses Start).
+    // FREE-bot sender, which decides per phone between DIRECT delivery (DM the code straight to a proven
+    // binding via ITelegramMessenger) and DEEP_LINK delivery (stash {phone,code} behind a start-token
+    // and return a t.me/<bot>?start=<token> link; the Worker's poller DMs the code on Start).
     // Otherwise fall back to the dev stub (logs the code + accepts the fixed dev code 000000). The
     // dev bypass is impossible once a real bot is present (TelegramBotOtpSender.AcceptsDevCode=false).
     var telegramBotToken = builder.Configuration["TELEGRAM_BOT_TOKEN"];
@@ -282,7 +321,13 @@ try
     if (!string.IsNullOrWhiteSpace(telegramBotToken) && !string.IsNullOrWhiteSpace(telegramBotUsername))
     {
         builder.Services.AddSingleton(new TelegramBotOptions { Username = telegramBotUsername });
-        builder.Services.AddSingleton<ITelegramOtpLinkStore, RedisTelegramOtpLinkStore>();
+        // The API now needs the bot token too (only the Worker held it before): the messenger pushes
+        // the code straight to a bound account in DIRECT mode. Registered ONLY when the token is
+        // present; a ~5 s client timeout keeps a slow Telegram from stalling the OTP request path (the
+        // sender falls back to deep_link on any failure). The shared compose env carries the token.
+        builder.Services.AddSingleton(new TelegramMessengerOptions { BotToken = telegramBotToken });
+        builder.Services.AddHttpClient<ITelegramMessenger, TelegramMessenger>(
+            client => client.Timeout = TimeSpan.FromSeconds(5));
         builder.Services.AddSingleton<IOtpDeliverySender, TelegramBotOtpSender>();
     }
     else
@@ -290,13 +335,16 @@ try
         builder.Services.AddSingleton<IOtpDeliverySender, DevOtpDeliverySender>();
     }
 
-    // JSON: snake_case in/out to match the Python API shape (access_token, full_name, ...).
+    // JSON: snake_case in/out. This is a WIRE CONTRACT with the shipped frontend — property names go
+    // over the wire as `access_token`, `full_name`, ... Switching to camelCase breaks every client.
     builder.Services.ConfigureHttpJsonOptions(o =>
         o.SerializerOptions.PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower);
 
     // JWT bearer (docs/07 §7.5). The token carries NO role/is_active — only sub/type/iat/exp;
     // role + is_active are read from the DB on every request (see AuthService.GetMeAsync).
-    // Signing key = RAW UTF-8 bytes of SecretKey (python-jose does not base64-decode).
+    // ⚠ SIGNING KEY = the RAW UTF-8 BYTES of SecretKey. It is NOT base64-decoded. Every token ever
+    // issued against this secret was signed over the raw bytes, so base64-decoding here (a common
+    // "fix" when copying HMAC samples) would silently invalidate every live session.
     // MapInboundClaims=false keeps `sub`/`type` verbatim (not the SOAP ClaimTypes URIs).
     builder.Services
         .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
@@ -344,7 +392,8 @@ try
 
     // Rate limiter AFTER authentication so per-user keying can read the validated `sub` claim
     // (falls back to client IP for anonymous requests). Endpoints opt in with .RequireRateLimiting;
-    // rejections answer 429 (docs/07 §7.3, ratelimit.py). FAIL-OPEN — see Govori.Api/RateLimiting.
+    // rejections answer 429, NOT the framework's default 503 (docs/07 §7.3 — the override lives in
+    // RateLimitPolicies and is deliberate). FAIL-OPEN — see Govori.Api/RateLimiting.
     app.UseRateLimiter();
 
     // Liveness (docs/07 §2.8): process is up ⇒ Healthy. Predicate '_ => false' runs
@@ -372,6 +421,12 @@ try
     // the MODULAR-ENDPOINT PATTERN every future domain (Catalog, Practice, …) copies — the
     // composition root wires one call per domain, no inline route bodies here.
     app.MapIdentityEndpoints();
+
+    // ── Profile endpoints (profile redesign) ────────────────────────────────
+    // GET /api/profile/{stats,results,achievements} — the calling student's own numbers, all
+    // computed from existing columns (NO schema change, docs/07 §7.4 rule 3). Ships from the
+    // Identity module (see AddScoped<ProfileService> above for why it isn't a ninth domain).
+    app.MapProfileEndpoints();
 
     // ── Catalog endpoints (docs/07 §7.2, Faza 3.2) ──────────────────────────
     // The student read path (GET /api/blocks/student — the two-layer sequence+freemium lock)
@@ -406,7 +461,8 @@ try
     // ── Engagement endpoints (docs/07 §3.6, Faza 3.6) ───────────────────────
     // The leaderboard (/api/leaderboard), SRS review queue (/api/review) and in-app notifications
     // (/api/notifications) live in the Engagement module's MapEngagementEndpoints extension, one call
-    // per domain. XP/streak/SRS-scheduling AWARD paths have no HTTP route (worker-driven, like Python).
+    // per domain. The XP/streak/SRS-scheduling AWARD paths deliberately have NO HTTP route — they are
+    // worker-driven only, so no client can grant itself XP, a streak day or an easier review interval.
     app.MapEngagementEndpoints();
 
     // ── Administration endpoints (docs/07 §3.7, Faza 3.7) ───────────────────

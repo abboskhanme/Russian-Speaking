@@ -8,7 +8,6 @@ import type {
   StudentModuleResponse,
   StudentTaskResponse,
 } from "../shared/api";
-import type { ModuleStatus } from "../screens/home";
 
 /** "Aziz Karimov" → "Aziz" (the warm first-name greeting). */
 export function firstName(fullName: string): string {
@@ -23,15 +22,6 @@ export function clampPct(n: number): number {
 
 export function moduleProgressPct(m: StudentModuleResponse): number {
   return m.total > 0 ? clampPct((m.done_count / m.total) * 100) : 0;
-}
-
-/** Map a module's completion + lock state to the HomeScreen's status enum. */
-export function moduleStatus(m: StudentModuleResponse): ModuleStatus {
-  if (m.total > 0 && m.done_count >= m.total) return "done";
-  // No actionable task means the module is blocked (sequence / freemium gate).
-  if (m.next_task_id === null) return "locked";
-  if (m.done_count > 0) return "in-progress";
-  return "not-started";
 }
 
 export interface PracticeTarget {

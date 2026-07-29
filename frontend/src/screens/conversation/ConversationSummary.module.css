@@ -1,0 +1,90 @@
+/* ConversationSummary (E4) — the Suhbat wrap-up. A full-screen focal column
+ * (same family as Placement's result). Full-width; every colour / space /
+ * radius value is a token. */
+
+.page {
+  position: relative;
+  min-height: 100dvh;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg);
+}
+
+.column {
+  width: 100%;
+  max-width: 460px;
+  margin: 0 auto;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--s-3);
+  padding: clamp(40px, 7vh, 64px) max(var(--s-5), env(safe-area-inset-right))
+    max(var(--s-6), env(safe-area-inset-bottom)) max(var(--s-5), env(safe-area-inset-left));
+}
+
+.mascot {
+  margin-bottom: var(--s-1);
+}
+.title {
+  margin: 0;
+}
+.scenarioName {
+  margin: 0;
+}
+.badge {
+  margin-top: var(--s-1);
+}
+
+/* ---- Two stat cells ---- */
+.stats {
+  width: 100%;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--s-3);
+  margin-top: var(--s-3);
+}
+
+/* ---- Useful phrases ---- */
+.phrasesSection {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+  margin-top: var(--s-3);
+}
+.phrasesLabel {
+  margin: 0;
+}
+.phrasesCard {
+  width: 100%;
+}
+.phraseList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+.phraseRow {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  padding: var(--s-3) var(--s-4);
+}
+.phraseRow + .phraseRow {
+  border-top: 1px solid var(--line);
+}
+.phraseDot {
+  flex: none;
+  color: var(--primary);
+  font-size: 12px;
+}
+.phraseText {
+  min-width: 0;
+}
+
+.retry {
+  margin-top: var(--s-5);
+}

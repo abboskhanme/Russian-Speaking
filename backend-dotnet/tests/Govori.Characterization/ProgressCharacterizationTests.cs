@@ -3,17 +3,17 @@ using Xunit;
 namespace Govori.Characterization;
 
 /// <summary>
-/// C3 — the score numbers every student and teacher sees.
-/// Ported from services/scoring.py:26-55 (effective_band / rolling_avg / best_band).
+/// C3 — the score numbers every student and teacher sees: effective_band,
+/// rolling_avg and best_band.
 ///
-/// These are pure functions of the Submission rows handed to them, so the
-/// fixture was produced by feeding the REAL Python functions duck-typed
-/// stand-ins. The C# below is an independent reimplementation checked against
-/// that fixture; the port's real scoring code will later be checked against the
-/// same file.
+/// These are pure functions of the Submission rows handed to them, so the golden
+/// fixture records inputs and expected outputs directly. The C# below is an
+/// independent reimplementation checked against that fixture; the production
+/// scoring code is checked against the same file.
 ///
 /// Traps this pins down:
-///  - teacher_band == 0 must WIN (the `is not None` check, not truthiness).
+///  - teacher_band == 0 must WIN: the test is "is a band present", not "is the
+///    band non-zero", so a teacher's explicit 0 overrides the machine score.
 ///  - level_score present → used; else fall back to overall_band (legacy rows).
 ///  - rolling_avg averages only the newest `window` graded answers, newest-first,
 ///    with ties in created_at resolved by a STABLE sort (original order kept).
@@ -23,17 +23,17 @@ public class ProgressCharacterizationTests
 {
     private static readonly ScoringFixture Fx = Fixtures.Load<ScoringFixture>("scoring_cases.json");
 
-    // scoring.py:26-35 — one answer's 0..100 number, or null if ungraded.
+    // One answer's 0..100 number, or null if it is ungraded.
     private static double? EffectiveBand(ScoringSubmission s)
     {
         if (s.TeacherBand is not null) return s.TeacherBand;      // 0.0 wins here
-        if (!s.HasEvaluation) return null;                        // evaluation is None
+        if (!s.HasEvaluation) return null;                        // never machine-graded
         return s.LevelScore ?? s.OverallBand;                     // level-relative, else legacy band
     }
 
-    // scoring.py:38-43 — effective bands of graded answers, newest first.
-    // LINQ OrderByDescending is a STABLE sort, matching Python's list.sort(reverse=True):
-    // equal created_at keeps the original list order.
+    // Effective bands of graded answers, newest first. LINQ OrderByDescending is a
+    // STABLE sort, which the fixture relies on: rows with an equal created_at must
+    // keep their original relative order.
     private static List<double> GradedDesc(IEnumerable<ScoringSubmission> subs)
         => subs.Select(s => (s.CreatedAt, Band: EffectiveBand(s)))
                .Where(x => x.Band is not null)
@@ -61,7 +61,7 @@ public class ProgressCharacterizationTests
     }
 
     [Fact]
-    public void Effective_band_matches_Python_per_answer()
+    public void Effective_band_matches_the_golden_fixture_per_answer()
     {
         foreach (var scenario in Fx.Cases)
             foreach (var s in scenario.Submissions)
@@ -69,7 +69,7 @@ public class ProgressCharacterizationTests
     }
 
     [Fact]
-    public void Rolling_avg_and_best_band_match_Python()
+    public void Rolling_avg_and_best_band_match_the_golden_fixture()
     {
         foreach (var s in Fx.Cases)
         {

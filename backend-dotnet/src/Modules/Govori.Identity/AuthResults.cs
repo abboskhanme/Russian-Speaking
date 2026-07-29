@@ -22,6 +22,10 @@ public enum OtpRequestStatus
 /// <see cref="DevHint"/> the dev bypass code (only in dev delivery, else null), and
 /// <see cref="TelegramLink"/> the <c>t.me/&lt;bot&gt;?start=…</c> deep link (only in bot delivery).
 /// On <see cref="OtpRequestStatus.InvalidPhone"/>, <see cref="Error"/> carries the format message.
+/// <see cref="RequestId"/> is the opaque, non-secret id the client polls at
+/// <c>GET /api/auth/otp/status</c> (appended at the END — this record is constructed positionally).
+/// <see cref="TelegramMode"/> (<c>"direct"</c> | <c>"deep_link"</c>, or null in dev delivery) is how
+/// the code is being pushed over Telegram; it flows through to <c>OtpSentResponse.TelegramMode</c>.
 /// </summary>
 public sealed record OtpRequestResult(
     OtpRequestStatus Status,
@@ -29,7 +33,9 @@ public sealed record OtpRequestResult(
     int ExpiresInSeconds = 0,
     string? DevHint = null,
     string? TelegramLink = null,
-    string? Error = null);
+    string? Error = null,
+    string? RequestId = null,
+    string? TelegramMode = null);
 
 /// <summary>Outcome of <see cref="AuthService.VerifyOtpAsync"/>.</summary>
 public enum OtpVerifyStatus
@@ -65,6 +71,124 @@ public sealed record OtpVerifyOutcome(
     TokenResponse? Tokens = null,
     UserRole? Role = null,
     string? Error = null);
+
+/// <summary>Outcome of <see cref="AuthService.UpdateProfileAsync"/>.</summary>
+public enum UpdateProfileStatus
+{
+    /// <summary>Written; <see cref="UpdateProfileOutcome.Me"/> is the refreshed user → 200.</summary>
+    Updated,
+
+    /// <summary>No such user, or the account is not active → 401.</summary>
+    Unauthorized,
+
+    /// <summary>The supplied <c>full_name</c> is blank, over the column width, or carries control
+    /// characters → 400. Deliberately NOT silently ignored: a caller that sent a name expects it
+    /// stored, and a blank display name breaks the avatar initials and every "Salom, {name}".</summary>
+    InvalidFullName,
+}
+
+/// <summary>Result of a partial profile update. <see cref="Error"/> carries the user-facing message
+/// on <see cref="UpdateProfileStatus.InvalidFullName"/>.</summary>
+public sealed record UpdateProfileOutcome(
+    UpdateProfileStatus Status, MeResponse? Me = null, string? Error = null);
+
+/// <summary>Outcome of <see cref="AuthService.SetAvatarAsync"/> and
+/// <see cref="AuthService.RemoveAvatarAsync"/>.</summary>
+public enum AvatarUpdateStatus
+{
+    /// <summary>Stored (or cleared); <see cref="AvatarUpdateOutcome.Me"/> is the refreshed user → 200.</summary>
+    Updated,
+
+    /// <summary>The upload's content-type is not one of the allowed raster types
+    /// (<c>image/jpeg</c> / <c>image/png</c> / <c>image/webp</c>) → 400. <c>image/svg+xml</c> is
+    /// deliberately in the reject set: an SVG can carry script and would be a stored-XSS vector.</summary>
+    InvalidType,
+
+    /// <summary>The upload exceeds the 5 MB ceiling → 400 (a message distinct from
+    /// <see cref="InvalidType"/> so the client can show the right hint).</summary>
+    TooLarge,
+
+    /// <summary>The upload was empty (zero bytes) → 400.</summary>
+    Empty,
+
+    /// <summary>No such user, or the account is not active → 401.</summary>
+    Unauthorized,
+}
+
+/// <summary>Result of setting or removing the caller's avatar. <see cref="Me"/> is the refreshed
+/// user on <see cref="AvatarUpdateStatus.Updated"/>; <see cref="Error"/> carries the user-facing
+/// message on the three 400 statuses.</summary>
+public sealed record AvatarUpdateOutcome(
+    AvatarUpdateStatus Status, MeResponse? Me = null, string? Error = null);
+
+/// <summary>Result of the pure <c>AuthService.ValidateAvatarUpload</c> check. <see cref="IsValid"/>
+/// splits accept from reject: on accept, <see cref="ContentType"/> is the normalised type stored with
+/// the object and <see cref="Ext"/> the storage-key extension; on reject, <see cref="RejectStatus"/>
+/// is the distinct 400 status and <see cref="Error"/> its user-facing message. Internal + a value
+/// type so the security-critical decision is unit-testable without a DB or storage.</summary>
+internal readonly record struct AvatarValidation(
+    bool IsValid, AvatarUpdateStatus RejectStatus, string? Error, string ContentType, string Ext)
+{
+    public static AvatarValidation Accept(string contentType, string ext)
+        => new(true, default, null, contentType, ext);
+
+    public static AvatarValidation Reject(AvatarUpdateStatus status, string error)
+        => new(false, status, error, string.Empty, string.Empty);
+}
+
+/// <summary>Outcome of <see cref="AuthService.RequestPhoneChangeAsync"/>.</summary>
+public enum PhoneChangeRequestStatus
+{
+    /// <summary>Pending change bound to the caller, code generated and handed to delivery → 200.</summary>
+    Sent,
+
+    /// <summary>The new phone failed <c>PhoneNumbers.NormalizeUz</c> → 400.</summary>
+    InvalidPhone,
+
+    /// <summary>The number already belongs to a DIFFERENT account → 409. Decided BEFORE any code is
+    /// generated, so a number that cannot be claimed never has a code sent for it.</summary>
+    Taken,
+
+    /// <summary>No such user, or the account is not active → 401.</summary>
+    Unauthorized,
+}
+
+/// <summary>
+/// Result of starting a phone change. On <see cref="PhoneChangeRequestStatus.Sent"/> the payload
+/// mirrors <c>POST /api/auth/otp/request</c> field-for-field (channel, TTL, dev hint, Telegram deep
+/// link, request id) because it IS the same OTP flow — the client can reuse its login OTP step,
+/// polling <c>GET /api/auth/otp/status</c> included.
+/// </summary>
+public sealed record PhoneChangeRequestResult(
+    PhoneChangeRequestStatus Status,
+    string Channel = "",
+    int ExpiresInSeconds = 0,
+    string? DevHint = null,
+    string? TelegramLink = null,
+    string? Error = null,
+    string? RequestId = null,
+    string? TelegramMode = null);
+
+/// <summary>Outcome of <see cref="AuthService.ConfirmPhoneChangeAsync"/>.</summary>
+public enum PhoneChangeConfirmStatus
+{
+    /// <summary>Number written; <see cref="PhoneChangeConfirmOutcome.Me"/> is the updated user → 200.</summary>
+    Changed,
+
+    /// <summary>Wrong/expired code, no pending change for this user, or an unverifiable
+    /// (fail-closed) store → 401.</summary>
+    InvalidCode,
+
+    /// <summary>Another account claimed the number between request and confirm → 409.</summary>
+    Taken,
+
+    /// <summary>No such user, or the account is not active → 401.</summary>
+    Unauthorized,
+}
+
+/// <summary>Result of confirming a phone change. <see cref="Me"/> is set only on
+/// <see cref="PhoneChangeConfirmStatus.Changed"/>.</summary>
+public sealed record PhoneChangeConfirmOutcome(PhoneChangeConfirmStatus Status, MeResponse? Me = null);
 
 /// <summary>Outcome of <see cref="AuthService.GoogleAsync"/>.</summary>
 public enum GoogleAuthStatus

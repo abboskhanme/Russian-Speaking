@@ -1,9 +1,5 @@
 # syntax=docker/dockerfile:1
-# Govori SPA (production build) for the .NET 9 stack — docker-compose.dotnet.yml.
-#
-# NOTE: this is a SEPARATE file from the legacy dev `frontend/Dockerfile` (which the
-# legacy Python docker-compose.yml builds via `build: ./frontend` to run `npm run dev`).
-# Overwriting that would break the legacy dev stack, so the .NET prod build lives here.
+# Govori SPA (production build) — the `frontend` service in docker-compose.yml.
 #
 # Multi-stage: build the Vite bundle, serve it (and reverse-proxy /api + /hubs) with
 # nginx. The full server block (SPA fallback + API/hub proxy + WebSocket upgrade) is

@@ -9,11 +9,12 @@
     "chat": "AI Suhbat",
     "progress": "Progress",
     "profile": "Profil",
-    "dashboard": "Boshqaruv",
-    "groups": "Guruhlar",
-    "assignments": "Topshiriqlar",
-    "gradebook": "Jurnal",
-    "landmark": "Asosiy navigatsiya"
+    "landmark": "Asosiy navigatsiya",
+    "teacherHome": "Bosh",
+    "classes": "Klasslar",
+    "queue": "Navbat",
+    "content": "Kontent",
+    "analytics": "Analitika"
   },
   "common": {
     "continue": "Davom etish",
@@ -44,7 +45,8 @@
     "daysUnit_other": "kun",
     "minutes_one": "{{count}} daqiqa",
     "minutes_other": "{{count}} daqiqa",
-    "minutesUnit": "daqiqa"
+    "minutesUnit": "daqiqa",
+    "hoursUnit": "soat"
   },
   "home": {
     "todayAria": "Bugungi holat",
@@ -78,7 +80,35 @@
     "taskCount_other": "{{count}} vazifa",
     "continueKicker": "Davom eting",
     "continueEmptyTitle": "Hozircha mashqlar yo'q",
-    "continueEmptyBody": "Yangi vazifalar qo'shilganda shu yerda ko'rinadi."
+    "continueEmptyBody": "Yangi vazifalar qo'shilganda shu yerda ko'rinadi.",
+    "todayLabel": "BUGUNGI MASHQ",
+    "todayTitle": "Bugungi {{min}} daqiqa",
+    "todayTagline": "Tayyorlanish · gapirish · kechagi xatoni tuzatish",
+    "start": "Boshlash",
+    "teacherSection": "O'QITUVCHINGIZ",
+    "teacherRole": "Ustoz · Rus tili",
+    "message": "Yozish",
+    "groupLine": "Guruh: {{name}}",
+    "students": "{{count}} o'quvchi",
+    "nextAssignment": "Keyingi topshiriq · {{when}}",
+    "noAssignment": "Yangi topshiriq yo'q",
+    "summary": "QISQACHA",
+    "statLevel": "Daraja",
+    "statWeek": "Bu hafta",
+    "statWeekUnit": "daq",
+    "statStreak": "Streak",
+    "greetHi": "Salom, {{name}}",
+    "noGroup": "Siz hali guruhda emassiz",
+    "noGroupHint": "Mustaqil mashq qilyapsiz — o'qituvchidan guruh kodini so'rashingiz mumkin.",
+    "joinPlaceholder": "Guruh kodi",
+    "joinCta": "Qo'shilish",
+    "joinError": "Kod noto'g'ri yoki guruh topilmadi.",
+    "when": {
+      "today": "bugun {{time}}",
+      "tomorrow": "ertaga {{time}}",
+      "date": "{{date}}, {{time}}",
+      "overdue": "muddati o'tgan"
+    }
   },
   "practice": {
     "attemptsLeft_one": "{{count}} urinish qoldi",
@@ -148,7 +178,56 @@
     "today": "bugun",
     "achievements": "Yutuqlar",
     "unlocked": "Ochildi",
-    "achievementProgressAria": "{{title}} progressi"
+    "achievementProgressAria": "{{title}} progressi",
+    "xpBadge": "{{count}} XP",
+    "tabs": {
+      "skills": "Ko'nikmalar",
+      "achievements": "Yutuqlar",
+      "leaderboard": "Reyting"
+    },
+    "skills": {
+      "currentLevel": "HOZIRGI DARAJA",
+      "trendUp": "{{weeks}} haftada +{{points}} punkt",
+      "trendDown": "{{weeks}} haftada {{points}} punkt",
+      "trendFlat": "So'nggi {{weeks}} haftada o'zgarishsiz",
+      "sectionLabel": "KO'NIKMALAR",
+      "fluency": "Ravonlik",
+      "pronunciation": "Talaffuz",
+      "lexical": "Lug'at",
+      "grammar": "Grammatika",
+      "empty": "Ko'nikmalar hali baholanmagan. Birinchi mashqingizni bajaring."
+    },
+    "ach": {
+      "header": "Erishilgan yutuqlar",
+      "count": "{{unlocked}} / {{total}}",
+      "unlocked": "Ochildi"
+    },
+    "lb": {
+      "period": {
+        "weekly": "Haftalik",
+        "monthly": "Oylik",
+        "all": "Barcha vaqt"
+      },
+      "appWide": "BUTUN ILOVA BO'YICHA",
+      "rank": "o'rin",
+      "totalStudents": "jami o'quvchi",
+      "bestPct": "eng yaxshi",
+      "ladder": "Reyting pog'onasi",
+      "topPct": "Top {{pct}}%",
+      "meThisWeek": "Bu hafta {{rank}}-o'rin",
+      "meThisMonth": "Bu oy {{rank}}-o'rin",
+      "meAllTime": "{{rank}}-o'rin",
+      "meDeltaUp": "{{xp}} XP · ↑ {{n}} pog'ona ko'tarildingiz",
+      "meDeltaDown": "{{xp}} XP · ↓ {{n}} pog'ona tushdingiz",
+      "meDeltaFlat": "{{xp}} XP · o'rningiz o'zgarmadi",
+      "meNoDelta": "{{xp}} XP",
+      "nearby": "YAQIN ATROFDAGILAR",
+      "empty": "Hali reyting yo'q. XP to'plang va ko'tariling.",
+      "leagueOltin": "Oltin liga",
+      "leagueKumush": "Kumush liga",
+      "leagueBronza": "Bronza liga",
+      "xpSuffix": "XP"
+    }
   },
   "profile": {
     "appLanguage": "Ilova tili",
@@ -173,35 +252,217 @@
     "freePlan": "Bepul reja",
     "active": "Faol",
     "free": "Bepul",
-    "upgrade": "Premiumga o'tish"
+    "upgrade": "Premiumga o'tish",
+    "tabs": {
+      "info": "Ma'lumot",
+      "results": "Natijalar",
+      "settings": "Sozlamalar"
+    },
+    "info": {
+      "fullName": "Ism va familiya",
+      "phone": "Telefon",
+      "region": "Viloyat",
+      "district": "Tuman",
+      "level": "Daraja",
+      "registered": "Ro'yxatdan o'tgan",
+      "notSet": "Kiritilmagan",
+      "registeredValue": "{{year}}-yil, {{month}}",
+      "edit": "Tahrirlash",
+      "editTitle": "Ma'lumotni tahrirlash",
+      "namePlaceholder": "Aziz Karimov"
+    },
+    "phone": {
+      "change": "O'zgartirish",
+      "changeTitle": "Telefon raqamni o'zgartirish",
+      "changeNote": "Yangi raqamingizni kiriting. Tasdiqlash kodi Telegram orqali yuboriladi — bot raqam haqiqatan sizniki ekanini tekshiradi.",
+      "newLabel": "Yangi telefon raqam",
+      "send": "Kod yuborish",
+      "taken": "Bu raqam allaqachon boshqa hisobga biriktirilgan. Boshqa raqam kiriting."
+    },
+    "group": {
+      "sectionLabel": "GURUH VA O'QITUVCHI",
+      "teacherRole": "O'qituvchi",
+      "groupTile": "Guruh",
+      "membersTile": "Guruhdoshlar",
+      "leave": "Guruhdan chiqish",
+      "leaveConfirmTitle": "Guruhdan chiqasizmi?",
+      "leaveConfirmBody": "Guruh topshiriqlari va o'qituvchi bilan aloqa yopiladi. Qayta qo'shilish uchun guruh kodi kerak bo'ladi.",
+      "empty": "Siz hech qanday guruhda emassiz. O'qituvchingizdan guruh kodini so'rang."
+    },
+    "stats": {
+      "attempts": "Urinishlar",
+      "avgBand": "O'rtacha ball",
+      "streakDays": "Streak (kun)",
+      "totalPractice": "Jami mashq",
+      "xp": "XP"
+    },
+    "sections": {
+      "recentResults": "SO'NGGI NATIJALAR",
+      "achievements": "YUTUQLAR"
+    },
+    "achievements": {
+      "locked": "Qulflangan",
+      "summary": "{{count}}/{{total}} ochildi",
+      "items": {
+        "first_step": {
+          "title": "Birinchi qadam",
+          "desc": "Birinchi mashqingizni topshirdingiz"
+        },
+        "attempts_10": {
+          "title": "Yaxshi start",
+          "desc": "10 ta mashq bajardingiz"
+        },
+        "attempts_50": {
+          "title": "Mehnatkash",
+          "desc": "50 ta mashq bajardingiz"
+        },
+        "attempts_100": {
+          "title": "Yuztalik",
+          "desc": "100 ta mashq bajardingiz"
+        },
+        "streak_3": {
+          "title": "Uch kunlik",
+          "desc": "3 kun ketma-ket mashq qildingiz"
+        },
+        "streak_7": {
+          "title": "Haftalik odat",
+          "desc": "7 kun ketma-ket mashq qildingiz"
+        },
+        "streak_30": {
+          "title": "Oylik alanga",
+          "desc": "30 kun ketma-ket mashq qildingiz"
+        },
+        "streak_100": {
+          "title": "Yuz kunlik cho'qqi",
+          "desc": "100 kun ketma-ket mashq qildingiz"
+        },
+        "level_a2": {
+          "title": "A2 daraja",
+          "desc": "A2 darajaga yetdingiz"
+        },
+        "level_b1": {
+          "title": "B1 daraja",
+          "desc": "B1 darajaga yetdingiz"
+        },
+        "level_b2": {
+          "title": "B2 daraja",
+          "desc": "B2 darajaga yetdingiz"
+        },
+        "score_80": {
+          "title": "A'lochi",
+          "desc": "Bir mashqda 80+ ball oldingiz"
+        },
+        "score_90": {
+          "title": "Mukammallik",
+          "desc": "Bir mashqda 90+ ball oldingiz"
+        },
+        "practice_1h": {
+          "title": "Bir soat",
+          "desc": "Jami 1 soat mashq qildingiz"
+        },
+        "practice_5h": {
+          "title": "Marafonchi",
+          "desc": "Jami 5 soat mashq qildingiz"
+        },
+        "group_member": {
+          "title": "Jamoada",
+          "desc": "Guruhga qo'shildingiz"
+        },
+        "xp_100": {
+          "title": "Uchqun",
+          "desc": "100 XP to'pladingiz"
+        },
+        "xp_500": {
+          "title": "Yulduzcha",
+          "desc": "500 XP to'pladingiz"
+        },
+        "xp_1000": {
+          "title": "Olmos",
+          "desc": "1000 XP to'pladingiz"
+        },
+        "xp_2500": {
+          "title": "Toj",
+          "desc": "2500 XP to'pladingiz"
+        },
+        "xp_5000": {
+          "title": "Afsona",
+          "desc": "5000 XP to'pladingiz"
+        }
+      }
+    },
+    "relativeDate": {
+      "today": "Bugun",
+      "yesterday": "Kecha",
+      "daysAgo_one": "{{count}} kun oldin",
+      "daysAgo_other": "{{count}} kun oldin",
+      "weeksAgo_one": "{{count}} hafta oldin",
+      "weeksAgo_other": "{{count}} hafta oldin"
+    },
+    "settingsRows": {
+      "language": "Interfeys tili",
+      "theme": "Mavzu",
+      "themeLight": "Yorug'",
+      "themeDark": "Qorong'i"
+    },
+    "pro": {
+      "badge": "PRO",
+      "title": "Govori Pro",
+      "body": "Cheksiz urinish, jonli suhbat, fonema drill.",
+      "cta": "Pro'ga o'tish · 35 000 so'm/oy"
+    },
+    "help": {
+      "row": "Yordam markazi",
+      "modalTitle": "Yordam markazi",
+      "body": "Savolingiz bormi yoki nimadir ishlamayaptimi? Telegram guruhimizda javob topasiz, shoshilinch holatda esa adminga to'g'ridan-to'g'ri yozing.",
+      "telegramGroup": "Telegram guruh",
+      "telegramAdmin": "Telegram admin"
+    },
+    "privacy": {
+      "row": "Maxfiylik siyosati",
+      "modalTitle": "Maxfiylik siyosati",
+      "body": "Govori faqat ismingiz, telefon raqamingiz va ovozli javoblaringizni saqlaydi. Bu ma'lumotlar javoblarni baholash va progressingizni ko'rsatish uchun ishlatiladi. Ovozli yozuvlaringizni faqat siz va o'qituvchingiz ko'radi — ular uchinchi shaxslarga sotilmaydi va reklama uchun ishlatilmaydi.",
+      "appInfoTitle": "Ilova haqida",
+      "appInfoBody": "Govori — rus tilida gapirishni ovoz orqali mashq qilish uchun ilova. Hisobingizni yoki ma'lumotlaringizni butunlay o'chirishni istasangiz, Telegram orqali adminga yozing."
+    },
+    "results": {
+      "empty": "Hozircha natija yo'q.",
+      "seeAll": "Barcha natijalar",
+      "openAria": "{{title}} natijasini ochish"
+    },
+    "trend": {
+      "up": "Yaxshilandi",
+      "down": "Pasaydi",
+      "flat": "O'zgarmadi"
+    },
+    "avatar": {
+      "change": "Rasmni o'zgartirish",
+      "remove": "Rasmni o'chirish",
+      "uploading": "Yuklanmoqda…",
+      "errorType": "Faqat JPG, PNG yoki WebP rasm bo'lishi kerak",
+      "errorSize": "Rasm hajmi 5 MB dan oshmasligi kerak",
+      "aria": "Profil rasmi"
+    },
+    "xp": {
+      "total": "Jami XP",
+      "caption": "Bajarilgan mashqlar uchun to'plangan"
+    }
   },
   "teacher": {
-    "role": "O'qituvchi",
-    "createGroup": "Yangi guruh",
-    "createAssignment": "Topshiriq berish",
-    "statsAria": "Sinf ko'rsatkichlari",
-    "activeStudents": "Faol o'quvchilar",
-    "groupsStat": "Guruhlar",
-    "pendingReviews": "Tekshirish navbatida",
-    "groups": "Guruhlar",
-    "newGroup": "+ Yangi guruh",
-    "members_one": "{{count}} o'quvchi",
-    "members_other": "{{count}} o'quvchi",
-    "avgBand": "O'rtacha",
-    "joinCode": "Kod",
-    "assign": "Topshiriq",
-    "openGroup": "Ochish",
-    "reviewQueue": "Tekshirish navbati",
-    "pendingCount_one": "{{count}} navbatda",
-    "pendingCount_other": "{{count}} navbatda",
-    "noReviews": "Hammasi tekshirildi — navbat bo'sh",
-    "scoreAria": "Ball {{score}}",
-    "grade": "Baholash",
-    "status": {
-      "lowConfidence": "Ishonch past",
-      "flagged": "Shikoyat",
-      "graded": "Baholandi"
-    }
+    "role": "O‘qituvchi",
+    "statsAria": "Sinf ko‘rsatkichlari",
+    "avatarAria": "Profil",
+    "attention": "E’tibor talab qiladi",
+    "attentionAria": "E’tibor talab qiladigan ishlar",
+    "lowConfidence_one": "{{count}} ta javob — AI ishonchi past",
+    "lowConfidence_other": "{{count}} ta javob — AI ishonchi past",
+    "lowConfidenceHint": "Tekshirish navbatiga o‘ting",
+    "dropped_one": "{{count}} o‘quvchi {{points}} punkt tushdi",
+    "dropped_other": "{{count}} o‘quvchi {{points}} punkt tushdi",
+    "droppedHint": "Profilni ko‘rish",
+    "allClear": "Hozircha e’tibor talab qiladigan ish yo‘q",
+    "statGroups": "Guruh",
+    "statStudents": "O‘quvchi",
+    "statQueue": "Navbatda"
   },
   "auth": {
     "phoneLabel": "Telefon raqam",
@@ -224,13 +485,29 @@
     "otp": {
       "title": "Kodni tasdiqlang",
       "sentTo": "Tasdiqlash kodi yuborildi:",
+      "getCode": "Kodni olish",
       "openTelegram": "Telegram'da oching",
+      "sentDirect": "Kod Telegramingizga yuborildi.",
+      "openTelegramHint": "Telegramni oching va raqamingizni ulang — kod o'sha yerga keladi.",
       "devHint": "Dev rejim · tasdiqlash kodi",
       "codeLabel": "Tasdiqlash kodi",
       "resend": "Kodni qayta yuborish",
       "verify": "Tasdiqlash",
       "needName": "Bu raqam yangi. Ro'yxatdan o'tish uchun ismingizni kiriting va yangi kodni tasdiqlang.",
       "resent": "Yangi kod yuborildi."
+    },
+    "otpStatus": {
+      "sent": "Kod Telegram'ga yuborildi.",
+      "expired": "Kodning amal qilish muddati tugadi. Yangi kod so'rang.",
+      "mismatch": {
+        "title": "Raqam mos kelmadi",
+        "text": "Telegram hisobingizdagi raqam ilovada kiritilgan raqamga mos kelmadi. Xavfsizlik uchun bu kod bekor qilindi."
+      },
+      "notOwnContact": {
+        "title": "Bu sizning raqamingiz emas",
+        "text": "Siz boshqa odamning kontaktini yubordingiz. Iltimos, faqat o'z raqamingizni yuboring. Xavfsizlik uchun bu kod bekor qilindi."
+      },
+      "startOver": "Raqamni qaytadan kiritish"
     },
     "errors": {
       "badCode": "Kod noto'g'ri yoki eskirgan",
@@ -259,8 +536,172 @@
       "finish": "Tugatish va boshlash"
     }
   },
+  "notifications": {
+    "title": "Bildirishnomalar",
+    "bellAria_zero": "Bildirishnomalar — o'qilmagan xabar yo'q",
+    "bellAria_one": "Bildirishnomalar — {{count}} ta o'qilmagan",
+    "bellAria_other": "Bildirishnomalar — {{count}} ta o'qilmagan",
+    "selectAll": "Barchasini tanlash",
+    "selectRow": "Bildirishnomani tanlash: {{title}}",
+    "unread": "O'qilmagan",
+    "selected_one": "{{count}} ta tanlandi",
+    "selected_other": "{{count}} ta tanlandi",
+    "deleteSelected": "Tanlanganlarni o'chirish",
+    "clearAll": "Barchasini tozalash",
+    "confirmDeleteSelected_one": "{{count}} ta bildirishnoma o'chirilsinmi? Buni ortga qaytarib bo'lmaydi.",
+    "confirmDeleteSelected_other": "{{count}} ta bildirishnoma o'chirilsinmi? Buni ortga qaytarib bo'lmaydi.",
+    "confirmClearAll": "Barcha bildirishnomalar o'chirilsinmi? Buni ortga qaytarib bo'lmaydi.",
+    "confirm": "O'chirish",
+    "cancel": "Bekor qilish",
+    "empty": "Hozircha bildirishnoma yo'q."
+  },
   "errors": {
     "loadTitle": "Ma'lumotni yuklab bo'lmadi",
     "loadBody": "Internet aloqangizni tekshiring va qayta urinib ko'ring."
+  },
+  "months": {
+    "1": "yanvar",
+    "2": "fevral",
+    "3": "mart",
+    "4": "aprel",
+    "5": "may",
+    "6": "iyun",
+    "7": "iyul",
+    "8": "avgust",
+    "9": "sentabr",
+    "10": "oktabr",
+    "11": "noyabr",
+    "12": "dekabr"
+  },
+  "mashq": {
+    "title": "Mashq",
+    "tabs": {
+      "modules": "Modullar",
+      "assignments": "Topshiriqlar",
+      "chat": "Suhbat"
+    },
+    "modules": {
+      "crumb": "Mashq",
+      "heading": "Modullar",
+      "filter": {
+        "all": "Hammasi",
+        "active": "Davom etayotgan",
+        "done": "Yakunlangan"
+      },
+      "meta": "{{level}} · {{done}}/{{total}}",
+      "metaDone": "{{level}} · {{done}}/{{total}} · yakunlandi",
+      "metaNotStarted": "{{level}} · 0/{{total}} · boshlanmagan",
+      "metaLocked": "{{level}} · Pro",
+      "teacherBadge": "O'QITUVCHI",
+      "continue": "Davom",
+      "start": "Boshlash",
+      "open": "Ochish",
+      "empty": "Hozircha modul yo'q.",
+      "promoTitle": "AI bilan jonli suhbat",
+      "promoBody": "Do'konda, shifokorda, ishga suhbatda gaplash."
+    },
+    "detail": {
+      "label": "MODUL",
+      "tasksLabel": "TOPSHIRIQLAR",
+      "taskCount": "{{done}}/{{total}} vazifa",
+      "taskN": "{{n}}-vazifa",
+      "taskCurrent": "{{n}}-vazifa · joriy",
+      "start": "Boshlash",
+      "locked": "Yopiq"
+    },
+    "complete": {
+      "title": "Modul yakunlandi!",
+      "tasks": "vazifa",
+      "average": "o'rtacha",
+      "time": "vaqt",
+      "timeValue": "{{h}}s {{m}}'",
+      "timeMinutes": "{{m}}'",
+      "certTitle": "Sertifikat tayyor",
+      "certBody": "Yuklab olish yoki ulashish",
+      "nextLabel": "KEYINGI MODUL",
+      "nextMeta": "{{level}} · {{count}} vazifa",
+      "nextCta": "Keyingi modul",
+      "allDone": "Barcha modullar yakunlandi 🎉"
+    },
+    "assignments": {
+      "heading": "Topshiriqlar",
+      "empty": "Hozircha topshiriq yo'q.",
+      "due": "{{when}}",
+      "overdue": "muddati o'tgan",
+      "noDue": "muddatsiz",
+      "start": "Boshlash",
+      "done": "Bajarildi",
+      "score": "{{band}} ball",
+      "from": "O'qituvchidan",
+      "when": {
+        "today": "bugun {{time}}",
+        "tomorrow": "ertaga {{time}}",
+        "date": "{{date}}, {{time}}"
+      }
+    }
+  },
+  "results": {
+    "allTitle": "Barcha natijalar",
+    "count": "{{count}} ta natija",
+    "attempt": "Mashq",
+    "audio": "Yozib olingan javob",
+    "audioExpired": "Audio muddati o'tgan — 3 oydan keyin o'chiriladi.",
+    "audioNone": "Audio mavjud emas.",
+    "transcript": "Siz aytgan",
+    "scores": "Baho tafsiloti",
+    "criteria": {
+      "fluency": "Ravonlik",
+      "lexical": "Lug'at boyligi",
+      "grammar": "Grammatika",
+      "pronunciation": "Talaffuz",
+      "relevance": "Mavzuga moslik"
+    },
+    "feedback": "AI izohi",
+    "corrections": "Tuzatishlar",
+    "modelAnswer": "Namuna javob",
+    "teacher": "O'qituvchi izohi",
+    "teacherBand": "O'qituvchi bahosi: {{band}}",
+    "status": {
+      "pending": "Baholanmoqda…",
+      "processing": "Baholanmoqda…",
+      "failed": "Baholab bo'lmadi."
+    }
+  },
+  "groupBoard": {
+    "meta": "{{teacher}} · {{count}} o'quvchi",
+    "classmates": "GURUHDOSHLAR",
+    "you": "Siz",
+    "xp": "XP",
+    "streak": "🔥 {{count}}",
+    "empty": "Reyting hozircha bo'sh.",
+    "open": "{{name}} guruhini ochish"
+  },
+  "suhbat": {
+    "heading": "Suhbat",
+    "intro": "Mavzu tanla — AI matn orqali savol beradi, sen gapirib javob berasan.",
+    "freeTitle": "Erkin mavzu",
+    "freeBody": "Xohlagan mavzuda gaplash — AI matnda hamroh bo'ladi.",
+    "scenarioMeta": "{{level}} · ~{{min}} daq",
+    "goalLabel": "Maqsad: {{goal}}",
+    "finish": "Tugatish",
+    "listen": "Eshitish",
+    "pause": "To'xtatish",
+    "answer": "Javob berish",
+    "recording": "Yozilyapti",
+    "send": "Yuborish",
+    "cancel": "Bekor qilish",
+    "voiceMessage": "Ovozli xabar",
+    "micDenied": "Mikrofonga ruxsat berilmadi",
+    "micError": "Ovozni yozib bo'lmadi",
+    "typingHint": "AI yozmoqda…",
+    "endedTitle": "Suhbat tugadi",
+    "goalReached": "Maqsadga yetding",
+    "goalMissed": "Maqsadga yetmading",
+    "turns": "turn",
+    "fluency": "ravonlik",
+    "phrasesLabel": "{{count}} ta foydali ibora",
+    "phrasesLabelShort": "FOYDALI IBORA",
+    "retry": "Yana urinish",
+    "stubNote": "AI javoblari namunaviy (kalit ulanmagan)."
   }
 }

@@ -27,11 +27,11 @@ namespace Govori.IntegrationTests;
 ///   read the group (404); anonymous calls are 401.</item>
 /// </list>
 ///
-/// <para><b>Why the S1 case matters.</b> Python's <c>create_assignments</c> (engagement.py:400-404)
-/// filtered targets ONLY by <c>role == student</c> — never through the acting teacher's roster — so
-/// any teacher could push work onto any student. This test would FAIL against that behavior: the
-/// outsider would receive an assignment. The port applies <c>create_reviews</c>'s roster filter
-/// (engagement.py:250-258) to the assignment path, so the outsider is excluded.</para>
+/// <para><b>Why the S1 case matters.</b> The historical assignment-creation bug (§7.8) filtered
+/// targets ONLY by <c>role == student</c> — never through the acting teacher's roster — so any
+/// teacher could push work onto any student in the system. This test is the regression guard: the
+/// outsider must NOT receive an assignment. Assignment creation must therefore keep applying the
+/// same roster filter the review path uses; dropping it silently reopens S1.</para>
 ///
 /// Every seeded row is removed in a finally so the run is idempotent.
 /// </summary>

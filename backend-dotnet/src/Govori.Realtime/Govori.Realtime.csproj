@@ -11,7 +11,7 @@
     <ProjectReference Include="..\Govori.Contracts\Govori.Contracts.csproj" />
     <!-- GovoriDbContext + entities for the hub's per-attempt ownership check. -->
     <ProjectReference Include="..\Govori.Infrastructure\Govori.Infrastructure.csproj" />
-    <!-- GradingJob (durable grading unit) + MaintenanceJobs (ported beat schedule). -->
+    <!-- GradingJob (durable grading unit) + MaintenanceJobs (recurring maintenance schedule). -->
     <ProjectReference Include="..\Modules\Govori.Assessment\Govori.Assessment.csproj" />
   </ItemGroup>
 
@@ -22,7 +22,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <!-- Durable background jobs on Postgres storage (Celery+beat replacement, docs/07 §7.3). -->
+    <!-- Durable background jobs + recurring schedules on Postgres storage (docs/07 §7.3). -->
     <PackageReference Include="Hangfire.AspNetCore" Version="1.8.24" />
     <PackageReference Include="Hangfire.PostgreSql" Version="1.21.1" />
     <!-- SignalR Redis backplane (govori-redis) so a Worker-side publish reaches API-side clients. -->

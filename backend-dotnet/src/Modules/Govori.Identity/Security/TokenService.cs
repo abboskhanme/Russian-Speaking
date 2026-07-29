@@ -6,17 +6,16 @@ using Microsoft.IdentityModel.Tokens;
 namespace Govori.Identity.Security;
 
 /// <summary>
-/// JWT mint/decode ported 1:1 from backend/app/core/security.py:22-63.
+/// Mints and validates the app's HS256 JWTs.
 ///
-/// Python:
-///     payload = {"sub": subject, "type": token_type, "iat": now, "exp": now + delta}
-///     jwt.encode(payload, SECRET_KEY, algorithm="HS256")
-///     jwt.decode(token, SECRET_KEY, algorithms=["HS256"])  # → None on JWTError
+/// The payload is exactly four claims — <c>sub</c>, <c>type</c>, <c>iat</c>, <c>exp</c>.
+/// No iss, aud, jti, or role. Role and is_active are DB reads on every request,
+/// NEVER claims, so a demotion or a block takes effect immediately instead of
+/// waiting for the token to expire.
 ///
-/// Exactly four claims: sub, type, iat, exp. No iss, aud, jti, nbf, or role —
-/// role is a DB read on every request (deps.py), never a claim. Tokens minted by
-/// the Python stack are live in users' browsers now; this must read them or every
-/// session drops at cutover.
+/// <b>WIRE FORMAT IS FROZEN.</b> Tokens already issued are live in users' browsers;
+/// changing the claim set, the algorithm, or the key encoding invalidates them all
+/// and drops every active session.
 /// </summary>
 public sealed class TokenService
 {
@@ -26,8 +25,9 @@ public sealed class TokenService
     public TokenService(IdentityAuthOptions options)
     {
         _options = options;
-        // RAW UTF-8 bytes — NOT base64-decoded. python-jose uses the key bytes
-        // directly; a port that base64-decodes rejects every existing token.
+        // THE SIGNING KEY IS THE RAW UTF-8 BYTES OF THE SECRET — it is NOT base64-decoded.
+        // Base64-decoding it here would produce a different key and reject every token
+        // already in circulation.
         _signingKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(options.SecretKey));
     }
 
@@ -44,15 +44,15 @@ public sealed class TokenService
                 new Claim("sub", subject),
                 new Claim("type", tokenType),
             }),
-            notBefore: null,            // Python emits no nbf; see note below
+            notBefore: null,            // no nbf requested; see the note below
             expires: now.Add(ttl),      // exp as NumericDate (unix seconds)
             issuedAt: now,              // iat as NumericDate (unix seconds)
             signingCredentials: new SigningCredentials(_signingKey, SecurityAlgorithms.HmacSha256));
 
         // NOTE: .NET's builder stamps `nbf` (= issuedAt) even though we pass
-        // notBefore: null. Python emits no nbf. This is harmless and standard —
-        // python-jose and browser clients accept a token whose nbf is in the
-        // past — and every security-critical absence (iss/aud/jti/role) is
+        // notBefore: null, so the emitted token carries one extra claim. This is
+        // harmless and standard — any client accepts a token whose nbf is already
+        // in the past — and every security-critical absence (iss/aud/jti/role) is
         // preserved. Matches the reasoning in the Characterization suite.
         return handler.WriteToken(token);
     }
@@ -63,13 +63,15 @@ public sealed class TokenService
     public string CreateRefreshToken(string subject)
         => Create(subject, TimeSpan.FromDays(_options.RefreshTokenExpireDays), "refresh");
 
-    /// <summary>Subject is the lower-cased email, matching Python's <c>email.lower()</c>.</summary>
+    /// <summary>Subject is the lower-cased email, so a verify link works regardless of how the
+    /// user capitalised their address.</summary>
     public string CreateEmailVerifyToken(string email)
         => Create(email.ToLowerInvariant(), TimeSpan.FromMinutes(_options.EmailVerifyTokenExpireMinutes), "email_verify");
 
     /// <summary>
-    /// Mirror of Python's <c>decode_token</c>: validate and return the claims, or
-    /// null on ANY failure (expired, bad signature, malformed). Never throws.
+    /// Validate a token and return its claims, or null on ANY failure (expired,
+    /// bad signature, malformed). Never throws, so callers branch on null rather
+    /// than catching — and a malformed token can never be mistaken for a valid one.
     /// </summary>
     public IDictionary<string, string>? Decode(string token)
     {
@@ -85,7 +87,7 @@ public sealed class TokenService
             ValidateIssuer = false,             // no iss claim
             ValidateAudience = false,           // no aud claim
             ValidateLifetime = true,
-            ClockSkew = TimeSpan.Zero,          // .NET default is 5 min; python-jose is 0
+            ClockSkew = TimeSpan.Zero,          // .NET defaults to 5 min of grace; expire exactly at exp
         };
 
         try
@@ -98,7 +100,8 @@ public sealed class TokenService
         }
         catch
         {
-            // JWTError in Python maps to any SecurityToken* exception here.
+            // Every validation failure (SecurityToken* and anything else) collapses
+            // to null — the caller must not be able to tell why a token was rejected.
             return null;
         }
     }

@@ -1,0 +1,96 @@
+/* AssignmentsTab — the "Topshiriqlar" tab body: a flat list of one-off teacher
+ * assignments. Full-width (docs/04 §4.10); every colour / space / radius is a
+ * token. The hub shell owns the tabpanel wrapper. */
+
+.tab {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-4);
+  width: 100%;
+}
+
+.list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-3);
+  width: 100%;
+}
+
+/* ---- Row ---- */
+.row {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+}
+
+.body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-1);
+}
+.title {
+  min-width: 0;
+}
+
+.meta {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  flex-wrap: wrap;
+}
+.due {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-1);
+  min-width: 0;
+}
+.from {
+  position: relative;
+  padding-inline-start: var(--s-3);
+}
+/* A subtle "·" separator before the "O'qituvchidan" caption. */
+.from::before {
+  content: "·";
+  position: absolute;
+  inset-inline-start: var(--s-1);
+  color: var(--line-2);
+}
+
+/* ---- Trailing state ---- */
+.trailing {
+  flex: none;
+  display: flex;
+  align-items: center;
+}
+
+.done {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-2);
+}
+.check {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--r-pill);
+  background: var(--success-tint);
+  color: var(--success);
+}
+.score {
+  white-space: nowrap;
+}
+
+/* ---- Empty state ---- */
+.emptyCard {
+  width: 100%;
+}
+.empty {
+  margin: 0;
+  text-align: center;
+}

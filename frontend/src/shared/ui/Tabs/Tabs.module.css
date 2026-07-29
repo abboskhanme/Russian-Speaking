@@ -1,0 +1,78 @@
+/* Tabs — segmented pill control (docs/03 §3.6 Containment).
+ * A full-width well holding N equal columns; the selected option is a raised
+ * pill. Nesting rule (§3.5): outer r-sm − s-1 padding = r-xs inner.
+ * Full-width rule (§3.8): the list stretches, it never centre-constrains. */
+
+.list {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: 1fr;
+  gap: var(--s-1);
+  width: 100%;
+  padding: var(--s-1);
+  background: var(--surface);
+  border: 1.5px solid var(--line);
+  border-radius: var(--r-sm);
+}
+
+.tab {
+  min-width: 0;
+  min-height: 40px;
+  padding: 0 var(--s-3);
+  font-family: var(--font-sans);
+  font-size: var(--t-body-s-size);
+  font-weight: var(--fw-bold);
+  line-height: 1;
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--muted);
+  background: transparent;
+  border: 1.5px solid transparent;
+  border-radius: var(--r-xs);
+  cursor: pointer;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  transition:
+    transform var(--m-fast),
+    color var(--m-instant),
+    background-color var(--m-instant),
+    border-color var(--m-instant),
+    box-shadow var(--m-instant);
+}
+
+.tab:hover:not(:disabled):not(.active) {
+  color: var(--ink-soft);
+  background: var(--surface-2);
+}
+
+.tab:active:not(:disabled) {
+  transform: scale(var(--tap-scale));
+}
+
+.tab:focus-visible {
+  outline: var(--focus-ring-width) solid var(--focus-ring);
+  outline-offset: var(--focus-ring-offset);
+}
+
+.tab:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Selected: raised pill. The hairline carries the edge in dark mode, where the
+ * shadow alone cannot separate --surface from --surface. */
+.active {
+  color: var(--primary);
+  background: var(--surface);
+  border-color: var(--line);
+  box-shadow: var(--e-1);
+}
+
+/* The pill's lift is decorative; the colour + aria-selected still carry it. */
+@media (prefers-reduced-motion: reduce) {
+  .tab {
+    transition: none;
+  }
+}

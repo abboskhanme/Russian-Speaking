@@ -1,14 +1,14 @@
+import { useState } from "react";
+import type { FormEvent } from "react";
 import { useTranslation } from "react-i18next";
-import { Badge, Button, Card, Mascot, Text, cx } from "../../shared/ui";
-import type { MascotMood } from "../../shared/ui";
-import { AppShell, Brand, ThemeToggle, studentNavItems } from "../../widgets";
-import type { NavItem, ThemeMode } from "../../widgets";
+import { Button, Card, Mascot, Text, cx } from "../../shared/ui";
+import { AppShell, NotificationsBell, studentNavItems } from "../../widgets";
+import type { NavItem } from "../../widgets";
 import {
-  mockContinue,
-  mockDailyGoal,
-  mockModules,
-  mockStreak,
-  mockUser,
+  mockHomeGroup,
+  mockHomeStats,
+  mockHomeToday,
+  mockHomeUser,
 } from "./home.mock";
 import styles from "./HomeScreen.module.css";
 
@@ -17,94 +17,60 @@ import styles from "./HomeScreen.module.css";
 /* -------------------------------------------------------------------------- */
 
 export interface HomeUser {
-  /** The student's display name (first name is enough — the greeting is warm). */
+  /** First name shown in the greeting (e.g. "Aziz"). */
   name: string;
-  /**
-   * Localized, time-of-day greeting line shown above the name
-   * (e.g. "Xayrli tong,"). The caller localizes; the screen just renders it.
-   */
-  greeting: string;
-  /** Current CEFR level badge (e.g. "A2"). Hidden when omitted. */
-  level?: string;
 }
 
-export interface HomeDailyGoal {
-  /** Units done today (minutes / steps). */
-  done: number;
-  /** Today's target in the same unit. */
-  target: number;
-  /** Unit label for the caption + a11y text (default "daqiqa"). */
-  unit?: string;
+/** Today's practice session — the hero card. */
+export interface HomeToday {
+  /** Daily goal in minutes (e.g. 5). */
+  goalMinutes: number;
+  /** Practice seconds done TODAY — fills the segmented progress. */
+  doneSeconds: number;
 }
 
-export interface HomeStreak {
-  /** Current streak length, in days. */
-  current: number;
-  /** Streak-freeze protections banked (Duolingo-style "muzlatish"). */
-  freezes: number;
-  /**
-   * Whether today's goal is already met — the flame is "lit" (primary) vs.
-   * "at risk" (muted). Purely visual; defaults to false.
-   */
-  todayComplete?: boolean;
-}
-
-export interface HomeContinueSteps {
-  /** Total steps in the resumable session (e.g. 3: isinish · gapirish · tuzatish). */
-  total: number;
-  /** Steps already completed. */
-  done: number;
-}
-
-export interface HomeContinueTarget {
-  /** Small uppercase kicker above the title (e.g. "Bugungi mashq"). */
-  kicker?: string;
-  /** The prominent title — a session name or the module being resumed. */
+/** The next incomplete assignment, or null when there is none. */
+export interface HomeAssignment {
   title: string;
-  /** One short line describing what "Continue" resumes. */
-  subtitle?: string;
-  /** Optional CEFR / band badge on the card. */
-  band?: string;
-  /** Multi-step session preview (filled = done). Distinct from the daily goal. */
-  steps?: HomeContinueSteps;
-  /** Govo's mood on the card (default "idle"). */
-  mood?: MascotMood;
-  /** CTA label (default "Boshlash →"). */
-  actionLabel?: string;
+  /** ISO-8601 deadline, or null for no deadline. */
+  dueAt: string | null;
 }
 
-export type ModuleStatus = "not-started" | "in-progress" | "done" | "locked";
-
-export interface HomeModule {
-  id: string;
+/** The student's group + teacher — null when they learn independently. */
+export interface HomeGroup {
+  teacherName: string | null;
+  /** Group display name (e.g. "B1 · Kechki-3"). */
   name: string;
-  /** CEFR band (e.g. "A2"). */
-  level?: string;
-  /** Task-count caption (e.g. "12 vazifa"). */
-  count?: string;
-  /** Completion, 0..100. */
-  progress: number;
-  status: ModuleStatus;
-  /** Teacher-assigned module — gets the accent "O'qituvchi" badge. */
-  teacher?: boolean;
+  memberCount: number;
+  nextAssignment: HomeAssignment | null;
+}
+
+/** The three "QISQACHA" cells. */
+export interface HomeStats {
+  /** CEFR level (e.g. "A2"), or null before the first graded attempt. */
+  level: string | null;
+  /** Practice minutes this week. */
+  weekMinutes: number;
+  currentStreak: number;
 }
 
 export interface HomeScreenProps {
   user: HomeUser;
-  dailyGoal: HomeDailyGoal;
-  streak: HomeStreak;
-  continueTarget: HomeContinueTarget;
-  modules: HomeModule[];
-  /** Govo's mood in the greeting header (default "idle"). */
-  mood?: MascotMood;
-  /** Resume the daily session / continue target (the prominent CTA). */
-  onContinue?: () => void;
-  /** Open a module from the list (never fired for locked modules). */
-  onOpenModule?: (id: string, module: HomeModule) => void;
-  /** Active nav key (defaults to "home"). */
+  today: HomeToday;
+  /** Null → the "O'QITUVCHINGIZ" block is replaced by a quiet independent state. */
+  group: HomeGroup | null;
+  stats: HomeStats;
+  /** Start today's practice (the "Boshlash" CTA). */
+  onStart?: () => void;
+  /** Message the teacher (the "Yozish" action). Hidden when absent. */
+  onMessageTeacher?: () => void;
+  /** Join a group by code — wired only for a group-less student (NoGroupCard).
+   * Rejects on a bad code so the card can surface the error. */
+  onJoinGroup?: (code: string) => Promise<void>;
+  /** Open the group screen (classmates + group leaderboard) from the group row. */
+  onOpenGroup?: () => void;
   activeNavKey?: string;
   onNavigate?: (key: string, item: NavItem) => void;
-  onToggleTheme?: (mode: ThemeMode) => void;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -112,32 +78,30 @@ export interface HomeScreenProps {
 /* -------------------------------------------------------------------------- */
 
 /**
- * HomeScreen — the student's "Bosh sahifa" (docs/04 §4.1, §4.5). Composed
- * entirely from `shared/ui` + `widgets` + tokens. Presentational and
- * prop-driven: it fetches nothing and owns no state.
+ * HomeScreen — the student's "Bosh" place, rebuilt to the owner's mockup: a
+ * hero "today's practice" card (with Govo), the teacher + group block (only when
+ * the student belongs to a group), and a three-cell "QISQACHA" summary. A
+ * group-less student gets the same interactive layout minus the group block.
  *
- * Layout is full-width (docs/04 §4.10): AppShell frame → greeting header
- * (Govo + localized greeting) → a "today" row pairing the daily-goal ring with
- * the streak → the prominent "Continue" card → the module list. Every colour /
- * space / radius / motion value is a token.
+ * Presentational + prop-driven: it fetches nothing. Full-width (docs/04 §4.10);
+ * every colour / space / radius / motion value is a token.
  */
 export function HomeScreen({
   user,
-  dailyGoal,
-  streak,
-  continueTarget,
-  modules,
-  mood = "idle",
-  onContinue,
-  onOpenModule,
+  today,
+  group,
+  stats,
+  onStart,
+  onMessageTeacher,
+  onJoinGroup,
+  onOpenGroup,
   activeNavKey = "home",
   onNavigate,
-  onToggleTheme,
 }: HomeScreenProps) {
   const { t } = useTranslation();
+
   return (
     <AppShell
-      brand={<Brand />}
       nav={{
         items: studentNavItems(t),
         activeKey: activeNavKey,
@@ -145,33 +109,38 @@ export function HomeScreen({
         label: t("nav.landmark"),
       }}
       headerStart={
-        <Text as="h1" variant="title-m">
-          {t("nav.home")}
+        <Text as="h1" variant="title-l" truncate className={styles.greeting}>
+          {t("home.greetHi", { name: user.name })}
         </Text>
       }
-      headerEnd={<ThemeToggle onChange={onToggleTheme} />}
+      headerEnd={<NotificationsBell />}
     >
       <div className={styles.page}>
-        <GreetingHeader user={user} mood={mood} />
+        <TodayCard today={today} onStart={onStart} />
 
-        <section className={styles.today} aria-label={t("home.todayAria")}>
-          <DailyGoalCard goal={dailyGoal} />
-          <StreakCard streak={streak} />
-        </section>
+        {group ? (
+          <TeacherSection
+            group={group}
+            onMessageTeacher={onMessageTeacher}
+            onOpenGroup={onOpenGroup}
+          />
+        ) : (
+          <NoGroupCard onJoin={onJoinGroup} />
+        )}
 
-        <ContinueCard target={continueTarget} onContinue={onContinue} />
-
-        <section className={styles.modules} aria-label={t("home.modules")}>
+        <section className={styles.section} aria-label={t("home.summary")}>
           <Text as="h2" variant="label" color="faint" className={styles.sectionLabel}>
-            {t("home.modules")}
+            {t("home.summary")}
           </Text>
-          <ul className={styles.moduleList}>
-            {modules.map((m) => (
-              <li key={m.id}>
-                <ModuleCard module={m} onOpenModule={onOpenModule} />
-              </li>
-            ))}
-          </ul>
+          <div className={styles.statGrid}>
+            <StatCell value={stats.level ?? "—"} label={t("home.statLevel")} />
+            <StatCell
+              value={String(stats.weekMinutes)}
+              unit={t("home.statWeekUnit")}
+              label={t("home.statWeek")}
+            />
+            <StatCell value={String(stats.currentStreak)} label={t("home.statStreak")} />
+          </div>
         </section>
       </div>
     </AppShell>
@@ -179,205 +148,37 @@ export function HomeScreen({
 }
 
 /* -------------------------------------------------------------------------- */
-/* Greeting                                                                   */
+/* Today's practice — the hero card                                           */
 /* -------------------------------------------------------------------------- */
 
-function GreetingHeader({ user, mood }: { user: HomeUser; mood: MascotMood }) {
-  return (
-    <header className={styles.greeting}>
-      <Mascot mood={mood} size={72} label="Govo" />
-      <div className={styles.greetingText}>
-        <Text as="p" variant="body-s" color="muted" weight="semibold">
-          {user.greeting}
-        </Text>
-        <div className={styles.greetingName}>
-          <Text as="span" variant="title-l">
-            {user.name}
-          </Text>
-          {user.level && (
-            <Badge variant="primary" size="md">
-              {user.level}
-            </Badge>
-          )}
-        </div>
-      </div>
-    </header>
-  );
-}
-
-/* -------------------------------------------------------------------------- */
-/* Daily goal (progress ring — role="progressbar")                            */
-/* -------------------------------------------------------------------------- */
-
-const RING_R = 52;
-const RING_C = 2 * Math.PI * RING_R;
-
-function DailyGoalCard({ goal }: { goal: HomeDailyGoal }) {
+function TodayCard({ today, onStart }: { today: HomeToday; onStart?: () => void }) {
   const { t } = useTranslation();
-  const unit = goal.unit ?? t("units.minutesUnit");
-  const pct = clampPct(goal.target > 0 ? (goal.done / goal.target) * 100 : 0);
-  const met = goal.done >= goal.target && goal.target > 0;
-  const dashoffset = RING_C * (1 - pct / 100);
+  const goalSec = Math.max(today.goalMinutes, 1) * 60;
+  const fraction = Math.min(today.doneSeconds / goalSec, 1);
 
   return (
-    <Card variant="outline" padding="lg" className={styles.goalCard}>
-      <div
-        className={styles.ring}
-        role="progressbar"
-        aria-valuemin={0}
-        aria-valuemax={goal.target}
-        aria-valuenow={goal.done}
-        aria-valuetext={`${goal.done} / ${goal.target} ${unit}`}
-        aria-label={t("home.dailyGoal")}
-      >
-        <svg className={styles.ringSvg} viewBox="0 0 120 120" aria-hidden>
-          <circle className={styles.ringTrack} cx="60" cy="60" r={RING_R} />
-          <circle
-            className={cx(styles.ringFill, met && styles.ringFillMet)}
-            cx="60"
-            cy="60"
-            r={RING_R}
-            strokeDasharray={RING_C}
-            strokeDashoffset={dashoffset}
-          />
-        </svg>
-        <div className={styles.ringLabel}>
-          <Text as="span" variant="title-m" weight="black" numeric>
-            {Math.round(pct)}%
-          </Text>
-        </div>
-      </div>
+    <Card variant="raised" padding="lg" className={styles.todayCard}>
+      <span className={styles.todayMascot} aria-hidden>
+        <Mascot mood="idle" size={72} label="Govo" />
+      </span>
 
-      <div className={styles.goalMeta}>
-        <Text as="p" variant="label" color="primary">
-          {t("home.dailyGoal")}
+      <div className={styles.todayBody}>
+        <Text as="p" variant="label" className={styles.todayKicker}>
+          {t("home.todayLabel")}
         </Text>
-        <Text as="p" variant="title-s">
-          <Text as="span" variant="title-s" numeric>
-            {goal.done}
-          </Text>
-          <Text as="span" variant="title-s" color="muted" numeric>
-            {" / "}
-            {goal.target} {unit}
-          </Text>
+        <Text as="p" variant="title-l" className={styles.todayTitle}>
+          {t("home.todayTitle", { min: today.goalMinutes })}
         </Text>
-        <Text as="p" variant="body-s" color={met ? "success" : "ink-soft"}>
-          {met ? t("home.goalMet") : t("home.goalKeepGoing")}
+        <Text as="p" variant="body" color="muted">
+          {t("home.todayTagline")}
         </Text>
-      </div>
-    </Card>
-  );
-}
 
-/* -------------------------------------------------------------------------- */
-/* Streak (current + freezes)                                                 */
-/* -------------------------------------------------------------------------- */
+        <SegmentBar fraction={fraction} />
 
-function StreakCard({ streak }: { streak: HomeStreak }) {
-  const { t } = useTranslation();
-  const lit = streak.todayComplete ?? false;
-  return (
-    <Card variant="outline" padding="lg" className={styles.streakCard}>
-      <div className={cx(styles.flameWrap, lit ? styles.flameLit : styles.flameDim)}>
-        <FlameGlyph />
-      </div>
-
-      <div className={styles.streakMeta}>
-        <Text as="p" variant="label" color="faint">
-          {t("home.streak")}
-        </Text>
-        <div className={styles.streakNum}>
-          <Text as="span" variant="title-l" numeric>
-            {streak.current}
-          </Text>
-          <Text as="span" variant="body" color="muted">
-            {t("units.daysUnit", { count: streak.current })}
-          </Text>
-        </div>
-
-        <div
-          className={styles.freezes}
-          aria-label={t("home.freezesLeftAria", { count: streak.freezes })}
-        >
-          {Array.from({ length: Math.max(streak.freezes, 0) }, (_, i) => (
-            <span key={i} className={styles.freeze} aria-hidden>
-              <SnowflakeGlyph />
-            </span>
-          ))}
-          <Text as="span" variant="body-s" color="info" weight="semibold" numeric>
-            {t("home.freezes", { count: streak.freezes })}
-          </Text>
-        </div>
-      </div>
-    </Card>
-  );
-}
-
-/* -------------------------------------------------------------------------- */
-/* Continue card (docs/04 §4.5 — the retention machine)                       */
-/* -------------------------------------------------------------------------- */
-
-function ContinueCard({
-  target,
-  onContinue,
-}: {
-  target: HomeContinueTarget;
-  onContinue?: () => void;
-}) {
-  const { t } = useTranslation();
-  const steps = target.steps;
-  return (
-    <Card variant="raised" padding="lg" className={styles.continueCard}>
-      <div className={styles.continueMascot} aria-hidden>
-        <Mascot mood={target.mood ?? "idle"} size={88} label="" />
-      </div>
-
-      <div className={styles.continueBody}>
-        {target.kicker && (
-          <Text as="p" variant="label" color="primary">
-            {target.kicker}
-          </Text>
-        )}
-
-        <div className={styles.continueTitleRow}>
-          <Text as="h2" variant="title-l" className={styles.continueTitle}>
-            {target.title}
-          </Text>
-          {target.band && <Badge variant="accent">{target.band}</Badge>}
-        </div>
-
-        {target.subtitle && (
-          <Text as="p" variant="body-l" color="ink-soft" className={styles.continueSub}>
-            {target.subtitle}
-          </Text>
-        )}
-
-        {steps && steps.total > 0 && (
-          <div
-            className={styles.steps}
-            role="progressbar"
-            aria-label={t("home.sessionStepsAria")}
-            aria-valuemin={0}
-            aria-valuemax={steps.total}
-            aria-valuenow={steps.done}
-            aria-valuetext={t("home.stepsValueText", {
-              total: steps.total,
-              done: steps.done,
-            })}
-          >
-            {Array.from({ length: steps.total }, (_, i) => (
-              <span
-                key={i}
-                className={cx(styles.step, i < steps.done && styles.stepDone)}
-                aria-hidden
-              />
-            ))}
-          </div>
-        )}
-
-        <div className={styles.continueActions}>
-          <Button variant="primary" size="lg" onClick={onContinue}>
-            {target.actionLabel ?? t("home.startCta")}
+        <div className={styles.todayActions}>
+          <Button variant="primary" size="lg" onClick={onStart}>
+            {t("home.start")}
+            <ArrowGlyph />
           </Button>
         </div>
       </div>
@@ -385,169 +186,331 @@ function ContinueCard({
   );
 }
 
-/* -------------------------------------------------------------------------- */
-/* Module list                                                                */
-/* -------------------------------------------------------------------------- */
-
-interface ModuleStatusMeta {
-  /** i18n key under `home.status.*` for the badge label. */
-  labelKey: string;
-  badge: "neutral" | "primary" | "success" | "info";
-  tone: Tone;
+/** Three segments filling continuously with the day's progress. */
+function SegmentBar({ fraction }: { fraction: number }) {
+  const segments = [0, 1, 2].map((i) => {
+    // Each segment covers a third; spread the total fill across them.
+    const fill = Math.max(0, Math.min((fraction - i / 3) / (1 / 3), 1));
+    return fill;
+  });
+  return (
+    <div className={styles.segments} aria-hidden>
+      {segments.map((fill, i) => (
+        <span key={i} className={styles.segment}>
+          <span className={styles.segmentFill} style={{ width: `${fill * 100}%` }} />
+        </span>
+      ))}
+    </div>
+  );
 }
 
-const STATUS_META: Record<ModuleStatus, ModuleStatusMeta> = {
-  "not-started": { labelKey: "home.status.notStarted", badge: "info", tone: "neutral" },
-  "in-progress": { labelKey: "home.status.inProgress", badge: "primary", tone: "primary" },
-  done: { labelKey: "home.status.done", badge: "success", tone: "success" },
-  locked: { labelKey: "home.status.locked", badge: "neutral", tone: "muted" },
-};
+/* -------------------------------------------------------------------------- */
+/* Teacher + group                                                            */
+/* -------------------------------------------------------------------------- */
 
-function ModuleCard({
-  module,
-  onOpenModule,
+function TeacherSection({
+  group,
+  onMessageTeacher,
+  onOpenGroup,
 }: {
-  module: HomeModule;
-  onOpenModule?: (id: string, module: HomeModule) => void;
+  group: HomeGroup;
+  onMessageTeacher?: () => void;
+  onOpenGroup?: () => void;
 }) {
   const { t } = useTranslation();
-  const meta = STATUS_META[module.status];
-  const locked = module.status === "locked";
-  const pct = clampPct(module.progress);
+  const teacher = group.teacherName ?? t("home.teacherRole");
 
-  const inner = (
+  const groupInner = (
     <>
-      <span className={cx(styles.modPct, styles[`modPct-${meta.tone}` as const])}>
-        {locked ? (
-          <LockGlyph />
-        ) : (
-          <Text as="span" variant="body-s" weight="black" numeric>
-            {Math.round(pct)}%
-          </Text>
+      <span className={styles.groupLineStart}>
+        <PeopleGlyph />
+        <Text as="span" variant="body" weight="semibold">
+          {t("home.groupLine", { name: group.name })}
+        </Text>
+      </span>
+      <span className={styles.groupLineEnd}>
+        <Text as="span" variant="body-s" color="muted">
+          {t("home.students", { count: group.memberCount })}
+        </Text>
+        {onOpenGroup && (
+          <span className={styles.groupChevron} aria-hidden>
+            <ChevronGlyph />
+          </span>
         )}
       </span>
-
-      <span className={styles.modBody}>
-        <span className={styles.modTitleRow}>
-          <Text as="span" variant="title-s" truncate>
-            {module.name}
-          </Text>
-          {module.teacher && (
-            <Badge variant="accent" size="sm">
-              {t("home.teacherBadge")}
-            </Badge>
-          )}
-        </span>
-
-        {(module.level || module.count) && (
-          <Text as="span" variant="body-s" color="muted">
-            {[module.level, module.count].filter(Boolean).join(" · ")}
-          </Text>
-        )}
-
-        <span
-          className={styles.modBar}
-          role="progressbar"
-          aria-label={t("home.moduleProgressAria", { name: module.name })}
-          aria-valuemin={0}
-          aria-valuemax={100}
-          aria-valuenow={Math.round(pct)}
-        >
-          <span
-            className={cx(styles.modBarFill, styles[`modBar-${meta.tone}` as const])}
-            style={{ width: `${pct}%` }}
-          />
-        </span>
-      </span>
-
-      <Badge variant={meta.badge} size="sm" className={styles.modStatus}>
-        {t(meta.labelKey)}
-      </Badge>
     </>
   );
 
-  if (locked) {
-    return (
-      <Card variant="flat" padding="md" className={cx(styles.moduleCard, styles.moduleLocked)}>
-        {inner}
+  return (
+    <section className={styles.section} aria-label={t("home.teacherSection")}>
+      <Text as="h2" variant="label" color="faint" className={styles.sectionLabel}>
+        {t("home.teacherSection")}
+      </Text>
+
+      <Card variant="raised" padding="lg" className={styles.teacherCard}>
+        <div className={styles.teacherRow}>
+          <span className={styles.avatar} aria-hidden>
+            {initials(group.teacherName ?? "")}
+          </span>
+          <div className={styles.teacherMeta}>
+            <Text as="p" variant="title-s" truncate>
+              {teacher}
+            </Text>
+            <Text as="p" variant="body-s" color="muted">
+              {t("home.teacherRole")}
+            </Text>
+          </div>
+          {onMessageTeacher && (
+            <Button variant="secondary" size="sm" onClick={onMessageTeacher}>
+              {t("home.message")}
+            </Button>
+          )}
+        </div>
+
+        {onOpenGroup ? (
+          <button
+            type="button"
+            className={cx(styles.groupLine, styles.groupLineBtn)}
+            onClick={onOpenGroup}
+            aria-label={t("groupBoard.open", { name: group.name })}
+          >
+            {groupInner}
+          </button>
+        ) : (
+          <div className={styles.groupLine}>{groupInner}</div>
+        )}
+
+        {group.nextAssignment && (
+          <div className={styles.assignment}>
+            <span className={styles.assignmentIcon} aria-hidden>
+              <ClockGlyph />
+            </span>
+            <div className={styles.assignmentBody}>
+              <Text as="p" variant="body" weight="bold" className={styles.assignmentTitle}>
+                {t("home.nextAssignment", {
+                  when: formatWhen(t, group.nextAssignment.dueAt),
+                })}
+              </Text>
+              <Text as="p" variant="body-s" color="ink-soft">
+                {group.nextAssignment.title}
+              </Text>
+            </div>
+          </div>
+        )}
       </Card>
-    );
-  }
+    </section>
+  );
+}
+
+/**
+ * NoGroupCard — the group-less state, now an actionable join form: the student
+ * enters the teacher's join code and taps to join. On success the parent refetch
+ * swaps this card for the group block; a bad code surfaces an inline error.
+ * `onJoin` is optional so the card still renders (input disabled) if unwired.
+ */
+function NoGroupCard({ onJoin }: { onJoin?: (code: string) => Promise<void> }) {
+  const { t } = useTranslation();
+  const [code, setCode] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const submit = async (e: FormEvent) => {
+    e.preventDefault();
+    const c = code.trim().toUpperCase();
+    if (!c || busy || !onJoin) return;
+    setBusy(true);
+    setError(null);
+    try {
+      await onJoin(c);
+      // Success → the parent refetch unmounts this card (group block appears),
+      // so there is nothing to reset here.
+    } catch {
+      setError(t("home.joinError"));
+      setBusy(false);
+    }
+  };
 
   return (
-    <Card variant="outline" padding="md" interactive asChild>
-      <button
-        type="button"
-        className={styles.moduleCard}
-        onClick={() => onOpenModule?.(module.id, module)}
-      >
-        {inner}
-      </button>
+    <Card variant="tint" padding="lg" className={styles.noGroup}>
+      <span className={styles.noGroupIcon} aria-hidden>
+        <PeopleGlyph />
+      </span>
+      <div className={styles.noGroupBody}>
+        <Text as="p" variant="title-s">
+          {t("home.noGroup")}
+        </Text>
+        <Text as="p" variant="body-s" color="ink-soft">
+          {t("home.noGroupHint")}
+        </Text>
+
+        <form className={styles.joinForm} onSubmit={submit}>
+          <input
+            className={styles.joinInput}
+            type="text"
+            inputMode="text"
+            autoCapitalize="characters"
+            autoComplete="off"
+            spellCheck={false}
+            maxLength={12}
+            value={code}
+            onChange={(e) => {
+              setCode(e.target.value.toUpperCase());
+              if (error) setError(null);
+            }}
+            placeholder={t("home.joinPlaceholder")}
+            aria-label={t("home.joinPlaceholder")}
+            aria-invalid={error ? true : undefined}
+            disabled={busy || !onJoin}
+          />
+          <Button
+            type="submit"
+            variant="primary"
+            size="md"
+            loading={busy}
+            disabled={!code.trim() || busy || !onJoin}
+          >
+            {t("home.joinCta")}
+          </Button>
+        </form>
+
+        {error && (
+          <Text as="p" variant="body-s" color="danger" role="alert">
+            {error}
+          </Text>
+        )}
+      </div>
     </Card>
   );
 }
 
 /* -------------------------------------------------------------------------- */
-/* Local helpers                                                              */
+/* Summary cell                                                               */
 /* -------------------------------------------------------------------------- */
 
-type Tone = "primary" | "success" | "info" | "muted" | "neutral";
-
-function clampPct(n: number): number {
-  return Math.max(0, Math.min(100, n));
+function StatCell({
+  value,
+  unit,
+  label,
+}: {
+  value: string;
+  unit?: string;
+  label: string;
+}) {
+  return (
+    <Card variant="outline" padding="md" className={styles.statCell}>
+      <span className={styles.statValueRow}>
+        <Text as="span" variant="title-l" numeric className={styles.statValue}>
+          {value}
+        </Text>
+        {unit && (
+          <Text as="span" variant="body-s" color="muted" className={styles.statUnit}>
+            {unit}
+          </Text>
+        )}
+      </span>
+      <Text as="span" variant="body-s" color="muted">
+        {label}
+      </Text>
+    </Card>
+  );
 }
 
-function FlameGlyph() {
+/* -------------------------------------------------------------------------- */
+/* Local helpers + glyphs                                                     */
+/* -------------------------------------------------------------------------- */
+
+/** First letters of up to two name words, uppercased (avatar fallback). */
+function initials(name: string): string {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return "?";
+  const chars = [parts[0], parts[parts.length - 1]]
+    .slice(0, parts.length === 1 ? 1 : 2)
+    .map((p) => p.charAt(0).toUpperCase());
+  return chars.join("");
+}
+
+/** Format an assignment deadline relative to now, localised. */
+function formatWhen(
+  t: (key: string, opts?: Record<string, unknown>) => string,
+  iso: string | null,
+): string {
+  if (!iso) return "";
+  const due = new Date(iso);
+  if (Number.isNaN(due.getTime())) return "";
+  const now = new Date();
+  // 24-hour ("21:00"), matching the mockup — never the runtime's 12-hour default.
+  const time = new Intl.DateTimeFormat(undefined, {
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  }).format(due);
+
+  const startOfDay = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate());
+  const dayDiff = Math.round(
+    (startOfDay(due).getTime() - startOfDay(now).getTime()) / 86_400_000,
+  );
+
+  if (due.getTime() < now.getTime() && dayDiff < 0) return t("home.when.overdue");
+  if (dayDiff <= 0) return t("home.when.today", { time });
+  if (dayDiff === 1) return t("home.when.tomorrow", { time });
+  const date = new Intl.DateTimeFormat(undefined, { day: "2-digit", month: "2-digit" }).format(due);
+  return t("home.when.date", { date, time });
+}
+
+function ArrowGlyph() {
   return (
-    <svg className={styles.glyph} width="26" height="26" viewBox="0 0 24 24" aria-hidden>
-      <path
-        d="M12 3c1 3-2 4-2 7a4 4 0 0 0 8 0c0-1-.5-2-1-2.5.2 2-1 3-1.5 2 .8-3-1.5-5.5-3.5-6.5z"
-        fill="currentColor"
-      />
+    <svg className={styles.glyph} width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden>
+      <path d="M5 12h13m0 0-5-5m5 5-5 5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   );
 }
 
-function SnowflakeGlyph() {
+function PeopleGlyph() {
   return (
-    <svg width="13" height="13" viewBox="0 0 24 24" aria-hidden>
-      <path
-        d="M12 2v20M4 7l16 10M20 7 4 17"
-        stroke="currentColor"
-        strokeWidth="1.8"
-        strokeLinecap="round"
-      />
+    <svg className={styles.glyph} width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden>
+      <circle cx="9" cy="8" r="3.2" stroke="currentColor" strokeWidth="1.8" />
+      <path d="M3.5 19a5.5 5.5 0 0 1 11 0" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+      <path d="M16 6.2a3 3 0 0 1 0 5.6M17.5 19a5.5 5.5 0 0 0-3-4.9" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
     </svg>
   );
 }
 
-function LockGlyph() {
+function ClockGlyph() {
+  return (
+    <svg className={styles.glyph} width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden>
+      <circle cx="12" cy="13" r="8" stroke="currentColor" strokeWidth="1.9" />
+      <path d="M12 9v4l2.5 2M9 3h6" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+function ChevronGlyph() {
   return (
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden>
-      <rect x="5" y="11" width="14" height="9" rx="2" stroke="currentColor" strokeWidth="1.9" />
-      <path d="M8 11V8a4 4 0 0 1 8 0v3" stroke="currentColor" strokeWidth="1.9" />
+      <path
+        d="m9 6 6 6-6 6"
+        stroke="currentColor"
+        strokeWidth="2.2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
     </svg>
   );
 }
 
 /* -------------------------------------------------------------------------- */
-/* Default export — a self-wired demo, renderable in isolation.               */
+/* Default export — a self-wired demo.                                        */
 /* -------------------------------------------------------------------------- */
 
-/**
- * HomeScreenDemo — drop-in standalone preview wired to the mock fixture, so the
- * Home screen renders end-to-end with no backend.
- */
 export default function HomeScreenDemo() {
   return (
     <HomeScreen
-      user={mockUser}
-      dailyGoal={mockDailyGoal}
-      streak={mockStreak}
-      continueTarget={mockContinue}
-      modules={mockModules}
-      onContinue={() => undefined}
-      onOpenModule={() => undefined}
+      user={mockHomeUser}
+      today={mockHomeToday}
+      group={mockHomeGroup}
+      stats={mockHomeStats}
+      onStart={() => undefined}
+      onMessageTeacher={() => undefined}
       onNavigate={() => undefined}
     />
   );

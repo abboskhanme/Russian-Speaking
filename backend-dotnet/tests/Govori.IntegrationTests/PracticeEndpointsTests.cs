@@ -18,7 +18,8 @@ namespace Govori.IntegrationTests;
 /// <summary>
 /// Happy + gated paths for the Practice attempt-submit slice (docs/07 §7.2, Faza 3.3): HTTP →
 /// PracticeService → EF Core (prod-shaped Postgres) + Govori.Platform.Storage (govori-net MinIO)
-/// and back, plus the freemium 402 gate reused from Catalog (submissions.py:99-274, access.py:78-89).
+/// and back, plus the freemium 402 gate reused from Catalog (the same C4-characterized decision, so
+/// the two surfaces can never diverge).
 ///
 /// Seeds a teacher, one official PUBLIC published module with 4 tasks, a PREMIUM student and a FREE
 /// student, then asserts:
@@ -101,7 +102,7 @@ public sealed class PracticeEndpointsTests : IClassFixture<PracticeEndpointsTest
             Assert.Equal(premiumId, okDoc.RootElement.GetProperty("student_id").GetGuid());
             Assert.Equal(q[0], okDoc.RootElement.GetProperty("question_id").GetGuid());
             Assert.Equal("pending", okDoc.RootElement.GetProperty("status").GetString());
-            Assert.StartsWith("answers/", audioKey);                       // Python new_key("answers", …) scheme
+            Assert.StartsWith("answers/", audioKey);                       // answer audio keeps the "answers/" key prefix
 
             // The row exists and is pending.
             await using (var ctx = CreateContext())

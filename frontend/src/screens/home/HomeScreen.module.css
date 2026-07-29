@@ -1,8 +1,6 @@
-/* HomeScreen — the student's Bosh sahifa (docs/04 §4.1, §4.5).
+/* HomeScreen — the student's "Bosh" place, rebuilt to the owner's mockup.
  * Composed from shared/ui + widgets; every colour / space / radius / shadow /
- * motion value is a token. Full-width per docs/04 §4.10 — the page root spans
- * its column with no max-width + auto-margin centring; inner blocks align with
- * flex/grid, never a centred narrow wrapper. */
+ * motion value is a token. Full-width per docs/04 §4.10. */
 
 .page {
   display: flex;
@@ -11,273 +9,265 @@
   width: 100%;
 }
 
+/* Name-led greeting in the header (no brand mark on Home, per the mockup). */
+.greeting {
+  font-weight: var(--fw-black);
+  letter-spacing: -0.01em;
+}
+
+.section {
+  display: flex;
+  flex-direction: column;
+}
 .sectionLabel {
   margin-bottom: var(--s-2);
 }
 
-/* ---- Greeting header ---- */
-.greeting {
-  display: flex;
-  align-items: center;
-  gap: var(--s-4);
-}
-.greetingText {
-  display: flex;
-  flex-direction: column;
-  gap: var(--s-1);
-  min-width: 0;
-}
-.greetingName {
-  display: flex;
-  align-items: center;
-  gap: var(--s-3);
-  flex-wrap: wrap;
-}
-
-/* ---- "Today" row: daily goal + streak ---- */
-.today {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: var(--s-4);
-}
-
-/* ---- Daily-goal card ---- */
-.goalCard {
-  display: flex;
-  align-items: center;
-  gap: var(--s-5);
-}
-.ring {
-  position: relative;
-  width: 96px;
-  height: 96px;
-  flex: none;
-}
-.ringSvg {
-  width: 100%;
-  height: 100%;
-  transform: rotate(-90deg);
-}
-.ringTrack {
-  fill: none;
-  stroke: var(--surface-3);
-  stroke-width: 12;
-}
-.ringFill {
-  fill: none;
-  stroke: var(--primary);
-  stroke-width: 12;
-  stroke-linecap: round;
-  transition: stroke-dashoffset var(--m-base);
-}
-.ringFillMet {
-  stroke: var(--success);
-}
-.ringLabel {
-  position: absolute;
-  inset: 0;
-  display: grid;
-  place-items: center;
-}
-.goalMeta {
-  display: flex;
-  flex-direction: column;
-  gap: var(--s-1);
-  min-width: 0;
-}
-
-/* ---- Streak card ---- */
-.streakCard {
-  display: flex;
-  align-items: center;
-  gap: var(--s-5);
-}
-.flameWrap {
-  display: grid;
-  place-items: center;
-  width: 60px;
-  height: 60px;
-  flex: none;
-  border-radius: var(--r-lg);
-}
-.flameLit {
-  background: var(--primary-tint);
-  color: var(--primary);
-}
-.flameDim {
-  background: var(--surface-3);
-  color: var(--muted);
-}
-.streakMeta {
-  display: flex;
-  flex-direction: column;
-  gap: var(--s-1);
-  min-width: 0;
-}
-.streakNum {
-  display: flex;
-  align-items: baseline;
-  gap: var(--s-2);
-}
-.freezes {
-  display: flex;
-  align-items: center;
-  gap: var(--s-1);
-  margin-top: var(--s-1);
-  color: var(--info);
-}
-.freeze {
-  display: inline-grid;
-  place-items: center;
-}
-
-/* ---- Continue card (the retention machine) ---- */
-.continueCard {
+/* ---- Today's practice (hero) ---- */
+.todayCard {
   position: relative;
   overflow: hidden;
 }
-.continueMascot {
+.todayMascot {
   position: absolute;
-  top: var(--s-2);
-  right: var(--s-2);
+  top: var(--s-4);
+  inset-inline-end: var(--s-4);
   pointer-events: none;
 }
-.continueBody {
+.todayBody {
   display: flex;
   flex-direction: column;
   gap: var(--s-2);
+  /* Leave room for the mascot so long titles never collide with it. */
+  padding-inline-end: 72px;
 }
-.continueTitleRow {
+.todayKicker {
+  color: var(--primary);
+  letter-spacing: var(--t-label-tracking);
+}
+.todayTitle {
+  font-weight: var(--fw-black);
+  letter-spacing: -0.01em;
+}
+.todayActions {
   display: flex;
-  align-items: center;
-  gap: var(--s-3);
-  flex-wrap: wrap;
-  padding-inline-end: var(--s-12);
+  margin-top: var(--s-3);
+  padding-inline-end: 0;
 }
-.continueTitle {
-  text-wrap: balance;
+.todayActions > * {
+  min-width: 168px;
 }
-.continueSub {
-  max-width: 42ch;
-}
-.steps {
-  display: flex;
+
+/* Segmented day progress: three bars filling continuously. */
+.segments {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: var(--s-2);
-  margin: var(--s-3) 0;
+  margin-top: var(--s-3);
 }
-.step {
-  width: 34px;
+.segment {
   height: 6px;
   border-radius: var(--r-pill);
-  background: var(--surface-3);
-  transition: background-color var(--m-fast);
+  background: var(--line);
+  overflow: hidden;
 }
-.stepDone {
+.segmentFill {
+  display: block;
+  height: 100%;
+  border-radius: var(--r-pill);
   background: var(--primary);
-}
-.continueActions {
-  display: flex;
-  margin-top: var(--s-2);
+  transition: width var(--m-base);
 }
 
-/* ---- Module list ---- */
-.modules {
+/* ---- Teacher + group ---- */
+.teacherCard {
   display: flex;
   flex-direction: column;
+  gap: var(--s-4);
 }
-.moduleList {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: var(--s-3);
-}
-
-/* The card renders onto this <button> (interactive asChild) or a locked div. */
-.moduleCard {
-  width: 100%;
+.teacherRow {
   display: flex;
   align-items: center;
   gap: var(--s-3);
-  text-align: start;
 }
-.moduleLocked {
-  opacity: 0.72;
+.avatar {
+  display: grid;
+  place-items: center;
+  width: 52px;
+  height: 52px;
+  flex: none;
+  border-radius: var(--r-pill);
+  background: var(--info-tint, var(--surface-2));
+  color: var(--info);
+  font-family: var(--font-display);
+  font-weight: var(--fw-black);
+  font-size: var(--t-title-s-size);
+}
+.teacherMeta {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
 }
 
-.modPct {
+/* Guruh line, separated from the teacher row by a hairline. */
+.groupLine {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-3);
+  padding-top: var(--s-4);
+  border-top: 1px solid var(--line);
+}
+/* Tappable variant → opens the group screen (classmates + leaderboard). */
+.groupLineBtn {
+  width: 100%;
+  appearance: none;
+  border: 0;
+  border-top: 1px solid var(--line);
+  background: none;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+  text-align: start;
+  border-radius: 0 0 var(--r-md) var(--r-md);
+  transition: background var(--m-instant);
+}
+.groupLineBtn:hover {
+  background: var(--surface-2);
+}
+.groupLineBtn:focus-visible {
+  outline: var(--focus-ring-width) solid var(--focus-ring);
+  outline-offset: -2px;
+}
+.groupLineEnd {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-2);
+  flex: none;
+}
+.groupChevron {
+  display: inline-flex;
+  color: var(--ink-soft);
+}
+.groupLineStart {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-2);
+  min-width: 0;
+  color: var(--ink);
+}
+
+/* Next-assignment callout. */
+.assignment {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  padding: var(--s-3) var(--s-4);
+  border-radius: var(--r-md);
+  background: var(--warn-tint);
+  color: var(--warn-ink);
+}
+.assignmentIcon {
+  display: grid;
+  place-items: center;
+  flex: none;
+  color: var(--warn-ink);
+}
+.assignmentBody {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+.assignmentTitle {
+  color: var(--warn-ink);
+}
+
+/* ---- No-group state ---- */
+.noGroup {
+  display: flex;
+  align-items: center;
+  gap: var(--s-4);
+}
+.noGroupIcon {
   display: grid;
   place-items: center;
   width: 48px;
   height: 48px;
   flex: none;
-  border-radius: var(--r-sm);
+  border-radius: var(--r-md);
+  background: var(--accent-tint);
+  color: var(--accent);
 }
-.modPct-primary {
-  background: var(--primary-tint);
-  color: var(--primary);
-}
-.modPct-success {
-  background: var(--success-tint);
-  color: var(--success);
-}
-.modPct-info {
-  background: var(--info-tint);
-  color: var(--info);
-}
-.modPct-muted {
-  background: var(--surface-3);
-  color: var(--muted);
-}
-.modPct-neutral {
-  background: var(--surface-2);
-  color: var(--ink-soft);
-}
-
-.modBody {
+.noGroupBody {
   flex: 1;
   min-width: 0;
   display: flex;
   flex-direction: column;
   gap: var(--s-1);
 }
-.modTitleRow {
+.joinForm {
   display: flex;
-  align-items: center;
   gap: var(--s-2);
+  margin-top: var(--s-2);
+}
+.joinInput {
+  flex: 1;
   min-width: 0;
+  padding: var(--s-2) var(--s-3);
+  border: 1.5px solid var(--line-2);
+  border-radius: var(--r-md);
+  background: var(--surface);
+  color: var(--ink);
+  font: inherit;
+  font-weight: var(--fw-semibold);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  transition:
+    border-color var(--m-instant),
+    box-shadow var(--m-instant);
 }
-.modBar {
-  height: 6px;
-  border-radius: var(--r-pill);
-  background: var(--surface-3);
-  overflow: hidden;
-  margin-top: var(--s-1);
+.joinInput::placeholder {
+  color: var(--ink-soft);
+  font-weight: 400;
+  letter-spacing: normal;
+  text-transform: none;
 }
-.modBarFill {
-  display: block;
-  height: 100%;
-  border-radius: var(--r-pill);
-  transition: width var(--m-base);
+.joinInput:focus-visible {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px var(--primary-tint);
 }
-.modBar-primary {
-  background: var(--primary);
+.joinInput[aria-invalid="true"] {
+  border-color: var(--danger);
 }
-.modBar-success {
-  background: var(--success);
-}
-.modBar-info {
-  background: var(--info);
-}
-.modBar-muted {
-  background: var(--line-2);
-}
-.modBar-neutral {
-  background: var(--muted);
+.joinInput:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 
-.modStatus {
+/* ---- Summary ---- */
+.statGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--s-3);
+}
+.statCell {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-1);
+}
+.statValueRow {
+  display: flex;
+  align-items: baseline;
+  gap: var(--s-1);
+}
+.statValue {
+  font-weight: var(--fw-black);
+}
+.statUnit {
   flex: none;
 }
 
@@ -286,12 +276,13 @@
   display: block;
 }
 
-/* ---- Responsive: stack the today row on narrow columns ---- */
-@media (max-width: 640px) {
-  .today {
-    grid-template-columns: 1fr;
+/* ---- Responsive ---- */
+@media (max-width: 400px) {
+  .todayActions > * {
+    width: 100%;
+    min-width: 0;
   }
-  .modStatus {
-    display: none;
+  .todayActions {
+    padding-inline-end: 0;
   }
 }

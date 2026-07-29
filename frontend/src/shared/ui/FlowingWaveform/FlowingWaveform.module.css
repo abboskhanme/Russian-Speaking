@@ -1,0 +1,15 @@
+/* FlowingWaveform — flowing colour threads drawn straight on the app surface
+ * (multiply on light / screen on dark). The gradient is baked in JS. */
+
+.root {
+  position: relative;
+  display: block;
+  width: 100%;
+  overflow: hidden;
+}
+
+.canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}

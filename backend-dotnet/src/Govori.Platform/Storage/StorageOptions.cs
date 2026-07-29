@@ -4,8 +4,8 @@ namespace Govori.Platform.Storage;
 /// Configuration for the S3-compatible object store (MinIO in dev, R2/S3 in prod).
 /// Pure config carrier — no behaviour, no secrets baked in.
 ///
-/// The production environment keys mirror the Python backend 1:1
-/// (<c>backend/app/core/config.py</c> lines 38-43) so the same <c>.env</c> works:
+/// Bound from the deployment's existing <c>.env</c>, so these env var names are fixed —
+/// renaming one breaks live deployments:
 ///   <list type="bullet">
 ///     <item><c>S3_ENDPOINT_URL</c> → <see cref="Endpoint"/></item>
 ///     <item><c>S3_PUBLIC_URL</c>   → <see cref="PublicUrl"/></item>
@@ -15,10 +15,9 @@ namespace Govori.Platform.Storage;
 ///     <item><c>S3_REGION</c>       → <see cref="Region"/></item>
 ///   </list>
 ///
-/// Two hosts exist on purpose (see <see cref="MinioObjectStorage"/> and the Python
-/// module docstring): the BACKEND reaches MinIO over the internal Docker host
-/// (<see cref="Endpoint"/>), while presigned URLs handed to the BROWSER must be signed
-/// for the PUBLIC host (<see cref="PublicUrl"/>) or SigV4 fails.
+/// TWO HOSTS EXIST ON PURPOSE (see <see cref="MinioObjectStorage"/>): the BACKEND reaches
+/// MinIO over the internal Docker host (<see cref="Endpoint"/>), while presigned URLs handed
+/// to the BROWSER must be signed for the PUBLIC host (<see cref="PublicUrl"/>) or SigV4 fails.
 ///
 /// DI wiring (binding + <c>IOptions&lt;StorageOptions&gt;</c>) is deferred to the domain
 /// that first consumes it (Practice) per the task scope; Platform stays infrastructure-only.
@@ -40,9 +39,10 @@ public sealed class StorageOptions
     /// <summary>Secret key. Env: <c>S3_SECRET_KEY</c>. Never defaulted — must be supplied.</summary>
     public string SecretKey { get; set; } = string.Empty;
 
-    /// <summary>Bucket name. Env: <c>S3_BUCKET</c>. Python default: <c>russpeak-media</c>.</summary>
+    /// <summary>Bucket name. Env: <c>S3_BUCKET</c>. Defaults to the existing <c>russpeak-media</c> bucket.</summary>
     public string Bucket { get; set; } = "russpeak-media";
 
-    /// <summary>SigV4 region placeholder for MinIO. Env: <c>S3_REGION</c>. Python default: <c>us-east-1</c>.</summary>
+    /// <summary>SigV4 region placeholder for MinIO. Env: <c>S3_REGION</c>. Defaults to <c>us-east-1</c>;
+    /// MinIO ignores the value but signing requires one.</summary>
     public string Region { get; set; } = "us-east-1";
 }

@@ -9,6 +9,10 @@ export {
   ProgressIcon,
   ProfileIcon,
   GroupsIcon,
+  QueueIcon,
+  ContentIcon,
+  // Not in either nav bar — kept for the teacher's Kontent/Analitika screens
+  // (mockup boards C + D) and assignment cards.
   AssignmentsIcon,
   GradebookIcon,
 } from "./icons";

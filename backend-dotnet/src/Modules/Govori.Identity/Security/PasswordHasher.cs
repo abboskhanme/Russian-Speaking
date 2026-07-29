@@ -1,26 +1,24 @@
 namespace Govori.Identity.Security;
 
 /// <summary>
-/// Password hashing/verification ported 1:1 from the Python stack
-/// (backend/app/core/security.py:12-19). Production hashes were written by
-/// Python's bcrypt as <c>$2b$12$...</c>; this class must read them unchanged or
-/// every live user is locked out on cutover.
+/// BCrypt password hashing and verification.
+///
+/// <b>THE STORED HASH FORMAT IS FROZEN.</b> Production hashes are <c>$2b$12$...</c>;
+/// this class must keep reading them unchanged or every existing user is locked out.
 /// </summary>
 public sealed class PasswordHasher
 {
-    // Cost factor 12, matching Python's bcrypt.gensalt() default.
+    // Cost factor 12 — the cost baked into every hash already in the database.
     private const int WorkFactor = 12;
 
     /// <summary>
-    /// New hashes. BCrypt.Net-Next's default <c>HashPassword</c> emits
-    /// <c>$2a$</c>; Python emits <c>$2b$</c>. We pin <c>$2b$12$</c> via
-    /// <c>GenerateSalt(12, 'b')</c> so the stored corpus stays uniform and a
-    /// rollback to Python keeps verifying.
+    /// Produce a new hash. BCrypt.Net-Next's default <c>HashPassword</c> emits the
+    /// <c>$2a$</c> prefix, so we pin <c>$2b$12$</c> explicitly via
+    /// <c>GenerateSalt(12, 'b')</c> and keep the whole stored corpus in one format.
     ///
-    /// The password is passed UNCHANGED — BCrypt.Net's core already keys off the
-    /// first 72 UTF-8 bytes, identically to Python's <c>password.encode()[:72]</c>.
-    /// Manually pre-truncating and re-encoding would corrupt bytes at a
-    /// multi-byte character boundary (proven by the characterization suite).
+    /// The password is passed UNCHANGED. BCrypt.Net's core already keys off the
+    /// first 72 UTF-8 bytes; pre-truncating and re-encoding it here would corrupt
+    /// bytes at a multi-byte character boundary (proven by the characterization suite).
     /// </summary>
     public string Hash(string password)
         => BCrypt.Net.BCrypt.HashPassword(password, BCrypt.Net.BCrypt.GenerateSalt(WorkFactor, 'b'));

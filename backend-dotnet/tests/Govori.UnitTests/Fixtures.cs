@@ -3,10 +3,10 @@ using System.Text.Json;
 namespace Govori.UnitTests;
 
 /// <summary>
-/// Loads the JSON characterization fixtures generated from the live Python
-/// implementation (tests/characterization/fixtures/*.json). These files are the
-/// contract: the port must agree with them, never the other way around. They are
-/// read-only here — this project may not edit them.
+/// Loads the frozen golden characterization fixtures
+/// (tests/characterization/fixtures/*.json). These files are the specification:
+/// the production code must agree with them, never the other way around. They are
+/// read-only here — this project may not edit them, and nothing regenerates them.
 ///
 /// Walk-up logic mirrors Govori.Characterization/Fixtures.cs so the tests run
 /// from any working directory (including the Docker mount where the fixtures live
@@ -30,7 +30,8 @@ internal static class Fixtures
         if (dir is null)
             throw new InvalidOperationException(
                 "Could not locate tests/characterization/fixtures by walking up from " +
-                AppContext.BaseDirectory + ". Generate it from Python first.");
+                AppContext.BaseDirectory + ". The golden fixtures live at the REPO ROOT, so the " +
+                "tests must run with the repo root available (not just backend-dotnet/).");
 
         return Path.Combine(dir.FullName, "tests", "characterization", "fixtures");
     });
@@ -39,7 +40,8 @@ internal static class Fixtures
     {
         var path = Path.Combine(Root.Value, fileName);
         if (!File.Exists(path))
-            throw new FileNotFoundException($"Fixture missing: {path}. Regenerate from Python.", path);
+            throw new FileNotFoundException(
+                $"Golden fixture missing: {path}. It is checked into the repo — restore it from git.", path);
 
         return JsonSerializer.Deserialize<T>(File.ReadAllText(path), Options)
                ?? throw new InvalidOperationException($"Fixture {fileName} deserialized to null.");

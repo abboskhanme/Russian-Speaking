@@ -12,8 +12,8 @@ import {
   cx,
 } from "../../shared/ui";
 import type { MascotMood, TextColor } from "../../shared/ui";
-import { AppShell, Brand, ThemeToggle, studentNavItems } from "../../widgets";
-import type { NavItem, ThemeMode } from "../../widgets";
+import { AppShell, Brand, NotificationsBell, studentNavItems } from "../../widgets";
+import type { NavItem } from "../../widgets";
 import { mockFeedback, mockProgress, mockTask } from "./practice.mock";
 import styles from "./PracticeScreen.module.css";
 
@@ -128,7 +128,6 @@ export interface PracticeScreenProps {
   /** Active nav key (defaults to "practice"). */
   activeNavKey?: string;
   onNavigate?: (key: string, item: NavItem) => void;
-  onToggleTheme?: (mode: ThemeMode) => void;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -159,7 +158,6 @@ export function PracticeScreen({
   onPlayAnswer,
   activeNavKey = "practice",
   onNavigate,
-  onToggleTheme,
 }: PracticeScreenProps) {
   const { t } = useTranslation();
   const controlled = phaseProp !== undefined;
@@ -220,7 +218,7 @@ export function PracticeScreen({
           {t("nav.practice")}
         </Text>
       }
-      headerEnd={<ThemeToggle onChange={onToggleTheme} />}
+      headerEnd={<NotificationsBell />}
     >
       <div className={styles.page}>
         <div className={styles.head}>

@@ -8,11 +8,11 @@ namespace Govori.Administration;
 
 /// <summary>
 /// Runtime-editable app settings, backed by the DB with env-var fallback (docs/07 §3.7).
-/// Faithful port of <c>backend/app/services/app_settings.py</c>. Resolution order for every key:
+/// Resolution order for every key:
 /// <code>DB override (app_settings) → env default (IConfiguration) → caller default</code>
 ///
-/// <para><b>THE TRI-STATE (the subtle part — app_settings.py:118-137).</b> A write distinguishes
-/// three states of the incoming value, NOT two:</para>
+/// <para><b>THE TRI-STATE (the subtle part).</b> A write distinguishes three states of the incoming
+/// value, NOT two:</para>
 /// <list type="bullet">
 ///   <item><c>null</c> → leave the key <b>unchanged</b> (used to keep an existing secret when the
 ///   admin didn't retype it);</item>
@@ -20,17 +20,18 @@ namespace Govori.Administration;
 ///   default;</item>
 ///   <item>any other string → <b>store</b> it (upsert the row).</item>
 /// </list>
-/// A naïve two-state port would merge <c>null</c> and <c>""</c> (both "no value") and silently wipe
-/// a secret the admin meant to keep — that is the bug this port avoids. See
+/// A naïve two-state implementation would merge <c>null</c> and <c>""</c> (both "no value") and
+/// silently wipe a secret the admin meant to keep — that is the bug this design avoids. See
 /// <see cref="SetManyAsync"/>.
 ///
-/// <para><b>THE ~30s CACHE (app_settings.py:79-107).</b> Reads go through
-/// <see cref="IAppSettingsCache"/> — the whole override map is loaded once and reused for ~30s
-/// because the grader resolves config on every submission. Every write
-/// <see cref="IAppSettingsCache.Invalidate">invalidates</see> it so the next read re-hits the DB.</para>
+/// <para><b>THE ~30s CACHE.</b> Reads go through <see cref="IAppSettingsCache"/> — the whole
+/// override map is loaded once and reused for ~30s because the grader resolves config on every
+/// submission. The cache is process-local, so every write MUST
+/// <see cref="IAppSettingsCache.Invalidate">invalidate</see> it or the next read serves the
+/// pre-write values for the rest of the TTL.</para>
 ///
-/// <para>Reads reload with <c>AsNoTracking</c> — like Python's fresh <c>SessionLocal()</c> per
-/// <c>_overrides()</c>, they must observe committed DB state, never a stale identity-map instance.</para>
+/// <para>Reads reload with <c>AsNoTracking</c>: they must observe committed DB state, never a stale
+/// instance held by the change tracker from earlier in the same request.</para>
 /// </summary>
 public sealed class AppSettingsService
 {
@@ -45,9 +46,9 @@ public sealed class AppSettingsService
         _config = config;
     }
 
-    // key → (env-var name used as the default, is_secret). Faithful copy of Python's _SPEC
-    // (app_settings.py:21-43). The Python side maps to Settings attribute names, which ARE the
-    // uppercase env-var names — so we read the same names straight from IConfiguration.
+    // key → (env-var name used as the default, is_secret). The env-var names are the uppercase
+    // form of the setting key and are read straight from IConfiguration. A key absent from this
+    // map is unknown: it has no env default and SetManyAsync silently ignores writes to it.
     private static readonly IReadOnlyDictionary<string, (string EnvVar, bool Secret)> Spec =
         new Dictionary<string, (string, bool)>
         {
@@ -69,11 +70,12 @@ public sealed class AppSettingsService
             ["tg_channel_url"] = ("TG_CHANNEL_URL", false),
         };
 
-    /// <summary>The secret keys — only these may be revealed (app_settings.py:46).</summary>
+    /// <summary>The secret keys. The reveal endpoint accepts ONLY these, so a non-secret setting
+    /// can never be dumped through it.</summary>
     public static readonly IReadOnlySet<string> SecretKeys =
         Spec.Where(kv => kv.Value.Secret).Select(kv => kv.Key).ToHashSet();
 
-    // Curated Gemini models for the admin dropdown (app_settings.py:51-77). Ordered best-first.
+    // Curated Gemini models for the admin dropdown. Ordered best-first.
     private static readonly IReadOnlyList<KnownModel> KnownModels = new List<KnownModel>
     {
         new("gemini-3.1-flash-lite", "Gemini 3.1 Flash Lite (recommended)",
@@ -88,19 +90,19 @@ public sealed class AppSettingsService
             "Legacy fallback; widely available."),
     };
 
-    // app_settings.py:32-33 — accepted truthy/falsey spellings for boolean-ish settings.
+    // Accepted truthy spellings for boolean-ish settings; anything else counts as false.
     private static readonly HashSet<string> TrueWords = new(StringComparer.Ordinal) { "true", "1", "yes", "on" };
 
-    // ─── Read primitives (app_settings.py:84-115) ───────────────────────────
+    // ─── Read primitives ────────────────────────────────────────────────────
 
-    // app_settings.py:84-86 — the env default for a key ("" when unmapped/unset).
+    // The env default for a key — "" when the key is unmapped or the variable is unset.
     private string EnvDefault(string key)
         => Spec.TryGetValue(key, out var s) && !string.IsNullOrEmpty(s.EnvVar)
             ? _config[s.EnvVar] ?? string.Empty
             : string.Empty;
 
-    // app_settings.py:89-101 — all DB overrides, cached for the TTL. On a miss, load the whole
-    // table fresh (AsNoTracking) and cache it.
+    // All DB overrides, cached for the TTL. On a miss, load the whole table fresh (AsNoTracking)
+    // and cache it — one query serves every key the caller will resolve.
     private async Task<IReadOnlyDictionary<string, string?>> OverridesAsync(CancellationToken ct)
     {
         if (_cache.TryGet(out var cached))
@@ -114,24 +116,24 @@ public sealed class AppSettingsService
     }
 
     /// <summary>Resolved value for <paramref name="key"/>: DB override → env default →
-    /// <paramref name="def"/>. Faithful port of <c>get</c> (app_settings.py:110-115): an override
-    /// is used only when truthy, so a stored NULL or "" falls through to the env default.</summary>
+    /// <paramref name="def"/>. An override wins only when it is non-empty, so a stored NULL or ""
+    /// falls through to the env default rather than blanking the setting.</summary>
     public async Task<string> GetAsync(string key, string def = "", CancellationToken ct = default)
     {
         var overrides = await OverridesAsync(ct);
         overrides.TryGetValue(key, out var ov);
-        if (!string.IsNullOrEmpty(ov))       // Python `if ov:` — null/"" are falsy
+        if (!string.IsNullOrEmpty(ov))       // null and "" both fall through to the env default
             return ov!;
         var env = EnvDefault(key);
         return !string.IsNullOrEmpty(env) ? env : def;
     }
 
-    // ─── Write (app_settings.py:118-137) — THE TRI-STATE ────────────────────
+    // ─── Write — THE TRI-STATE ──────────────────────────────────────────────
 
     /// <summary>
-    /// Upsert overrides from an admin edit. Per key (app_settings.py:125-136):
-    /// <c>null</c> → leave unchanged; <c>""</c> → delete the row (revert to the env default);
-    /// any other string → upsert. Unknown keys are ignored. Invalidates the cache afterwards.
+    /// Upsert overrides from an admin edit. Per key: <c>null</c> → leave unchanged; <c>""</c> →
+    /// delete the row (revert to the env default); any other string → upsert. Unknown keys are
+    /// ignored. MUST invalidate the cache afterwards, or the edit stays invisible for the TTL.
     /// </summary>
     public async Task SetManyAsync(IReadOnlyDictionary<string, string?> values, CancellationToken ct = default)
     {
@@ -165,26 +167,28 @@ public sealed class AppSettingsService
             }
         }
         await _db.SaveChangesAsync(ct);
-        _cache.Invalidate();                                 // app_settings.py:137
+        _cache.Invalidate();                                 // required: the cache is process-local
     }
 
     // ─── Derived read models ────────────────────────────────────────────────
 
-    /// <summary>Whether the best-effort orthoepy audio pass runs (app_settings.py:153-157):
-    /// enabled unless an admin explicitly stored a falsey value.</summary>
+    /// <summary>Whether the best-effort orthoepy audio pass runs. Defaults to ON — it is disabled
+    /// only when an admin has explicitly stored a falsey value.</summary>
     public async Task<bool> OrthoepyEnabledAsync(CancellationToken ct = default)
         => TrueWords.Contains((await GetAsync("orthoepy_enabled", "true", ct)).Trim().ToLowerInvariant());
 
-    /// <summary>Resolved outbound links for the sidebar contact menu (app_settings.py:160-165).</summary>
+    /// <summary>Resolved outbound links shown in the sidebar contact menu.</summary>
     public async Task<LinksResponse> ResolveLinksAsync(CancellationToken ct = default)
         => new(await GetAsync("tg_support_url", ct: ct), await GetAsync("tg_channel_url", ct: ct));
 
+    // A secret is NEVER returned in full here: only "is it set" plus its last 4 characters, enough
+    // for an admin to recognise which key is configured without exposing it.
     private static SecretState Secret(string val)
         => new(!string.IsNullOrEmpty(val),
                string.IsNullOrEmpty(val) ? string.Empty : (val.Length <= 4 ? val : val[^4..]));
 
-    /// <summary>The admin AI/STT read model. Faithful port of <c>_current()</c>
-    /// (admin_settings.py:36-79) over <c>masked_state()</c> (app_settings.py:140-150).</summary>
+    /// <summary>The admin AI/STT read model: resolved provider settings plus the derived
+    /// "ready"/"active provider" flags. Every secret is masked to its last 4 characters.</summary>
     public async Task<AiSettingsResponse> GetAiSettingsAsync(CancellationToken ct = default)
     {
         var llmProvider = await GetAsync("llm_provider", ct: ct);

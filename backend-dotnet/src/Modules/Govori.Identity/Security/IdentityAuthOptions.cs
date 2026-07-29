@@ -1,15 +1,16 @@
 namespace Govori.Identity.Security;
 
 /// <summary>
-/// Auth configuration mirroring backend/app/core/config.py (the Python
-/// Settings). Defaults match the Python defaults so behaviour is identical when
-/// values are not overridden from the environment.
+/// Auth configuration: the JWT signing secret and the token lifetimes. Every
+/// value can be overridden from the environment; the defaults below apply when
+/// it is not.
 /// </summary>
 public sealed class IdentityAuthOptions
 {
     /// <summary>
-    /// HS256 signing secret. Used as RAW UTF-8 bytes (python-jose does NOT
-    /// base64-decode the key). Maps to Python's <c>SECRET_KEY</c>.
+    /// HS256 signing secret, bound from <c>SECRET_KEY</c>. Consumed as the RAW
+    /// UTF-8 BYTES of this string — it is NOT base64-decoded, so do not store a
+    /// base64 blob here expecting it to be decoded first.
     /// </summary>
     public string SecretKey { get; init; } = string.Empty;
 

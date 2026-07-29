@@ -1,0 +1,195 @@
+import { useMemo } from "react";
+import { useTranslation } from "react-i18next";
+import type { TFunction } from "i18next";
+import { Button, Card, Text, VisuallyHidden, cx } from "../../shared/ui";
+import { AppShell, Brand, NotificationsBell, studentNavItems } from "../../widgets";
+import type { NavItem } from "../../widgets";
+import styles from "./AllResultsScreen.module.css";
+
+/* -------------------------------------------------------------------------- */
+/* Public contract                                                            */
+/* -------------------------------------------------------------------------- */
+
+export type ResultTrend = "up" | "down" | "flat";
+
+/** One row of the full history — the same shape as the Profile "recent" rows. */
+export interface AllResultsItem {
+  id: string;
+  title: string;
+  /** Rounded band, 0..100. */
+  band: number;
+  createdAt: string;
+  trend: ResultTrend;
+}
+
+export interface AllResultsScreenProps {
+  /** Every graded attempt, newest first. */
+  results: AllResultsItem[];
+  /** Open one attempt's detail by submission id. */
+  onOpenResult: (id: string) => void;
+  /** Header back → returns to the Profile. */
+  onBack: () => void;
+  activeNavKey?: string;
+  onNavigate?: (key: string, item: NavItem) => void;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Screen                                                                     */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * AllResultsScreen (`/results`) — the full "Barcha natijalar" history: every
+ * graded attempt as a tappable row (band · title · when · trend), each opening
+ * the attempt detail. Reached from the Profile → Natijalar "Barcha natijalar"
+ * button. Presentational + prop-driven; the page fetches. Full-width; every
+ * colour / space / radius is a token.
+ */
+export function AllResultsScreen({
+  results,
+  onOpenResult,
+  onBack,
+  activeNavKey = "profile",
+  onNavigate,
+}: AllResultsScreenProps) {
+  const { t } = useTranslation();
+  const now = useMemo(() => new Date(), []);
+
+  return (
+    <AppShell
+      brand={<Brand />}
+      nav={{
+        items: studentNavItems(t),
+        activeKey: activeNavKey,
+        onNavigate,
+        label: t("nav.landmark"),
+      }}
+      headerStart={
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={onBack}
+          aria-label={t("common.back")}
+          className={styles.back}
+        >
+          <BackGlyph />
+        </Button>
+      }
+      headerEnd={<NotificationsBell />}
+    >
+      <div className={styles.page}>
+        <header className={styles.head}>
+          <Text as="h1" variant="title-l" className={styles.title}>
+            {t("results.allTitle")}
+          </Text>
+          <Text as="p" variant="body-s" color="muted" numeric>
+            {t("results.count", { count: results.length })}
+          </Text>
+        </header>
+
+        {results.length === 0 ? (
+          <Text as="p" variant="body-s" color="muted">
+            {t("profile.results.empty")}
+          </Text>
+        ) : (
+          <Card variant="panel" padding="none" className={styles.listCard}>
+            <ul className={styles.list}>
+              {results.map((r) => (
+                <li key={r.id} className={styles.item}>
+                  <button
+                    type="button"
+                    className={styles.rowBtn}
+                    onClick={() => onOpenResult(r.id)}
+                    aria-label={t("profile.results.openAria", { title: r.title })}
+                  >
+                    <span className={styles.bandDot} aria-hidden>
+                      <Text as="span" variant="title-s" numeric>
+                        {r.band}
+                      </Text>
+                    </span>
+                    <span className={styles.text}>
+                      <Text as="span" variant="title-s" truncate>
+                        {r.title}
+                      </Text>
+                      <Text as="span" variant="body-s" color="muted">
+                        {relativeDate(t, r.createdAt, now)}
+                      </Text>
+                    </span>
+                    <span className={styles.trendCell}>
+                      <VisuallyHidden>{trendLabel(t, r.trend)}</VisuallyHidden>
+                      <span className={cx(styles.trend, TREND_CLASS[r.trend])} aria-hidden>
+                        {TREND_ARROW[r.trend]}
+                      </span>
+                      <span className={styles.chevron} aria-hidden>
+                        <ChevronGlyph />
+                      </span>
+                    </span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </Card>
+        )}
+      </div>
+    </AppShell>
+  );
+}
+
+/* -------------------------------------------------------------------------- */
+/* Helpers                                                                     */
+/* -------------------------------------------------------------------------- */
+
+const TREND_ARROW: Record<ResultTrend, string> = { up: "↑", down: "↓", flat: "→" };
+const TREND_CLASS: Record<ResultTrend, string> = {
+  up: styles.trendUp,
+  down: styles.trendDown,
+  flat: styles.trendFlat,
+};
+
+function trendLabel(t: TFunction, trend: ResultTrend): string {
+  return trend === "up"
+    ? t("profile.trend.up")
+    : trend === "down"
+      ? t("profile.trend.down")
+      : t("profile.trend.flat");
+}
+
+/** "Bugun" / "Kecha" / "N kun oldin" / "N hafta oldin" — reuses profile keys. */
+function relativeDate(t: TFunction, iso: string, now: Date): string {
+  const then = new Date(iso);
+  if (Number.isNaN(then.getTime())) return "";
+  const startOfDay = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+  const days = Math.round((startOfDay(now) - startOfDay(then)) / 86_400_000);
+  if (days <= 0) return t("profile.relativeDate.today");
+  if (days === 1) return t("profile.relativeDate.yesterday");
+  if (days < 7) return t("profile.relativeDate.daysAgo", { count: days });
+  return t("profile.relativeDate.weeksAgo", { count: Math.floor(days / 7) });
+}
+
+function BackGlyph() {
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" aria-hidden>
+      <path
+        d="M15 5l-7 7 7 7"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2.2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+function ChevronGlyph() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden>
+      <path
+        d="m9 6 6 6-6 6"
+        stroke="currentColor"
+        strokeWidth="2.2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}

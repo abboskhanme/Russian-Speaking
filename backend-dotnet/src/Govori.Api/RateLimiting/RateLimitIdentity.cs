@@ -3,16 +3,17 @@ using System.Security.Claims;
 namespace Govori.Api.RateLimiting;
 
 /// <summary>
-/// Resolves the rate-limit identity (the partition key) exactly like <c>ratelimit.py</c>'s
-/// <c>_client_identity</c> (ratelimit.py:35-41): the authenticated user id when the request carries
-/// a valid bearer token (<c>u:{sub}</c>), falling back to the client IP otherwise (<c>ip:{...}</c>).
+/// Resolves the rate-limit identity (the partition key): the authenticated user id when the request
+/// carries a valid bearer token (<c>u:{sub}</c>), falling back to the client IP otherwise
+/// (<c>ip:{...}</c>).
 ///
-/// <para>IP-only keying was a real classroom bug (ratelimit.py:6-13): a school lab behind ONE NAT'd
-/// IP shares a single counter, so a handful of students get spuriously limited while classmates
-/// succeed. Keying by user id when known avoids that. Here <c>sub</c> comes from the JWT that
-/// <c>UseAuthentication</c> already validated (so the limiter must run AFTER it), which is stricter
-/// than Python's manual decode and never throws. First X-Forwarded-For hop mirrors
-/// <c>_client_ip</c> (behind nginx/DO the real client IP is there).</para>
+/// <para>IP-only keying caused a real classroom bug: a school lab behind ONE NAT'd IP shares a
+/// single counter, so a handful of students get spuriously limited while their classmates succeed.
+/// Keying by user id whenever it is known avoids that. <c>sub</c> is read from the JWT that
+/// <c>UseAuthentication</c> has ALREADY validated — so the limiter must be registered AFTER
+/// authentication, or every request looks anonymous and collapses back onto IP keying. The first
+/// X-Forwarded-For hop is preferred for the IP because behind nginx/DO the real client address is
+/// there, not on the socket.</para>
 /// </summary>
 internal static class RateLimitIdentity
 {

@@ -1,0 +1,282 @@
+/* LeaderboardTab — the "Reyting" tab body of the Progress screen.
+ * Composed from shared/ui + tokens; every colour / space / radius / shadow /
+ * motion value is a token. Full-width — the root spans its column with no
+ * max-width + auto-margin centring. */
+
+.tab {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-5);
+  width: 100%;
+}
+
+/* ---- Sub-period pills (segmented control) ---- */
+.pills {
+  display: flex;
+  gap: var(--s-1);
+  padding: var(--s-1);
+  width: 100%;
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  border-radius: var(--r-pill);
+}
+.pill {
+  flex: 1 1 0;
+  min-width: 0;
+  padding: var(--s-2) var(--s-3);
+  border: none;
+  border-radius: var(--r-pill);
+  background: transparent;
+  color: var(--muted);
+  font-family: var(--font-sans);
+  font-size: var(--t-body-s-size);
+  font-weight: var(--fw-semibold);
+  line-height: var(--t-body-s-line);
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background var(--m-fast), color var(--m-fast), transform var(--m-fast);
+}
+.pill:active {
+  transform: scale(var(--tap-scale));
+}
+.pill:focus-visible {
+  outline: var(--focus-ring-width) solid var(--focus-ring);
+  outline-offset: var(--focus-ring-offset);
+}
+.pillActive {
+  background: var(--surface);
+  color: var(--ink);
+  box-shadow: var(--e-1);
+}
+
+/* ---- Empty state ---- */
+.empty {
+  width: 100%;
+}
+
+/* ---- Board (dims + overlays a spinner while a period refetches) ---- */
+.board {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-5);
+  width: 100%;
+}
+.loadingOverlay {
+  position: absolute;
+  inset: 0;
+  z-index: var(--z-raised);
+  display: grid;
+  place-items: center;
+  border-radius: var(--r-lg);
+  /* Token-based translucent scrim — no hex; dims the stale board underneath. */
+  background: color-mix(in oklch, var(--bg) 55%, transparent);
+}
+
+/* ---- App-wide summary card ---- */
+.card {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-4);
+}
+.cardHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-3);
+  width: 100%;
+}
+
+/* League badge — tinted per tier, medal reinforces the colour. */
+.league {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-1);
+  flex: none;
+  padding: var(--s-1) var(--s-3);
+  border: 1px solid transparent;
+  border-radius: var(--r-pill);
+}
+.leagueMedal {
+  font-size: 15px;
+  line-height: 1;
+}
+.leagueLabel {
+  font-family: var(--font-sans);
+  font-size: var(--t-body-s-size);
+  font-weight: var(--fw-bold);
+  line-height: 1;
+  color: currentColor;
+}
+.leagueGold {
+  background: var(--warn-tint);
+  color: var(--warn-ink);
+  border-color: var(--warn);
+}
+.leagueSilver {
+  background: var(--surface-3);
+  color: var(--ink-soft);
+  border-color: var(--line-2);
+}
+.leagueBronze {
+  background: var(--primary-tint);
+  color: var(--primary);
+  border-color: var(--primary-tint-2);
+}
+
+/* Three stat cells with hairline dividers. */
+.stats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  width: 100%;
+}
+.stat {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-1);
+  align-items: center;
+  text-align: center;
+  padding: 0 var(--s-2);
+  border-inline-start: 1px solid var(--line);
+}
+.stat:first-child {
+  border-inline-start: none;
+}
+.statValue {
+  line-height: 1.1;
+}
+.statLabel {
+  text-wrap: balance;
+}
+
+/* Ladder ("Reyting pog'onasi" / "Top X%") bar. */
+.ladder {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+  width: 100%;
+}
+.ladderLabels {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--s-3);
+}
+.ladderBar {
+  display: block;
+  width: 100%;
+  height: 10px;
+  border-radius: var(--r-pill);
+  background: var(--line);
+  overflow: hidden;
+}
+.ladderFill {
+  display: block;
+  height: 100%;
+  border-radius: var(--r-pill);
+  background: var(--accent);
+  /* --m-base is zeroed under prefers-reduced-motion in tokens.css. */
+  transition: width var(--m-base);
+}
+
+/* ---- "Me" card — highlighted primary tint ---- */
+.meCard {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-1);
+  background: var(--primary-tint);
+  border: 1.5px solid var(--primary);
+}
+.meRank {
+  line-height: 1.15;
+}
+
+/* ---- Neighbours ---- */
+.nearby {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+  width: 100%;
+}
+.nearbyCard {
+  width: 100%;
+  overflow: hidden;
+}
+.rows {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+.row {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  padding: var(--s-3) var(--s-4);
+  border-bottom: 1px solid var(--line);
+}
+.row:last-child {
+  border-bottom: none;
+}
+/* The caller's own row: a tinted highlight (paired with aria-current). */
+.rowMe {
+  background: var(--primary-tint);
+}
+
+.rankCell {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  flex: none;
+}
+.medal {
+  font-size: 20px;
+  line-height: 1;
+}
+
+.avatar {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  flex: none;
+  border-radius: var(--r-pill);
+  background: var(--surface-3);
+  color: var(--ink-soft);
+  font-family: var(--font-sans);
+  font-size: var(--t-body-s-size);
+  font-weight: var(--fw-bold);
+  line-height: 1;
+}
+/* On the highlighted row the avatar sits on the tint — lift it onto a plain
+ * surface so the initials stay legible. */
+.rowMe .avatar {
+  background: var(--surface);
+  color: var(--primary);
+}
+
+.name {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.xp {
+  flex: none;
+  margin-inline-start: auto;
+  white-space: nowrap;
+}
+
+/* ---- Responsive ---- */
+@media (max-width: 380px) {
+  .row {
+    padding: var(--s-3);
+    gap: var(--s-2);
+  }
+  .avatar {
+    width: 36px;
+    height: 36px;
+  }
+}

@@ -1,279 +1,46 @@
-/* ProgressScreen — the student's Progress place (docs/04 §4.1).
- * Composed from shared/ui + widgets; every colour / space / radius / shadow /
- * motion value is a token. Full-width per docs/04 §4.10 — the page root spans
- * its column with no max-width + auto-margin centring; inner blocks align with
- * flex/grid, never a centred narrow wrapper. */
+/* ProgressScreen — the student's Progress place (docs/04 §4.1), the shared frame
+ * around its three inner tabs. Each tab owns its own stylesheet; this file styles
+ * only the page rhythm and the header XP badge. Composed from shared/ui +
+ * widgets; every colour / space / radius value is a token. Full-width per
+ * docs/04 §4.10 — the page root spans its column with no max-width centring. */
 
 .page {
   display: flex;
   flex-direction: column;
-  gap: var(--s-6);
+  gap: var(--s-4);
   width: 100%;
 }
 
-/* ---- Band-trend card (bands over time as token-styled column bars) ---- */
-.trendCard {
-  display: flex;
-  flex-direction: column;
-  gap: var(--s-5);
+/* The panel is a plain flow container; the tabs supply their own inner rhythm.
+ * `tabIndex={-1}` makes it programmatically focusable, so suppress the outline it
+ * would otherwise paint when focused by script rather than by keyboard. */
+.panel {
+  width: 100%;
 }
-.trendHead {
-  display: flex;
-  align-items: flex-end;
-  justify-content: space-between;
-  gap: var(--s-3);
-  flex-wrap: wrap;
+.panel:focus {
+  outline: none;
 }
-.trendHeadMeta {
-  display: flex;
-  flex-direction: column;
+.panel:focus-visible {
+  outline: var(--focus-ring-width) solid var(--focus-ring);
+  outline-offset: var(--focus-ring-offset);
+  border-radius: var(--r-md);
+}
+
+/* ---- Header XP badge (the trailing slot on this screen) ---- */
+.xpBadge {
+  display: inline-flex;
+  align-items: center;
   gap: var(--s-1);
-  min-width: 0;
-}
-.trendBand {
-  line-height: 1;
-}
-.trendDelta {
+  padding: var(--s-1) var(--s-3);
+  border-radius: var(--r-pill);
+  background: var(--primary-tint);
+  color: var(--primary);
   white-space: nowrap;
 }
-
-.trendBars {
-  display: flex;
-  align-items: flex-end;
-  gap: var(--s-2);
-  width: 100%;
-}
-.trendCol {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: var(--s-2);
-}
-.trendTrack {
-  display: flex;
-  align-items: flex-end;
-  justify-content: center;
-  width: 100%;
-  height: 120px;
-  border-radius: var(--r-sm);
-  background: var(--surface-3);
-  overflow: hidden;
-}
-.trendFill {
-  display: block;
-  width: 100%;
-  border-radius: var(--r-sm);
-  background: var(--accent-tint);
-  transition: height var(--m-base);
-}
-.trendFillCurrent {
-  background: var(--accent);
-}
-.trendColLabel {
-  text-align: center;
-}
-
-/* ---- Stats row: XP/level + streak ---- */
-.stats {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: var(--s-4);
-}
-
-/* ---- XP / level card ---- */
-.levelCard {
-  display: flex;
-  flex-direction: column;
-  gap: var(--s-4);
-}
-.levelHead {
-  display: flex;
-  align-items: center;
-  gap: var(--s-4);
-}
-.levelBadge {
-  display: grid;
-  place-items: center;
-  width: 60px;
-  height: 60px;
+.xpStar {
   flex: none;
-  border-radius: var(--r-lg);
-  background: var(--accent-tint);
-  color: var(--accent);
-}
-.levelMeta {
-  display: flex;
-  flex-direction: column;
-  gap: var(--s-1);
-  min-width: 0;
-}
-.levelNum {
-  display: flex;
-  align-items: center;
-  gap: var(--s-3);
-  flex-wrap: wrap;
-}
-.xpBar {
-  height: 8px;
-  border-radius: var(--r-pill);
-  background: var(--surface-3);
-  overflow: hidden;
-}
-.xpFill {
   display: block;
-  height: 100%;
-  border-radius: var(--r-pill);
-  background: var(--accent);
-  transition: width var(--m-base);
 }
-
-/* ---- Streak card ---- */
-.streakCard {
-  display: flex;
-  flex-direction: column;
-  gap: var(--s-5);
-}
-.streakTop {
-  display: flex;
-  align-items: center;
-  gap: var(--s-4);
-}
-.flameWrap {
-  display: grid;
-  place-items: center;
-  width: 60px;
-  height: 60px;
-  flex: none;
-  border-radius: var(--r-lg);
-  background: var(--primary-tint);
+.xpText {
   color: var(--primary);
-}
-.streakMeta {
-  display: flex;
-  flex-direction: column;
-  gap: var(--s-1);
-  min-width: 0;
-}
-.streakNum {
-  display: flex;
-  align-items: baseline;
-  gap: var(--s-2);
-}
-.week {
-  display: flex;
-  align-items: flex-end;
-  gap: var(--s-2);
-}
-.weekDay {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: var(--s-2);
-}
-.weekDot {
-  display: grid;
-  place-items: center;
-  width: 28px;
-  height: 28px;
-  border-radius: var(--r-pill);
-  background: var(--surface-3);
-  color: transparent;
-}
-.weekDotActive {
-  background: var(--primary-tint);
-  color: var(--primary);
-}
-.weekDotToday {
-  background: var(--primary);
-  color: var(--primary-on);
-}
-.weekLabel {
-  text-align: center;
-}
-
-/* ---- Achievements grid ---- */
-.achSection {
-  display: flex;
-  flex-direction: column;
-  gap: var(--s-3);
-}
-.achHead {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--s-2);
-}
-.achGrid {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
-  gap: var(--s-3);
-}
-.achCard {
-  height: 100%;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: var(--s-2);
-  text-align: center;
-}
-.achLocked {
-  opacity: 0.72;
-}
-.achIcon {
-  display: grid;
-  place-items: center;
-  width: 52px;
-  height: 52px;
-  border-radius: var(--r-md);
-  font-size: 26px;
-  line-height: 1;
-}
-.achIconEarned {
-  background: var(--warn-tint);
-}
-.achIconLocked {
-  background: var(--surface-3);
-  filter: grayscale(1);
-  opacity: 0.6;
-}
-.achTitle {
-  text-wrap: balance;
-}
-.achStatus {
-  margin-top: var(--s-1);
-}
-.achBar {
-  display: block;
-  width: 100%;
-  height: 6px;
-  margin-top: var(--s-2);
-  border-radius: var(--r-pill);
-  background: var(--surface-3);
-  overflow: hidden;
-}
-.achBarFill {
-  display: block;
-  height: 100%;
-  border-radius: var(--r-pill);
-  background: var(--accent);
-  transition: width var(--m-base);
-}
-
-/* ---- Inline glyphs ---- */
-.glyph {
-  display: block;
-}
-
-/* ---- Responsive: stack the stats row on narrow columns ---- */
-@media (max-width: 640px) {
-  .stats {
-    grid-template-columns: 1fr;
-  }
 }

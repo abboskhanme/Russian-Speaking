@@ -11,9 +11,17 @@ WORKDIR /src
 
 # Source only (bin/obj/tests excluded via .dockerignore). Restore the Api project
 # graph first, then publish framework-dependent (run via `dotnet Govori.Api.dll`).
+#
+# The `--mount=type=cache` on the NuGet packages folder makes builds resilient to
+# nuget.org flakiness: already-downloaded packages persist across builds, so a
+# retry after a mid-restore timeout resumes from what's cached instead of starting
+# over. Both restore and publish mount the SAME cache so `--no-restore` publish
+# still finds the packages. Requires BuildKit (the `# syntax` line above enables it).
 COPY . .
-RUN dotnet restore src/Govori.Api/Govori.Api.csproj
-RUN dotnet publish src/Govori.Api/Govori.Api.csproj \
+RUN --mount=type=cache,target=/root/.nuget/packages \
+        dotnet restore src/Govori.Api/Govori.Api.csproj
+RUN --mount=type=cache,target=/root/.nuget/packages \
+        dotnet publish src/Govori.Api/Govori.Api.csproj \
         -c Release \
         -o /app/publish \
         --no-restore \

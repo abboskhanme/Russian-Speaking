@@ -11,7 +11,7 @@ import { Button, Text, cx } from "../../shared/ui";
 import { RegisterStepper } from "./RegisterStepper";
 import { SelectField } from "./SelectField";
 import { BackIcon, CheckIcon, PinIcon } from "./icons";
-import { UZ_REGION_NAMES, districtsFor } from "./uz-regions";
+import { UZ_REGION_NAMES, districtsFor } from "../../shared/uz-regions";
 import styles from "./Auth.module.css";
 
 export interface AddressStepProps {

@@ -64,6 +64,8 @@
   --info-tint:    oklch(0.945 0.029 245);
   /* Amber reads poorly as text on light tint — dedicated ink (from mockup). */
   --warn-ink:     oklch(0.550 0.110 82);
+  /* Ink on a filled --danger surface (the Navbat FAB count badge). */
+  --danger-on:    oklch(0.995 0.004 20);
 
   /* ---- Pronunciation scale (per-word) ----------------------------------- *
    * A11y: color is NEVER the only signal. Pair each with an underline style:
@@ -223,6 +225,8 @@
   --danger-tint:  oklch(0.952 0.040 20);
   --info-tint:    oklch(0.945 0.029 245);
   --warn-ink:     oklch(0.550 0.110 82);
+  /* Ink on a filled --danger surface (the Navbat FAB count badge). */
+  --danger-on:    oklch(0.995 0.004 20);
 
   --e-1:       0 1px 3px rgba(60, 40, 20, 0.08), 0 2px 10px rgba(60, 40, 20, 0.06);
   --e-2:       0 4px 12px rgba(60, 40, 20, 0.10), 0 10px 24px rgba(60, 40, 20, 0.08);
@@ -266,6 +270,8 @@
   --danger-tint:  oklch(0.300 0.068 20);
   --info-tint:    oklch(0.300 0.046 245);
   --warn-ink:     oklch(0.800 0.125 82);  /* derived: light warn-ink is too dark on a dark tint */
+  /* Ink on a filled --danger surface (the Navbat FAB count badge). */
+  --danger-on:    oklch(0.995 0.004 20);
 
   /* Shadows weaken in dark; surface brightness carries the elevation instead. */
   --e-1:       0 1px 3px rgba(0, 0, 0, 0.30), 0 2px 10px rgba(0, 0, 0, 0.22);
@@ -310,6 +316,8 @@
     --danger-tint:  oklch(0.300 0.068 20);
     --info-tint:    oklch(0.300 0.046 245);
     --warn-ink:     oklch(0.800 0.125 82);
+    /* Ink on a filled --danger surface (the Navbat FAB count badge). */
+    --danger-on:    oklch(0.995 0.004 20);
 
     --e-1:       0 1px 3px rgba(0, 0, 0, 0.30), 0 2px 10px rgba(0, 0, 0, 0.22);
     --e-2:       0 4px 12px rgba(0, 0, 0, 0.34), 0 10px 24px rgba(0, 0, 0, 0.28);

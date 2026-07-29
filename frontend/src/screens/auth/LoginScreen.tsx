@@ -78,6 +78,7 @@ export default function LoginScreen() {
   }
 
   async function submitCode() {
+    if (busy) return;
     setError(null);
     setInfo(null);
     if (needsName && !name.trim()) {
@@ -168,7 +169,7 @@ export default function LoginScreen() {
               loading={busy}
               disabled={!isValidUz(phone)}
             >
-              {t("auth.login.submit")}
+              {t("auth.otp.getCode")}
             </Button>
             <TryLink />
           </form>

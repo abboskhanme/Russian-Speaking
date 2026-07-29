@@ -1,0 +1,167 @@
+/* AchievementsTab — the "Yutuqlar" tab body of the Progress screen.
+ * Composed from shared/ui + tokens; every colour / space / radius / shadow /
+ * motion value is a token. Full-width — the root spans its column with no
+ * max-width + auto-margin centring. */
+
+.tab {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-6);
+  width: 100%;
+}
+
+/* ---- Header: title + count + overall progress bar ---- */
+.header {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-3);
+  width: 100%;
+}
+.headerRow {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--s-3);
+  width: 100%;
+}
+.headerTitle {
+  min-width: 0;
+}
+.headerCount {
+  flex: none;
+  white-space: nowrap;
+}
+
+/* Overall unlocked/total bar: --accent fill on a --line track (accent = the
+ * progress / gamification colour, docs/03 §3.3). */
+.headerBar {
+  display: block;
+  width: 100%;
+  height: 10px;
+  border-radius: var(--r-pill);
+  background: var(--line);
+  overflow: hidden;
+}
+.headerBarFill {
+  display: block;
+  height: 100%;
+  border-radius: var(--r-pill);
+  background: var(--accent);
+  /* --m-base is zeroed under prefers-reduced-motion in tokens.css. */
+  transition: width var(--m-base);
+}
+
+/* ---- 2-col badge grid ---- */
+.grid {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--s-3);
+  width: 100%;
+}
+.cell {
+  display: flex;
+}
+
+.tile {
+  height: 100%;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--s-2);
+  text-align: left;
+}
+/* Two-class selectors so the tile's OWN surface wins over Card's variant
+ * background whatever the stylesheet order. Colour is only a reinforcement —
+ * every tile also states unlocked/locked in text (visible row or SR-only). */
+.tile.tileUnlocked {
+  background: var(--success-tint);
+  border-color: transparent;
+}
+.tile.tileLocked {
+  background: var(--surface-2);
+  opacity: 0.72;
+}
+
+/* Large rounded icon chip. */
+.icon {
+  display: grid;
+  place-items: center;
+  width: 52px;
+  height: 52px;
+  flex: none;
+  border-radius: var(--r-lg);
+  font-size: 28px;
+  line-height: 1;
+}
+.iconUnlocked {
+  background: var(--surface);
+}
+.iconLocked {
+  background: var(--surface-3);
+  /* The lock reads muted, reinforcing the disabled state. */
+  opacity: 0.85;
+}
+
+.body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-1);
+  width: 100%;
+  min-width: 0;
+}
+.title {
+  text-wrap: balance;
+}
+/* Locked tiles read as de-emphasised (and are announced as locked). */
+.tileLocked .title {
+  color: var(--muted);
+}
+
+/* Footer pinned to the tile bottom so bars / rows line up across a row. */
+.footer {
+  margin-top: auto;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-1);
+}
+
+.unlockedRow {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-1);
+}
+
+/* Thin tokened progress bar for locked tiles: --primary fill on a --line
+ * track. Decorative (aria-hidden) — the count carries the same meaning. */
+.bar {
+  display: block;
+  width: 100%;
+  height: 6px;
+  border-radius: var(--r-pill);
+  background: var(--line);
+  overflow: hidden;
+}
+.barFill {
+  display: block;
+  height: 100%;
+  border-radius: var(--r-pill);
+  background: var(--primary);
+  transition: width var(--m-base);
+}
+.count {
+  align-self: flex-start;
+}
+
+/* ---- Responsive ---- */
+@media (max-width: 380px) {
+  .grid {
+    /* On the narrowest phones two tiles get cramped — fall back to a single
+     * column so titles + descriptions stay readable. */
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

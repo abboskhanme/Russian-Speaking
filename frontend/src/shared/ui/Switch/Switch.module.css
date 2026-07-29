@@ -1,0 +1,73 @@
+/* Switch — iOS-style toggle (docs/03 §3.6 Actions).
+ * Geometry is derived from the 4px space scale so it stays on grid:
+ *   track  32×56 (s-8 tall, s-8 × 1.75 wide), inset s-1
+ *   knob   24 (s-6)  →  travel = 56 − 24 − 2×4 = 24 = s-6 */
+
+.track {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  flex: none;
+  width: calc(var(--s-8) * 1.75);
+  height: var(--s-8);
+  padding: var(--s-1);
+  background: var(--line-2);
+  border: none;
+  border-radius: var(--r-pill);
+  cursor: pointer;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  transition:
+    background-color var(--m-fast),
+    transform var(--m-fast);
+}
+
+/* The track is 32px tall; stretch the hit area to the 44px touch-target
+ * minimum (§3.9) without changing the visual size. */
+.track::after {
+  content: "";
+  position: absolute;
+  inset: calc(var(--s-1) * -1.5) 0;
+}
+
+.track:focus-visible {
+  outline: var(--focus-ring-width) solid var(--focus-ring);
+  outline-offset: var(--focus-ring-offset);
+}
+
+.track:active:not(:disabled) {
+  transform: scale(var(--tap-scale));
+}
+
+.track:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+.on {
+  background: var(--primary);
+}
+
+.knob {
+  flex: none;
+  width: var(--s-6);
+  height: var(--s-6);
+  background: var(--surface);
+  border-radius: var(--r-pill);
+  box-shadow: var(--e-1);
+  transition: transform var(--m-fast);
+}
+
+.on .knob {
+  transform: translateX(var(--s-6));
+}
+
+/* The slide is decoration — aria-checked and the track colour carry the state,
+ * so the knob simply snaps to its end position. */
+@media (prefers-reduced-motion: reduce) {
+  .track,
+  .knob {
+    transition: none;
+  }
+}

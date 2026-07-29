@@ -3,7 +3,7 @@
   <ItemGroup>
     <ProjectReference Include="..\..\Govori.Contracts\Govori.Contracts.csproj" />
     <!-- Reuses the SAME STT seam (ISttProvider) the grading pipeline uses, so the guest demo
-         runs the identical Azure pronunciation assessment as the app (guest.py:4). -->
+         runs the identical Azure pronunciation assessment signed-in students get. -->
     <ProjectReference Include="..\..\Govori.Platform\Govori.Platform.csproj" />
   </ItemGroup>
 

@@ -6,27 +6,40 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 namespace Govori.Api.RateLimiting;
 
 /// <summary>
-/// Wires the ASP.NET Core RateLimiter to mirror <c>backend/app/core/ratelimit.py</c> (docs/07 §7.3:
-/// "ASP.NET Core RateLimiter + Redis, ratelimit.py semantikasi saqlanadi — fail-open!"). Registers
-/// one named policy per Python <c>rate_limit(scope, max, window)</c> usage the .NET slice enforces,
-/// keyed per-user-or-IP (<see cref="RateLimitIdentity"/>), backed by <see cref="IRateLimitStore"/>,
-/// and — critically — FAIL-OPEN (the allow-on-store-error decision is in
-/// <see cref="StoreBackedRateLimiter"/>). Rejections answer 429 with FastAPI's <c>{ "detail": ... }</c>
-/// body, matching ratelimit.py:56-59.
+/// Wires the ASP.NET Core RateLimiter for the whole API (docs/07 §7.3: "ASP.NET Core RateLimiter +
+/// Redis — fail-open!"). Registers one named policy per rate-limited scope, keyed per-user-or-IP
+/// (<see cref="RateLimitIdentity"/>), backed by <see cref="IRateLimitStore"/>, and — critically —
+/// FAIL-OPEN (the allow-on-store-error decision is in <see cref="StoreBackedRateLimiter"/>).
+/// Rejections answer 429 with the <c>{ "detail": ... }</c> body shape used across the API.
 /// </summary>
 internal static class RateLimitPolicies
 {
-    /// <summary>(policy name / counter scope, max requests, window) — one row per enforced Python
-    /// <c>rate_limit(...)</c>. Limits are the Python literals: email_code 5/600 (auth.py:76),
-    /// login 10/300 (auth.py:145; also Google auth.py:174 uses the same policy), guest_assess
-    /// 15/3600 (guest.py:68), guest_tts 60/3600 (guest.py:131).</summary>
+    /// <summary>(policy name / counter scope, max requests, window) — one row per rate-limited
+    /// scope. The limits are deliberate product choices: email_code 5/600 (an OTP costs money to
+    /// send), login 10/300 (also covers the Google sign-in route, which shares this policy),
+    /// guest_assess 15/3600 and guest_tts 60/3600 (auth-less routes, so IP is the only key).</summary>
     private static readonly (string Name, int Limit, TimeSpan Window)[] Policies =
     {
         (RateLimitPolicyNames.EmailCode, 5, TimeSpan.FromSeconds(600)),
+        // OTP delivery-status polling. NOT email_code: the client polls for the whole 10-minute OTP
+        // window, so email_code's 5/600 would 429 the feature dead after ten seconds.
+        //
+        // Sized for a CLASSROOM behind one NAT, which is the normal case here — groups run ~18
+        // students (docs/04 Guruh) on shared school wifi or a carrier CGNAT, and a whole class
+        // signing up together is exactly when this must not break. At the client's 3 s interval one
+        // user costs 20 calls/min, so 1200/60 s per-IP covers ~60 concurrent pollers on one address
+        // while still capping a single abuser at 20 rps. The read is one Redis GET returning an
+        // opaque state string that grants nothing, so a loose cap is cheap. Fail-open like the rest.
+        (RateLimitPolicyNames.OtpStatus, 1200, TimeSpan.FromSeconds(60)),
         (RateLimitPolicyNames.Login, 10, TimeSpan.FromSeconds(300)),
+        // Verified phone change, shared by request + confirm. A HUMAN rate: one successful change is
+        // exactly 2 hits, so 10/3600 s is ~5 complete attempts an hour — room to mistype the number
+        // or wait out a code that never arrived, no room to grind. Both routes require auth, so the
+        // partition is the user id (see RateLimitIdentity) rather than a shared classroom IP.
+        (RateLimitPolicyNames.PhoneChange, 10, TimeSpan.FromSeconds(3600)),
         (RateLimitPolicyNames.GuestAssess, 15, TimeSpan.FromSeconds(3600)),
         (RateLimitPolicyNames.GuestTts, 60, TimeSpan.FromSeconds(3600)),
-        // Public "try the placement" flow (no Python sibling). A 3-answer session is ~4 hits; 30/hour
+        // Public "try the placement" flow. A 3-answer session is ~4 hits; 30/hour
         // per IP allows a handful of retries/sessions while capping abuse. Fail-open like the rest.
         (RateLimitPolicyNames.GuestPlacement, 30, TimeSpan.FromSeconds(3600)),
     };
@@ -47,7 +60,8 @@ internal static class RateLimitPolicies
 
         services.AddRateLimiter(options =>
         {
-            // Python answers 429 (ratelimit.py:57). ASP.NET Core defaults to 503 — override it.
+            // ⚠ A rate-limit rejection MUST answer 429. ASP.NET Core's RateLimiter defaults to 503,
+            // which clients read as "server down" and retry into — this override is deliberate.
             options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
             options.OnRejected = async (context, ct) =>
             {
@@ -58,7 +72,7 @@ internal static class RateLimitPolicies
             foreach (var (name, limit, window) in Policies)
             {
                 // Capture per-policy values; partition per identity so each user/IP gets its own
-                // fixed window (ratelimit.py key = "rl:{scope}:{identity}").
+                // fixed window under the counter key "rl:{scope}:{identity}".
                 var policyLimit = limit;
                 var policyWindow = window;
                 var scope = name;

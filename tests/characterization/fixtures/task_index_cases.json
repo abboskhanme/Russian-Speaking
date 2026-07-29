@@ -1,5 +1,5 @@
 {
-  "_doc": "services/access.py:54-75 (task_index). DB-bound: the count is a Postgres COUNT(*) and cannot run without a database. We characterize the ordering PREDICATE it delegates to SQL (transcribed from access.py:61-71): among same-module, published, non-deleted siblings, count those strictly before the target in (sort_order, created_at). block_id absent → 0. created_at is an integer tick (ordering only).",
+  "_doc": "FROZEN GOLDEN — owned by Govori.Characterization; the specification, not a derived artifact. Pins task_index. DB-bound: the count is a Postgres COUNT(*) and cannot run without a database, so this pins the ordering PREDICATE delegated to SQL: among same-module, published, non-deleted siblings, count those strictly before the target in (sort_order, created_at). block_id absent → 0. created_at is an integer tick (ordering only).",
   "cases": [
     {
       "name": "empty_block",

@@ -24,9 +24,8 @@ public sealed record GoogleUserInfo(string Email, string? Name, string? Sub);
 public sealed record GoogleTokenResult(GoogleTokenStatus Status, GoogleUserInfo? User = null);
 
 /// <summary>
-/// Verifies a Google Identity Services ID token, ported from
-/// backend/app/api/v1/auth.py <c>_verify_google_token</c> (the tokeninfo call). Abstracted so
-/// tests use a fake that returns a known (email, sub) instead of calling Google.
+/// Verifies a Google Identity Services ID token against Google's tokeninfo endpoint. Abstracted so
+/// tests use a fake that returns a known (email, sub) instead of calling Google over the network.
 /// </summary>
 public interface IGoogleTokenVerifier
 {

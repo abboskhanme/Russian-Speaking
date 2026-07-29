@@ -17,11 +17,14 @@
   </ItemGroup>
 
   <ItemGroup>
-    <!-- The Worker IS the grading pipeline host (ex-Celery): it runs the Hangfire server + recurring
+    <!-- The Worker IS the grading pipeline host: it runs the Hangfire server + recurring
          maintenance jobs and publishes SignalR progress over the Redis backplane (docs/07 §7.7). -->
     <ProjectReference Include="..\Govori.Infrastructure\Govori.Infrastructure.csproj" />
     <ProjectReference Include="..\Govori.Platform\Govori.Platform.csproj" />
     <ProjectReference Include="..\Modules\Govori.Assessment\Govori.Assessment.csproj" />
+    <!-- Host edge (not a domain→domain edge): the Worker composition root wires the Engagement
+         IGradingRewarder impl so the grading job can award XP. -->
+    <ProjectReference Include="..\Modules\Govori.Engagement\Govori.Engagement.csproj" />
     <ProjectReference Include="..\Govori.Realtime\Govori.Realtime.csproj" />
   </ItemGroup>
 

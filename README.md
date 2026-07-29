@@ -30,7 +30,7 @@ frontend/         React + Vite SPA — src/{app,screens,widgets,shared,locales}
 deploy/           nginx conf · Postgres seeds · backup/restore/domain scripts
 docs/             00–09 — audit, product/architecture, design system, UX, roadmap,
                   .NET architecture (07), rewrite plan (08), Docker (09)
-tests/            characterization fixtures (frozen Python behaviour — the port's safety net)
+tests/            characterization fixtures — frozen goldens owned by the C# tests
 RussianDesign/    design mockups (source of truth for the UI)
 ```
 

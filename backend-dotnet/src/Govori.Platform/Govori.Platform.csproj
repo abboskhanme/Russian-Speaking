@@ -5,7 +5,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <!-- S3-compatible object storage (MinIO/S3/R2). Ports backend/app/services/storage.py. -->
+    <!-- S3-compatible object storage (MinIO in dev, S3/R2 in prod). -->
     <PackageReference Include="AWSSDK.S3" Version="3.7.511.8" />
     <!-- Redis-backed Telegram OTP deep-link store — shared by the API sender + Worker poller. -->
     <PackageReference Include="StackExchange.Redis" Version="2.8.16" />

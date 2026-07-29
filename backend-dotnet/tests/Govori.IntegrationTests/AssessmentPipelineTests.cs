@@ -88,7 +88,7 @@ public sealed class AssessmentPipelineTests
             Assert.NotNull(transcript);
             Assert.Equal("привет как дела", transcript!.Text);
             Assert.Equal("fake-stt", transcript.SttModel);
-            // JSONB round-trips as valid JSON with the Python-shaped snake_case keys.
+            // JSONB round-trips as valid JSON with the wire-contract snake_case keys.
             using (var pron = JsonDocument.Parse(transcript.Pronunciation!))
                 Assert.Equal(70.0, pron.RootElement.GetProperty("pronunciation").GetDouble());
             using (var words = JsonDocument.Parse(transcript.WordTimestamps!))

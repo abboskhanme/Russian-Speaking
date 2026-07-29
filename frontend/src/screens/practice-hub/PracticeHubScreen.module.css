@@ -1,0 +1,28 @@
+/* PracticeHubScreen — the student's Mashq place, the shared frame around the
+ * three inner tabs (Modullar · Topshiriqlar · Suhbat). Each tab owns its own
+ * stylesheet; this file styles only the page rhythm and the tabpanel wrapper.
+ * Composed from shared/ui + widgets; every colour / space / radius / shadow /
+ * motion value is a token. Full-width — the page root spans its column with no
+ * max-width + auto-margin centring. */
+
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-4);
+  width: 100%;
+}
+
+/* The panel is a plain flow container; the tabs supply their own inner rhythm.
+ * `tabIndex={-1}` makes it programmatically focusable, so suppress the outline
+ * it would otherwise paint when focused by script rather than by keyboard. */
+.panel {
+  width: 100%;
+}
+.panel:focus {
+  outline: none;
+}
+.panel:focus-visible {
+  outline: var(--focus-ring-width) solid var(--focus-ring);
+  outline-offset: var(--focus-ring-offset);
+  border-radius: var(--r-md);
+}

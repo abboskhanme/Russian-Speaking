@@ -7,10 +7,10 @@ namespace Govori.Characterization;
 /// C8 — the REAL XP port. Unlike <see cref="ScoringCharacterizationTests"/> (which reimplements the
 /// XP arithmetic inline), this drives the ACTUAL production function
 /// <see cref="Govori.Engagement.EngagementService.XpForBand"/> — the one the grading worker calls to
-/// award XP — against the frozen Python-generated fixture <c>xp_cases.json</c>. Every case must
-/// match: this is the proof that the C# XP curve is byte-for-byte the Python
-/// <c>gamification.py:24-31</c> (<c>&lt;27 → 0</c>, else <c>int(round(pct/4))</c>, <c>None → 0</c>).
-/// The fixture is the contract — never edit it to make this pass.
+/// award XP — against the frozen golden fixture <c>xp_cases.json</c>. Every case must match: this is
+/// the proof that the XP curve still is exactly <c>band &lt; 27 → 0</c>, otherwise
+/// <c>round(band / 4)</c>, and <c>null → 0</c>. The fixture is the specification — never edit it to
+/// make this pass.
 /// </summary>
 public class EngagementXpPortTests
 {

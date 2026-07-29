@@ -17,7 +17,7 @@ namespace Govori.IntegrationTests;
 ///
 /// Seeds a student who belongs to a teacher's group, that teacher's GROUP module, and an official
 /// PUBLIC module, plus a few completed submissions, then asserts <c>GET /api/blocks/student</c>
-/// returns the exact SEQUENTIAL + FREEMIUM lock state per task (blocks.py:90-176):
+/// returns the exact SEQUENTIAL + FREEMIUM lock state per task:
 /// <list type="bullet">
 ///   <item>group (teacher) modules sort before public ones, and are NEVER premium-locked;</item>
 ///   <item>a task is sequentially locked until the previous one is done;</item>
@@ -91,9 +91,23 @@ public sealed class CatalogEndpointsTests : IClassFixture<CatalogEndpointsTests.
             for (var i = 0; i < p.Length; i++)
                 ctx.Questions.Add(NewQuestion(p[i], teacherId, publicModuleId, sortOrder: i));
 
-            // Completed: group task g0; public tasks p0,p1,p2 (the 3 free ones).
-            foreach (var qid in new[] { g[0], p[0], p[1], p[2] })
-                ctx.Submissions.Add(NewDoneSubmission(studentId, qid));
+            // Completed WITH durations + graded bands so the additive band/spent_sec fields carry
+            // real values: group g0, public p0/p1/p2 (the 3 free ones). p0 has TWO graded
+            // submissions so its band is the MAX of them; p2 is done but never graded (band → null).
+            // Durations: g0=60 · p0=20+25 · p1=30 · p2=40  ⇒ group spent 60, public spent 115.
+            var g0a = NewDoneSubmission(studentId, g[0], durationSec: 60);
+            var p0a = NewDoneSubmission(studentId, p[0], durationSec: 20);
+            var p0b = NewDoneSubmission(studentId, p[0], durationSec: 25);
+            var p1a = NewDoneSubmission(studentId, p[1], durationSec: 30);
+            var p2a = NewDoneSubmission(studentId, p[2], durationSec: 40);
+            ctx.Submissions.AddRange(g0a, p0a, p0b, p1a, p2a);
+
+            // Graded: g0 band 65; p0 best of {55, 81} = 81; p1 band 70; p2 stays ungraded (null).
+            ctx.Evaluations.AddRange(
+                NewEvaluation(g0a.Id, 65.0),
+                NewEvaluation(p0a.Id, 55.4),
+                NewEvaluation(p0b.Id, 80.6),
+                NewEvaluation(p1a.Id, 70.0));
 
             await ctx.SaveChangesAsync();
         }
@@ -137,6 +151,12 @@ public sealed class CatalogEndpointsTests : IClassFixture<CatalogEndpointsTests.
             AssertTask(gTasks[g[2]], done: false, locked: true, premium: false);
             AssertTask(gTasks[g[3]], done: false, locked: true, premium: false);  // idx 3 but group → not paywalled
 
+            // Additive fields: a done+graded task carries its best band; spent_sec sums the module's
+            // submission durations; an untouched task's band is null.
+            Assert.Equal(65, gTasks[g[0]].GetProperty("band").GetInt32());
+            Assert.Equal(JsonValueKind.Null, gTasks[g[1]].GetProperty("band").ValueKind);
+            Assert.Equal(60, group.GetProperty("spent_sec").GetInt32());   // only g0 has audio here
+
             // ── Public module: free preview then the freemium paywall ──
             var pub = modules[publicIdx];
             Assert.Equal("public", pub.GetProperty("visibility").GetString());
@@ -150,12 +170,21 @@ public sealed class CatalogEndpointsTests : IClassFixture<CatalogEndpointsTests.
             AssertTask(pTasks[p[3]], done: false, locked: false, premium: true);   // premium lock, NOT sequential
             AssertTask(pTasks[p[4]], done: false, locked: true, premium: true);    // both layers
 
+            // Additive fields: best band is the MAX across a task's submissions; a done-but-ungraded
+            // task and an untouched task both read null; spent_sec sums the module's durations.
+            Assert.Equal(81, pTasks[p[0]].GetProperty("band").GetInt32());   // max(55.4, 80.6) → 81
+            Assert.Equal(70, pTasks[p[1]].GetProperty("band").GetInt32());
+            Assert.Equal(JsonValueKind.Null, pTasks[p[2]].GetProperty("band").ValueKind);   // done, never graded
+            Assert.Equal(JsonValueKind.Null, pTasks[p[3]].GetProperty("band").ValueKind);   // untouched
+            Assert.Equal(115, pub.GetProperty("spent_sec").GetInt32());      // 45 + 30 + 40
+
             // Task type carries the lowercase PG enum label.
             Assert.Equal("text", pTasks[p[0]].GetProperty("type").GetString());
         }
         finally
         {
             await using var ctx = CreateContext();
+            await ctx.Evaluations.Where(e => e.Submission.StudentId == studentId).ExecuteDeleteAsync();
             await ctx.Submissions.Where(s => s.StudentId == studentId).ExecuteDeleteAsync();
             await ctx.Questions.Where(q => q.BlockId == groupModuleId || q.BlockId == publicModuleId).ExecuteDeleteAsync();
             await ctx.QuestionBlocks.Where(b => b.Id == groupModuleId || b.Id == publicModuleId).ExecuteDeleteAsync();
@@ -220,13 +249,26 @@ public sealed class CatalogEndpointsTests : IClassFixture<CatalogEndpointsTests.
         UpdatedAt = DateTime.UtcNow,
     };
 
-    private static Submission NewDoneSubmission(Guid studentId, Guid questionId) => new()
+    private static Submission NewDoneSubmission(Guid studentId, Guid questionId, double? durationSec = null) => new()
     {
         Id = Guid.NewGuid(),
         StudentId = studentId,
         QuestionId = questionId,
         AudioKey = "parity/done.webm",
+        AudioDurationSec = durationSec,
         Status = SubmissionStatus.Done,
+        CreatedAt = DateTime.UtcNow,
+        UpdatedAt = DateTime.UtcNow,
+    };
+
+    private static Evaluation NewEvaluation(Guid submissionId, double overallBand) => new()
+    {
+        Id = Guid.NewGuid(),
+        SubmissionId = submissionId,
+        FluencyScore = overallBand,
+        LexicalScore = overallBand,
+        GrammarScore = overallBand,
+        OverallBand = overallBand,
         CreatedAt = DateTime.UtcNow,
         UpdatedAt = DateTime.UtcNow,
     };

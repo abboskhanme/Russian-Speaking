@@ -7,30 +7,26 @@ namespace Govori.Administration;
 
 /// <summary>
 /// Application service for the Administration vertical slice (docs/07 §3.7, Faza 3.7) — admin user
-/// management. Faithful port of <c>backend/app/api/v1/admin.py</c> (stats + teacher/student list +
-/// update + delete). Role gate = <c>require_admin</c> (deps.py:66-69): any non-admin ⇒ 403, an
-/// inactive/absent user ⇒ 401. role/is_active are read from the DB, never trusted from the token.
+/// management: dashboard stats, plus list/update/delete for teachers and students. The role gate is
+/// admin-only: any non-admin ⇒ 403, an inactive/absent user ⇒ 401. role and is_active are read from
+/// the DB on every call, never trusted from the token.
 ///
 /// <para><b>Freemium grant/revoke + (de)activate.</b> Premium is granted/revoked and accounts are
-/// (de)activated through <see cref="UpdateStudentAsync"/> (<c>is_premium</c> / <c>is_active</c>) —
-/// the same PATCH the Python admin surface uses (admin.py:173-196). The flag lives on
-/// <c>users.is_premium</c> and is read live by the freemium gate, so a grant takes effect on the
-/// student's next request without re-login.</para>
+/// (de)activated through <see cref="UpdateStudentAsync"/> (<c>is_premium</c> / <c>is_active</c>).
+/// The flag lives on <c>users.is_premium</c> and is read live by the freemium gate, so a grant takes
+/// effect on the student's next request without re-login.</para>
 ///
-/// <para><b>Deferred vs the Python admin surface (documented, not silently dropped):</b>
+/// <para><b>Deliberately out of scope for this slice (documented, not silently dropped):</b>
 /// <list type="bullet">
-///   <item>CREATE teacher/student and password change (admin.py:73-90 / 153-170; the
-///   <c>password</c> branch of the PATCH handlers) — these need the frozen BCrypt hasher, an
+///   <item>CREATE teacher/student and password change — these need the frozen BCrypt hasher, an
 ///   Identity-module auth primitive this module intentionally does not reference (see the csproj
-///   note). None of the task-enumerated ops need hashing;</item>
-///   <item><c>GET /admin/students/{id}/detail</c> (admin.py:212-223) — its drill-down reuses the
-///   submission/scoring serialization owned by the Classroom/Assessment slices; out of this slice's
-///   scope.</item>
+///   note). None of the operations this slice owns need hashing;</item>
+///   <item><c>GET /admin/students/{id}/detail</c> — its drill-down reuses the submission/scoring
+///   serialization owned by the Classroom/Assessment slices.</item>
 /// </list></para>
 ///
-/// <para>Search (<c>?search=</c>) is an additive enhancement over admin.py's plain list, porting the
-/// <c>ilike(full_name|email)</c> predicate from the sibling <c>users.list_students</c>
-/// (users.py:65-67) so the task's "list/search users" is satisfied. Admin scope = everyone.</para>
+/// <para>Search (<c>?search=</c>) matches case-insensitively on full name OR email so admins can
+/// find a user without an exact match. Admin scope = everyone, unlike the teacher-scoped lists.</para>
 /// </summary>
 public sealed class AdministrationService
 {
@@ -40,7 +36,8 @@ public sealed class AdministrationService
 
     // ─── Auth gates (shared with the settings endpoints) ─────────────────────
 
-    /// <summary>require_admin (deps.py:66-69): active user + admin role, else Unauthorized/Forbidden.</summary>
+    /// <summary>The admin gate: the user must be active AND hold the admin role. An inactive or
+    /// unknown user is Unauthorized; an active non-admin is Forbidden.</summary>
     public async Task<AdminOutcome> CheckAdminAsync(Guid userId, CancellationToken ct = default)
     {
         var user = await _db.Users
@@ -50,14 +47,14 @@ public sealed class AdministrationService
         return user.Role == UserRole.Admin ? AdminOutcome.Ok : AdminOutcome.Forbidden;
     }
 
-    /// <summary>get_current_user (deps.py:15-33): any active user, else Unauthorized. Backs the
-    /// public read of runtime links.</summary>
+    /// <summary>The signed-in gate: any active user passes, anyone else is Unauthorized. Backs the
+    /// public read of runtime links, which needs a session but no particular role.</summary>
     public async Task<AdminOutcome> CheckActiveUserAsync(Guid userId, CancellationToken ct = default)
         => await _db.Users.AsNoTracking().AnyAsync(u => u.Id == userId && u.IsActive, ct)
             ? AdminOutcome.Ok
             : AdminOutcome.Unauthorized;
 
-    // ─── Stats (admin.py:32-48) ──────────────────────────────────────────────
+    // ─── Stats ───────────────────────────────────────────────────────────────
 
     public async Task<AdminResult<AdminStatsResponse>> StatsAsync(Guid userId, CancellationToken ct = default)
     {
@@ -74,7 +71,7 @@ public sealed class AdministrationService
         return AdminResult<AdminStatsResponse>.Ok(stats);
     }
 
-    // ─── Teachers (admin.py:57-127) ──────────────────────────────────────────
+    // ─── Teachers ────────────────────────────────────────────────────────────
 
     public async Task<AdminResult<IReadOnlyList<TeacherResponse>>> ListTeachersAsync(
         Guid userId, string? search, CancellationToken ct = default)
@@ -99,7 +96,7 @@ public sealed class AdministrationService
 
         var teacher = await _db.Users.FirstOrDefaultAsync(u => u.Id == teacherId, ct);
         if (teacher is null || teacher.Role != UserRole.Teacher)
-            return AdminResult<TeacherResponse>.NotFound();      // admin.py:101-102
+            return AdminResult<TeacherResponse>.NotFound();      // wrong role ⇒ 404, same as absent
 
         if (payload.FullName is not null) teacher.FullName = payload.FullName;
         if (payload.IsActive is not null) teacher.IsActive = payload.IsActive.Value;
@@ -118,14 +115,14 @@ public sealed class AdministrationService
 
         var teacher = await _db.Users.FirstOrDefaultAsync(u => u.Id == teacherId, ct);
         if (teacher is null || teacher.Role != UserRole.Teacher)
-            return AdminResult<Unit>.NotFound();                 // admin.py:124-125
+            return AdminResult<Unit>.NotFound();                 // wrong role ⇒ 404, same as absent
 
         _db.Users.Remove(teacher);
         await _db.SaveChangesAsync(ct);
         return AdminResult<Unit>.Ok(Unit.Value);
     }
 
-    // ─── Students (admin.py:137-209) ─────────────────────────────────────────
+    // ─── Students ────────────────────────────────────────────────────────────
 
     public async Task<AdminResult<IReadOnlyList<StudentResponse>>> ListStudentsAsync(
         Guid userId, string? search, CancellationToken ct = default)
@@ -150,7 +147,7 @@ public sealed class AdministrationService
 
         var student = await _db.Users.FirstOrDefaultAsync(u => u.Id == studentId, ct);
         if (student is null || student.Role != UserRole.Student)
-            return AdminResult<StudentResponse>.NotFound();      // admin.py:181-182
+            return AdminResult<StudentResponse>.NotFound();      // wrong role ⇒ 404, same as absent
 
         if (payload.FullName is not null) student.FullName = payload.FullName;
         if (payload.IsActive is not null) student.IsActive = payload.IsActive.Value;
@@ -170,7 +167,7 @@ public sealed class AdministrationService
 
         var student = await _db.Users.FirstOrDefaultAsync(u => u.Id == studentId, ct);
         if (student is null || student.Role != UserRole.Student)
-            return AdminResult<Unit>.NotFound();                 // admin.py:206-207
+            return AdminResult<Unit>.NotFound();                 // wrong role ⇒ 404, same as absent
 
         _db.Users.Remove(student);
         await _db.SaveChangesAsync(ct);
@@ -179,7 +176,7 @@ public sealed class AdministrationService
 
     // ─── Helpers ─────────────────────────────────────────────────────────────
 
-    // users.py:65-67 — case-insensitive contains over full_name OR email.
+    // Case-insensitive "contains" over full name OR email; a blank term is a no-op filter.
     private static IQueryable<User> ApplySearch(IQueryable<User> q, string? search)
     {
         var term = search?.Trim();

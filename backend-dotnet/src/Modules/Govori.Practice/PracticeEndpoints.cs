@@ -7,25 +7,25 @@ using Microsoft.AspNetCore.Routing;
 namespace Govori.Practice;
 
 /// <summary>
-/// The Practice domain's HTTP surface (docs/07 §7.2, Faza 3.3), ported from
-/// backend/app/api/v1/submissions.py (the student attempt/submit flow). Follows the
-/// MODULAR-ENDPOINT PATTERN established by <c>MapIdentityEndpoints</c>/<c>MapCatalogEndpoints</c>:
-/// a single <c>Map*Endpoints</c> extension the composition root calls.
+/// The Practice domain's HTTP surface (docs/07 §7.2, Faza 3.3) — the student attempt/submit flow.
+/// Follows the MODULAR-ENDPOINT PATTERN established by
+/// <c>MapIdentityEndpoints</c>/<c>MapCatalogEndpoints</c>: a single <c>Map*Endpoints</c> extension
+/// the composition root calls.
 ///
 /// <para>Endpoints are thin by design (§7.2 — no <c>DbContext</c> here): parse claims + the
 /// multipart body → <see cref="PracticeService"/> → serialize. All status decisions (404/403/402)
-/// live in the service; here we only map outcomes to HTTP. Error bodies use <c>{ "detail": ... }</c>
-/// to match FastAPI's default shape.</para>
+/// live in the service; here we only map outcomes to HTTP. Error bodies use the
+/// <c>{ "detail": ... }</c> shape used across the API.</para>
 ///
-/// <para>Path note: Python routes are <c>/api/v1/submissions</c>; the <c>/v1</c> segment is dropped
-/// to match the sibling modules' <c>/api/auth</c> / <c>/api/blocks</c> convention (reconciled at the
+/// <para>Path note: routes are mounted at <c>/api/submissions</c> with no <c>/v1</c> segment, to
+/// match the sibling modules' <c>/api/auth</c> / <c>/api/blocks</c> convention (reconciled at the
 /// gateway during cutover).</para>
 ///
 /// <para>Submit takes <c>multipart/form-data</c> and stores the audio server-side via
-/// <c>IObjectStorage</c>. Python's browser flow instead mints a presigned PUT (<c>/upload-url</c>)
-/// and then POSTs the resulting <c>audio_key</c> as JSON; consolidating both into one server-side
-/// upload keeps the 402 freemium gate and the upload in a single transaction, so a gated attempt
-/// provably writes NOTHING (no object, no row) — the intent of "402 faqat submit'da".</para>
+/// <c>IObjectStorage</c>, rather than handing the browser a presigned PUT and accepting an
+/// <c>audio_key</c> afterwards. Doing the upload server-side keeps the 402 freemium gate and the
+/// upload in a single transaction, so a gated attempt provably writes NOTHING (no object, no row)
+/// — the intent of "402 faqat submit'da".</para>
 /// </summary>
 public static class PracticeEndpoints
 {
@@ -35,7 +35,7 @@ public static class PracticeEndpoints
 
         // POST /api/submissions — submit an audio answer (multipart/form-data: question_id, audio
         // file, optional audio_duration_sec / content_type). → 201 SubmissionResponse, 400 (bad
-        // form), 404 (no question), 403 (not reachable), 402 (freemium gate). submissions.py:99-158.
+        // form), 404 (no question), 403 (not reachable), 402 (freemium gate).
         // The form is read manually (not via IFormFile binding) to sidestep the antiforgery
         // middleware that form-binding minimal APIs require.
         submissions.MapPost("", async (HttpRequest request, ClaimsPrincipal principal, PracticeService svc, CancellationToken ct) =>
@@ -73,7 +73,7 @@ public static class PracticeEndpoints
         }).RequireAuthorization().DisableAntiforgery();
 
         // GET /api/submissions — list my attempts (?question_id, ?limit=1..200, ?offset>=0).
-        // submissions.py:199-238. Students see only their own; teachers their roster; admins all.
+        // Students see only their own; teachers their roster; admins all.
         submissions.MapGet("", async (
             ClaimsPrincipal principal, PracticeService svc,
             Guid? question_id, int? limit, int? offset, CancellationToken ct) =>
@@ -84,7 +84,7 @@ public static class PracticeEndpoints
             return list is null ? Results.Unauthorized() : Results.Ok(list);
         }).RequireAuthorization();
 
-        // GET /api/submissions/{id} — attempt status/detail. submissions.py:255-274.
+        // GET /api/submissions/{id} — attempt status/detail.
         // 404 (missing OR not visible to this user — never leaks existence).
         submissions.MapGet("/{id:guid}", async (Guid id, ClaimsPrincipal principal, PracticeService svc, CancellationToken ct) =>
         {
@@ -99,11 +99,26 @@ public static class PracticeEndpoints
             };
         }).RequireAuthorization();
 
+        // GET /api/submissions/{id}/detail — full result detail (audio + transcript + AI scores)
+        // for the student result screen. 404 when missing OR not visible (never leaks existence).
+        submissions.MapGet("/{id:guid}/detail", async (Guid id, ClaimsPrincipal principal, PracticeService svc, CancellationToken ct) =>
+        {
+            if (!TryGetUserId(principal, out var userId))
+                return Results.Unauthorized();
+            var result = await svc.GetDetailAsync(userId, id, ct);
+            return result.Status switch
+            {
+                GetStatus.Unauthorized => Results.Unauthorized(),
+                GetStatus.NotFound => Detail("Submission not found", StatusCodes.Status404NotFound),
+                _ => Results.Ok(result.Detail),
+            };
+        }).RequireAuthorization();
+
         return app;
     }
 
-    // A valid *access* token carrying a parseable `sub` (a refresh token is rejected, mirroring
-    // deps.py:25). role/is_active are read from the DB in the service, never trusted from the token.
+    // A valid *access* token carrying a parseable `sub`; a refresh token presented here is
+    // rejected. role/is_active are read from the DB in the service, never trusted from the token.
     private static bool TryGetUserId(ClaimsPrincipal principal, out Guid userId)
     {
         userId = Guid.Empty;

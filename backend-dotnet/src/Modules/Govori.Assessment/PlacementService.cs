@@ -97,15 +97,13 @@ public sealed class PlacementService
     /// <summary>
     /// CEFR bucket + short Uzbek label from a 0–100 band. Thresholds tuned so a mid-range placement
     /// (~45) reads A2 · "boshlang'ich" exactly like the mockup, and higher bands climb sanely.
+    ///
+    /// <para>The thresholds themselves now live in <see cref="CefrScale"/> (Govori.Contracts) so
+    /// <c>GET /api/auth/me</c> and the Profile slice can derive the SAME level without an illegal
+    /// Identity→Assessment module edge. Behaviour is unchanged — this is a pure delegation, and the
+    /// buckets exist in exactly one place, so they cannot drift.</para>
     /// </summary>
-    private static (string Level, string LabelUz) MapCefr(double band) => band switch
-    {
-        < 30 => ("A1", "yangi boshlovchi"),
-        < 50 => ("A2", "boshlang'ich"),
-        < 70 => ("B1", "o'rta"),
-        < 85 => ("B2", "o'rta-yuqori"),
-        _ => ("C1", "yuqori"),
-    };
+    private static (string Level, string LabelUz) MapCefr(double band) => CefrScale.FromBand(band);
 
     /// <summary>
     /// Deterministic placeholder band for when the AI providers are stubbed (no keys). Not random:

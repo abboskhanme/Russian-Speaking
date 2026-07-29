@@ -3,7 +3,7 @@ namespace Govori.Worker;
 /// <summary>
 /// Placeholder heartbeat host. docs/07 §7.7 — this evolves into the grading pipeline
 /// (RESUME → transcribe → pronounce → orthoepy → analyze → score → award), driven by
-/// Hangfire jobs (ex-Celery). For now it only proves the host process is alive and
+/// Hangfire jobs. For now it only proves the host process is alive and
 /// logging via Serilog.
 /// </summary>
 public class Worker : BackgroundService

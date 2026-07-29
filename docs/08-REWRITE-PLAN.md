@@ -39,11 +39,11 @@ Zaxirasiz bu talabni bajarib bo'lmaydi — faqat umid qilish mumkin. Bu 1 soatli
 
 | # | Ish | DoD |
 |---|---|---|
-| **1.1** | **Characterization fixture'lari** (`07 §7.6`, C1–C10) — Python'da generatsiya, JSON'ga | 10 ta fixture fayl |
-| 1.2 | Python testlari fixture'larni **tasdiqlaydi** (hozirgi xatti-harakat = haqiqat) | `pytest` yashil |
-| **1.3** | **bcrypt korpusi**: prod'dan real hashlar (anonimlashtirilgan) → fixture | Hash + parol juftlari |
+| **1.1** | **Characterization fixture'lari** (`07 §7.6`, C1–C10) — JSON etalonlar | ✅ 10 ta fixture fayl, repoga commit qilingan |
+| 1.2 | Fixture'lar **muzlatilgan etalon** maqomiga o'tadi — egasi `Govori.Characterization` | ✅ C# testlari yashil |
+| **1.3** | **bcrypt korpusi**: prod'dan real hashlar (anonimlashtirilgan) → fixture | ✅ Hash + parol juftlari |
 | 1.4 | **Grader golden set**: 40 klip + `expected.yaml` (docs/02 §2.7) | Fayl bor, rozilik hujjatlashtirilgan |
-| 1.5 | `test_grader_golden.py` — real API, sekin marshrut | Lokalda ishlaydi |
+| 1.5 | Grader golden set testi — real API, sekin marshrut | Lokalda ishlaydi |
 | 1.6 | CI: golden < 90% → PR bloklanadi | Sun'iy regressiya bilan tekshirilgan |
 
 **Nega:** auditning xulosasi — *"the port cannot be validated against this suite"* (13 test,
@@ -146,13 +146,13 @@ Zaxirasiz bu talabni bajarib bo'lmaydi — faqat umid qilish mumkin. Bu 1 soatli
 
 | # | Nima | Qachon |
 |---|---|---|
-| 7.1 | `backend/celerybeat-schedule` (binary, git'da kuzatilyapti) | **Hozir** — xavfsiz |
+| 7.1 | Eski backend'ning binary scheduler holati (git'da kuzatilgan edi) | ✅ Bajarildi |
 | 7.2 | `.env.prod` — **o'lik fayl**, hech qayerdan reference qilinmagan, chalg'ituvchi | **Hozir** |
 | 7.3 | `Project design/` — eski prototip (2823 q. JSX) | **Hozir** |
 | 7.4 | `DEPLOY.md` — **noto'g'ri serverni** tasvirlaydi (Azure+DuckDNS, prod esa DO+govorim.uz) | **Hozir** qayta yoziladi |
 | 7.5 | `ARCHITECTURE.md`, `PROJECT_OVERVIEW.md`, `UPGRADE_PLAN.md` → `docs/legacy/` | **Hozir** |
 | 7.6 | `frontend/src/components/{ui,govori}.tsx`, violet `@theme` | Faza 4 tugagach |
-| 7.7 | **Python `backend/`** → `archive/python-backend/` | 🔴 **Cutover + 2 hafta** |
+| 7.7 | **Eski backend'ni repodan olib tashlash** (tarixi git'da qoladi) | ✅ Bajarildi — `backend-dotnet/` yagona backend |
 | 7.8 | `RussianDesign/` → `docs/design/` (tartibga solinadi) | Faza 4 tugagach |
 
 > ⚠️ **Xotira:** *prod build not from repo* — jonli serverda repo git tarixida yo'q frontend

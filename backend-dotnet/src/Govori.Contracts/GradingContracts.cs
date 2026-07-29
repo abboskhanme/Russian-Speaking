@@ -2,8 +2,7 @@ namespace Govori.Contracts;
 
 /// <summary>
 /// The seam Practice uses to hand a freshly-created <c>pending</c> submission off for grading
-/// (docs/07 §7.7, Faza 3.4) — the C# equivalent of Python's <c>process_submission.delay(sub.id)</c>
-/// (submissions.py:157). The abstraction lives in <c>Govori.Contracts</c> (dependency-free) so
+/// (docs/07 §7.7, Faza 3.4). The abstraction lives in <c>Govori.Contracts</c> (dependency-free) so
 /// Practice depends on the interface, not on the Assessment module; the implementation
 /// (<c>Govori.Assessment.InlineGradingQueue</c>) and the durable Hangfire version
 /// (<c>Govori.Realtime.HangfireGradingQueue</c>, Faza 3.9) are wired at the composition root.
@@ -16,11 +15,35 @@ public interface IGradingQueue
 }
 
 /// <summary>
+/// The seam the grading pipeline uses to grant the engagement reward (XP + streak roll) AFTER a
+/// submission has graded. Mirrors <see cref="IGradingQueue"/>: the abstraction lives in
+/// <c>Govori.Contracts</c> (dependency-free, primitives only) so the grading module
+/// (<c>Govori.Assessment.GradingJob</c>) depends on the INTERFACE and NOT on the engagement module —
+/// XP and grading stay separate domains with no compile edge between them (the ArchTests forbid one).
+/// The implementation (<c>Govori.Engagement.SubmissionRewarder</c>) is wired at the composition root.
+///
+/// <para>Every method MUST be idempotent: the durable grading job is re-run on a worker crash / retry
+/// and grading itself is idempotent, so the reward must be too — a re-run must not double-award. The
+/// caller treats the reward as best-effort (grading is already committed): a failure is logged and
+/// swallowed, and the next re-grade will retry it.</para>
+/// </summary>
+public interface IGradingRewarder
+{
+    /// <summary>Award XP + roll the streak for an ACADEMIC submission that just graded (produced an
+    /// Evaluation). Idempotent — safe to call again on a job re-run.</summary>
+    Task RewardGradedAsync(Guid submissionId, CancellationToken ct = default);
+
+    /// <summary>Award the fixed practice XP + roll the streak for a SHADOWING attempt that just
+    /// completed. Idempotent.</summary>
+    Task RewardShadowingAsync(Guid submissionId, CancellationToken ct = default);
+}
+
+/// <summary>
 /// The finite set of progress states a grading run reports over the real-time channel (docs/08
-/// Faza 3.10, <c>/attempts/{id}/events</c>). The Python pipeline exposes only the four DB
-/// <c>submission_status</c> labels via 2 s polling (pending → processing → done/failed,
-/// submissions.py:255-274 + SubmissionResult.tsx); SignalR upgrades that to the finer per-stage
-/// timeline the pipeline actually walks (docs/07 §7.7): the terminal <c>Done</c>/<c>Failed</c> match
+/// Faza 3.10, <c>/attempts/{id}/events</c>). The DB carries only the four coarse
+/// <c>submission_status</c> labels (pending → processing → done/failed), which clients used to
+/// discover by 2 s polling; SignalR upgrades that to the finer per-stage timeline the pipeline
+/// actually walks (docs/07 §7.7): the terminal <c>Done</c>/<c>Failed</c> match
 /// the DB labels, and the intermediate stages refine <c>processing</c>. Emitted as the
 /// <see cref="GradingProgressEvent.State"/> string (snake_case, matching the wire).
 /// </summary>
@@ -43,7 +66,8 @@ public static class GradingState
 /// <summary>
 /// One real-time grading-progress event pushed to the attempt's SignalR group (docs/08 Faza 3.10).
 /// Serialized snake_case (<c>submission_id</c>, <c>state</c>, <c>status</c>, <c>message</c>,
-/// <c>at</c>) so the wire shape mirrors what Python's polled <c>SubmissionOut</c> already exposes.
+/// <c>at</c>) so the pushed shape matches the polled <see cref="SubmissionResponse"/> fields the
+/// client already knows.
 /// </summary>
 /// <param name="SubmissionId">The attempt this event is about.</param>
 /// <param name="State">One of <see cref="GradingState"/> — the fine-grained pipeline stage.</param>

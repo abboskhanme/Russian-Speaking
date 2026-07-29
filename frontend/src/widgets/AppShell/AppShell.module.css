@@ -83,7 +83,10 @@
   align-items: center;
   gap: var(--s-3);
   min-height: 60px;
-  padding: var(--s-2) var(--s-4);
+  /* Safe-area aware: with viewport-fit=cover the bar starts under the notch, and
+   * its trailing control (theme toggle / bell) must clear the rounded corner. */
+  padding: max(var(--s-2), env(safe-area-inset-top)) max(var(--s-4), env(safe-area-inset-right))
+    var(--s-2) max(var(--s-4), env(safe-area-inset-left));
   background: color-mix(in oklab, var(--surface) 92%, transparent);
   -webkit-backdrop-filter: blur(12px);
   backdrop-filter: blur(12px);
@@ -122,13 +125,16 @@
 .content {
   flex: 1;
   min-width: 0;
-  padding: var(--s-5) var(--s-4);
-  /* Clear the fixed mobile bottom bar (78px). */
-  padding-bottom: calc(78px + var(--s-5));
+  /* Side gutters never collapse below the safe-area inset (landscape notch). */
+  padding: var(--s-5) max(var(--s-4), env(safe-area-inset-right)) 0
+    max(var(--s-4), env(safe-area-inset-left));
+  /* Clear the fixed mobile bottom bar (78px) AND the home-indicator inset. */
+  padding-bottom: calc(78px + var(--s-5) + env(safe-area-inset-bottom));
 }
 @media (min-width: 720px) {
   .content {
     padding: var(--s-6);
+    /* No bottom bar on desktop; the sidebar/rail carry the safe area. */
     padding-bottom: var(--s-6);
   }
 }
@@ -157,6 +163,10 @@
   right: 0;
   bottom: 0;
   z-index: var(--z-sticky);
+  /* Sit the nav above the home-indicator / gesture area, filling the inset with
+   * the bar's own surface so nothing shows through beneath it. */
+  padding-bottom: env(safe-area-inset-bottom);
+  background: var(--surface);
 }
 @media (min-width: 720px) {
   .bottomBar {

@@ -105,7 +105,7 @@ public sealed class GuestEndpointsTests : IClassFixture<GuestEndpointsTests.Gues
             Assert.NotEqual(HttpStatusCode.TooManyRequests, ok.StatusCode); // under the limit → allowed
         }
 
-        // ...the 6th trips the limiter: 429 with FastAPI's { detail } body.
+        // ...the 6th trips the limiter: 429 (never 503) with the { detail } body shape.
         var limited = await client.PostAsJsonAsync("/api/auth/otp/request", new { phone });
         Assert.Equal(HttpStatusCode.TooManyRequests, limited.StatusCode);
         using var doc = JsonDocument.Parse(await limited.Content.ReadAsStringAsync());

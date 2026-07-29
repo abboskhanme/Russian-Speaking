@@ -35,6 +35,15 @@
   border-color: var(--primary-tint-2);
   box-shadow: var(--e-0);
 }
+/* panel — a solid, clearly-bordered content card that lifts off the page. Used
+ * for the grid/list cards in the Mashq + AI Suhbat hubs so they read as crisp,
+ * separated cards (surface fill + a visible border + a subtle elevation) rather
+ * than hairlines that blend into the background. */
+.panel {
+  background: var(--surface);
+  border-color: var(--line-2);
+  box-shadow: var(--e-1);
+}
 
 /* ---- Padding scale ---- */
 .pad-none {

@@ -19,7 +19,8 @@ namespace Govori.Assessment;
 /// rate-limited via the shared ASP.NET Core RateLimiter (<see cref="RateLimitPolicyNames.GuestPlacement"/>),
 /// which is FAIL-OPEN (a store outage ALLOWS the request — see Govori.Api/RateLimiting). The flow stores
 /// NOTHING server-side (questions are hardcoded, bands are returned and discarded); the guest is a trial,
-/// so no <c>govori_placed</c> flag is set. Error bodies use FastAPI's <c>{ "detail": ... }</c> shape.</para>
+/// so no <c>govori_placed</c> flag is set. Error bodies use the <c>{ "detail": ... }</c> shape used
+/// across the API.</para>
 /// </summary>
 public static class GuestPlacementEndpoints
 {
@@ -73,7 +74,7 @@ public static class GuestPlacementEndpoints
         return app;
     }
 
-    // FastAPI's default error shape is { "detail": ... } — matched across the .NET slice.
+    // Error bodies use the { "detail": ... } shape used across the API.
     private static IResult Detail(string message, int statusCode)
         => Results.Json(new { detail = message }, statusCode: statusCode);
 }

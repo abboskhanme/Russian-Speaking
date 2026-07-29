@@ -1,8 +1,8 @@
 namespace Govori.Identity.Providers;
 
 /// <summary>
-/// One-time OTP storage, ported from backend/app/services/otp.py and reused for phone codes.
-/// A code is stored under <c>otp:&lt;key&gt;</c> with a TTL (the key is the normalised phone);
+/// One-time OTP storage for phone codes. A code is stored under <c>otp:&lt;key&gt;</c> with a TTL
+/// (the key is the normalised phone);
 /// wrong guesses are attempt-limited under <c>otp_attempts:&lt;key&gt;</c> and burn the code once
 /// the limit is hit.
 ///
@@ -22,4 +22,10 @@ public interface IOtpStore
     /// <summary>Return <c>true</c> IFF <paramref name="code"/> matches the code stored under
     /// <paramref name="key"/> (one-shot, attempt-limited). Mirrors <c>otp.verify</c>.</summary>
     Task<bool> VerifyAsync(string key, string code, CancellationToken ct = default);
+
+    // NOTE: there is deliberately no Invalidate/Burn member here. Burning a code after a failed
+    // Telegram ownership proof happens in the WORKER, which cannot reference this module (host →
+    // domain edge), so it goes through ITelegramOtpLinkStore.BurnAsync instead. An unused burn
+    // method on this interface would read as if the Identity side covered that path when it does
+    // not. Both delete the same key, derived once in Govori.Platform.Otp.OtpRedisKeys.
 }

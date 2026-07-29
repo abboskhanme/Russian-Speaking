@@ -56,6 +56,26 @@ export function InfoIcon(props: SVGProps<SVGSVGElement>) {
   );
 }
 
+/** Warning triangle (the burned-code delivery alerts on the code step). */
+export function WarnIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg width={18} height={18} viewBox="0 0 24 24" fill="none" aria-hidden {...props}>
+      <path
+        d="M12 4 2.7 20h18.6L12 4Z"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M12 10v4m0 3h.01"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}
+
 /** Telegram paper-plane (the "open in Telegram" action). */
 export function TelegramIcon(props: SVGProps<SVGSVGElement>) {
   return (

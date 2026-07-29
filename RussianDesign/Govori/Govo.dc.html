@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+@keyframes govo-breathe { 0%,100%{transform:scale(1)} 50%{transform:scale(1.035)} }
+@keyframes govo-ant { 0%,100%{transform:rotate(-7deg)} 50%{transform:rotate(7deg)} }
+@keyframes govo-wf { 0%,100%{transform:scaleY(0.3)} 50%{transform:scaleY(1)} }
+@keyframes govo-dot { 0%,100%{opacity:.2} 50%{opacity:1} }
+@media (prefers-reduced-motion: reduce){ svg [style*="animation"]{ animation: none !important } }
+</style>
+</helmet>
+<div style="display:inline-flex;line-height:0">
+<svg width="{{ size }}" height="{{ size }}" viewBox="0 0 100 104" style="overflow:visible">
+  <g style="transform-box:fill-box;transform-origin:center;animation:govo-breathe 4s cubic-bezier(.4,0,.6,1) infinite">
+    <!-- antenna -->
+    <g style="transform-box:fill-box;transform-origin:50px 30px;animation:govo-ant 3.4s ease-in-out infinite">
+      <line x1="50" y1="30" x2="50" y2="12" stroke="{{ bodyColor }}" stroke-width="3.4" stroke-linecap="round"></line>
+      <circle cx="50" cy="9" r="4.6" fill="oklch(0.80 0.135 82)"></circle>
+    </g>
+    <!-- feet -->
+    <ellipse cx="38" cy="93" rx="8" ry="5" fill="{{ shadeColor }}"></ellipse>
+    <ellipse cx="62" cy="93" rx="8" ry="5" fill="{{ shadeColor }}"></ellipse>
+    <!-- body -->
+    <rect x="14" y="28" width="72" height="64" rx="30" fill="{{ bodyColor }}"></rect>
+    <!-- cheeks -->
+    <circle cx="28" cy="64" r="6" fill="oklch(0.74 0.12 28)" opacity=".55"></circle>
+    <circle cx="72" cy="64" r="6" fill="oklch(0.74 0.12 28)" opacity=".55"></circle>
+
+    <!-- eyes: normal -->
+    <sc-if value="{{ isNormalEyes }}" hint-placeholder-val="{{ true }}">
+      <g>
+        <ellipse cx="38" cy="52" rx="8.5" ry="10.5" fill="#fff"></ellipse>
+        <ellipse cx="62" cy="52" rx="8.5" ry="10.5" fill="#fff"></ellipse>
+        <circle cx="39.5" cy="{{ pupilY }}" r="4.3" fill="oklch(0.28 0.03 45)"></circle>
+        <circle cx="63.5" cy="{{ pupilY }}" r="4.3" fill="oklch(0.28 0.03 45)"></circle>
+        <circle cx="41" cy="{{ glintY }}" r="1.5" fill="#fff"></circle>
+        <circle cx="65" cy="{{ glintY }}" r="1.5" fill="#fff"></circle>
+      </g>
+    </sc-if>
+    <!-- eyes: proud -->
+    <sc-if value="{{ isProudEyes }}" hint-placeholder-val="{{ false }}">
+      <g fill="none" stroke="#fff" stroke-width="4.6" stroke-linecap="round">
+        <path d="M30 55 Q38 46 46 55"></path>
+        <path d="M54 55 Q62 46 70 55"></path>
+      </g>
+    </sc-if>
+    <!-- eyes: sleepy -->
+    <sc-if value="{{ isSleepyEyes }}" hint-placeholder-val="{{ false }}">
+      <g fill="none" stroke="#fff" stroke-width="4.6" stroke-linecap="round">
+        <path d="M31 54 Q38 58 45 54"></path>
+        <path d="M55 54 Q62 58 69 54"></path>
+      </g>
+    </sc-if>
+
+    <!-- mouth: smile -->
+    <sc-if value="{{ isSmile }}" hint-placeholder-val="{{ true }}">
+      <path d="M41 70 Q50 79 59 70" fill="none" stroke="oklch(0.30 0.04 40)" stroke-width="3.8" stroke-linecap="round"></path>
+    </sc-if>
+    <!-- mouth: proud big smile -->
+    <sc-if value="{{ isProudSmile }}" hint-placeholder-val="{{ false }}">
+      <path d="M39 69 Q50 82 61 69 Z" fill="oklch(0.30 0.04 40)"></path>
+    </sc-if>
+    <!-- mouth: waveform (listening) -->
+    <sc-if value="{{ isWave }}" hint-placeholder-val="{{ false }}">
+      <g fill="oklch(0.30 0.04 40)">
+        <rect x="35" y="66" width="4.6" height="14" rx="2.3" style="transform-box:fill-box;transform-origin:center;animation:govo-wf .9s ease-in-out infinite;animation-delay:0s"></rect>
+        <rect x="43" y="66" width="4.6" height="14" rx="2.3" style="transform-box:fill-box;transform-origin:center;animation:govo-wf .9s ease-in-out infinite;animation-delay:.16s"></rect>
+        <rect x="51" y="66" width="4.6" height="14" rx="2.3" style="transform-box:fill-box;transform-origin:center;animation:govo-wf .9s ease-in-out infinite;animation-delay:.32s"></rect>
+        <rect x="59" y="66" width="4.6" height="14" rx="2.3" style="transform-box:fill-box;transform-origin:center;animation:govo-wf .9s ease-in-out infinite;animation-delay:.12s"></rect>
+      </g>
+    </sc-if>
+    <!-- mouth: thinking small o + dots -->
+    <sc-if value="{{ isThink }}" hint-placeholder-val="{{ false }}">
+      <g>
+        <ellipse cx="50" cy="72" rx="4" ry="4.5" fill="oklch(0.30 0.04 40)"></ellipse>
+        <circle cx="90" cy="40" r="3" fill="{{ bodyColor }}" style="animation:govo-dot 1.2s ease-in-out infinite;animation-delay:0s"></circle>
+        <circle cx="96" cy="33" r="2.4" fill="{{ bodyColor }}" style="animation:govo-dot 1.2s ease-in-out infinite;animation-delay:.2s"></circle>
+        <circle cx="100" cy="27" r="1.8" fill="{{ bodyColor }}" style="animation:govo-dot 1.2s ease-in-out infinite;animation-delay:.4s"></circle>
+      </g>
+    </sc-if>
+    <!-- mouth: sleepy -->
+    <sc-if value="{{ isSleepy }}" hint-placeholder-val="{{ false }}">
+      <path d="M45 72 Q50 75 55 72" fill="none" stroke="oklch(0.30 0.04 40)" stroke-width="3.4" stroke-linecap="round"></path>
+    </sc-if>
+  </g>
+</svg>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:150,&quot;height&quot;:150},&quot;mood&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;idle&quot;,&quot;listening&quot;,&quot;thinking&quot;,&quot;proud&quot;,&quot;sleepy&quot;],&quot;default&quot;:&quot;idle&quot;,&quot;tsType&quot;:&quot;string&quot;},&quot;size&quot;:{&quot;editor&quot;:&quot;int&quot;,&quot;default&quot;:96,&quot;tsType&quot;:&quot;number&quot;},&quot;color&quot;:{&quot;editor&quot;:&quot;color&quot;,&quot;default&quot;:&quot;oklch(0.665 0.185 40)&quot;,&quot;tsType&quot;:&quot;string&quot;}}">
+class Component extends DCLogic {
+  renderVals() {
+    const mood = this.props.mood || 'idle';
+    const thinking = mood === 'thinking';
+    return {
+      size: this.props.size || 96,
+      bodyColor: this.props.color || 'oklch(0.665 0.185 40)',
+      shadeColor: 'oklch(0.595 0.180 38 / .35)',
+      mood,
+      pupilY: thinking ? 48 : 53,
+      glintY: thinking ? 45 : 50,
+      isNormalEyes: mood === 'idle' || mood === 'listening' || thinking,
+      isProudEyes: mood === 'proud',
+      isSleepyEyes: mood === 'sleepy',
+      isSmile: mood === 'idle',
+      isProudSmile: mood === 'proud',
+      isWave: mood === 'listening',
+      isThink: thinking,
+      isSleepy: mood === 'sleepy',
+    };
+  }
+}
+</script>
+</body>
+</html>

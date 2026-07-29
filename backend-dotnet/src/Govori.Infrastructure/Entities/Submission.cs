@@ -15,6 +15,11 @@ public partial class Submission
 
     public double? AudioDurationSec { get; set; }
 
+    /// <summary>Set by the retention job when the audio object is purged (kept ≥90 days).
+    /// The row + transcript + evaluation stay; only the heavy audio is reclaimed. Null =
+    /// audio still available; non-null = playback gone (the UI shows an "expired" note).</summary>
+    public DateTime? AudioDeletedAt { get; set; }
+
     /// <summary>Maps PG native enum <c>public.submission_status</c> (docs/07 §7.4 trap #1).</summary>
     public SubmissionStatus Status { get; set; }
 

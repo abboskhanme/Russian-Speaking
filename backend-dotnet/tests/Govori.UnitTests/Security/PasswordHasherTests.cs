@@ -3,9 +3,9 @@ using Govori.Identity.Security;
 namespace Govori.UnitTests.Security;
 
 /// <summary>
-/// Drives the PRODUCTION PasswordHasher against the Python-generated bcrypt
-/// corpus. The Characterization suite proved the raw library agrees with Python;
-/// these tests prove the PORT (PasswordHasher.Hash/Verify) does too.
+/// Drives the PRODUCTION PasswordHasher against the frozen golden bcrypt corpus.
+/// The Characterization suite proves the raw bcrypt library agrees with that
+/// corpus; these tests prove the PasswordHasher wrapper (Hash/Verify) does too.
 /// </summary>
 public class PasswordHasherTests
 {
@@ -24,21 +24,22 @@ public class PasswordHasherTests
 
     [Theory]
     [MemberData(nameof(Cases))]
-    public void Verify_accepts_every_Python_generated_hash(BcryptCase c)
+    public void Verify_accepts_every_stored_production_hash(BcryptCase c)
     {
-        // The whole port rests on this: a Python-written hash must verify in C#.
+        // The whole cutover rests on this: every stored hash must verify here.
         Assert.True(_hasher.Verify(c.Password, c.Hash),
-            $"PasswordHasher failed to verify a Python hash ({c.PasswordUtf8Bytes} bytes). " +
+            $"PasswordHasher failed to verify a stored hash ({c.PasswordUtf8Bytes} bytes). " +
             "On cutover this user cannot log in.");
     }
 
     [Theory]
     [MemberData(nameof(Cases))]
-    public void Verify_of_wrong_password_matches_Python(BcryptCase c)
+    public void Verify_of_wrong_password_matches_the_recorded_outcome(BcryptCase c)
     {
         // For a password already >= 72 bytes, appending a char changes only bytes
-        // past the truncation point, so bcrypt still verifies — Python records
-        // that as wrong_password_verifies=true. C# must match Python's answer.
+        // past the truncation point, so bcrypt still verifies — those cases carry
+        // wrong_password_verifies=true. The assertion is "matches the recorded
+        // outcome", not "always rejects".
         var wrongVerifies = _hasher.Verify(c.Password + "x", c.Hash);
         Assert.Equal(c.WrongPasswordVerifies, wrongVerifies);
     }

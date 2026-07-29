@@ -1,77 +1,41 @@
 import type {
-  HomeContinueTarget,
-  HomeDailyGoal,
-  HomeModule,
-  HomeStreak,
+  HomeGroup,
+  HomeStats,
+  HomeToday,
   HomeUser,
 } from "./HomeScreen";
 
 /**
  * Fixture for the Home screen — lets it render standalone (the default export
- * uses this) and gives the architect a shape reference. Presentational only;
- * nothing here calls a backend.
+ * uses this) and mirrors the owner's mockup. Presentational only; nothing here
+ * calls a backend.
  */
 
-export const mockUser: HomeUser = {
-  name: "Aziz",
-  greeting: "Xayrli tong,",
+export const mockHomeUser: HomeUser = { name: "Aziz" };
+
+export const mockHomeToday: HomeToday = {
+  goalMinutes: 5,
+  // ~1/3 of the way through today's 5-minute goal (first segment filling).
+  doneSeconds: 100,
+};
+
+export const mockHomeGroup: HomeGroup = {
+  teacherName: "Dilnoza Karimova",
+  name: "B1 · Kechki-3",
+  memberCount: 18,
+  nextAssignment: {
+    title: "O'zingni tanishtir",
+    // "bugun 21:00" — a due time later today.
+    dueAt: (() => {
+      const d = new Date();
+      d.setHours(21, 0, 0, 0);
+      return d.toISOString();
+    })(),
+  },
+};
+
+export const mockHomeStats: HomeStats = {
   level: "A2",
+  weekMinutes: 34,
+  currentStreak: 12,
 };
-
-export const mockDailyGoal: HomeDailyGoal = {
-  done: 3,
-  target: 5,
-  unit: "daqiqa",
-};
-
-export const mockStreak: HomeStreak = {
-  current: 12,
-  freezes: 2,
-  todayComplete: false,
-};
-
-export const mockContinue: HomeContinueTarget = {
-  kicker: "Bugungi mashq",
-  title: "Bugungi 5 daqiqa",
-  subtitle: "Isinish · gapirish · kechagi xatoni tuzatish",
-  band: "A2",
-  steps: { total: 3, done: 1 },
-  mood: "idle",
-  actionLabel: "Boshlash →",
-};
-
-export const mockModules: HomeModule[] = [
-  {
-    id: "mod-daily-life",
-    name: "Kundalik hayot",
-    level: "A2",
-    count: "12 vazifa",
-    progress: 68,
-    status: "in-progress",
-    teacher: true,
-  },
-  {
-    id: "mod-travel",
-    name: "Sayohat va yo'l",
-    level: "A2",
-    count: "10 vazifa",
-    progress: 100,
-    status: "done",
-  },
-  {
-    id: "mod-work",
-    name: "Ish va kasb",
-    level: "B1",
-    count: "14 vazifa",
-    progress: 0,
-    status: "not-started",
-  },
-  {
-    id: "mod-city",
-    name: "Shahar va transport",
-    level: "B1",
-    count: "11 vazifa",
-    progress: 0,
-    status: "locked",
-  },
-];

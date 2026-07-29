@@ -16,7 +16,7 @@ namespace Govori.Assessment;
 /// <para>All routes <c>RequireAuthorization()</c> (a student only takes placement AFTER registering).
 /// The flow stores NOTHING server-side (no schema change): questions are hardcoded, per-answer bands
 /// are returned and discarded, and the client marks "placement done" in localStorage. Error bodies
-/// use FastAPI's <c>{ "detail": ... }</c> shape, matching the rest of the .NET slice.</para>
+/// use the <c>{ "detail": ... }</c> shape used across the API.</para>
 /// </summary>
 public static class PlacementEndpoints
 {

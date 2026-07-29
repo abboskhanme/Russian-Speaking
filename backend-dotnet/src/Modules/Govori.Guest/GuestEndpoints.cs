@@ -8,10 +8,10 @@ using Microsoft.Extensions.DependencyInjection;
 namespace Govori.Guest;
 
 /// <summary>
-/// The Guest domain's auth-less HTTP surface (docs/07 §3.8), ported from
-/// backend/app/api/v1/guest.py. The funnel's "value first": a first-time visitor records the demo
-/// phrase, we run the SAME Azure pronunciation assessment the app uses and return per-criterion
-/// scores + weakest words + a rough CEFR level — all WITHOUT an account, storing nothing.
+/// The Guest domain's auth-less HTTP surface (docs/07 §3.8). The funnel's "value first": a
+/// first-time visitor records the demo phrase, we run the SAME Azure pronunciation assessment the
+/// app uses and return per-criterion scores + weakest words + a rough CEFR level — all WITHOUT an
+/// account, storing nothing.
 ///
 /// <para>Same MODULAR-ENDPOINT PATTERN as <c>Govori.Identity</c>: one <c>MapGuestEndpoints</c>
 /// extension the composition root calls. These endpoints are deliberately NOT
@@ -24,11 +24,11 @@ public static class GuestEndpoints
     {
         var guest = app.MapGroup("/api/guest");
 
-        // GET /api/guest/demo → { phrase } (guest.py:63-65). No rate limit in Python.
+        // GET /api/guest/demo → { phrase }. Not rate-limited: it only reads a constant list.
         guest.MapGet("/demo", (GuestService svc) =>
             Results.Ok(new GuestDemoResponse(svc.RandomPhrase())));
 
-        // POST /api/guest/assess?phrase=... (raw audio body) → demo scores (guest.py:68-128).
+        // POST /api/guest/assess?phrase=... (raw audio body) → demo scores.
         // 400 (no audio), 413 (too large), 503 (speech analysis failed), else 200.
         // RATE LIMIT: guest_assess 15/3600, per-IP, FAIL-OPEN.
         guest.MapPost("/assess", async (HttpRequest request, GuestService svc, CancellationToken ct) =>
@@ -51,7 +51,7 @@ public static class GuestEndpoints
         }).RequireRateLimiting(RateLimitPolicyNames.GuestAssess);
 
         // GET /api/guest/tts?text=... → MP3 of the correct pronunciation, restricted to the demo
-        // phrase's own words so the public endpoint can't do arbitrary TTS (guest.py:131-146).
+        // phrase's own words so this auth-less endpoint can't be used for arbitrary TTS.
         // 400 (empty/too long/non-demo word), 503 (TTS unavailable), else 200 audio/mpeg.
         // RATE LIMIT: guest_tts 60/3600, per-IP, FAIL-OPEN.
         guest.MapGet("/tts", async (string? text, ITtsProvider tts, HttpResponse response, CancellationToken ct) =>
@@ -73,14 +73,14 @@ public static class GuestEndpoints
                 return Detail("TTS unavailable", StatusCodes.Status503ServiceUnavailable);
             }
 
-            response.Headers.CacheControl = "public, max-age=86400"; // guest.py:145
+            response.Headers.CacheControl = "public, max-age=86400"; // demo audio never changes
             return Results.Bytes(audio, "audio/mpeg");
         }).RequireRateLimiting(RateLimitPolicyNames.GuestTts);
 
         return app;
     }
 
-    // FastAPI's default error shape is { "detail": ... } — matched across the .NET slice.
+    // Errors use the { "detail": ... } shape used across the API, so clients parse one form.
     private static IResult Detail(string message, int statusCode)
         => Results.Json(new { detail = message }, statusCode: statusCode);
 }

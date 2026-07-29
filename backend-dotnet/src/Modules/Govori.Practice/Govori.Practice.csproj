@@ -6,7 +6,7 @@
     <ProjectReference Include="..\..\Govori.Platform\Govori.Platform.csproj" />
     <!-- Freemium-gate reuse (task decision 3a): the 402 gate calls Catalog's frozen
          CatalogService.NeedsPremiumAsync (the single, C4/C9-characterized source of truth)
-         instead of re-implementing needs_premium/task_index here (divergence risk). -->
+         instead of re-implementing the premium/position rules here (divergence risk). -->
     <ProjectReference Include="..\Govori.Catalog\Govori.Catalog.csproj" />
   </ItemGroup>
 

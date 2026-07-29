@@ -14,7 +14,7 @@ import { Badge, Button, Card, Mascot, Text } from "../../shared/ui";
 import {
   AppShell,
   Brand,
-  ThemeToggle,
+  NotificationsBell,
   studentNavItems,
 } from "../../widgets";
 import { useNavHandler } from "../nav";
@@ -37,7 +37,7 @@ export default function ChatPage() {
           {t("nav.chat")}
         </Text>
       }
-      headerEnd={<ThemeToggle />}
+      headerEnd={<NotificationsBell />}
     >
       <div
         style={{

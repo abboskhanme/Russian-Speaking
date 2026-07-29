@@ -1,5 +1,6 @@
 using System.Collections.Concurrent;
 using Govori.Identity.Providers;
+using Govori.Platform.Telegram;
 
 namespace Govori.IntegrationTests;
 
@@ -25,6 +26,7 @@ public sealed class FakeOtpStore : IOtpStore
             _codes.TryRemove(email, out _); // one-shot
         return Task.FromResult(ok);
     }
+
 }
 
 /// <summary>
@@ -49,7 +51,9 @@ public sealed class FakeOtpDeliverySender : IOtpDeliverySender
 
     public string Channel => "dev";
 
-    public Task<OtpDeliveryResult> SendAsync(string phone, string code, CancellationToken ct = default)
+    // requestId is ignored on purpose: this fake is the DEV channel, which has no Telegram step and
+    // therefore no delivery state machine to advance (same as the real DevOtpDeliverySender).
+    public Task<OtpDeliveryResult> SendAsync(string phone, string code, string requestId, CancellationToken ct = default)
     {
         _sent[phone] = code;
         return Task.FromResult(new OtpDeliveryResult()); // no deep link in dev
@@ -59,6 +63,106 @@ public sealed class FakeOtpDeliverySender : IOtpDeliverySender
         => string.Equals((code ?? string.Empty).Trim(), "000000", StringComparison.Ordinal);
 
     public string? LastCodeFor(string phone) => _sent.TryGetValue(phone, out var c) ? c : null;
+}
+
+/// <summary>
+/// In-memory <see cref="IPendingPhoneChangeStore"/> for tests — no Redis. Keyed by user id, exactly
+/// like the real Redis store, so a test that tries to confirm ANOTHER user's pending change reads
+/// its own (absent) entry and is refused, which is the property being asserted.
+/// </summary>
+public sealed class FakePendingPhoneChangeStore : IPendingPhoneChangeStore
+{
+    private readonly ConcurrentDictionary<Guid, string> _pending = new();
+
+    public Task SetAsync(Guid userId, string newPhone, int ttlSeconds, CancellationToken ct = default)
+    {
+        _pending[userId] = newPhone; // TTL is irrelevant within a test's lifetime
+        return Task.CompletedTask;
+    }
+
+    public Task<string?> GetAsync(Guid userId, CancellationToken ct = default)
+        => Task.FromResult(_pending.TryGetValue(userId, out var phone) ? phone : null);
+
+    public Task ClearAsync(Guid userId, CancellationToken ct = default)
+    {
+        _pending.TryRemove(userId, out _);
+        return Task.CompletedTask;
+    }
+}
+
+/// <summary>
+/// In-memory <see cref="ITelegramOtpLinkStore"/> for tests — no Redis. Models the key spaces the real
+/// store owns (token → link, request_id → state, tg_user → pending), so the deep_link OTP delivery path
+/// can be exercised end-to-end without touching Redis. The proactive-DM tests swap it in so the
+/// TelegramBotOtpSender's <c>deep_link</c> branch (CreateAsync + SetStateAsync) has somewhere to write.
+/// </summary>
+public sealed class FakeTelegramOtpLinkStore : ITelegramOtpLinkStore
+{
+    private readonly ConcurrentDictionary<string, TelegramOtpLink> _tokens = new();
+    private readonly ConcurrentDictionary<string, string> _states = new();
+    private readonly ConcurrentDictionary<long, string> _pending = new();
+
+    public Task<string> CreateAsync(string phone, string code, string requestId, int ttlSeconds, CancellationToken ct = default)
+    {
+        var token = Guid.NewGuid().ToString("N");
+        _tokens[token] = new TelegramOtpLink(phone, code, requestId);
+        return Task.FromResult(token);
+    }
+
+    public Task<TelegramOtpLink?> ResolveAsync(string token, CancellationToken ct = default)
+        => Task.FromResult(_tokens.TryGetValue(token ?? string.Empty, out var link) ? link : null);
+
+    public Task SetStateAsync(string requestId, string state, int ttlSeconds, CancellationToken ct = default)
+    {
+        _states[requestId] = state;
+        return Task.CompletedTask;
+    }
+
+    public Task<string?> GetStateAsync(string requestId, CancellationToken ct = default)
+        => Task.FromResult(_states.TryGetValue(requestId ?? string.Empty, out var s) ? s : null);
+
+    public Task BurnAsync(string phone, string token, CancellationToken ct = default)
+    {
+        if (!string.IsNullOrWhiteSpace(token))
+            _tokens.TryRemove(token, out _);
+        return Task.CompletedTask;
+    }
+
+    public Task SetPendingTokenAsync(long telegramUserId, string token, int ttlSeconds, CancellationToken ct = default)
+    {
+        _pending[telegramUserId] = token;
+        return Task.CompletedTask;
+    }
+
+    public Task<string?> GetPendingTokenAsync(long telegramUserId, CancellationToken ct = default)
+        => Task.FromResult(_pending.TryGetValue(telegramUserId, out var t) ? t : null);
+
+    public Task ClearPendingTokenAsync(long telegramUserId, CancellationToken ct = default)
+    {
+        _pending.TryRemove(telegramUserId, out _);
+        return Task.CompletedTask;
+    }
+}
+
+/// <summary>Test <see cref="ITelegramMessenger"/> — records calls and returns a preset result instead
+/// of hitting the Telegram Bot API, so the proactive-DM tests can drive the direct/deep_link decision
+/// (true → at least one DM "succeeds" ⇒ direct; false → all fail ⇒ deep_link fallback).</summary>
+public sealed class FakeTelegramMessenger : ITelegramMessenger
+{
+    private readonly bool _result;
+    private int _calls;
+
+    public FakeTelegramMessenger(bool result) => _result = result;
+
+    public int Calls => _calls;
+
+    public bool WasCalled => Calls > 0;
+
+    public Task<bool> SendMessageAsync(long chatId, string text, CancellationToken ct = default)
+    {
+        Interlocked.Increment(ref _calls);
+        return Task.FromResult(_result);
+    }
 }
 
 /// <summary>Test <see cref="IGoogleTokenVerifier"/> — returns a preset result without calling

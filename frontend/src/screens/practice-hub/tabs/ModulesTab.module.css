@@ -1,0 +1,227 @@
+/* ModulesTab — the "Modullar" tab body of the Mashq hub (D1/E1).
+ * Composed from shared/ui + tokens; every colour / space / radius / shadow /
+ * motion value is a token. Full-width per the house style — the root spans its
+ * column with no max-width + auto-margin centring; inner blocks align with
+ * flex/grid, never a centred narrow wrapper. */
+
+.tab {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-4);
+  width: 100%;
+}
+
+/* ---- Filter pills ---- */
+.filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-2);
+  width: 100%;
+}
+.filterPill {
+  padding: var(--s-2) var(--s-4);
+  border: 1px solid var(--line);
+  border-radius: var(--r-pill);
+  background: var(--surface);
+  color: var(--ink-soft);
+  font: inherit;
+  font-size: var(--t-body-s-size);
+  font-weight: var(--fw-semibold);
+  cursor: pointer;
+  transition:
+    background var(--m-fast),
+    color var(--m-fast),
+    border-color var(--m-fast);
+}
+.filterPill:hover:not(.filterActive) {
+  background: var(--surface-2);
+}
+.filterPill:active {
+  transform: scale(var(--tap-scale));
+}
+.filterPill:focus-visible {
+  outline: var(--focus-ring-width) solid var(--focus-ring);
+  outline-offset: var(--focus-ring-offset);
+}
+.filterActive {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: var(--primary-on);
+}
+
+/* ---- Empty state ---- */
+.empty {
+  padding: var(--s-5) 0;
+}
+
+/* ---- Module list ---- */
+.list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-3);
+  width: 100%;
+}
+.listItem {
+  display: flex;
+  width: 100%;
+}
+
+.card {
+  width: 100%;
+}
+/* The whole card is one button: a leading state chip, the name + meta + bar,
+ * laid out in a row. `asChild` puts these styles onto the real <button>. */
+.cardBtn {
+  display: flex;
+  align-items: center;
+  gap: var(--s-4);
+  width: 100%;
+  padding: var(--s-4);
+  text-align: left;
+  cursor: pointer;
+  /* Card already paints the surface, border, radius, hover + focus ring. */
+  background: none;
+  border: 0;
+  font: inherit;
+  color: inherit;
+}
+
+/* ---- State chip ---- */
+.chip {
+  display: grid;
+  place-items: center;
+  width: 52px;
+  height: 52px;
+  flex: none;
+  border-radius: var(--r-pill);
+}
+.chipPct {
+  color: inherit;
+  line-height: 1;
+}
+.chipInfo {
+  background: var(--info-tint);
+  color: var(--info);
+}
+.chipSuccess {
+  background: var(--success-tint);
+  color: var(--success);
+}
+.chipNeutral {
+  background: var(--surface-2);
+  color: var(--muted);
+}
+.chipLocked {
+  background: var(--surface-2);
+  color: var(--muted);
+}
+
+/* ---- Card body ---- */
+.cardBody {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-1);
+}
+.nameRow {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  min-width: 0;
+}
+.name {
+  min-width: 0;
+}
+.teacherBadge {
+  flex: none;
+}
+.meta {
+  min-width: 0;
+}
+
+/* Thin tokened progress bar: --info fill in progress, --success once done, an
+ * empty track otherwise. Decorative (aria-hidden) — the meta line carries the
+ * count in words. */
+.bar {
+  display: block;
+  width: 100%;
+  height: 6px;
+  margin-top: var(--s-1);
+  border-radius: var(--r-pill);
+  background: var(--line);
+  overflow: hidden;
+}
+.barFill {
+  display: block;
+  height: 100%;
+  border-radius: var(--r-pill);
+  /* --m-base is zeroed under prefers-reduced-motion in tokens.css. */
+  transition: width var(--m-base);
+}
+.barInfo {
+  background: var(--info);
+}
+.barDone {
+  background: var(--success);
+}
+.barIdle {
+  background: transparent;
+}
+
+/* ---- AI-chat promo → Suhbat ---- */
+.promo {
+  width: 100%;
+  margin-top: var(--s-2);
+}
+.promoBtn {
+  display: flex;
+  align-items: center;
+  gap: var(--s-4);
+  width: 100%;
+  text-align: left;
+  cursor: pointer;
+  background: none;
+  border: 0;
+  font: inherit;
+  color: inherit;
+}
+.promoIcon {
+  display: grid;
+  place-items: center;
+  width: 48px;
+  height: 48px;
+  flex: none;
+  border-radius: var(--r-pill);
+  background: var(--surface);
+  font-size: 24px;
+  line-height: 1;
+}
+.promoBody {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-1);
+}
+.promoChevron {
+  flex: none;
+  display: grid;
+  place-items: center;
+  color: var(--muted);
+}
+
+/* ---- Responsive ---- */
+@media (max-width: 420px) {
+  .cardBtn {
+    padding: var(--s-3);
+    gap: var(--s-3);
+  }
+  .chip {
+    width: 46px;
+    height: 46px;
+  }
+}

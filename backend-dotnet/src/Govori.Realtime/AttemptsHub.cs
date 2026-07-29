@@ -16,8 +16,8 @@ namespace Govori.Realtime;
 /// <para><b>Auth (§7.5):</b> the hub is <c>[Authorize]</c> (same JWT bearer config as the REST API;
 /// the token is read from the <c>access_token</c> query string for the WebSocket/SSE transports — see
 /// Program.cs). Subscription is OWNERSHIP-CHECKED: a student may join ONLY their own attempt's group;
-/// teachers/admins follow the exact same visibility as <c>GET /submissions/{id}</c>
-/// (submissions.py:255-274). A caller who may not view the attempt gets a <see cref="HubException"/>
+/// teachers/admins follow the exact same visibility rules as <c>GET /submissions/{id}</c>.
+/// A caller who may not view the attempt gets a <see cref="HubException"/>
 /// and never joins — so progress for an attempt only ever reaches people allowed to see it.</para>
 /// </summary>
 [Authorize]
@@ -40,8 +40,8 @@ public sealed class AttemptsHub : Hub
             .Include(s => s.Question)
             .FirstOrDefaultAsync(s => s.Id == submissionId, Context.ConnectionAborted);
 
-        // A missing OR not-visible attempt both answer "forbidden" — never leak existence, exactly
-        // as get_submission returns 404 for both (submissions.py:263-273).
+        // A missing OR not-visible attempt both answer "forbidden" — never leak existence, matching
+        // the REST endpoint, which returns the same status for both.
         if (sub is null || !await CanViewAsync(userId, sub))
             throw new HubException("forbidden");
 
@@ -52,7 +52,7 @@ public sealed class AttemptsHub : Hub
     public Task UnsubscribeFromAttempt(Guid submissionId)
         => Groups.RemoveFromGroupAsync(Context.ConnectionId, GroupFor(submissionId), Context.ConnectionAborted);
 
-    // Visibility, mirroring PracticeService.GetAsync / get_submission (submissions.py:267-273):
+    // Visibility, kept in lockstep with PracticeService.GetAsync:
     // the owner always sees it; a student only their own; an admin any; a teacher only their OWN
     // question answered by a student in their OWN roster.
     private async Task<bool> CanViewAsync(Guid userId, Submission sub)
@@ -73,8 +73,9 @@ public sealed class AttemptsHub : Hub
             gm => gm.Group.TeacherId == userId && gm.StudentId == sub.StudentId, Context.ConnectionAborted);
     }
 
-    // A valid ACCESS token carrying a parseable `sub` (a refresh token is rejected, mirroring
-    // deps.py:25 and PracticeEndpoints.TryGetUserId). role/is_active are read from the DB above.
+    // A valid ACCESS token carrying a parseable `sub`. A refresh token is deliberately REJECTED
+    // here, same as PracticeEndpoints.TryGetUserId. role/is_active are read from the DB above,
+    // never trusted from the token.
     private static bool TryGetUserId(ClaimsPrincipal? principal, out Guid userId)
     {
         userId = Guid.Empty;

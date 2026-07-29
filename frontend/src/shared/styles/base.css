@@ -25,8 +25,33 @@ body {
   text-rendering: optimizeLegibility;
 }
 
+/* Never scroll sideways. The viewport is `viewport-fit=cover`, so the layout
+ * extends under the notch and to the physical edges; individual layouts add
+ * `env(safe-area-inset-*)` gutters, and this is the safety net that stops any
+ * stray wide element from pushing the whole page off-screen (which reads as
+ * content "pressed into" or past the edges, or a page you can scroll left/right).
+ * `overflow-x: hidden` on the documentElement is what iOS Safari actually honours
+ * — clipping there, not on `#root`, avoids the `clip → overflow-y:auto` side
+ * effect that turns the root into a nested scroll container. */
+/* `clip`, not `hidden`: iOS Safari frequently ignores `overflow-x: hidden` on
+ * the document, and `hidden` also turns the element into a programmatic scroll
+ * container. `clip` just clips — no scroll container, no nested-scroll side
+ * effect — and it is the reliable way to kill sideways scrolling. */
+html {
+  overflow-x: clip;
+}
+
+body {
+  overflow-x: clip;
+  width: 100%;
+  max-width: 100%;
+}
+
 #root {
   min-height: 100dvh;
+  width: 100%;
+  max-width: 100%;
+  overflow-x: clip;
 }
 
 img,

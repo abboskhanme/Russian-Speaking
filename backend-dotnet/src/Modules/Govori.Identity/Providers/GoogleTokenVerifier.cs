@@ -4,8 +4,8 @@ using System.Text.Json;
 namespace Govori.Identity.Providers;
 
 /// <summary>
-/// Verifies a Google ID token via Google's tokeninfo endpoint — a 1:1 port of
-/// backend/app/api/v1/auth.py <c>_verify_google_token</c>:
+/// Verifies a Google ID token via Google's tokeninfo endpoint. Each failure mode maps to a
+/// distinct status so the endpoint can pick the right HTTP code:
 /// <list type="bullet">
 ///   <item>no client id ⇒ <see cref="GoogleTokenStatus.NotConfigured"/> (503)</item>
 ///   <item>transport failure ⇒ <see cref="GoogleTokenStatus.Unreachable"/> (502)</item>

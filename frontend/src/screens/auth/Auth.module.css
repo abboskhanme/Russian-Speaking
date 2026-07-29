@@ -22,8 +22,9 @@
  * The toggle carries its own surface/border/icon colours, so we only place it. */
 .themeToggle {
   position: absolute;
-  top: var(--s-4);
-  inset-inline-end: var(--s-4);
+  /* Clear the notch / status bar and the rounded top-right corner. */
+  top: max(var(--s-4), env(safe-area-inset-top));
+  inset-inline-end: max(var(--s-4), env(safe-area-inset-right));
   z-index: var(--z-raised);
 }
 
@@ -34,7 +35,11 @@
   background: var(--primary);
   color: var(--primary-on);
   border-radius: 0 0 var(--r-xl) var(--r-xl);
-  padding: clamp(48px, 7vw, 60px) var(--s-6) var(--s-7, 28px);
+  /* Full-bleed banner: the orange reaches the screen edges, but its content
+   * clears the notch (top) and never touches the side edges. */
+  padding: max(clamp(48px, 7vw, 60px), calc(env(safe-area-inset-top) + var(--s-6)))
+    max(var(--s-6), env(safe-area-inset-right)) var(--s-7, 28px)
+    max(var(--s-6), env(safe-area-inset-left));
   text-align: center;
 }
 
@@ -69,8 +74,10 @@
 
 /* ============================ TABS ====================================== */
 .tabs {
-  width: 100%;
-  max-width: 440px;
+  /* A real side gutter so the pill bar never touches the screen edges (it did:
+   * "Ro'yxatdan o'tish" was pressed flush against the right edge). The gutter
+   * grows to the safe-area inset on notched devices. */
+  width: min(calc(100% - 2 * max(var(--s-4), env(safe-area-inset-left))), 440px);
   margin: var(--s-5) auto 0;
   display: flex;
   gap: var(--s-1);
@@ -113,7 +120,10 @@
   width: 100%;
   max-width: 440px;
   margin: 0 auto;
-  padding: var(--s-5) var(--s-5) var(--s-16);
+  /* Side gutters never collapse below the safe-area inset; bottom clears the
+   * home indicator so the last field / CTA isn't under the gesture area. */
+  padding: var(--s-5) max(var(--s-5), env(safe-area-inset-right))
+    calc(var(--s-16) + env(safe-area-inset-bottom)) max(var(--s-5), env(safe-area-inset-left));
   display: flex;
   flex-direction: column;
 }
@@ -373,6 +383,14 @@
 .otpBox[data-filled] {
   border-color: var(--primary);
 }
+/* Burned code (mismatch / not_own_contact) or an in-flight verify — typing here
+ * can no longer succeed, so the boxes read as inert. */
+.otpBox:disabled {
+  background: var(--surface-2);
+  color: var(--faint);
+  opacity: 0.6;
+  cursor: not-allowed;
+}
 .otpBox:focus {
   border-color: var(--primary);
   box-shadow: 0 0 0 3px color-mix(in oklab, var(--primary) 22%, transparent);
@@ -439,6 +457,67 @@
   font-family: var(--font-sans);
   font-size: var(--t-body-s-size);
   line-height: 1.4;
+}
+
+/* ============================ DELIVERY ALERT =========================== */
+/* The Telegram delivery-status poll's danger state (`mismatch` /
+ * `not_own_contact`): the bot refused to hand the code over and the server has
+ * already burned it. Louder than `.error` — bordered, titled, and carrying the
+ * only way forward (start over at phone entry). */
+.otpAlert {
+  display: flex;
+  gap: var(--s-3);
+  align-items: flex-start;
+  background: var(--danger-tint);
+  border: 1.5px solid var(--danger);
+  border-radius: var(--r-sm);
+  padding: var(--s-3) var(--s-4);
+}
+
+.otpAlertIcon {
+  flex: none;
+  display: inline-flex;
+  color: var(--danger);
+  margin-top: 1px;
+}
+
+.otpAlertBody {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--s-2);
+  min-width: 0;
+}
+
+.otpAlertTitle {
+  font-family: var(--font-sans);
+  font-size: var(--t-body-size);
+  font-weight: var(--fw-black);
+  color: var(--danger);
+}
+
+.otpAlertText {
+  font-family: var(--font-sans);
+  font-size: var(--t-body-s-size);
+  line-height: 1.45;
+  color: var(--ink-soft);
+}
+
+.otpAlertAction {
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  color: var(--danger);
+  font-family: var(--font-sans);
+  font-size: var(--t-body-s-size);
+  font-weight: var(--fw-bold);
+  text-decoration: underline;
+}
+.otpAlertAction:focus-visible {
+  outline: var(--focus-ring-width) solid var(--focus-ring);
+  outline-offset: var(--focus-ring-offset);
+  border-radius: var(--r-xs);
 }
 
 /* ============================ ERROR + RESEND =========================== */

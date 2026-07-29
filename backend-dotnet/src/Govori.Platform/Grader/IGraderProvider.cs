@@ -1,9 +1,8 @@
 namespace Govori.Platform.Grader;
 
 /// <summary>
-/// LLM grader abstraction (docs/07 §7.7, Faza 3.4). A faithful port of the <c>llm.analyze</c>
-/// contract in <c>backend/app/services/llm.py</c>: given the task + a transcript of the spoken
-/// answer, return structured 0–100 band scores (absolute + level-relative), Uzbek feedback and
+/// LLM grader abstraction (docs/07 §7.7, Faza 3.4). Given the task + a transcript of the spoken
+/// answer, returns structured 0–100 band scores (absolute + level-relative), Uzbek feedback and
 /// targeted corrections. TEXT-ONLY — delivery (pronunciation/intonation) is NOT judged here; the
 /// Azure PronScore is folded into the final band later by the C5 blend.
 ///
@@ -17,11 +16,11 @@ public interface IGraderProvider
     /// <summary>True when a real grader key/endpoint is wired. Real TODO-stub reports <c>false</c>.</summary>
     bool IsConfigured { get; }
 
-    /// <summary>Grade one transcript → <see cref="GraderResult"/>. Mirrors <c>llm.analyze(...)</c>.</summary>
+    /// <summary>Grade one transcript → <see cref="GraderResult"/>.</summary>
     Task<GraderResult> AnalyzeAsync(GraderRequest request, CancellationToken ct = default);
 }
 
-/// <summary>Everything the grader needs about one attempt (llm.analyze parameters, llm.py:341-357).</summary>
+/// <summary>Everything the grader needs about one attempt.</summary>
 public sealed record GraderRequest
 {
     public required string QuestionPrompt { get; init; }
@@ -37,8 +36,8 @@ public sealed record GraderRequest
 }
 
 /// <summary>
-/// Structured grader output, a port of Python's <c>EvaluationResult</c> (llm.py:233-239). Scores
-/// are 0–100; <c>Summary</c>/<c>Strengths</c>/<c>Improvements</c>/correction explanations are Uzbek.
+/// Structured grader output. Scores are 0–100;
+/// <c>Summary</c>/<c>Strengths</c>/<c>Improvements</c>/correction explanations are Uzbek.
 /// </summary>
 public sealed record GraderResult
 {
@@ -50,15 +49,16 @@ public sealed record GraderResult
     public IReadOnlyList<string> VocabularySuggestions { get; init; } = Array.Empty<string>();
 
     /// <summary>The model that actually graded (e.g. <c>gemini-2.x</c>). Persisted to
-    /// <c>evaluations.llm_model</c> — the REAL provider, fixing the Python hardcode of
-    /// <c>GEMINI_MODEL</c> (docs/07 §7.9).</summary>
+    /// <c>evaluations.llm_model</c>. This MUST be what the provider really used — never the
+    /// configured <c>GEMINI_MODEL</c> setting, which lies whenever the fallback provider ran
+    /// (docs/07 §7.9).</summary>
     public string? Model { get; init; }
 }
 
-/// <summary>The four TEXT criteria + two aggregates (llm.py Scores, 208-223).</summary>
+/// <summary>The four TEXT criteria + two aggregates.</summary>
 public sealed record GraderScores(
     double Fluency, double Lexical, double Grammar, double Relevance,
     double Overall, double LevelOverall);
 
-/// <summary>One targeted correction (llm.py Correction, 226-230).</summary>
+/// <summary>One targeted correction.</summary>
 public sealed record GraderCorrection(string Original, string Corrected, string Type, string Explanation);

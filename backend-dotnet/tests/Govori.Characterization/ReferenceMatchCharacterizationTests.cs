@@ -4,24 +4,21 @@ using Xunit;
 namespace Govori.Characterization;
 
 /// <summary>
-/// C7 — the shadowing reference match (services/stt.py:_reference_match).
+/// C7 — the shadowing reference match.
 ///
-/// This is the single hardest fixture to port faithfully: it is built on
-/// Python's <c>difflib.SequenceMatcher</c> (Ratcliff–Obershelp), which .NET has
-/// no equivalent for. The gate it feeds — <c>on_topic = completeness >= 50</c> —
-/// decides whether a shadowing attempt earns XP, so a silent drift here quietly
-/// changes every student's reward. The C# below is a line-for-line port of the
-/// CPython algorithm with <c>isjunk=None, autojunk=False</c> (exactly how the
-/// production code constructs it), checked against the Python-generated fixture.
+/// This is the single hardest behavior to pin down: it is built on the
+/// Ratcliff–Obershelp longest-matching-block algorithm, for which .NET ships no
+/// equivalent, so the algorithm itself is reimplemented below and checked against
+/// the golden fixture. The gate it feeds — <c>on_topic = completeness &gt;= 50</c>
+/// — decides whether a shadowing attempt earns XP, so a silent drift here quietly
+/// changes every student's reward.
 ///
-/// Python (stt.py:202-217):
-///     ref    = _normalize_words(reference_text)
-///     spoken = _normalize_words(spoken_text)
-///     matcher = difflib.SequenceMatcher(None, ref, spoken, autojunk=False)
-///     matched = sum(block.size for block in matcher.get_matching_blocks())
-///     completeness = round(matched / len(ref) * 100, 1)
-///     similarity   = round(matcher.ratio(), 3)
-///     on_topic     = completeness >= 50.0
+/// The pinned computation:
+///     ref, spoken  = normalized word lists of the reference and the transcript
+///     matched      = total size of all matching blocks (no junk heuristic)
+///     completeness = round(matched / ref.Count * 100, 1)
+///     similarity   = round(2 * matched / (ref.Count + spoken.Count), 3)
+///     on_topic     = completeness &gt;= 50.0
 /// </summary>
 public class ReferenceMatchCharacterizationTests
 {
@@ -36,7 +33,7 @@ public class ReferenceMatchCharacterizationTests
     }
 
     [Fact]
-    public void Reference_match_matches_Python_on_every_case()
+    public void Reference_match_matches_the_golden_fixture_on_every_case()
     {
         foreach (var c in Fx.Cases)
         {
@@ -72,13 +69,13 @@ public class ReferenceMatchCharacterizationTests
     {
         var reference = NormalizeWords(referenceText);
         if (reference.Count == 0)
-            return null;                       // Python: `if not ref: return None`
+            return null;                       // an empty reference has nothing to match against
         var spoken = NormalizeWords(spokenText);
 
         var matched = TotalMatchedSize(reference, spoken);
         var completeness = Math.Round(matched / (double)reference.Count * 100, 1, MidpointRounding.ToEven);
         var total = reference.Count + spoken.Count;
-        var ratio = total == 0 ? 1.0 : 2.0 * matched / total;   // difflib.ratio()
+        var ratio = total == 0 ? 1.0 : 2.0 * matched / total;   // Ratcliff–Obershelp similarity
         var similarity = Math.Round(ratio, 3, MidpointRounding.ToEven);
 
         return new ReferenceMatchResult(
@@ -90,17 +87,20 @@ public class ReferenceMatchCharacterizationTests
             OnTopic: completeness >= 50.0);
     }
 
-    // _normalize_words: lower → non-word/space → space → split on whitespace.
-    // Python's re.UNICODE \w and .NET's default \w both match Unicode letters
-    // (incl. Cyrillic), digits, and underscore — identical for our inputs.
+    // Normalization: lowercase → replace every non-word/non-space char with a
+    // space → split on whitespace. .NET's default \w is Unicode-aware, so Cyrillic
+    // letters survive; switching on RegexOptions.ECMAScript would strip them and
+    // silently score every Russian phrase as zero.
     private static List<string> NormalizeWords(string? text)
     {
         var cleaned = Regex.Replace((text ?? "").ToLowerInvariant(), @"[^\w\s]", " ");
         return cleaned.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries).ToList();
     }
 
-    // sum(block.size for block in SequenceMatcher(None, a, b, autojunk=False).get_matching_blocks())
-    // Order of recursion does not affect the sum, so we skip the sort/merge/sentinel.
+    // Total size of all matching blocks, found by recursively matching the longest
+    // common run and recursing left and right of it. Only the SUM is needed, and
+    // the recursion order does not affect it, so the usual sort/merge/sentinel
+    // step over the block list is skipped.
     private static int TotalMatchedSize(IReadOnlyList<string> a, IReadOnlyList<string> b)
     {
         // b2j: element → ascending indices in b (no junk, autojunk disabled → all kept).
@@ -127,9 +127,10 @@ public class ReferenceMatchCharacterizationTests
         return matched;
     }
 
-    // CPython SequenceMatcher.find_longest_match with no junk. Tie-break: the
-    // block with the smallest i, then the smallest j, wins — preserved by the
-    // strict `k > bestsize` comparison and the ascending b2j iteration.
+    // Longest matching block in a[alo:ahi] vs b[blo:bhi], with no junk heuristic.
+    // Tie-break: the block with the smallest i, then the smallest j, wins — that
+    // is preserved by the STRICT `k > bestsize` comparison plus the ascending b2j
+    // iteration. Relaxing either to >= silently picks a different block.
     private static (int besti, int bestj, int bestsize) FindLongestMatch(
         IReadOnlyList<string> a, IReadOnlyList<string> b,
         Dictionary<string, List<int>> b2j,

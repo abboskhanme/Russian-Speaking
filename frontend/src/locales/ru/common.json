@@ -9,11 +9,12 @@
     "chat": "AI Диалог",
     "progress": "Прогресс",
     "profile": "Профиль",
-    "dashboard": "Панель",
-    "groups": "Группы",
-    "assignments": "Задания",
-    "gradebook": "Журнал",
-    "landmark": "Основная навигация"
+    "landmark": "Основная навигация",
+    "teacherHome": "Главная",
+    "classes": "Классы",
+    "queue": "Очередь",
+    "content": "Контент",
+    "analytics": "Аналитика"
   },
   "common": {
     "continue": "Продолжить",
@@ -47,7 +48,8 @@
     "minutes_one": "{{count}} минута",
     "minutes_few": "{{count}} минуты",
     "minutes_many": "{{count}} минут",
-    "minutesUnit": "минут"
+    "minutesUnit": "минут",
+    "hoursUnit": "ч"
   },
   "home": {
     "todayAria": "Сегодня",
@@ -85,7 +87,35 @@
     "taskCount_other": "{{count}} задания",
     "continueKicker": "Продолжить",
     "continueEmptyTitle": "Пока нет упражнений",
-    "continueEmptyBody": "Новые задания появятся здесь."
+    "continueEmptyBody": "Новые задания появятся здесь.",
+    "todayLabel": "СЕГОДНЯШНЯЯ ПРАКТИКА",
+    "todayTitle": "Сегодня {{min}} минут",
+    "todayTagline": "Разминка · говорение · работа над вчерашней ошибкой",
+    "start": "Начать",
+    "teacherSection": "ВАШ ПРЕПОДАВАТЕЛЬ",
+    "teacherRole": "Преподаватель · Русский",
+    "message": "Написать",
+    "groupLine": "Группа: {{name}}",
+    "students": "{{count}} учеников",
+    "nextAssignment": "Следующее задание · {{when}}",
+    "noAssignment": "Новых заданий нет",
+    "summary": "КРАТКО",
+    "statLevel": "Уровень",
+    "statWeek": "На неделе",
+    "statWeekUnit": "мин",
+    "statStreak": "Серия",
+    "greetHi": "Привет, {{name}}",
+    "noGroup": "Вы пока не в группе",
+    "noGroupHint": "Вы занимаетесь самостоятельно — попросите у преподавателя код группы.",
+    "joinPlaceholder": "Код группы",
+    "joinCta": "Присоединиться",
+    "joinError": "Неверный код или группа не найдена.",
+    "when": {
+      "today": "сегодня {{time}}",
+      "tomorrow": "завтра {{time}}",
+      "date": "{{date}}, {{time}}",
+      "overdue": "просрочено"
+    }
   },
   "practice": {
     "attemptsLeft_one": "осталась {{count}} попытка",
@@ -156,7 +186,56 @@
     "today": "сегодня",
     "achievements": "Достижения",
     "unlocked": "Открыто",
-    "achievementProgressAria": "Прогресс: {{title}}"
+    "achievementProgressAria": "Прогресс: {{title}}",
+    "xpBadge": "{{count}} XP",
+    "tabs": {
+      "skills": "Навыки",
+      "achievements": "Достижения",
+      "leaderboard": "Рейтинг"
+    },
+    "skills": {
+      "currentLevel": "ТЕКУЩИЙ УРОВЕНЬ",
+      "trendUp": "+{{points}} за {{weeks}} нед.",
+      "trendDown": "{{points}} за {{weeks}} нед.",
+      "trendFlat": "Без изменений за {{weeks}} нед.",
+      "sectionLabel": "НАВЫКИ",
+      "fluency": "Беглость",
+      "pronunciation": "Произношение",
+      "lexical": "Лексика",
+      "grammar": "Грамматика",
+      "empty": "Навыки ещё не оценены. Выполните первое задание."
+    },
+    "ach": {
+      "header": "Достижения",
+      "count": "{{unlocked}} / {{total}}",
+      "unlocked": "Открыто"
+    },
+    "lb": {
+      "period": {
+        "weekly": "Неделя",
+        "monthly": "Месяц",
+        "all": "Всё время"
+      },
+      "appWide": "ПО ВСЕМУ ПРИЛОЖЕНИЮ",
+      "rank": "место",
+      "totalStudents": "всего учеников",
+      "bestPct": "лучших",
+      "ladder": "Ступень рейтинга",
+      "topPct": "Топ {{pct}}%",
+      "meThisWeek": "На этой неделе {{rank}}-е место",
+      "meThisMonth": "В этом месяце {{rank}}-е место",
+      "meAllTime": "{{rank}}-е место",
+      "meDeltaUp": "{{xp}} XP · ↑ на {{n}} поднялись",
+      "meDeltaDown": "{{xp}} XP · ↓ на {{n}} опустились",
+      "meDeltaFlat": "{{xp}} XP · без изменений",
+      "meNoDelta": "{{xp}} XP",
+      "nearby": "РЯДОМ С ВАМИ",
+      "empty": "Рейтинга пока нет. Набирайте XP.",
+      "leagueOltin": "Золотая лига",
+      "leagueKumush": "Серебряная лига",
+      "leagueBronza": "Бронзовая лига",
+      "xpSuffix": "XP"
+    }
   },
   "profile": {
     "appLanguage": "Язык приложения",
@@ -182,37 +261,221 @@
     "freePlan": "Бесплатный план",
     "active": "Активен",
     "free": "Бесплатно",
-    "upgrade": "Перейти на Premium"
+    "upgrade": "Перейти на Premium",
+    "tabs": {
+      "info": "Данные",
+      "results": "Результаты",
+      "settings": "Настройки"
+    },
+    "info": {
+      "fullName": "Имя и фамилия",
+      "phone": "Телефон",
+      "region": "Область",
+      "district": "Район",
+      "level": "Уровень",
+      "registered": "Дата регистрации",
+      "notSet": "Не указано",
+      "registeredValue": "{{month}} {{year}}",
+      "edit": "Редактировать",
+      "editTitle": "Редактирование данных",
+      "namePlaceholder": "Азиз Каримов"
+    },
+    "phone": {
+      "change": "Изменить",
+      "changeTitle": "Изменение номера телефона",
+      "changeNote": "Введите новый номер. Код подтверждения придёт в Telegram — бот проверит, что номер действительно ваш.",
+      "newLabel": "Новый номер телефона",
+      "send": "Отправить код",
+      "taken": "Этот номер уже привязан к другому аккаунту. Укажите другой номер."
+    },
+    "group": {
+      "sectionLabel": "ГРУППА И УЧИТЕЛЬ",
+      "teacherRole": "Учитель",
+      "groupTile": "Группа",
+      "membersTile": "Одногруппники",
+      "leave": "Выйти из группы",
+      "leaveConfirmTitle": "Выйти из группы?",
+      "leaveConfirmBody": "Групповые задания и связь с учителем закроются. Чтобы вернуться, понадобится код группы.",
+      "empty": "Вы не состоите в группе. Попросите у преподавателя код группы."
+    },
+    "stats": {
+      "attempts": "Попытки",
+      "avgBand": "Средний балл",
+      "streakDays": "Серия (дней)",
+      "totalPractice": "Всего практики",
+      "xp": "XP"
+    },
+    "sections": {
+      "recentResults": "ПОСЛЕДНИЕ РЕЗУЛЬТАТЫ",
+      "achievements": "ДОСТИЖЕНИЯ"
+    },
+    "achievements": {
+      "locked": "Заблокировано",
+      "summary": "{{count}}/{{total}} открыто",
+      "items": {
+        "first_step": {
+          "title": "Первый шаг",
+          "desc": "Вы выполнили первое задание"
+        },
+        "attempts_10": {
+          "title": "Хороший старт",
+          "desc": "Вы выполнили 10 заданий"
+        },
+        "attempts_50": {
+          "title": "Труженик",
+          "desc": "Вы выполнили 50 заданий"
+        },
+        "attempts_100": {
+          "title": "Сотня",
+          "desc": "Вы выполнили 100 заданий"
+        },
+        "streak_3": {
+          "title": "Три дня",
+          "desc": "3 дня подряд занятий"
+        },
+        "streak_7": {
+          "title": "Недельная привычка",
+          "desc": "7 дней подряд занятий"
+        },
+        "streak_30": {
+          "title": "Месячный огонь",
+          "desc": "30 дней подряд занятий"
+        },
+        "streak_100": {
+          "title": "Сто дней",
+          "desc": "100 дней подряд занятий"
+        },
+        "level_a2": {
+          "title": "Уровень A2",
+          "desc": "Вы достигли уровня A2"
+        },
+        "level_b1": {
+          "title": "Уровень B1",
+          "desc": "Вы достигли уровня B1"
+        },
+        "level_b2": {
+          "title": "Уровень B2",
+          "desc": "Вы достигли уровня B2"
+        },
+        "score_80": {
+          "title": "Отличник",
+          "desc": "80+ баллов за одно задание"
+        },
+        "score_90": {
+          "title": "Совершенство",
+          "desc": "90+ баллов за одно задание"
+        },
+        "practice_1h": {
+          "title": "Один час",
+          "desc": "Всего 1 час практики"
+        },
+        "practice_5h": {
+          "title": "Марафонец",
+          "desc": "Всего 5 часов практики"
+        },
+        "group_member": {
+          "title": "В команде",
+          "desc": "Вы вступили в группу"
+        },
+        "xp_100": {
+          "title": "Искра",
+          "desc": "Набрали 100 XP"
+        },
+        "xp_500": {
+          "title": "Звёздочка",
+          "desc": "Набрали 500 XP"
+        },
+        "xp_1000": {
+          "title": "Алмаз",
+          "desc": "Набрали 1000 XP"
+        },
+        "xp_2500": {
+          "title": "Корона",
+          "desc": "Набрали 2500 XP"
+        },
+        "xp_5000": {
+          "title": "Легенда",
+          "desc": "Набрали 5000 XP"
+        }
+      }
+    },
+    "relativeDate": {
+      "today": "Сегодня",
+      "yesterday": "Вчера",
+      "daysAgo_one": "{{count}} день назад",
+      "daysAgo_few": "{{count}} дня назад",
+      "daysAgo_many": "{{count}} дней назад",
+      "weeksAgo_one": "{{count}} неделю назад",
+      "weeksAgo_few": "{{count}} недели назад",
+      "weeksAgo_many": "{{count}} недель назад"
+    },
+    "settingsRows": {
+      "language": "Язык интерфейса",
+      "theme": "Тема",
+      "themeLight": "Светлая",
+      "themeDark": "Тёмная"
+    },
+    "pro": {
+      "badge": "PRO",
+      "title": "Govori Pro",
+      "body": "Безлимитные попытки, живой диалог, отработка фонем.",
+      "cta": "Перейти на Pro · 35 000 сум/мес"
+    },
+    "help": {
+      "row": "Центр помощи",
+      "modalTitle": "Центр помощи",
+      "body": "Есть вопрос или что-то не работает? Ответ найдётся в нашей группе в Telegram, а по срочным вопросам пишите напрямую администратору.",
+      "telegramGroup": "Группа в Telegram",
+      "telegramAdmin": "Администратор в Telegram"
+    },
+    "privacy": {
+      "row": "Политика конфиденциальности",
+      "modalTitle": "Политика конфиденциальности",
+      "body": "Govori хранит только ваше имя, номер телефона и голосовые ответы. Эти данные нужны, чтобы оценивать ответы и показывать ваш прогресс. Ваши записи видите только вы и ваш преподаватель — мы не продаём их третьим лицам и не используем для рекламы.",
+      "appInfoTitle": "О приложении",
+      "appInfoBody": "Govori — приложение для голосовой практики русской речи. Если хотите полностью удалить аккаунт или свои данные, напишите администратору в Telegram."
+    },
+    "results": {
+      "empty": "Пока нет результатов.",
+      "seeAll": "Все результаты",
+      "openAria": "Открыть результат «{{title}}»"
+    },
+    "trend": {
+      "up": "Улучшение",
+      "down": "Снижение",
+      "flat": "Без изменений"
+    },
+    "avatar": {
+      "change": "Изменить фото",
+      "remove": "Удалить фото",
+      "uploading": "Загрузка…",
+      "errorType": "Только JPG, PNG или WebP",
+      "errorSize": "Размер фото до 5 МБ",
+      "aria": "Фото профиля"
+    },
+    "xp": {
+      "total": "Всего XP",
+      "caption": "За выполненные задания"
+    }
   },
   "teacher": {
-    "role": "Учитель",
-    "createGroup": "Новая группа",
-    "createAssignment": "Выдать задание",
-    "statsAria": "Обзор класса",
-    "activeStudents": "Активные ученики",
-    "groupsStat": "Группы",
-    "pendingReviews": "В очереди проверки",
-    "groups": "Группы",
-    "newGroup": "+ Новая группа",
-    "members_one": "{{count}} ученик",
-    "members_few": "{{count}} ученика",
-    "members_many": "{{count}} учеников",
-    "avgBand": "Ср.",
-    "joinCode": "Код",
-    "assign": "Задание",
-    "openGroup": "Открыть",
-    "reviewQueue": "Нужна проверка",
-    "pendingCount_one": "{{count}} в очереди",
-    "pendingCount_few": "{{count}} в очереди",
-    "pendingCount_many": "{{count}} в очереди",
-    "noReviews": "Всё проверено — ничего в очереди",
-    "scoreAria": "Балл {{score}}",
-    "grade": "Проверить",
-    "status": {
-      "lowConfidence": "Низкая уверенность",
-      "flagged": "Жалоба",
-      "graded": "Проверено"
-    }
+    "role": "Преподаватель",
+    "statsAria": "Показатели класса",
+    "avatarAria": "Профиль",
+    "attention": "Требует внимания",
+    "attentionAria": "Задачи, требующие внимания",
+    "lowConfidence_one": "{{count}} ответ — ИИ не уверен",
+    "lowConfidence_few": "{{count}} ответа — ИИ не уверен",
+    "lowConfidence_many": "{{count}} ответов — ИИ не уверен",
+    "lowConfidenceHint": "Перейти в очередь проверки",
+    "dropped_one": "{{count}} ученик потерял {{points}} баллов",
+    "dropped_few": "{{count}} ученика потеряли {{points}} баллов",
+    "dropped_many": "{{count}} учеников потеряли {{points}} баллов",
+    "droppedHint": "Посмотреть профиль",
+    "allClear": "Пока ничего не требует внимания",
+    "statGroups": "Группы",
+    "statStudents": "Ученики",
+    "statQueue": "В очереди"
   },
   "auth": {
     "phoneLabel": "Номер телефона",
@@ -235,13 +498,29 @@
     "otp": {
       "title": "Подтвердите код",
       "sentTo": "Код подтверждения отправлен:",
+      "getCode": "Получить код",
       "openTelegram": "Открыть в Telegram",
+      "sentDirect": "Код отправлен в ваш Telegram.",
+      "openTelegramHint": "Откройте Telegram и привяжите свой номер — код придёт туда.",
       "devHint": "Режим разработки · код подтверждения",
       "codeLabel": "Код подтверждения",
       "resend": "Отправить код снова",
       "verify": "Подтвердить",
       "needName": "Этот номер новый. Введите имя и подтвердите новый код, чтобы зарегистрироваться.",
       "resent": "Новый код отправлен."
+    },
+    "otpStatus": {
+      "sent": "Код отправлен в Telegram.",
+      "expired": "Срок действия кода истёк. Запросите новый код.",
+      "mismatch": {
+        "title": "Номер не совпал",
+        "text": "Номер вашего аккаунта Telegram не совпал с номером, указанным в приложении. В целях безопасности этот код аннулирован."
+      },
+      "notOwnContact": {
+        "title": "Это не ваш номер",
+        "text": "Вы отправили чужой контакт. Пожалуйста, отправляйте только свой номер. В целях безопасности этот код аннулирован."
+      },
+      "startOver": "Ввести номер заново"
     },
     "errors": {
       "badCode": "Неверный или просроченный код",
@@ -270,8 +549,175 @@
       "finish": "Завершить и начать"
     }
   },
+  "notifications": {
+    "title": "Уведомления",
+    "bellAria_zero": "Уведомления — непрочитанных нет",
+    "bellAria_one": "Уведомления — {{count}} непрочитанное",
+    "bellAria_few": "Уведомления — {{count}} непрочитанных",
+    "bellAria_many": "Уведомления — {{count}} непрочитанных",
+    "selectAll": "Выбрать все",
+    "selectRow": "Выбрать уведомление: {{title}}",
+    "unread": "Непрочитанное",
+    "selected_one": "Выбрано: {{count}}",
+    "selected_few": "Выбрано: {{count}}",
+    "selected_many": "Выбрано: {{count}}",
+    "deleteSelected": "Удалить выбранные",
+    "clearAll": "Очистить все",
+    "confirmDeleteSelected_one": "Удалить {{count}} уведомление? Это действие необратимо.",
+    "confirmDeleteSelected_few": "Удалить {{count}} уведомления? Это действие необратимо.",
+    "confirmDeleteSelected_many": "Удалить {{count}} уведомлений? Это действие необратимо.",
+    "confirmClearAll": "Удалить все уведомления? Это действие необратимо.",
+    "confirm": "Удалить",
+    "cancel": "Отмена",
+    "empty": "Уведомлений пока нет."
+  },
   "errors": {
     "loadTitle": "Не удалось загрузить данные",
     "loadBody": "Проверьте соединение и попробуйте снова."
+  },
+  "months": {
+    "1": "январь",
+    "2": "февраль",
+    "3": "март",
+    "4": "апрель",
+    "5": "май",
+    "6": "июнь",
+    "7": "июль",
+    "8": "август",
+    "9": "сентябрь",
+    "10": "октябрь",
+    "11": "ноябрь",
+    "12": "декабрь"
+  },
+  "mashq": {
+    "title": "Практика",
+    "tabs": {
+      "modules": "Модули",
+      "assignments": "Задания",
+      "chat": "Диалог"
+    },
+    "modules": {
+      "crumb": "Практика",
+      "heading": "Модули",
+      "filter": {
+        "all": "Все",
+        "active": "В процессе",
+        "done": "Завершённые"
+      },
+      "meta": "{{level}} · {{done}}/{{total}}",
+      "metaDone": "{{level}} · {{done}}/{{total}} · завершено",
+      "metaNotStarted": "{{level}} · 0/{{total}} · не начато",
+      "metaLocked": "{{level}} · Pro",
+      "teacherBadge": "УЧИТЕЛЬ",
+      "continue": "Продолжить",
+      "start": "Начать",
+      "open": "Открыть",
+      "empty": "Пока нет модулей.",
+      "promoTitle": "Живой диалог с ИИ",
+      "promoBody": "Говорите: в магазине, у врача, на собеседовании."
+    },
+    "detail": {
+      "label": "МОДУЛЬ",
+      "tasksLabel": "ЗАДАНИЯ",
+      "taskCount": "{{done}}/{{total}} заданий",
+      "taskN": "Задание {{n}}",
+      "taskCurrent": "Задание {{n}} · текущее",
+      "start": "Начать",
+      "locked": "Закрыто"
+    },
+    "complete": {
+      "title": "Модуль завершён!",
+      "tasks": "заданий",
+      "average": "средний",
+      "time": "время",
+      "timeValue": "{{h}}ч {{m}}'",
+      "timeMinutes": "{{m}}'",
+      "certTitle": "Сертификат готов",
+      "certBody": "Скачать или поделиться",
+      "nextLabel": "СЛЕДУЮЩИЙ МОДУЛЬ",
+      "nextMeta": "{{level}} · {{count}} заданий",
+      "nextCta": "Следующий модуль",
+      "allDone": "Все модули завершены 🎉"
+    },
+    "assignments": {
+      "heading": "Задания",
+      "empty": "Пока нет заданий.",
+      "due": "{{when}}",
+      "overdue": "просрочено",
+      "noDue": "без срока",
+      "start": "Начать",
+      "done": "Выполнено",
+      "score": "{{band}} баллов",
+      "from": "От преподавателя",
+      "when": {
+        "today": "сегодня {{time}}",
+        "tomorrow": "завтра {{time}}",
+        "date": "{{date}}, {{time}}"
+      }
+    }
+  },
+  "results": {
+    "allTitle": "Все результаты",
+    "count": "Результатов: {{count}}",
+    "attempt": "Практика",
+    "audio": "Записанный ответ",
+    "audioExpired": "Аудио удалено — записи хранятся 3 месяца.",
+    "audioNone": "Аудио недоступно.",
+    "transcript": "Вы сказали",
+    "scores": "Разбор оценки",
+    "criteria": {
+      "fluency": "Беглость",
+      "lexical": "Словарный запас",
+      "grammar": "Грамматика",
+      "pronunciation": "Произношение",
+      "relevance": "Соответствие теме"
+    },
+    "feedback": "Комментарий ИИ",
+    "corrections": "Исправления",
+    "modelAnswer": "Образец ответа",
+    "teacher": "Комментарий преподавателя",
+    "teacherBand": "Оценка преподавателя: {{band}}",
+    "status": {
+      "pending": "Оценивается…",
+      "processing": "Оценивается…",
+      "failed": "Не удалось оценить."
+    }
+  },
+  "groupBoard": {
+    "meta": "{{teacher}} · {{count}} уч.",
+    "classmates": "ОДНОГРУППНИКИ",
+    "you": "Вы",
+    "xp": "XP",
+    "streak": "🔥 {{count}}",
+    "empty": "Рейтинг пока пуст.",
+    "open": "Открыть группу {{name}}"
+  },
+  "suhbat": {
+    "heading": "Диалог",
+    "intro": "Выберите тему — ИИ задаёт вопросы текстом, а вы отвечаете голосом.",
+    "freeTitle": "Свободная тема",
+    "freeBody": "Говорите на любую тему — ИИ поддержит диалог текстом.",
+    "scenarioMeta": "{{level}} · ~{{min}} мин",
+    "goalLabel": "Цель: {{goal}}",
+    "finish": "Завершить",
+    "listen": "Прослушать",
+    "pause": "Пауза",
+    "answer": "Ответить",
+    "recording": "Идёт запись",
+    "send": "Отправить",
+    "cancel": "Отменить",
+    "voiceMessage": "Голосовое сообщение",
+    "micDenied": "Доступ к микрофону запрещён",
+    "micError": "Не удалось записать аудио",
+    "typingHint": "ИИ печатает…",
+    "endedTitle": "Диалог завершён",
+    "goalReached": "Цель достигнута",
+    "goalMissed": "Цель не достигнута",
+    "turns": "реплик",
+    "fluency": "беглость",
+    "phrasesLabel": "{{count}} полезных фраз",
+    "phrasesLabelShort": "ПОЛЕЗНЫЕ ФРАЗЫ",
+    "retry": "Ещё раз",
+    "stubNote": "Ответы ИИ — примерные (ключ не подключён)."
   }
 }

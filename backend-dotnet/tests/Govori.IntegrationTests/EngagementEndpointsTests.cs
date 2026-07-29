@@ -15,7 +15,8 @@ namespace Govori.IntegrationTests;
 /// <summary>
 /// End-to-end coverage for the Engagement slice (docs/07 §3.6, Faza 3.6): the leaderboard / review /
 /// notification HTTP surface (HTTP → EngagementService → EF Core → back) plus the worker-side
-/// XP/streak/SRS-scheduling AWARD paths (no HTTP route in Python either — driven by constructing
+/// XP/streak/SRS-scheduling AWARD paths (which deliberately have NO HTTP route, so no client can
+/// self-award — they are exercised here by constructing
 /// <see cref="EngagementService"/> directly against a real prod-shaped Postgres, the same way the
 /// Catalog SQL-parity suite drives CatalogService).
 ///
@@ -146,6 +147,67 @@ public sealed class EngagementEndpointsTests : IClassFixture<EngagementEndpoints
         }
     }
 
+    // ─── XP reward wiring (grading pipeline → IGradingRewarder) ─────────────────
+
+    [Fact]
+    public async Task Grading_reward_awards_xp_once_and_is_idempotent_on_re_run()
+    {
+        var studentId = Guid.NewGuid();
+        var teacherId = Guid.NewGuid();
+        var questionId = Guid.NewGuid();
+        var subId = Guid.NewGuid();   // graded, level_score 88 → XpForBand(88) = 22
+
+        await using (var ctx = CreateContext())
+        {
+            var hasher = new PasswordHasher();
+            ctx.Users.Add(NewUser(studentId, UserRole.Student, hasher.Hash(Password)));
+            ctx.Users.Add(NewUser(teacherId, UserRole.Teacher, hasher.Hash(Password)));
+            ctx.Questions.Add(NewQuestion(questionId, teacherId));
+            ctx.Submissions.Add(NewSubmission(subId, studentId, questionId));
+            var now = DateTime.UtcNow;
+            // A graded submission = a persisted Evaluation + a non-blank Transcript (answered).
+            ctx.Evaluations.Add(new Evaluation
+            {
+                Id = Guid.NewGuid(), SubmissionId = subId,
+                FluencyScore = 80, LexicalScore = 80, GrammarScore = 80,
+                OverallBand = 70, LevelScore = 88, CreatedAt = now, UpdatedAt = now,
+            });
+            ctx.Transcripts.Add(new Transcript
+            {
+                Id = Guid.NewGuid(), SubmissionId = subId,
+                Text = "привет как дела", CreatedAt = now, UpdatedAt = now,
+            });
+            await ctx.SaveChangesAsync();
+        }
+
+        try
+        {
+            // First reward: the student earns the graded XP + one submission event.
+            await using (var ctx = CreateContext())
+                await new SubmissionRewarder(ctx, new EngagementService(ctx)).RewardGradedAsync(subId);
+
+            await using (var ctx = CreateContext())
+            {
+                Assert.Equal(22, await ctx.Users.Where(u => u.Id == studentId).Select(u => u.Xp).FirstAsync());
+                Assert.Equal(1, await ctx.XpEvents.CountAsync(e => e.SubmissionId == subId && e.Reason == "submission"));
+            }
+
+            // Re-run (Hangfire retry / crash-resume): the idempotency guard must NOT double-award.
+            await using (var ctx = CreateContext())
+                await new SubmissionRewarder(ctx, new EngagementService(ctx)).RewardGradedAsync(subId);
+
+            await using (var ctx = CreateContext())
+            {
+                Assert.Equal(22, await ctx.Users.Where(u => u.Id == studentId).Select(u => u.Xp).FirstAsync());
+                Assert.Equal(1, await ctx.XpEvents.CountAsync(e => e.SubmissionId == subId && e.Reason == "submission"));
+            }
+        }
+        finally
+        {
+            await CleanupUsersAsync(studentId, teacherId);
+        }
+    }
+
     // ─── Leaderboard ──────────────────────────────────────────────────────────
 
     [Fact]
@@ -231,6 +293,221 @@ public sealed class EngagementEndpointsTests : IClassFixture<EngagementEndpoints
             await ctx.Groups.Where(g => g.Id == groupId).ExecuteDeleteAsync();
             await ctx.Questions.Where(q => q.Id == questionId).ExecuteDeleteAsync();
             await ctx.Users.Where(u => ids.Contains(u.Id)).ExecuteDeleteAsync();
+        }
+    }
+
+    // ─── Progress: skills breakdown (Ko'nikmalar tab) ───────────────────────────
+
+    [Fact]
+    public async Task Progress_skills_four_skills_level_trend_and_empty_history_safe()
+    {
+        var teacherId = Guid.NewGuid();
+        var studentId = Guid.NewGuid();     // graded history across 2 ISO weeks
+        var emptyId = Guid.NewGuid();       // no evaluations at all
+        var questionId = Guid.NewGuid();
+        var sub1 = Guid.NewGuid();          // ISO 2025-W02
+        var sub2 = Guid.NewGuid();          // ISO 2025-W03
+        var weekA = new DateTime(2025, 1, 7, 9, 0, 0, DateTimeKind.Utc);
+        var weekB = new DateTime(2025, 1, 14, 9, 0, 0, DateTimeKind.Utc);
+
+        await using (var ctx = CreateContext())
+        {
+            var hasher = new PasswordHasher();
+            ctx.Users.Add(NewUser(teacherId, UserRole.Teacher, hasher.Hash(Password)));
+            ctx.Users.Add(NewUser(studentId, UserRole.Student, hasher.Hash(Password), "Skills Student"));
+            ctx.Users.Add(NewUser(emptyId, UserRole.Student, hasher.Hash(Password), "No History"));
+            ctx.Questions.Add(NewQuestion(questionId, teacherId));
+            ctx.Submissions.Add(NewSubmissionAt(sub1, studentId, questionId, weekA));
+            ctx.Submissions.Add(NewSubmissionAt(sub2, studentId, questionId, weekB));
+            // Pronunciation NULL on BOTH → the pronunciation skill must average to 0 (unscored), never crash.
+            ctx.Evaluations.Add(NewEvaluation(sub1, fluency: 80, pronunciation: null, lexical: 60, grammar: 70, overall: 66, at: weekA));
+            ctx.Evaluations.Add(NewEvaluation(sub2, fluency: 60, pronunciation: null, lexical: 80, grammar: 50, overall: 62, at: weekB));
+            await ctx.SaveChangesAsync();
+        }
+
+        try
+        {
+            var client = _factory.CreateClient();
+
+            // Anonymous → 401.
+            Assert.Equal(HttpStatusCode.Unauthorized, (await client.GetAsync("/api/progress/skills")).StatusCode);
+
+            // Student WITH history.
+            using (var doc = JsonDocument.Parse(await (await Send(client, HttpMethod.Get, "/api/progress/skills", TokenFor(studentId))).Content.ReadAsStringAsync()))
+            {
+                var root = doc.RootElement;
+
+                // Four skills, ALWAYS present, in the fixed order.
+                var skills = root.GetProperty("skills").EnumerateArray().ToList();
+                Assert.Equal(4, skills.Count);
+                Assert.Equal(new[] { "fluency", "pronunciation", "lexical", "grammar" },
+                    skills.Select(s => s.GetProperty("key").GetString()).ToArray());
+                Assert.Equal(70, skills[0].GetProperty("score").GetInt32());   // (80+60)/2
+                Assert.Equal(0, skills[1].GetProperty("score").GetInt32());    // pronunciation all-null → 0
+                Assert.Equal(70, skills[2].GetProperty("score").GetInt32());   // (60+80)/2
+                Assert.Equal(60, skills[3].GetProperty("score").GetInt32());   // (70+50)/2
+
+                // Level derived from the average band (64.0) via the shared CefrScale → B1.
+                Assert.Equal(64.0, root.GetProperty("band").GetDouble(), 3);
+                Assert.Equal("B1", root.GetProperty("level").GetString());
+                Assert.False(string.IsNullOrEmpty(root.GetProperty("level_label").GetString()));
+
+                // Trend: two ISO-week buckets, oldest→newest, 0-based index.
+                var trend = root.GetProperty("trend").EnumerateArray().ToList();
+                Assert.Equal(2, trend.Count);
+                Assert.Equal(new[] { 0, 1 }, trend.Select(t => t.GetProperty("week_index").GetInt32()).ToArray());
+                Assert.Equal(66.0, trend[0].GetProperty("band").GetDouble(), 3);
+                Assert.Equal(62.0, trend[1].GetProperty("band").GetDouble(), 3);
+
+                // band_delta = band(64.0) − earliest-window band(66.0) = −2.0 over 2 weeks.
+                Assert.Equal(-2.0, root.GetProperty("band_delta").GetDouble(), 3);
+                Assert.Equal(2, root.GetProperty("delta_weeks").GetInt32());
+            }
+
+            // Empty-history student: four skills all 0, level/band/delta null, delta_weeks 0, no trend.
+            using (var doc = JsonDocument.Parse(await (await Send(client, HttpMethod.Get, "/api/progress/skills", TokenFor(emptyId))).Content.ReadAsStringAsync()))
+            {
+                var root = doc.RootElement;
+                var skills = root.GetProperty("skills").EnumerateArray().ToList();
+                Assert.Equal(new[] { "fluency", "pronunciation", "lexical", "grammar" },
+                    skills.Select(s => s.GetProperty("key").GetString()).ToArray());
+                Assert.All(skills, s => Assert.Equal(0, s.GetProperty("score").GetInt32()));
+                Assert.Equal(JsonValueKind.Null, root.GetProperty("level").ValueKind);
+                Assert.Equal(JsonValueKind.Null, root.GetProperty("band").ValueKind);
+                Assert.Equal(JsonValueKind.Null, root.GetProperty("band_delta").ValueKind);
+                Assert.Equal(0, root.GetProperty("delta_weeks").GetInt32());
+                Assert.Empty(root.GetProperty("trend").EnumerateArray());
+            }
+        }
+        finally
+        {
+            await using var ctx = CreateContext();
+            var ids = new[] { teacherId, studentId, emptyId };
+            await ctx.Evaluations.Where(e => e.SubmissionId == sub1 || e.SubmissionId == sub2).ExecuteDeleteAsync();
+            await ctx.Submissions.Where(s => ids.Contains(s.StudentId)).ExecuteDeleteAsync();
+            await ctx.Questions.Where(q => q.Id == questionId).ExecuteDeleteAsync();
+            await ctx.Users.Where(u => ids.Contains(u.Id)).ExecuteDeleteAsync();
+        }
+    }
+
+    // ─── Progress: leaderboard summary (Reyting tab) ─────────────────────────────
+
+    [Fact]
+    public async Task Progress_leaderboard_summary_ranks_percentile_league_and_neighbors_include_me()
+    {
+        // Five students with astronomically high, DISTINCT weekly XP so they deterministically occupy
+        // the top five ranks of the global student board, whatever the seeded population beneath them.
+        var sA = Guid.NewGuid();   // weekly 5_000_050 → rank 1
+        var sB = Guid.NewGuid();   // weekly 5_000_040 → rank 2
+        var sC = Guid.NewGuid();   // weekly 5_000_030 → rank 3 (the caller)
+        var sD = Guid.NewGuid();   // weekly 5_000_020 → rank 4
+        var sE = Guid.NewGuid();   // weekly 5_000_010 → rank 5
+        var order = new[] { sA, sB, sC, sD, sE };
+        var xp = new Dictionary<Guid, int>
+        {
+            [sA] = 5_000_050, [sB] = 5_000_040, [sC] = 5_000_030, [sD] = 5_000_020, [sE] = 5_000_010,
+        };
+        var now = DateTime.UtcNow;
+
+        await using (var ctx = CreateContext())
+        {
+            var hasher = new PasswordHasher();
+            foreach (var id in order)
+            {
+                ctx.Users.Add(NewUser(id, UserRole.Student, hasher.Hash(Password), $"LB {id:N}".Substring(0, 8), xp: xp[id]));
+                // One recent XpEvent = the whole weekly total (dated now → inside the 7-day window).
+                ctx.XpEvents.Add(new XpEvent { Id = Guid.NewGuid(), StudentId = id, SubmissionId = null, Amount = xp[id], Reason = "submission", CreatedAt = now, UpdatedAt = now });
+            }
+            await ctx.SaveChangesAsync();
+        }
+
+        try
+        {
+            var client = _factory.CreateClient();
+
+            // Anonymous → 401.
+            Assert.Equal(HttpStatusCode.Unauthorized, (await client.GetAsync("/api/progress/leaderboard")).StatusCode);
+
+            // Caller = sC (the middle of the cluster) on the WEEKLY board.
+            var scResp = await Send(client, HttpMethod.Get, "/api/progress/leaderboard?period=weekly", TokenFor(sC));
+            var scBody = await scResp.Content.ReadAsStringAsync();
+            Assert.True(scResp.StatusCode == HttpStatusCode.OK, $"weekly board status {scResp.StatusCode}: {scBody}");
+            using (var doc = JsonDocument.Parse(scBody))
+            {
+                var root = doc.RootElement;
+                Assert.Equal("weekly", root.GetProperty("period").GetString());
+
+                var myRank = root.GetProperty("my_rank").GetInt32();
+                var total = root.GetProperty("total_students").GetInt32();
+                Assert.Equal(3, myRank);                                   // exactly sA, sB strictly ahead
+                Assert.True(total >= 5);
+                Assert.Equal(5_000_030, root.GetProperty("my_xp").GetInt32());
+
+                // percentile = ceil(my_rank / total * 100), clamped 1..100; league derived from it.
+                var expectedPct = Math.Clamp((int)Math.Ceiling((double)myRank / total * 100), 1, 100);
+                Assert.Equal(expectedPct, root.GetProperty("percentile").GetInt32());
+                var expectedLeague = expectedPct <= 10 ? "gold" : expectedPct <= 35 ? "silver" : "bronze";
+                Assert.Equal(expectedLeague, root.GetProperty("league").GetString());
+
+                // Neighbours: 2 above + me + 2 below, ascending by rank; the caller present exactly once.
+                var neighbors = root.GetProperty("neighbors").EnumerateArray().ToList();
+                Assert.Equal(5, neighbors.Count);
+                Assert.Equal(new[] { 1, 2, 3, 4, 5 }, neighbors.Select(n => n.GetProperty("rank").GetInt32()).ToArray());
+                Assert.Equal(new[] { sA, sB, sC, sD, sE }, neighbors.Select(n => n.GetProperty("id").GetGuid()).ToArray());
+                Assert.Equal(1, neighbors.Count(n => n.GetProperty("is_me").GetBoolean()));
+                var me = neighbors[2];                                     // rank 3 = index 2
+                Assert.True(me.GetProperty("is_me").GetBoolean());
+                Assert.Equal(sC, me.GetProperty("id").GetGuid());
+                Assert.Equal(5_000_030, me.GetProperty("xp").GetInt32());
+
+                // rank_delta is best-effort but computed (non-null) on a bounded period.
+                Assert.Equal(JsonValueKind.Number, root.GetProperty("rank_delta").ValueKind);
+            }
+
+            // Caller = sA (top of the cluster ⇒ global rank 1): the window CLAMPS to me + four below.
+            using (var doc = JsonDocument.Parse(await (await Send(client, HttpMethod.Get, "/api/progress/leaderboard?period=weekly", TokenFor(sA))).Content.ReadAsStringAsync()))
+            {
+                var root = doc.RootElement;
+                Assert.Equal(1, root.GetProperty("my_rank").GetInt32());
+                var neighbors = root.GetProperty("neighbors").EnumerateArray().ToList();
+                Assert.Equal(5, neighbors.Count);
+                Assert.Equal(new[] { 1, 2, 3, 4, 5 }, neighbors.Select(n => n.GetProperty("rank").GetInt32()).ToArray());
+                Assert.Equal(new[] { sA, sB, sC, sD, sE }, neighbors.Select(n => n.GetProperty("id").GetGuid()).ToArray());
+                Assert.True(neighbors[0].GetProperty("is_me").GetBoolean());  // rank 1 is me, first row
+            }
+
+            // period=all ⇒ ranking by User.Xp; rank_delta null (no previous period).
+            using (var doc = JsonDocument.Parse(await (await Send(client, HttpMethod.Get, "/api/progress/leaderboard?period=all", TokenFor(sC))).Content.ReadAsStringAsync()))
+            {
+                var root = doc.RootElement;
+                Assert.Equal("all", root.GetProperty("period").GetString());
+                Assert.Equal(3, root.GetProperty("my_rank").GetInt32());
+                Assert.Equal(JsonValueKind.Null, root.GetProperty("rank_delta").ValueKind);
+            }
+
+            // A non-student (teacher) caller → 403 (the ranking population is students).
+            var teacherId = Guid.NewGuid();
+            await using (var ctx = CreateContext())
+            {
+                ctx.Users.Add(NewUser(teacherId, UserRole.Teacher, new PasswordHasher().Hash(Password)));
+                await ctx.SaveChangesAsync();
+            }
+            try
+            {
+                Assert.Equal(HttpStatusCode.Forbidden,
+                    (await Send(client, HttpMethod.Get, "/api/progress/leaderboard", TokenFor(teacherId))).StatusCode);
+            }
+            finally
+            {
+                await using var ctx = CreateContext();
+                await ctx.Users.Where(u => u.Id == teacherId).ExecuteDeleteAsync();
+            }
+        }
+        finally
+        {
+            await using var ctx = CreateContext();
+            await ctx.XpEvents.Where(e => order.Contains(e.StudentId)).ExecuteDeleteAsync();
+            await ctx.Users.Where(u => order.Contains(u.Id)).ExecuteDeleteAsync();
         }
     }
 
@@ -623,6 +900,31 @@ public sealed class EngagementEndpointsTests : IClassFixture<EngagementEndpoints
         Status = SubmissionStatus.Done,
         CreatedAt = DateTime.UtcNow,
         UpdatedAt = DateTime.UtcNow,
+    };
+
+    private static Submission NewSubmissionAt(Guid id, Guid studentId, Guid questionId, DateTime at) => new()
+    {
+        Id = id,
+        StudentId = studentId,
+        QuestionId = questionId,
+        AudioKey = $"answers/{id:N}.webm",
+        Status = SubmissionStatus.Done,
+        CreatedAt = at,
+        UpdatedAt = at,
+    };
+
+    private static Evaluation NewEvaluation(
+        Guid submissionId, double fluency, double? pronunciation, double lexical, double grammar, double overall, DateTime at) => new()
+    {
+        Id = Guid.NewGuid(),
+        SubmissionId = submissionId,
+        FluencyScore = fluency,
+        PronunciationScore = pronunciation,
+        LexicalScore = lexical,
+        GrammarScore = grammar,
+        OverallBand = overall,
+        CreatedAt = at,
+        UpdatedAt = at,
     };
 
     private static Notification NewNotification(Guid id, Guid userId, string type, bool isRead, DateTime at) => new()

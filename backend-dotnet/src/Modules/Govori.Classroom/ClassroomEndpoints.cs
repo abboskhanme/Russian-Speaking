@@ -7,17 +7,18 @@ using Microsoft.AspNetCore.Routing;
 namespace Govori.Classroom;
 
 /// <summary>
-/// The Classroom domain's HTTP surface (docs/07 §3.5, Faza 3.5), ported from
-/// backend/app/api/v1/{groups,engagement,reports}.py. Follows the MODULAR-ENDPOINT PATTERN
+/// The Classroom domain's HTTP surface (docs/07 §3.5, Faza 3.5) — teacher groups, assignments and
+/// the gradebook. Follows the MODULAR-ENDPOINT PATTERN
 /// established by <c>MapIdentityEndpoints</c>/<c>MapCatalogEndpoints</c>/<c>MapPracticeEndpoints</c>:
 /// a single <c>Map*Endpoints</c> extension the composition root calls.
 ///
 /// <para>Endpoints are thin (§7.2 — no <c>DbContext</c> here): parse the access-token <c>sub</c> →
 /// <see cref="ClassroomService"/> → map the domain outcome to HTTP. All role/ownership/roster
-/// decisions live in the service. Error bodies use <c>{ "detail": ... }</c> to match FastAPI.</para>
+/// decisions live in the service. Error bodies use the <c>{ "detail": ... }</c> shape used across the
+/// API.</para>
 ///
-/// <para>Path note: Python routes are <c>/api/v1/groups</c>, <c>/api/v1/assignments</c>,
-/// <c>/api/v1/reports/gradebook</c>; the <c>/v1</c> segment is dropped to match the sibling modules'
+/// <para>Path note: these routes are <c>/api/groups</c>, <c>/api/assignments</c> and
+/// <c>/api/reports/gradebook</c> — no <c>/v1</c> segment, matching the sibling modules'
 /// <c>/api/…</c> convention (reconciled at the gateway during cutover).</para>
 /// </summary>
 public static class ClassroomEndpoints
@@ -34,7 +35,7 @@ public static class ClassroomEndpoints
     {
         var groups = app.MapGroup("/api/groups");
 
-        // POST /api/groups — teacher creates a group (+ join code) → 201. groups.py:101-111.
+        // POST /api/groups — teacher creates a group (+ join code) → 201.
         groups.MapPost("", async (CreateGroupRequest body, ClaimsPrincipal principal, ClassroomService svc, CancellationToken ct) =>
         {
             if (!TryGetUserId(principal, out var userId)) return Results.Unauthorized();
@@ -42,8 +43,8 @@ public static class ClassroomEndpoints
             return Map(r, StatusCodes.Status201Created, forbidden: "Teacher role required");
         }).RequireAuthorization();
 
-        // GET /api/groups/mine — the current user's joined groups. groups.py:150-157. MUST precede
-        // the /{id:guid} route so "mine" is never captured as an id (it also fails the guid constraint).
+        // GET /api/groups/mine — the current user's joined groups. MUST precede the /{id:guid}
+        // route so "mine" is never captured as an id (it also fails the guid constraint).
         groups.MapGet("/mine", async (ClaimsPrincipal principal, ClassroomService svc, CancellationToken ct) =>
         {
             if (!TryGetUserId(principal, out var userId)) return Results.Unauthorized();
@@ -51,7 +52,7 @@ public static class ClassroomEndpoints
             return list is null ? Results.Unauthorized() : Results.Ok(list);
         }).RequireAuthorization();
 
-        // POST /api/groups/join — current user joins by code → 200. groups.py:187-197.
+        // POST /api/groups/join — current user joins by code → 200.
         groups.MapPost("/join", async (JoinGroupRequest body, ClaimsPrincipal principal, ClassroomService svc, CancellationToken ct) =>
         {
             if (!TryGetUserId(principal, out var userId)) return Results.Unauthorized();
@@ -59,7 +60,18 @@ public static class ClassroomEndpoints
             return Map(r, StatusCodes.Status200OK, notFound: "Invalid group code");
         }).RequireAuthorization();
 
-        // GET /api/groups — teacher's own groups (?teacher_id for admin). groups.py:135-147.
+        // POST /api/groups/leave — the CURRENT USER leaves their group → 204 (404 if in none). New
+        // surface, backs the profile screen's "Guruhdan chiqish". Body-less and id-less on purpose:
+        // the service deletes only the caller's own GroupMember rows, so no caller can remove
+        // anyone else. Literal path, so registration order vs /{id:guid} is irrelevant.
+        groups.MapPost("/leave", async (ClaimsPrincipal principal, ClassroomService svc, CancellationToken ct) =>
+        {
+            if (!TryGetUserId(principal, out var userId)) return Results.Unauthorized();
+            var outcome = await svc.LeaveGroupAsync(userId, ct);
+            return MapNoContent(outcome, notFound: "Not a member of any group");
+        }).RequireAuthorization();
+
+        // GET /api/groups — teacher's own groups (?teacher_id for admin).
         groups.MapGet("", async (Guid? teacher_id, ClaimsPrincipal principal, ClassroomService svc, CancellationToken ct) =>
         {
             if (!TryGetUserId(principal, out var userId)) return Results.Unauthorized();
@@ -67,7 +79,7 @@ public static class ClassroomEndpoints
             return Map(r, StatusCodes.Status200OK, forbidden: "Teacher role required");
         }).RequireAuthorization();
 
-        // GET /api/groups/{id} — group detail with roster (owner/admin). groups.py:200-209.
+        // GET /api/groups/{id} — group detail with roster (owner/admin).
         groups.MapGet("/{id:guid}", async (Guid id, ClaimsPrincipal principal, ClassroomService svc, CancellationToken ct) =>
         {
             if (!TryGetUserId(principal, out var userId)) return Results.Unauthorized();
@@ -81,7 +93,6 @@ public static class ClassroomEndpoints
         var assignments = app.MapGroup("/api/assignments");
 
         // POST /api/assignments — assign a task to students/a group → 201 (S1 roster fix in service).
-        // engagement.py:380-429.
         assignments.MapPost("", async (CreateAssignmentRequest body, ClaimsPrincipal principal, ClassroomService svc, CancellationToken ct) =>
         {
             if (!TryGetUserId(principal, out var userId)) return Results.Unauthorized();
@@ -89,7 +100,7 @@ public static class ClassroomEndpoints
             return Map(r, StatusCodes.Status201Created, notFound: "Question not found", forbidden: "Teacher role required");
         }).RequireAuthorization();
 
-        // POST /api/assignments/module — assign a whole module → 201. engagement.py:443-506.
+        // POST /api/assignments/module — assign a whole module → 201.
         assignments.MapPost("/module", async (CreateModuleAssignmentRequest body, ClaimsPrincipal principal, ClassroomService svc, CancellationToken ct) =>
         {
             if (!TryGetUserId(principal, out var userId)) return Results.Unauthorized();
@@ -97,7 +108,7 @@ public static class ClassroomEndpoints
             return Map(r, StatusCodes.Status201Created, notFound: "Module not found", forbidden: "Teacher role required");
         }).RequireAuthorization();
 
-        // GET /api/assignments/mine — the current user's own assignments. engagement.py:521-529.
+        // GET /api/assignments/mine — the current user's own assignments.
         // Registered before the collection GET is irrelevant (distinct literal path), but kept adjacent.
         assignments.MapGet("/mine", async (ClaimsPrincipal principal, ClassroomService svc, CancellationToken ct) =>
         {
@@ -106,7 +117,7 @@ public static class ClassroomEndpoints
             return list is null ? Results.Unauthorized() : Results.Ok(list);
         }).RequireAuthorization();
 
-        // GET /api/assignments — the teacher's own assignments (admin: all). engagement.py:509-518.
+        // GET /api/assignments — the teacher's own assignments (admin: all).
         assignments.MapGet("", async (ClaimsPrincipal principal, ClassroomService svc, CancellationToken ct) =>
         {
             if (!TryGetUserId(principal, out var userId)) return Results.Unauthorized();
@@ -119,7 +130,7 @@ public static class ClassroomEndpoints
     {
         var reports = app.MapGroup("/api/reports");
 
-        // GET /api/reports/gradebook — teacher/admin gradebook (?group_id). reports.py:76-82.
+        // GET /api/reports/gradebook — teacher/admin gradebook (?group_id).
         reports.MapGet("/gradebook", async (Guid? group_id, ClaimsPrincipal principal, ClassroomService svc, CancellationToken ct) =>
         {
             if (!TryGetUserId(principal, out var userId)) return Results.Unauthorized();
@@ -128,8 +139,8 @@ public static class ClassroomEndpoints
         }).RequireAuthorization();
     }
 
-    // A valid *access* token carrying a parseable `sub` (a refresh token is rejected, mirroring
-    // deps.py:25). role/is_active are read from the DB in the service, never trusted from the token.
+    // A valid *access* token carrying a parseable `sub`; a refresh token is deliberately rejected
+    // here. role/is_active are read from the DB in the service, never trusted from the token.
     private static bool TryGetUserId(ClaimsPrincipal principal, out Guid userId)
     {
         userId = Guid.Empty;
@@ -147,6 +158,17 @@ public static class ClassroomEndpoints
             ClassroomOutcome.Forbidden => Detail(forbidden ?? "Forbidden", StatusCodes.Status403Forbidden),
             ClassroomOutcome.NotFound => Detail(notFound ?? "Not found", StatusCodes.Status404NotFound),
             ClassroomOutcome.BadRequest => Detail(r.Detail ?? "Bad request", StatusCodes.Status400BadRequest),
+            _ => Results.StatusCode(StatusCodes.Status500InternalServerError),
+        };
+
+    // Same mapping for the payload-less writes: success is 204 No Content, not a body.
+    private static IResult MapNoContent(ClassroomOutcome outcome, string? notFound = null, string? forbidden = null)
+        => outcome switch
+        {
+            ClassroomOutcome.Ok => Results.NoContent(),
+            ClassroomOutcome.Unauthorized => Results.Unauthorized(),
+            ClassroomOutcome.Forbidden => Detail(forbidden ?? "Forbidden", StatusCodes.Status403Forbidden),
+            ClassroomOutcome.NotFound => Detail(notFound ?? "Not found", StatusCodes.Status404NotFound),
             _ => Results.StatusCode(StatusCodes.Status500InternalServerError),
         };
 

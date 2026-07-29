@@ -66,6 +66,11 @@ try
     builder.Services.AddSingleton<IGraderProvider, GeminiGraderProvider>();
     builder.Services.AddScoped<AssessmentService>();
 
+    // XP/streak award for a graded submission (Stage 6 gamification). GradingJob resolves
+    // IGradingRewarder (Govori.Contracts) after grading; the impl lives in the Engagement module.
+    builder.Services.AddScoped<Govori.Engagement.EngagementService>();
+    builder.Services.AddScoped<Govori.Contracts.IGradingRewarder, Govori.Engagement.SubmissionRewarder>();
+
     // ── Real-time (SignalR + Redis backplane) ───────────────────────────────
     // The Worker doesn't accept hub connections; it registers SignalR + IGradingEvents so the pipeline
     // can PUBLISH progress that reaches the API's connected clients over the govori-redis backplane.
@@ -74,7 +79,7 @@ try
     // ── Hangfire server + durable grading queue (docs/07 §7.7, Faza 3.9) ────
     builder.Services.AddGovoriHangfire(builder.Configuration, runServer: true);
 
-    // ── Recurring maintenance jobs (the Celery beat port) ───────────────────
+    // ── Recurring maintenance jobs ──────────────────────────────────────────
     // Destructive cleanup runs ONLY on this Hangfire host. Enabled by default; GOVORI_MAINTENANCE=false
     // registers the schedule but no-ops the work (used to verify Hangfire's additive schema against a
     // live DB without touching data).
@@ -102,6 +107,9 @@ try
             return ConnectionMultiplexer.Connect(options);
         });
         builder.Services.AddSingleton<ITelegramOtpLinkStore, RedisTelegramOtpLinkStore>();
+        // Proven Telegram↔phone pairs (docs/08). Singleton is safe: EfTelegramBindingStore opens its
+        // own scope per call, so no DbContext is captured by the singleton poller.
+        builder.Services.AddSingleton<ITelegramBindingStore, Govori.Infrastructure.Telegram.EfTelegramBindingStore>();
         builder.Services.AddHttpClient();
         builder.Services.AddSingleton(new TelegramBotPollerOptions(telegramBotToken));
         builder.Services.AddHostedService<TelegramBotPoller>();
@@ -110,7 +118,7 @@ try
     var host = builder.Build();
 
     // Register the recurring schedule (stuck reset / orphan cleanup / test cleanup) on the Hangfire
-    // storage — same job ids + cadence as Python's beat_schedule.
+    // storage. Idempotent: re-running updates the existing schedule rows in place.
     host.Services.AddGovoriRecurringJobs();
 
     host.Run();

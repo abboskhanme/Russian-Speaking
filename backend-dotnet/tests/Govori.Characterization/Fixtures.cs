@@ -3,23 +3,22 @@ using System.Text.Json;
 namespace Govori.Characterization;
 
 /// <summary>
-/// Loads the JSON fixtures generated from the live Python implementation.
+/// Loads the JSON golden fixtures in <c>tests/characterization/fixtures/</c>.
 ///
-/// These files are the contract. They are not written by hand and must never be
-/// edited to make a C# test pass — a disagreement means the port changed
-/// behavior, which is a bug. Regenerate them only when the Python side
-/// deliberately changes (and then only before cutover).
-///
-/// Source: tests/characterization/python/generate_fixtures.py
+/// These files are FROZEN GOLDEN SNAPSHOTS owned by this test project — they are
+/// the specification of the behavior, not a derived artifact, and nothing
+/// regenerates them. They must never be edited to make a C# test pass: a
+/// disagreement means the production code changed behavior, which is the bug the
+/// test exists to catch.
 /// </summary>
 internal static class Fixtures
 {
     private static readonly JsonSerializerOptions Options = new()
     {
-        // Fixtures are emitted by Python with snake_case keys
-        // (password_utf8_bytes, penalty_per_error, ...). Map them to the
-        // PascalCase record properties. Case-insensitive alone does NOT bridge
-        // snake_case → PascalCase.
+        // The fixture files use snake_case keys (password_utf8_bytes,
+        // penalty_per_error, ...). Map them to the PascalCase record properties.
+        // Case-insensitive matching alone does NOT bridge snake_case →
+        // PascalCase, so the naming policy is required.
         PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower,
         PropertyNameCaseInsensitive = true,
     };
@@ -34,9 +33,9 @@ internal static class Fixtures
 
         if (dir is null)
             throw new InvalidOperationException(
-                "Could not locate tests/characterization/fixtures. " +
-                "Generate it first: docker compose run --rm backend python " +
-                "/app/../tests/characterization/python/generate_fixtures.py");
+                "Could not locate tests/characterization/fixtures by walking up from " +
+                AppContext.BaseDirectory + ". The golden fixtures live at the REPO ROOT, so the " +
+                "tests must run with the repo root available (not just backend-dotnet/).");
 
         return Path.Combine(dir.FullName, "tests", "characterization", "fixtures");
     });
@@ -45,7 +44,8 @@ internal static class Fixtures
     {
         var path = Path.Combine(Root.Value, fileName);
         if (!File.Exists(path))
-            throw new FileNotFoundException($"Fixture missing: {path}. Regenerate from Python.", path);
+            throw new FileNotFoundException(
+                $"Golden fixture missing: {path}. It is checked into the repo — restore it from git.", path);
 
         return JsonSerializer.Deserialize<T>(File.ReadAllText(path), Options)
                ?? throw new InvalidOperationException($"Fixture {fileName} deserialized to null.");
@@ -53,7 +53,7 @@ internal static class Fixtures
 }
 
 // ---------------------------------------------------------------------------
-// Fixture shapes. Mirror generate_fixtures.py exactly.
+// Fixture shapes — these records must match the on-disk golden JSON exactly.
 // ---------------------------------------------------------------------------
 
 internal sealed record BcryptFixture(string Algorithm, string Prefix, int Cost, int TruncateBytes, BcryptCase[] Cases);
@@ -79,20 +79,20 @@ internal sealed record ReferenceMatchCase(string Reference, string Spoken, Refer
 internal sealed record ReferenceMatchResult(
     double Completeness, double Similarity, int MatchedWords, int ReferenceWords, int SpokenWords, bool OnTopic);
 
-// C3 — services/scoring.py: effective_band / rolling_avg / best_band.
+// C3 — progress scoring: effective_band / rolling_avg / best_band.
 internal sealed record ScoringFixture(int RecentWindow, ScoringScenario[] Cases);
 internal sealed record ScoringScenario(
     string Name, int Window, ScoringSubmission[] Submissions, double? RollingAvg, double? BestBand);
 internal sealed record ScoringSubmission(
     long CreatedAt, double? TeacherBand, bool HasEvaluation, double? LevelScore, double? OverallBand, double? EffectiveBand);
 
-// C4 — services/access.py: needs_premium (freemium paywall decision).
+// C4 — needs_premium: the freemium paywall decision.
 internal sealed record NeedsPremiumFixture(int DefaultFreeTasksPerModule, NeedsPremiumCase[] Cases);
 internal sealed record NeedsPremiumCase(
     string Role, bool IsPremium, bool BlockIdPresent, bool BlockExists,
     string? Visibility, int FreeTasksPerModule, int TaskIndex, bool Expected);
 
-// C9 — services/access.py: task_index ordering predicate.
+// C9 — task_index: the sibling-ordering predicate behind the positional gate.
 internal sealed record TaskIndexFixture(TaskIndexCase[] Cases);
 internal sealed record TaskIndexCase(
     string Name, string BlockId, TaskIndexTarget Target, TaskIndexRow[] Siblings, int ExpectedIndex);

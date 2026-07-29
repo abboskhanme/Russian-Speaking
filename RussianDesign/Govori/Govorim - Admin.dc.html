@@ -1,0 +1,603 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Onest:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{
+  --primary:oklch(0.660 0.170 42); --primary-press:oklch(0.585 0.165 40);
+  --primary-tint:oklch(0.955 0.028 52); --primary-tint-2:oklch(0.905 0.058 48);
+  --primary-on:oklch(0.995 0.004 60);
+  --accent:oklch(0.520 0.095 255); --accent-tint:oklch(0.950 0.028 258);
+  --bg:oklch(0.981 0.004 264); --surface:oklch(1 0 0);
+  --surface-2:oklch(0.974 0.004 264); --surface-3:oklch(0.951 0.006 266);
+  --ink:oklch(0.255 0.021 264); --ink-soft:oklch(0.415 0.019 264);
+  --muted:oklch(0.575 0.016 266); --faint:oklch(0.715 0.012 268);
+  --line:oklch(0.923 0.006 264); --line-2:oklch(0.878 0.008 266);
+  --success:oklch(0.640 0.140 155); --warn:oklch(0.760 0.135 82);
+  --danger:oklch(0.605 0.170 20); --info:oklch(0.600 0.115 245);
+  --success-tint:oklch(0.955 0.036 155); --warn-tint:oklch(0.960 0.034 82);
+  --danger-tint:oklch(0.958 0.036 20); --warn-ink:oklch(0.55 0.11 82);
+  --sidebar:oklch(1 0 0); --sidebar-2:oklch(0.955 0.028 52);
+  --sidebar-muted:oklch(0.575 0.016 266);
+}
+*{box-sizing:border-box}
+body{margin:0;background:oklch(0.945 0.004 264);font-family:"Onest",system-ui,sans-serif;color:var(--ink);-webkit-font-smoothing:antialiased}
+a{color:var(--primary);text-decoration:none} a:hover{color:var(--primary-press)}
+.ascroll::-webkit-scrollbar{width:9px;height:9px}
+.ascroll::-webkit-scrollbar-thumb{background:var(--line-2);border-radius:99px;border:2px solid transparent;background-clip:padding-box}
+.ascroll::-webkit-scrollbar-track{background:transparent}
+</style>
+</helmet>
+
+<div style="padding:40px;display:flex;justify-content:center">
+<div style="width:1440px;background:var(--bg);border-radius:16px;overflow:hidden;box-shadow:0 40px 90px -30px rgba(40,25,10,.45);border:1px solid var(--line-2)">
+
+  <!-- WINDOW TITLE BAR -->
+  <div style="height:44px;background:var(--surface-2);border-bottom:1px solid var(--line);display:flex;align-items:center;padding:0 16px;gap:14px;flex:none">
+    <div style="display:flex;gap:8px"><div style="width:12px;height:12px;border-radius:99px;background:#ff5f57"></div><div style="width:12px;height:12px;border-radius:99px;background:#febc2e"></div><div style="width:12px;height:12px;border-radius:99px;background:#28c840"></div></div>
+    <div style="flex:1;display:flex;justify-content:center"><div style="display:flex;align-items:center;gap:7px;background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:5px 14px;font-size:12.5px;color:var(--muted);font-weight:500"><svg width="12" height="12" viewBox="0 0 24 24" fill="none"><rect x="4" y="10" width="16" height="10" rx="2" stroke="var(--muted)" stroke-width="1.8"/><path d="M8 10V7a4 4 0 0 1 8 0v3" stroke="var(--muted)" stroke-width="1.8"/></svg>admin.govori.uz</div></div>
+    <div style="width:56px"></div>
+  </div>
+
+  <!-- APP BODY -->
+  <div style="display:flex;height:856px">
+
+    <!-- SIDEBAR -->
+    <div style="flex:none;width:248px;background:var(--sidebar);display:flex;flex-direction:column;padding:22px 16px">
+      <div style="display:flex;align-items:center;gap:11px;padding:0 8px 22px">
+        <div style="width:38px;height:38px;border-radius:11px;background:var(--primary);display:flex;align-items:center;justify-content:center;flex:none;box-shadow:0 4px 12px oklch(0.660 0.170 42 / .35)"><svg width="21" height="21" viewBox="0 0 24 24" fill="none"><path d="M3 8l9-4 9 4-9 4z" stroke="#fff" stroke-width="1.8" stroke-linejoin="round"/><path d="M7 10v5c0 1 2.2 2.5 5 2.5s5-1.5 5-2.5v-5" stroke="#fff" stroke-width="1.8" stroke-linejoin="round"/></svg></div>
+        <div><div style="font-size:16px;font-weight:800;color:#fff;letter-spacing:-.02em">Govori</div><div style="font-size:11px;color:var(--sidebar-muted);font-weight:600;letter-spacing:.04em">ADMIN PANEL</div></div>
+      </div>
+
+      <div style="font-size:10px;font-weight:800;letter-spacing:.07em;text-transform:uppercase;color:var(--sidebar-muted);padding:0 10px 8px">Boshqaruv</div>
+      <sc-for list="{{ navMain }}" as="n" hint-placeholder-count="5">
+        <div onClick="{{ n.go }}" style="{{ n.style }}"><span style="width:20px;display:flex;flex:none">{{ n.icon }}</span><span style="flex:1">{{ n.label }}</span><span style="{{ n.badgeStyle }}">{{ n.badge }}</span></div>
+      </sc-for>
+
+      <div style="font-size:10px;font-weight:800;letter-spacing:.07em;text-transform:uppercase;color:var(--sidebar-muted);padding:18px 10px 8px">Tizim</div>
+      <sc-for list="{{ navSys }}" as="n" hint-placeholder-count="2">
+        <div onClick="{{ n.go }}" style="{{ n.style }}"><span style="width:20px;display:flex;flex:none">{{ n.icon }}</span><span style="flex:1">{{ n.label }}</span></div>
+      </sc-for>
+
+      <div style="margin-top:auto;display:flex;align-items:center;gap:11px;padding:12px 10px;border-top:1px solid var(--sidebar-2)">
+        <div style="width:34px;height:34px;border-radius:99px;background:var(--sidebar-2);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;color:#fff;flex:none">AD</div>
+        <div style="flex:1;min-width:0"><div style="font-size:13px;font-weight:700;color:#fff">Admin Rustamov</div><div style="font-size:11px;color:var(--sidebar-muted)">Bosh administrator</div></div>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M12 3v9m0 0-3.5-3.5M12 12l3.5-3.5M5 15v4a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-4" stroke="var(--sidebar-muted)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" transform="rotate(90 12 12)"/></svg>
+      </div>
+    </div>
+
+    <!-- MAIN -->
+    <div style="flex:1;min-width:0;display:flex;flex-direction:column;background:var(--bg)">
+      <!-- TOPBAR -->
+      <div style="height:66px;flex:none;border-bottom:1px solid var(--line);background:var(--surface);display:flex;align-items:center;padding:0 26px;gap:18px">
+        <div style="flex:1"><div style="font-size:18px;font-weight:800;letter-spacing:-.02em">{{ pageTitle }}</div><div style="font-size:12px;color:var(--muted);margin-top:1px">{{ pageSub }}</div></div>
+        <div style="display:flex;align-items:center;gap:10px;background:var(--surface-2);border:1px solid var(--line);border-radius:10px;padding:8px 13px;width:280px"><svg width="16" height="16" viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="7" stroke="var(--muted)" stroke-width="1.8"/><path d="m20 20-3.2-3.2" stroke="var(--muted)" stroke-width="1.8" stroke-linecap="round"/></svg><span style="font-size:13px;color:var(--muted)">Qidirish…</span></div>
+        <div style="position:relative;width:40px;height:40px;border-radius:10px;background:var(--surface-2);border:1px solid var(--line);display:flex;align-items:center;justify-content:center"><svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M6 8a6 6 0 0 1 12 0c0 5 2 6 2 6H4s2-1 2-6z" stroke="var(--ink-soft)" stroke-width="1.8" stroke-linejoin="round"/><path d="M10 19a2 2 0 0 0 4 0" stroke="var(--ink-soft)" stroke-width="1.8"/></svg><div style="position:absolute;top:8px;right:9px;width:7px;height:7px;border-radius:99px;background:var(--danger);border:1.5px solid var(--surface)"></div></div>
+      </div>
+
+      <!-- CONTENT -->
+      <div class="ascroll" style="flex:1;overflow-y:auto;padding:26px">
+
+        <!-- ===== DASHBOARD ===== -->
+        <sc-if value="{{ isDash }}" hint-placeholder-val="{{ true }}">
+          <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:20px">
+            <sc-for list="{{ kpis }}" as="k" hint-placeholder-count="4">
+              <div style="background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:18px">
+                <div style="display:flex;align-items:center;justify-content:space-between"><span style="font-size:12.5px;color:var(--muted);font-weight:600">{{ k.label }}</span><span style="width:32px;height:32px;border-radius:9px;background:{{ k.iconBg }};display:flex;align-items:center;justify-content:center">{{ k.icon }}</span></div>
+                <div style="font-size:30px;font-weight:800;letter-spacing:-.03em;margin-top:12px">{{ k.value }}</div>
+                <div style="display:flex;align-items:center;gap:5px;margin-top:5px"><span style="{{ k.deltaStyle }}">{{ k.delta }}</span><span style="font-size:11.5px;color:var(--muted)">o'tgan oyga</span></div>
+              </div>
+            </sc-for>
+          </div>
+
+          <div style="display:grid;grid-template-columns:1.6fr 1fr;gap:16px;margin-bottom:20px">
+            <div style="background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:20px">
+              <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px"><div><div style="font-size:15px;font-weight:800">Faollik va daromad</div><div style="font-size:12px;color:var(--muted);margin-top:1px">So'nggi 7 oy</div></div><div style="display:flex;gap:14px"><span style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--ink-soft);font-weight:600"><span style="width:9px;height:9px;border-radius:2px;background:var(--primary)"></span>Faol foydalanuvchi</span><span style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--ink-soft);font-weight:600"><span style="width:9px;height:9px;border-radius:2px;background:var(--primary-tint-2)"></span>Daromad</span></div></div>
+              <div style="display:flex;align-items:flex-end;gap:14px;height:196px;padding-top:6px">
+                <sc-for list="{{ chartCols }}" as="c" hint-placeholder-count="7">
+                  <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:8px;height:100%;justify-content:flex-end">
+                    <div style="width:100%;display:flex;gap:5px;align-items:flex-end;height:100%;justify-content:center">
+                      <div style="width:38%;height:{{ c.hUsers }};background:var(--primary);border-radius:5px 5px 0 0"></div>
+                      <div style="width:38%;height:{{ c.hRev }};background:var(--primary-tint-2);border-radius:5px 5px 0 0"></div>
+                    </div>
+                    <span style="font-size:11px;color:var(--muted);font-weight:600">{{ c.m }}</span>
+                  </div>
+                </sc-for>
+              </div>
+            </div>
+            <div style="background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:20px">
+              <div style="font-size:15px;font-weight:800;margin-bottom:4px">Daraja taqsimoti</div>
+              <div style="font-size:12px;color:var(--muted);margin-bottom:18px">Barcha o'quvchilar</div>
+              <div style="display:flex;flex-direction:column;gap:14px">
+                <sc-for list="{{ levelDist }}" as="l" hint-placeholder-count="5">
+                  <div><div style="display:flex;justify-content:space-between;margin-bottom:6px"><span style="font-size:13px;font-weight:700">{{ l.name }}</span><span style="font-size:13px;font-weight:700;color:var(--muted)">{{ l.pct }}%</span></div><div style="height:9px;border-radius:99px;background:var(--surface-3);overflow:hidden"><div style="height:100%;width:{{ l.barW }};background:{{ l.col }};border-radius:99px"></div></div></div>
+                </sc-for>
+              </div>
+            </div>
+          </div>
+
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+            <div style="background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:20px">
+              <div style="font-size:15px;font-weight:800;margin-bottom:16px">So'nggi harakatlar</div>
+              <div style="display:flex;flex-direction:column;gap:2px">
+                <sc-for list="{{ activity }}" as="a" hint-placeholder-count="5">
+                  <div style="display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--line)"><span style="width:34px;height:34px;border-radius:9px;background:{{ a.dotBg }};display:flex;align-items:center;justify-content:center;flex:none">{{ a.icon }}</span><div style="flex:1;min-width:0"><div style="font-size:13.5px;font-weight:600" >{{ a.text }}</div><div style="font-size:11.5px;color:var(--muted);margin-top:1px">{{ a.when }}</div></div></div>
+                </sc-for>
+              </div>
+            </div>
+            <div style="background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:20px">
+              <div style="font-size:15px;font-weight:800;margin-bottom:16px">E'tibor talab qiladi</div>
+              <div style="display:flex;flex-direction:column;gap:11px">
+                <sc-for list="{{ attention }}" as="t" hint-placeholder-count="3">
+                  <div style="display:flex;align-items:center;gap:12px;background:{{ t.bg }};border:1px solid {{ t.border }};border-radius:13px;padding:13px 14px"><span style="width:32px;height:32px;border-radius:9px;background:{{ t.iconBg }};display:flex;align-items:center;justify-content:center;flex:none">{{ t.icon }}</span><div style="flex:1"><div style="font-size:13.5px;font-weight:700">{{ t.title }}</div><div style="font-size:12px;color:var(--ink-soft);margin-top:1px">{{ t.sub }}</div></div><span style="font-size:12.5px;font-weight:700;color:{{ t.cta }};white-space:nowrap">Ko'rish →</span></div>
+                </sc-for>
+              </div>
+            </div>
+          </div>
+        </sc-if>
+
+        <!-- ===== USERS ===== -->
+        <sc-if value="{{ isUsers }}" hint-placeholder-val="{{ false }}">
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:18px">
+            <div style="display:flex;background:var(--surface);border:1px solid var(--line);border-radius:11px;padding:4px">
+              <div onClick="{{ uAll }}" style="{{ segUAll }}">Hammasi</div>
+              <div onClick="{{ uStudents }}" style="{{ segUStu }}">O'quvchilar</div>
+              <div onClick="{{ uTeachers }}" style="{{ segUTea }}">O'qituvchilar</div>
+            </div>
+            <div style="flex:1"></div>
+            <div style="display:flex;align-items:center;gap:7px;background:var(--surface);border:1px solid var(--line-2);border-radius:10px;padding:9px 13px;font-size:13px;font-weight:600;color:var(--ink-soft)"><svg width="15" height="15" viewBox="0 0 24 24" fill="none"><path d="M3 5h18M6 12h12M10 19h4" stroke="var(--ink-soft)" stroke-width="1.8" stroke-linecap="round"/></svg>Filtr</div>
+            <div style="display:flex;align-items:center;gap:7px;background:var(--primary);color:var(--primary-on);border-radius:10px;padding:9px 15px;font-size:13px;font-weight:700"><svg width="15" height="15" viewBox="0 0 24 24" fill="none"><path d="M12 5v14M5 12h14" stroke="#fff" stroke-width="2.2" stroke-linecap="round"/></svg>Foydalanuvchi</div>
+          </div>
+          <div style="background:var(--surface);border:1px solid var(--line);border-radius:16px;overflow:hidden">
+            <div style="display:flex;padding:13px 20px;background:var(--surface-2);border-bottom:1px solid var(--line);font-size:11px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;color:var(--muted)"><span style="flex:2.4">Foydalanuvchi</span><span style="flex:1">Rol</span><span style="flex:1">Daraja</span><span style="flex:1.3">Guruh</span><span style="flex:1">Holat</span><span style="flex:1;text-align:right">Faollik</span><span style="width:30px"></span></div>
+            <sc-for list="{{ users }}" as="u" hint-placeholder-count="8">
+              <div style="display:flex;align-items:center;padding:13px 20px;border-bottom:1px solid var(--line)">
+                <div style="flex:2.4;display:flex;align-items:center;gap:11px"><div style="width:36px;height:36px;border-radius:99px;background:{{ u.avBg }};display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;color:{{ u.avCol }};flex:none">{{ u.initials }}</div><div style="min-width:0"><div style="font-size:13.5px;font-weight:700">{{ u.name }}</div><div style="font-size:11.5px;color:var(--muted);font-family:'JetBrains Mono'">{{ u.phone }}</div></div></div>
+                <span style="flex:1"><span style="{{ u.roleStyle }}">{{ u.role }}</span></span>
+                <span style="flex:1;font-size:13px;font-weight:700">{{ u.level }}</span>
+                <span style="flex:1.3;font-size:13px;color:var(--ink-soft)">{{ u.group }}</span>
+                <span style="flex:1"><span style="{{ u.statusStyle }}">{{ u.status }}</span></span>
+                <span style="flex:1;text-align:right;font-size:12.5px;color:var(--muted)">{{ u.seen }}</span>
+                <span style="width:30px;text-align:right"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" style="display:inline"><circle cx="12" cy="5" r="1.6" fill="var(--muted)"/><circle cx="12" cy="12" r="1.6" fill="var(--muted)"/><circle cx="12" cy="19" r="1.6" fill="var(--muted)"/></svg></span>
+              </div>
+            </sc-for>
+            <div style="display:flex;align-items:center;justify-content:space-between;padding:14px 20px"><span style="font-size:12.5px;color:var(--muted)">1–8 / 1 248 foydalanuvchi</span><div style="display:flex;gap:6px"><span style="width:32px;height:32px;border:1px solid var(--line-2);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:13px;color:var(--muted)">‹</span><span style="width:32px;height:32px;background:var(--primary);color:#fff;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700">1</span><span style="width:32px;height:32px;border:1px solid var(--line-2);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:13px;color:var(--ink-soft)">2</span><span style="width:32px;height:32px;border:1px solid var(--line-2);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:13px;color:var(--ink-soft)">3</span><span style="width:32px;height:32px;border:1px solid var(--line-2);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:13px;color:var(--muted)">›</span></div></div>
+          </div>
+        </sc-if>
+
+        <!-- ===== GROUPS ===== -->
+        <sc-if value="{{ isGroups }}" hint-placeholder-val="{{ false }}">
+          <div style="display:flex;align-items:center;margin-bottom:18px"><div style="flex:1;font-size:13px;color:var(--muted)">Platformadagi barcha guruhlar · <b style="color:var(--ink)">32 ta</b></div><div style="display:flex;align-items:center;gap:7px;background:var(--primary);color:var(--primary-on);border-radius:10px;padding:9px 15px;font-size:13px;font-weight:700"><svg width="15" height="15" viewBox="0 0 24 24" fill="none"><path d="M12 5v14M5 12h14" stroke="#fff" stroke-width="2.2" stroke-linecap="round"/></svg>Guruh yaratish</div></div>
+          <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px">
+            <sc-for list="{{ groups }}" as="g" hint-placeholder-count="6">
+              <div style="background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:18px">
+                <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px"><div style="width:42px;height:42px;border-radius:12px;background:{{ g.iconBg }};display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:800;color:{{ g.iconCol }};flex:none">{{ g.level }}</div><div style="flex:1;min-width:0"><div style="font-size:15px;font-weight:800">{{ g.name }}</div><div style="font-size:12px;color:var(--muted)">{{ g.teacher }}</div></div></div>
+                <div style="display:flex;gap:8px;margin-bottom:14px"><div style="flex:1;background:var(--surface-2);border-radius:10px;padding:9px 11px"><div style="font-size:17px;font-weight:800">{{ g.students }}</div><div style="font-size:10.5px;color:var(--muted);font-weight:600">o'quvchi</div></div><div style="flex:1;background:var(--surface-2);border-radius:10px;padding:9px 11px"><div style="font-size:17px;font-weight:800">{{ g.avg }}</div><div style="font-size:10.5px;color:var(--muted);font-weight:600">o'rtacha</div></div><div style="flex:1;background:var(--surface-2);border-radius:10px;padding:9px 11px"><div style="font-size:17px;font-weight:800;color:var(--success)">{{ g.active }}</div><div style="font-size:10.5px;color:var(--muted);font-weight:600">faol</div></div></div>
+                <div style="display:flex;align-items:center;justify-content:space-between;padding-top:12px;border-top:1px solid var(--line)"><span style="font-family:'JetBrains Mono';font-size:12px;color:var(--ink-soft)">{{ g.code }}</span><span style="{{ g.statusStyle }}">{{ g.status }}</span></div>
+              </div>
+            </sc-for>
+          </div>
+        </sc-if>
+
+        <!-- ===== TEACHERS ===== -->
+        <sc-if value="{{ isTeachersList }}" hint-placeholder-val="{{ false }}">
+          <div style="display:flex;align-items:center;margin-bottom:18px"><div style="flex:1;font-size:13px;color:var(--muted)">Platforma o'qituvchilari · <b style="color:var(--ink)">{{ teacherCount }} ta</b></div><div style="display:flex;align-items:center;gap:7px;background:var(--primary);color:var(--primary-on);border-radius:10px;padding:9px 15px;font-size:13px;font-weight:700"><svg width="15" height="15" viewBox="0 0 24 24" fill="none"><path d="M12 5v14M5 12h14" stroke="#fff" stroke-width="2.2" stroke-linecap="round"/></svg>O'qituvchi qo'shish</div></div>
+          <div style="background:var(--surface);border:1px solid var(--line);border-radius:16px;overflow:hidden">
+            <div style="display:flex;padding:13px 20px;background:var(--surface-2);border-bottom:1px solid var(--line);font-size:11px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;color:var(--muted)"><span style="flex:2.4">O'qituvchi</span><span style="flex:1;text-align:center">Guruh</span><span style="flex:1;text-align:center">O'quvchi</span><span style="flex:1;text-align:center">Tekshirilmagan</span><span style="flex:1;text-align:center">Reyting</span><span style="flex:1;text-align:right">Holat</span><span style="width:30px"></span></div>
+            <sc-for list="{{ teachers }}" as="t" hint-placeholder-count="4">
+              <div onClick="{{ t.open }}" style="display:flex;align-items:center;padding:14px 20px;border-bottom:1px solid var(--line);cursor:pointer">
+                <div style="flex:2.4;display:flex;align-items:center;gap:11px"><div style="width:38px;height:38px;border-radius:99px;background:{{ t.avBg }};display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;color:{{ t.avCol }};flex:none">{{ t.initials }}</div><div style="min-width:0"><div style="font-size:13.5px;font-weight:700">{{ t.name }}</div><div style="font-size:11.5px;color:var(--muted);font-family:'JetBrains Mono'">{{ t.phone }}</div></div></div>
+                <span style="flex:1;text-align:center;font-size:13.5px;font-weight:700">{{ t.groups }}</span>
+                <span style="flex:1;text-align:center;font-size:13.5px;font-weight:700">{{ t.students }}</span>
+                <span style="flex:1;text-align:center"><span style="{{ t.pendStyle }}">{{ t.pending }}</span></span>
+                <span style="flex:1;text-align:center;font-size:13px;font-weight:700;color:var(--warn-ink)">★ {{ t.rating }}</span>
+                <span style="flex:1;text-align:right"><span style="{{ t.statusStyle }}">{{ t.status }}</span></span>
+                <span style="width:30px;text-align:right"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" style="display:inline"><path d="m9 6 6 6-6 6" stroke="var(--faint)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+              </div>
+            </sc-for>
+          </div>
+        </sc-if>
+
+        <!-- ===== TEACHER DETAIL ===== -->
+        <sc-if value="{{ isTeacherDetail }}" hint-placeholder-val="{{ false }}">
+          <div onClick="{{ closeTeacher }}" style="display:flex;align-items:center;gap:5px;margin-bottom:16px;cursor:pointer;color:var(--ink-soft);font-size:13px;font-weight:700"><svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="m15 6-6 6 6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>O'qituvchilar</div>
+          <div style="display:flex;gap:16px;align-items:stretch;margin-bottom:16px">
+            <div style="flex:1;background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:22px;display:flex;align-items:center;gap:16px">
+              <div style="width:64px;height:64px;border-radius:99px;background:{{ td.avBg }};display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:800;color:{{ td.avCol }};flex:none">{{ td.initials }}</div>
+              <div style="flex:1;min-width:0"><div style="display:flex;align-items:center;gap:9px"><span style="font-size:20px;font-weight:800;letter-spacing:-.02em">{{ td.name }}</span><span style="{{ td.statusStyle }}">{{ td.status }}</span></div><div style="font-size:13px;color:var(--muted);font-family:'JetBrains Mono';margin-top:3px">{{ td.phone }}</div><div style="font-size:12.5px;color:var(--ink-soft);margin-top:3px">{{ td.email }} · Qo'shilgan: {{ td.joined }}</div></div>
+              <div style="display:flex;flex-direction:column;gap:8px;flex:none">
+                <div onClick="{{ td.toggle }}" style="{{ td.toggleStyle }}">{{ td.toggleLabel }}</div>
+                <div style="text-align:center;padding:9px 16px;background:var(--surface-2);border:1px solid var(--line-2);border-radius:10px;font-size:12.5px;font-weight:700;color:var(--ink-soft);cursor:pointer">Tahrirlash</div>
+              </div>
+            </div>
+          </div>
+          <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:16px">
+            <div style="background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:18px"><div style="font-size:12.5px;color:var(--muted);font-weight:600">Guruhlar</div><div style="font-size:27px;font-weight:800;letter-spacing:-.03em;margin-top:8px">{{ td.groups }}</div></div>
+            <div style="background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:18px"><div style="font-size:12.5px;color:var(--muted);font-weight:600">O'quvchilar</div><div style="font-size:27px;font-weight:800;letter-spacing:-.03em;margin-top:8px">{{ td.students }}</div></div>
+            <div style="background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:18px"><div style="font-size:12.5px;color:var(--muted);font-weight:600">Tekshirilmagan</div><div style="font-size:27px;font-weight:800;letter-spacing:-.03em;margin-top:8px;color:{{ td.pendCol }}">{{ td.pending }}</div></div>
+            <div style="background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:18px"><div style="font-size:12.5px;color:var(--muted);font-weight:600">Reyting</div><div style="font-size:27px;font-weight:800;letter-spacing:-.03em;margin-top:8px;color:var(--warn-ink)">★ {{ td.rating }}</div></div>
+          </div>
+          <div style="display:grid;grid-template-columns:1.3fr 1fr;gap:16px">
+            <div style="background:var(--surface);border:1px solid var(--line);border-radius:16px;overflow:hidden">
+              <div style="padding:16px 20px;font-size:15px;font-weight:800;border-bottom:1px solid var(--line)">Biriktirilgan guruhlar</div>
+              <div style="display:flex;padding:11px 20px;background:var(--surface-2);border-bottom:1px solid var(--line);font-size:11px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;color:var(--muted)"><span style="flex:1.6">Guruh</span><span style="flex:1;text-align:center">O'quvchi</span><span style="flex:1;text-align:center">O'rtacha</span><span style="flex:1;text-align:right">Holat</span></div>
+              <sc-for list="{{ td.groupList }}" as="g" hint-placeholder-count="3">
+                <div style="display:flex;align-items:center;padding:13px 20px;border-bottom:1px solid var(--line)"><div style="flex:1.6;display:flex;align-items:center;gap:10px"><div style="width:32px;height:32px;border-radius:9px;background:{{ g.iconBg }};display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;color:{{ g.iconCol }};flex:none">{{ g.level }}</div><span style="font-size:13.5px;font-weight:700">{{ g.name }}</span></div><span style="flex:1;text-align:center;font-size:13px;font-weight:700">{{ g.students }}</span><span style="flex:1;text-align:center;font-size:13px;font-weight:700">{{ g.avg }}</span><span style="flex:1;text-align:right"><span style="{{ g.statusStyle }}">{{ g.status }}</span></span></div>
+              </sc-for>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:16px">
+              <div style="background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:20px"><div style="font-size:15px;font-weight:800;margin-bottom:16px">Ruxsatlar</div><div style="display:flex;flex-direction:column;gap:2px"><sc-for list="{{ td.perms }}" as="p" hint-placeholder-count="4"><div style="display:flex;align-items:center;gap:12px;padding:11px 0;border-bottom:1px solid var(--line)"><span style="flex:1;font-size:13px;font-weight:600">{{ p.label }}</span><span style="{{ p.style }}">{{ p.val }}</span></div></sc-for></div></div>
+              <div style="background:var(--danger-tint);border:1px solid oklch(0.90 0.05 20);border-radius:16px;padding:20px"><div style="font-size:14px;font-weight:800;color:var(--danger);margin-bottom:12px">Boshqaruv</div><div style="display:flex;gap:9px"><span style="flex:1;text-align:center;padding:10px;background:var(--surface);border:1px solid var(--danger);color:var(--danger);border-radius:10px;font-size:12.5px;font-weight:700;cursor:pointer">Guruhlarni qayta biriktirish</span></div></div>
+            </div>
+          </div>
+        </sc-if>
+
+        <!-- ===== CONTENT ===== -->
+        <sc-if value="{{ isContent }}" hint-placeholder-val="{{ false }}">
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:18px">
+            <div style="display:flex;background:var(--surface);border:1px solid var(--line);border-radius:11px;padding:4px">
+              <div onClick="{{ cMod }}" style="{{ segCMod }}">Modullar</div>
+              <div onClick="{{ cTask }}" style="{{ segCTask }}">Vazifalar</div>
+              <div onClick="{{ cScen }}" style="{{ segCScen }}">Ssenariylar</div>
+            </div>
+            <div style="flex:1"></div>
+            <div style="display:flex;align-items:center;gap:7px;background:var(--warn-tint);border:1px solid oklch(0.88 0.06 82);border-radius:10px;padding:9px 13px;font-size:13px;font-weight:700;color:var(--warn-ink)">4 ta moderatsiyada</div>
+          </div>
+          <div style="background:var(--surface);border:1px solid var(--line);border-radius:16px;overflow:hidden">
+            <div style="display:flex;padding:13px 20px;background:var(--surface-2);border-bottom:1px solid var(--line);font-size:11px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;color:var(--muted)"><span style="flex:2.4">Nom</span><span style="flex:1">Daraja</span><span style="flex:1.4">Muallif</span><span style="flex:1">Foydalanish</span><span style="flex:1.2">Holat</span><span style="width:130px;text-align:right">Amal</span></div>
+            <sc-for list="{{ content }}" as="c" hint-placeholder-count="7">
+              <div style="display:flex;align-items:center;padding:14px 20px;border-bottom:1px solid var(--line)">
+                <div style="flex:2.4;display:flex;align-items:center;gap:11px"><span style="width:34px;height:34px;border-radius:9px;background:{{ c.iconBg }};display:flex;align-items:center;justify-content:center;flex:none">{{ c.icon }}</span><div><div style="font-size:13.5px;font-weight:700">{{ c.title }}</div><div style="font-size:11.5px;color:var(--muted)">{{ c.meta }}</div></div></div>
+                <span style="flex:1;font-size:13px;font-weight:700">{{ c.level }}</span>
+                <span style="flex:1.4;font-size:13px;color:var(--ink-soft)">{{ c.author }}</span>
+                <span style="flex:1;font-size:13px;color:var(--ink-soft)">{{ c.usage }}</span>
+                <span style="flex:1.2"><span style="{{ c.statusStyle }}">{{ c.status }}</span></span>
+                <span style="width:130px;text-align:right"><span style="{{ c.actStyle }}">{{ c.act }}</span></span>
+              </div>
+            </sc-for>
+          </div>
+        </sc-if>
+
+        <!-- ===== PAYMENTS ===== -->
+        <sc-if value="{{ isPay }}" hint-placeholder-val="{{ false }}">
+          <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:20px">
+            <sc-for list="{{ payKpis }}" as="k" hint-placeholder-count="4">
+              <div style="background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:18px"><div style="font-size:12.5px;color:var(--muted);font-weight:600">{{ k.label }}</div><div style="font-size:27px;font-weight:800;letter-spacing:-.03em;margin-top:10px">{{ k.value }}</div><div style="{{ k.deltaStyle }};margin-top:5px">{{ k.delta }}</div></div>
+            </sc-for>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1.4fr;gap:16px">
+            <div style="background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:20px">
+              <div style="font-size:15px;font-weight:800;margin-bottom:16px">Tariflar bo'yicha</div>
+              <div style="display:flex;flex-direction:column;gap:14px">
+                <sc-for list="{{ plans }}" as="p" hint-placeholder-count="3">
+                  <div><div style="display:flex;justify-content:space-between;margin-bottom:6px"><span style="font-size:13.5px;font-weight:700">{{ p.name }}</span><span style="font-size:13px;color:var(--muted)">{{ p.count }} · {{ p.rev }}</span></div><div style="height:9px;border-radius:99px;background:var(--surface-3);overflow:hidden"><div style="height:100%;width:{{ p.barW }};background:{{ p.col }};border-radius:99px"></div></div></div>
+                </sc-for>
+              </div>
+            </div>
+            <div style="background:var(--surface);border:1px solid var(--line);border-radius:16px;overflow:hidden">
+              <div style="padding:16px 20px;font-size:15px;font-weight:800;border-bottom:1px solid var(--line)">So'nggi to'lovlar</div>
+              <div style="display:flex;padding:11px 20px;background:var(--surface-2);border-bottom:1px solid var(--line);font-size:11px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;color:var(--muted)"><span style="flex:1.6">Foydalanuvchi</span><span style="flex:1">Tarif</span><span style="flex:1;text-align:right">Summa</span><span style="flex:1;text-align:right">Holat</span></div>
+              <sc-for list="{{ txns }}" as="t" hint-placeholder-count="6">
+                <div style="display:flex;align-items:center;padding:12px 20px;border-bottom:1px solid var(--line)"><span style="flex:1.6;font-size:13px;font-weight:600">{{ t.name }}</span><span style="flex:1;font-size:12.5px;color:var(--ink-soft)">{{ t.plan }}</span><span style="flex:1;text-align:right;font-size:13px;font-weight:700;font-family:'JetBrains Mono'">{{ t.amount }}</span><span style="flex:1;text-align:right"><span style="{{ t.stStyle }}">{{ t.st }}</span></span></div>
+              </sc-for>
+            </div>
+          </div>
+        </sc-if>
+
+        <!-- ===== ANALYTICS ===== -->
+        <sc-if value="{{ isAnalytics }}" hint-placeholder-val="{{ false }}">
+          <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-bottom:20px">
+            <sc-for list="{{ anKpis }}" as="k" hint-placeholder-count="3">
+              <div style="background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:18px"><div style="font-size:12.5px;color:var(--muted);font-weight:600">{{ k.label }}</div><div style="font-size:28px;font-weight:800;letter-spacing:-.03em;margin-top:10px">{{ k.value }}</div><div style="{{ k.deltaStyle }};margin-top:5px">{{ k.delta }}</div></div>
+            </sc-for>
+          </div>
+          <div style="background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:20px;margin-bottom:16px">
+            <div style="font-size:15px;font-weight:800;margin-bottom:4px">Kunlik faol foydalanuvchilar</div>
+            <div style="font-size:12px;color:var(--muted);margin-bottom:20px">So'nggi 30 kun · DAU</div>
+            <svg width="100%" height="200" viewBox="0 0 800 200" preserveAspectRatio="none" style="display:block">
+              <defs><linearGradient id="anAdmin" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="var(--primary)" stop-opacity="0.28"/><stop offset="100%" stop-color="var(--primary)" stop-opacity="0"/></linearGradient></defs>
+              <path d="M0,150 60,140 120,148 180,120 240,128 300,96 360,104 420,74 480,84 540,58 600,66 660,44 720,40 800,26 L800,200 L0,200 Z" fill="url(#anAdmin)"/>
+              <polyline points="0,150 60,140 120,148 180,120 240,128 300,96 360,104 420,74 480,84 540,58 600,66 660,44 720,40 800,26" fill="none" stroke="var(--primary)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+            <div style="display:flex;justify-content:space-between;font-size:11px;font-weight:600;color:var(--muted);margin-top:8px"><span>1-kun</span><span>10-kun</span><span>20-kun</span><span>30-kun</span></div>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+            <div style="background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:20px"><div style="font-size:15px;font-weight:800;margin-bottom:16px">Eng ko'p uchragan xatolar</div><div style="display:flex;flex-direction:column;gap:11px"><sc-for list="{{ topErrors }}" as="e" hint-placeholder-count="4"><div style="display:flex;align-items:center;gap:12px"><span style="width:24px;height:24px;border-radius:7px;background:{{ e.rankBg }};color:{{ e.rankCol }};display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;flex:none">{{ e.rank }}</span><div style="flex:1;min-width:0"><div style="font-family:'JetBrains Mono';font-size:13px;font-weight:500">{{ e.term }}</div></div><span style="font-size:12.5px;color:var(--muted);font-weight:600">{{ e.pct }}</span></div></sc-for></div></div>
+            <div style="background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:20px"><div style="font-size:15px;font-weight:800;margin-bottom:16px">Retensiya (kohorta)</div><div style="display:flex;flex-direction:column;gap:12px"><sc-for list="{{ retention }}" as="r" hint-placeholder-count="4"><div><div style="display:flex;justify-content:space-between;margin-bottom:6px"><span style="font-size:13px;font-weight:700">{{ r.week }}</span><span style="font-size:13px;font-weight:700;color:var(--muted)">{{ r.pct }}%</span></div><div style="height:9px;border-radius:99px;background:var(--surface-3);overflow:hidden"><div style="height:100%;width:{{ r.barW }};background:var(--primary);border-radius:99px"></div></div></div></sc-for></div></div>
+          </div>
+        </sc-if>
+
+        <!-- ===== SETTINGS ===== -->
+        <sc-if value="{{ isSettings }}" hint-placeholder-val="{{ false }}">
+          <div style="max-width:760px;display:flex;flex-direction:column;gap:16px">
+            <div style="background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:22px">
+              <div style="font-size:15px;font-weight:800;margin-bottom:3px">Platforma</div><div style="font-size:12.5px;color:var(--muted);margin-bottom:18px">Umumiy sozlamalar</div>
+              <div style="display:flex;flex-direction:column;gap:2px">
+                <sc-for list="{{ setRows }}" as="s" hint-placeholder-count="4">
+                  <div style="display:flex;align-items:center;gap:14px;padding:14px 0;border-bottom:1px solid var(--line)"><div style="flex:1"><div style="font-size:13.5px;font-weight:700">{{ s.title }}</div><div style="font-size:12px;color:var(--muted);margin-top:1px">{{ s.sub }}</div></div><span style="{{ s.valStyle }}">{{ s.val }}</span></div>
+                </sc-for>
+              </div>
+            </div>
+            <div style="background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:22px">
+              <div style="font-size:15px;font-weight:800;margin-bottom:3px">AI baholash</div><div style="font-size:12.5px;color:var(--muted);margin-bottom:18px">Avtomatik baholash chegaralari</div>
+              <div style="display:flex;flex-direction:column;gap:2px">
+                <sc-for list="{{ aiRows }}" as="s" hint-placeholder-count="3">
+                  <div style="display:flex;align-items:center;gap:14px;padding:14px 0;border-bottom:1px solid var(--line)"><div style="flex:1"><div style="font-size:13.5px;font-weight:700">{{ s.title }}</div><div style="font-size:12px;color:var(--muted);margin-top:1px">{{ s.sub }}</div></div><span style="{{ s.valStyle }}">{{ s.val }}</span></div>
+                </sc-for>
+              </div>
+            </div>
+            <div style="background:var(--danger-tint);border:1px solid oklch(0.90 0.05 20);border-radius:16px;padding:22px">
+              <div style="font-size:15px;font-weight:800;color:var(--danger);margin-bottom:3px">Xavfli zona</div><div style="font-size:12.5px;color:var(--danger);opacity:.85;margin-bottom:16px">Bu amallar qaytarilmaydi</div>
+              <div style="display:flex;gap:10px"><span style="padding:10px 16px;background:var(--surface);border:1px solid var(--danger);color:var(--danger);border-radius:11px;font-size:13px;font-weight:700">Ma'lumotlar eksporti</span><span style="padding:10px 16px;background:var(--danger);color:#fff;border-radius:11px;font-size:13px;font-weight:700">Keshni tozalash</span></div>
+            </div>
+          </div>
+        </sc-if>
+
+      </div>
+    </div>
+  </div>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+class Component extends DCLogic {
+  state = { screen:'dash', userTab:'all', contentTab:'modules', openTeacher:null, suspended:{} };
+  set(k,v){ return ()=>this.setState({[k]:v}); }
+
+  renderVals(){
+    const S=this.state;
+    const ic=(p,c)=>React.createElement('svg',{width:16,height:16,viewBox:'0 0 24 24',fill:'none'},React.createElement('path',{d:p,stroke:c||'currentColor','strokeWidth':1.8,strokeLinecap:'round',strokeLinejoin:'round'}));
+    const navItem=(id,label,iconPath,badge)=>{
+      const on=S.screen===id;
+      const base="display:flex;align-items:center;gap:11px;padding:10px 12px;border-radius:10px;font-size:13.5px;font-weight:600;cursor:pointer;margin-bottom:3px;";
+      return { label, go:this.set('screen',id),
+        icon:ic(iconPath, on?'#fff':'var(--sidebar-muted)'),
+        style: base + (on?"background:var(--sidebar-2);color:#fff;box-shadow:inset 3px 0 0 var(--primary)":"color:var(--sidebar-muted)"),
+        badge: badge||'', badgeStyle: badge?"font-size:11px;font-weight:800;padding:2px 7px;border-radius:99px;background:var(--primary);color:#fff":"display:none" };
+    };
+    const navMain=[
+      navItem('dash','Boshqaruv','M4 13h6V4H4zM14 20h6V4h-6zM4 20h6v-5H4z'),
+      navItem('users','Foydalanuvchilar','M17 20v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2M9 10a4 4 0 1 0 0-8 4 4 0 0 0 0 8M23 20v-2a4 4 0 0 0-3-3.87M16 2.13A4 4 0 0 1 16 10'),
+      navItem('teachers','O\u2019qituvchilar','M22 10 12 5 2 10l10 5 10-5zM6 12v5c0 1 2.7 3 6 3s6-2 6-3v-5'),
+      navItem('groups','Guruhlar','M3 7h18M3 12h18M3 17h18'),
+      navItem('content','Kontent','M4 5h16v14H4zM4 9h16M9 9v10',),
+      navItem('pay','To\u2019lovlar','M2 7h20v12H2zM2 11h20M6 15h4', ),
+      navItem('analytics','Analitika','M3 3v18h18M7 15l3-4 3 3 4-6'),
+    ];
+    const navSys=[
+      navItem('settings','Sozlamalar','M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6M19 12a7 7 0 0 0-.1-1l2-1.6-2-3.4-2.3 1a7 7 0 0 0-1.7-1L14.5 2h-4l-.4 2.4a7 7 0 0 0-1.7 1l-2.3-1-2 3.4L4 11a7 7 0 0 0 0 2l-2 1.6 2 3.4 2.3-1a7 7 0 0 0 1.7 1l.4 2.4h4l.4-2.4a7 7 0 0 0 1.7-1l2.3 1 2-3.4-2-1.6a7 7 0 0 0 .1-1z'),
+    ];
+    // dash badge on content moderation
+    navMain[3].badge='4'; navMain[3].badgeStyle="font-size:11px;font-weight:800;padding:2px 7px;border-radius:99px;background:var(--primary);color:#fff";
+
+    const titles={
+      dash:['Boshqaruv','Platforma umumiy holati'],
+      users:['Foydalanuvchilar','Barcha o\u2019quvchi va o\u2019qituvchilar'],
+      teachers:['O\u2019qituvchilar','O\u2019qituvchilarni boshqarish'],
+      groups:['Guruhlar','Barcha o\u2019quv guruhlari'],
+      content:['Kontent','Modul, vazifa va ssenariylar'],
+      pay:['To\u2019lovlar','Obuna va daromad'],
+      analytics:['Analitika','Foydalanish va o\u2019sish ko\u2019rsatkichlari'],
+      settings:['Sozlamalar','Platforma konfiguratsiyasi'],
+    };
+    const t=titles[S.screen]||titles.dash;
+
+    const delUp=(v)=>({text:v,style:"font-size:12px;font-weight:800;color:var(--success)"});
+    const dStyle=(pos)=>"font-size:12px;font-weight:800;color:"+(pos?"var(--success)":"var(--danger)");
+
+    const kIc=(p,c)=>React.createElement('svg',{width:17,height:17,viewBox:'0 0 24 24',fill:'none'},React.createElement('path',{d:p,stroke:c,'strokeWidth':1.9,strokeLinecap:'round',strokeLinejoin:'round'}));
+    const NIB='var(--primary-tint)', NIC='var(--primary)';
+    const kpis=[
+      {label:'Jami foydalanuvchi',value:'1 248',delta:'+8.2%',deltaStyle:dStyle(true),iconBg:NIB,icon:kIc('M17 20v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2M9 10a4 4 0 1 0 0-8 4 4 0 0 0 0 8',NIC)},
+      {label:'Faol (7 kun)',value:'864',delta:'+4.1%',deltaStyle:dStyle(true),iconBg:NIB,icon:kIc('M22 12h-4l-3 9L9 3l-3 9H2',NIC)},
+      {label:'Oylik daromad',value:'42.8M',delta:'+12.6%',deltaStyle:dStyle(true),iconBg:NIB,icon:kIc('M12 1v22M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6',NIC)},
+      {label:'O\u2019qituvchilar',value:'38',delta:'+2',deltaStyle:dStyle(true),iconBg:NIB,icon:kIc('M22 10 12 5 2 10l10 5 10-5zM6 12v5c0 1 2.7 3 6 3s6-2 6-3v-5',NIC)},
+    ];
+    const chartCols=[['Yan',48,40],['Fev',56,46],['Mar',52,54],['Apr',68,60],['May',74,72],['Iyn',82,80],['Iyl',96,92]]
+      .map(([m,u,r])=>({m,hUsers:u+'%',hRev:r+'%'}));
+    const levelDist=[['A1',22,'oklch(0.620 0.170 40)'],['A2',31,'oklch(0.680 0.150 44)'],['B1',26,'oklch(0.735 0.120 47)'],['B2',15,'oklch(0.790 0.088 50)'],['C1',6,'oklch(0.845 0.058 53)']]
+      .map(([name,pct,col])=>({name,pct,barW:pct+'%',col}));
+
+    const aIc=(p,c)=>React.createElement('svg',{width:16,height:16,viewBox:'0 0 24 24',fill:'none'},React.createElement('path',{d:p,stroke:c,'strokeWidth':1.8,strokeLinecap:'round',strokeLinejoin:'round'}));
+    const activity=[
+      {icon:aIc('M12 5v14M5 12h14',NIC),dotBg:NIB,text:'Yangi o\u2019quvchi ro\u2019yxatdan o\u2019tdi — Nodira I.',when:'5 daqiqa oldin'},
+      {icon:aIc('M20 6 9 17l-5-5',NIC),dotBg:NIB,text:'Malika Y. Premium tarifga o\u2019tdi',when:'22 daqiqa oldin'},
+      {icon:aIc('M4 5h16v14H4zM4 9h16',NIC),dotBg:NIB,text:'O\u2019qituvchi yangi modul yaratdi',when:'1 soat oldin'},
+      {icon:aIc('M6 8a6 6 0 0 1 12 0c0 5 2 6 2 6H4s2-1 2-6z',NIC),dotBg:NIB,text:'12 ta javob tekshirish navbatida',when:'2 soat oldin'},
+      {icon:aIc('M17 20v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2M9 10a4 4 0 1 0 0-8 4 4 0 0 0 0 8',NIC),dotBg:NIB,text:'Yangi guruh ochildi — Ertalabki-4',when:'4 soat oldin'},
+    ];
+    const attention=[
+      {icon:aIc('M6 8a6 6 0 0 1 12 0c0 5 2 6 2 6H4s2-1 2-6z','var(--warn-ink)'),iconBg:'var(--warn-tint)',bg:'var(--surface)',border:'var(--line)',cta:'var(--primary)',title:'4 ta kontent moderatsiyada',sub:'O\u2019qituvchilar tomonidan yuborilgan'},
+      {icon:aIc('M12 9v4M12 17h.01M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z','var(--danger)'),iconBg:'var(--danger-tint)',bg:'var(--surface)',border:'var(--line)',cta:'var(--primary)',title:'3 ta to\u2019lov muvaffaqiyatsiz',sub:'Qayta urinish talab qilinadi'},
+      {icon:aIc('M17 20v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2M9 10a4 4 0 1 0 0-8 4 4 0 0 0 0 8','var(--accent)'),iconBg:'var(--accent-tint)',bg:'var(--surface)',border:'var(--line)',cta:'var(--primary)',title:'7 ta guruh so\u2019rovi',sub:'Kod orqali qo\u2019shilish kutilmoqda'},
+    ];
+
+    // users
+    const roleChip=(r)=> r==='O\u2019quvchi'
+      ? "font-size:11px;font-weight:800;padding:3px 9px;border-radius:99px;background:var(--primary-tint);color:var(--primary-press)"
+      : "font-size:11px;font-weight:800;padding:3px 9px;border-radius:99px;background:var(--accent-tint);color:var(--accent)";
+    const stChip=(s)=> s==='Faol'
+      ? "font-size:11px;font-weight:800;padding:3px 9px;border-radius:99px;background:var(--success-tint);color:var(--success)"
+      : s==='Nofaol' ? "font-size:11px;font-weight:800;padding:3px 9px;border-radius:99px;background:var(--surface-3);color:var(--muted)"
+      : "font-size:11px;font-weight:800;padding:3px 9px;border-radius:99px;background:var(--warn-tint);color:var(--warn-ink)";
+    const ini=(n)=>n.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();
+    const allUsers=[
+      {name:'Kamola Abdullayeva',phone:'+998 90 111 22 33',role:'O\u2019quvchi',level:'B1',group:'Kechki-3',status:'Faol',seen:'5 daq oldin'},
+      {name:'Aziz Karimov',phone:'+998 90 123 45 67',role:'O\u2019quvchi',level:'A2',group:'Kechki-3',status:'Faol',seen:'1 soat oldin'},
+      {name:'Dilnoza Rahimova',phone:'+998 91 234 56 78',role:'O\u2019qituvchi',level:'—',group:'3 guruh',status:'Faol',seen:'12 daq oldin'},
+      {name:'Bekzod Mirzayev',phone:'+998 93 345 67 89',role:'O\u2019quvchi',level:'A2',group:'Ertalabki-1',status:'Nofaol',seen:'6 kun oldin'},
+      {name:'Sardor Usmonov',phone:'+998 94 456 78 90',role:'O\u2019quvchi',level:'A1',group:'Kechki-3',status:'Faol',seen:'2 soat oldin'},
+      {name:'Malika Yusupova',phone:'+998 90 567 89 01',role:'O\u2019quvchi',level:'A2',group:'Ertalabki-1',status:'Faol',seen:'40 daq oldin'},
+      {name:'Otabek Rashidov',phone:'+998 97 678 90 12',role:'O\u2019qituvchi',level:'—',group:'2 guruh',status:'Faol',seen:'Onlayn'},
+      {name:'Nodira Ismoilova',phone:'+998 99 789 01 23',role:'O\u2019quvchi',level:'A1',group:'—',status:'Kutilmoqda',seen:'Yangi'},
+    ];
+    const palettes=[['var(--surface-3)','var(--ink-soft)']];
+    let users=allUsers;
+    if(S.userTab==='students') users=allUsers.filter(u=>u.role==='O\u2019quvchi');
+    if(S.userTab==='teachers') users=allUsers.filter(u=>u.role!=='O\u2019quvchi');
+    users=users.map((u,i)=>({...u, initials:ini(u.name), avBg:palettes[0][0], avCol:palettes[0][1], roleStyle:roleChip(u.role), statusStyle:stChip(u.status)}));
+
+    const seg=(on)=>"padding:8px 15px;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;"+(on?"background:var(--primary);color:var(--primary-on)":"color:var(--ink-soft)");
+
+    // groups
+    const gPal=[['var(--primary-tint)','var(--primary-press)']];
+    const gStat=(s)=> s==='Faol'?"font-size:11px;font-weight:800;padding:3px 9px;border-radius:99px;background:var(--success-tint);color:var(--success)":"font-size:11px;font-weight:800;padding:3px 9px;border-radius:99px;background:var(--surface-3);color:var(--muted)";
+    const groups=[
+      {name:'Kechki-3',teacher:'Dilnoza R.',level:'B1',students:18,avg:72,active:15,code:'KECHKI-3',status:'Faol'},
+      {name:'Ertalabki-1',teacher:'Dilnoza R.',level:'A2',students:21,avg:66,active:17,code:'ERTALABKI-1',status:'Faol'},
+      {name:'Individual B2',teacher:'Otabek R.',level:'B2',students:15,avg:84,active:13,code:'INDIV-B2',status:'Faol'},
+      {name:'Ertalabki-2',teacher:'Otabek R.',level:'A1',students:24,avg:58,active:19,code:'ERTALABKI-2',status:'Faol'},
+      {name:'Kechki-1',teacher:'Dilnoza R.',level:'B1',students:12,avg:70,active:6,code:'KECHKI-1',status:'Nofaol'},
+      {name:'Intensiv C1',teacher:'Otabek R.',level:'C1',students:8,avg:91,active:8,code:'INTENSIV-C1',status:'Faol'},
+    ].map((g,i)=>({...g, iconBg:gPal[0][0], iconCol:gPal[0][1], statusStyle:gStat(g.status)}));
+
+    // teachers
+    const tStat=(s)=> s==='Faol'?"font-size:11px;font-weight:800;padding:3px 9px;border-radius:99px;background:var(--success-tint);color:var(--success)":s==='Ta\u2019tilda'?"font-size:11px;font-weight:800;padding:3px 9px;border-radius:99px;background:var(--warn-tint);color:var(--warn-ink)":"font-size:11px;font-weight:800;padding:3px 9px;border-radius:99px;background:var(--surface-3);color:var(--muted)";
+    const tPendChip=(n)=> n>10?"font-size:12.5px;font-weight:800;color:var(--danger)":n>0?"font-size:12.5px;font-weight:800;color:var(--warn-ink)":"font-size:12.5px;font-weight:800;color:var(--success)";
+    const tPal=[['var(--surface-3)','var(--ink-soft)']];
+    const teacherData=[
+      {id:'t1',name:'Dilnoza Rahimova',phone:'+998 91 234 56 78',email:'dilnoza@govori.uz',joined:'12 Yan 2025',groups:3,students:51,pending:12,rating:'4.9',status:'Faol',
+        groupList:[{name:'Kechki-3',level:'B1',students:18,avg:72,status:'Faol'},{name:'Ertalabki-1',level:'A2',students:21,avg:66,status:'Faol'},{name:'Kechki-1',level:'B1',students:12,avg:70,status:'Nofaol'}]},
+      {id:'t2',name:'Otabek Rashidov',phone:'+998 97 678 90 12',email:'otabek@govori.uz',joined:'3 Fev 2025',groups:2,students:23,pending:4,rating:'4.7',status:'Faol',
+        groupList:[{name:'Individual B2',level:'B2',students:15,avg:84,status:'Faol'},{name:'Intensiv C1',level:'C1',students:8,avg:91,status:'Faol'}]},
+      {id:'t3',name:'Gulnora Sobirova',phone:'+998 90 345 12 89',email:'gulnora@govori.uz',joined:'20 Mar 2025',groups:2,students:44,pending:0,rating:'4.8',status:'Faol',
+        groupList:[{name:'Ertalabki-2',level:'A1',students:24,avg:58,status:'Faol'},{name:'Kechki-4',level:'A2',students:20,avg:63,status:'Faol'}]},
+      {id:'t4',name:'Jamshid Aliyev',phone:'+998 93 111 45 22',email:'jamshid@govori.uz',joined:'8 Apr 2025',groups:1,students:16,pending:2,rating:'4.5',status:'Ta\u2019tilda',
+        groupList:[{name:'Intensiv B1',level:'B1',students:16,avg:74,status:'Nofaol'}]},
+    ];
+    const teachers=teacherData.map((t,i)=>({...t, initials:ini(t.name), avBg:tPal[0][0], avCol:tPal[0][1], statusStyle:tStat(t.status), pendStyle:tPendChip(t.pending)}));
+    const gStatMini=(s)=> s==='Faol'?"font-size:11px;font-weight:800;padding:3px 9px;border-radius:99px;background:var(--success-tint);color:var(--success)":"font-size:11px;font-weight:800;padding:3px 9px;border-radius:99px;background:var(--surface-3);color:var(--muted)";
+    const gMiniPal=[['var(--primary-tint)','var(--primary-press)']];
+    const TD=teacherData.find(t=>t.id===S.openTeacher);
+    let td=null;
+    if(TD){
+      const i=teacherData.indexOf(TD);
+      const suspended=!!S.suspended[TD.id];
+      const effStatus=suspended?'Bloklangan':TD.status;
+      td={
+        ...TD, initials:ini(TD.name), avBg:tPal[0][0], avCol:tPal[0][1],
+        statusStyle:tStat(effStatus), status:effStatus,
+        pendCol:TD.pending>10?'var(--danger)':TD.pending>0?'var(--warn-ink)':'var(--success)',
+        groupList:TD.groupList.map((g,gi)=>({...g, iconBg:gMiniPal[0][0], iconCol:gMiniPal[0][1], statusStyle:gStatMini(g.status)})),
+        perms:[
+          {label:'Modul/vazifa yaratish', val:'Ruxsat', style:"font-size:12px;font-weight:700;padding:5px 11px;border-radius:8px;background:var(--success-tint);color:var(--success)"},
+          {label:'Guruh ochish', val:'Ruxsat', style:"font-size:12px;font-weight:700;padding:5px 11px;border-radius:8px;background:var(--success-tint);color:var(--success)"},
+          {label:'O\u2019quvchi qo\u2019shish', val:'Ruxsat', style:"font-size:12px;font-weight:700;padding:5px 11px;border-radius:8px;background:var(--success-tint);color:var(--success)"},
+          {label:'To\u2019lov ma\u2019lumotlari', val:'Cheklangan', style:"font-size:12px;font-weight:700;padding:5px 11px;border-radius:8px;background:var(--surface-3);color:var(--muted)"},
+        ],
+        toggle:()=>this.setState(st=>({suspended:{...st.suspended,[TD.id]:!st.suspended[TD.id]}})),
+        toggleLabel:suspended?'Blokdan chiqarish':'Bloklash',
+        toggleStyle:"text-align:center;padding:9px 16px;border-radius:10px;font-size:12.5px;font-weight:700;cursor:pointer;"+(suspended?"background:var(--success);color:#fff":"background:var(--danger-tint);border:1px solid oklch(0.90 0.05 20);color:var(--danger)"),
+      };
+    }
+
+    // content
+    const cIcPaths={mod:'M4 5h16v14H4zM4 9h16',task:'M9 11l3 3 8-8M20 12v6a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h9',scen:'M4 5h16v11H9l-4 4z'};
+    const cIc=(k,c)=>React.createElement('svg',{width:16,height:16,viewBox:'0 0 24 24',fill:'none'},React.createElement('path',{d:cIcPaths[k],stroke:c,'strokeWidth':1.8,strokeLinecap:'round',strokeLinejoin:'round'}));
+    const cStat=(s)=> s==='Nashr etilgan'?"font-size:11px;font-weight:800;padding:3px 9px;border-radius:99px;background:var(--success-tint);color:var(--success)": s==='Moderatsiyada'?"font-size:11px;font-weight:800;padding:3px 9px;border-radius:99px;background:var(--warn-tint);color:var(--warn-ink)":"font-size:11px;font-weight:800;padding:3px 9px;border-radius:99px;background:var(--surface-3);color:var(--muted)";
+    const actBtn=(s)=> s==='Moderatsiyada'?"font-size:12px;font-weight:700;padding:6px 13px;border-radius:9px;background:var(--primary);color:var(--primary-on)":"font-size:12px;font-weight:700;color:var(--accent)";
+    const contentSets={
+      modules:[
+        {title:'Kundalik muloqot',meta:'6 vazifa',level:'A1–A2',author:'Dilnoza R.',usage:'184',status:'Nashr etilgan',act:'Ochish'},
+        {title:'Sayohat va transport',meta:'5 vazifa',level:'A2',author:'Otabek R.',usage:'142',status:'Nashr etilgan',act:'Ochish'},
+        {title:'Ish va martaba',meta:'8 vazifa',level:'B1',author:'Dilnoza R.',usage:'97',status:'Nashr etilgan',act:'Ochish'},
+        {title:'Tibbiyotda muloqot',meta:'4 vazifa',level:'B1–B2',author:'Otabek R.',usage:'—',status:'Moderatsiyada',act:'Tekshirish'},
+        {title:'Rasmiy yozishmalar',meta:'7 vazifa',level:'B2',author:'Dilnoza R.',usage:'—',status:'Qoralama',act:'Ochish'},
+      ],
+      tasks:[
+        {title:'Do\u2019konda xarid',meta:'Ovozli javob',level:'A2',author:'Dilnoza R.',usage:'312',status:'Nashr etilgan',act:'Ochish'},
+        {title:'Telefon suhbati',meta:'Ovozli javob',level:'A2',author:'Otabek R.',usage:'204',status:'Nashr etilgan',act:'Ochish'},
+        {title:'O\u2019zingni tanishtir',meta:'Ovozli javob',level:'B1',author:'Dilnoza R.',usage:'188',status:'Nashr etilgan',act:'Ochish'},
+        {title:'Shifokorga shikoyat',meta:'Ovozli javob',level:'B1',author:'Otabek R.',usage:'—',status:'Moderatsiyada',act:'Tekshirish'},
+      ],
+      scenarios:[
+        {title:'\u0412 \u0430\u043f\u0442\u0435\u043a\u0435',meta:'AI roleplay',level:'A2',author:'Dilnoza R.',usage:'156',status:'Nashr etilgan',act:'Ochish'},
+        {title:'\u0421\u043e\u0431\u0435\u0441\u0435\u0434\u043e\u0432\u0430\u043d\u0438\u0435',meta:'AI roleplay',level:'B1',author:'Otabek R.',usage:'121',status:'Nashr etilgan',act:'Ochish'},
+        {title:'\u0423 \u0432\u0440\u0430\u0447\u0430',meta:'AI roleplay',level:'A2',author:'Dilnoza R.',usage:'—',status:'Moderatsiyada',act:'Tekshirish'},
+        {title:'\u0412 \u0442\u0430\u043a\u0441\u0438',meta:'AI roleplay',level:'A1',author:'Otabek R.',usage:'—',status:'Moderatsiyada',act:'Tekshirish'},
+      ],
+    };
+    const cKey={mod:'mod',task:'task',scen:'scen'}[S.contentTab==='modules'?'mod':S.contentTab==='tasks'?'task':'scen'];
+    const content=(contentSets[S.contentTab]||contentSets.modules).map(c=>({...c, icon:cIc(cKey, 'var(--primary)'), iconBg:'var(--primary-tint)', statusStyle:cStat(c.status), actStyle:actBtn(c.status)}));
+
+    // payments
+    const payKpis=[
+      {label:'Oylik daromad (MRR)',value:'42.8M',delta:'+12.6% o\u2019tgan oyga',deltaStyle:dStyle(true)},
+      {label:'Faol obunalar',value:'612',delta:'+38 bu oy',deltaStyle:dStyle(true)},
+      {label:'O\u2019rtacha chek',value:'70k',delta:'+3.1%',deltaStyle:dStyle(true)},
+      {label:'Churn',value:'2.4%',delta:'−0.6%',deltaStyle:dStyle(true)},
+    ];
+    const plans=[
+      {name:'Premium',count:'318',rev:'25.4M',barW:'78%',col:'var(--primary)'},
+      {name:'Standart',count:'214',rev:'12.8M',barW:'52%',col:'var(--primary-tint-2)'},
+      {name:'Bepul',count:'716',rev:'—',barW:'100%',col:'var(--surface-3)'},
+    ];
+    const txSt=(s)=> s==='To\u2019landi'?"font-size:11px;font-weight:800;padding:3px 9px;border-radius:99px;background:var(--success-tint);color:var(--success)":s==='Kutilmoqda'?"font-size:11px;font-weight:800;padding:3px 9px;border-radius:99px;background:var(--warn-tint);color:var(--warn-ink)":"font-size:11px;font-weight:800;padding:3px 9px;border-radius:99px;background:var(--danger-tint);color:var(--danger)";
+    const txns=[
+      {name:'Malika Yusupova',plan:'Premium',amount:'89 000',st:'To\u2019landi'},
+      {name:'Aziz Karimov',plan:'Standart',amount:'59 000',st:'To\u2019landi'},
+      {name:'Kamola A.',plan:'Premium',amount:'89 000',st:'To\u2019landi'},
+      {name:'Bekzod Mirzayev',plan:'Standart',amount:'59 000',st:'Muvaffaqiyatsiz'},
+      {name:'Nodira I.',plan:'Premium',amount:'89 000',st:'Kutilmoqda'},
+      {name:'Sardor U.',plan:'Standart',amount:'59 000',st:'To\u2019landi'},
+    ].map(t=>({...t, stStyle:txSt(t.st)}));
+
+    // analytics
+    const anKpis=[
+      {label:'DAU / MAU',value:'34%',delta:'+2.1%',deltaStyle:dStyle(true)},
+      {label:'O\u2019rtacha sessiya',value:'14 daq',delta:'+1.4 daq',deltaStyle:dStyle(true)},
+      {label:'Haftalik mashqlar',value:'8 420',delta:'+9.3%',deltaStyle:dStyle(true)},
+    ];
+    const rankPal=[['var(--primary-tint)','var(--primary)'],['var(--surface-3)','var(--ink-soft)'],['var(--surface-3)','var(--ink-soft)'],['var(--surface-3)','var(--ink-soft)']];
+    const topErrors=[
+      {term:'\u0440\u043e\u0434\u0438\u0442\u0435\u043b\u044c\u043d\u044b\u0439 \u043f\u0430\u0434\u0435\u0436',pct:'22%'},
+      {term:'\u0443\u0434\u0430\u0440\u0435\u043d\u0438\u0435: \u0437\u0432\u043e\u043d\u0438\u0301\u0442',pct:'17%'},
+      {term:'\u0432\u0438\u0434 \u0433\u043b\u0430\u0433\u043e\u043b\u0430',pct:'13%'},
+      {term:'\u043f\u0440\u0435\u0434\u043b\u043e\u0433\u0438 \u0432/\u043d\u0430',pct:'9%'},
+    ].map((e,i)=>({...e, rank:i+1, rankBg:rankPal[i][0], rankCol:rankPal[i][1]}));
+    const retention=[['1-hafta',100],['2-hafta',68],['3-hafta',52],['4-hafta',44]].map(([week,pct])=>({week,pct,barW:pct+'%'}));
+
+    // settings
+    const valChip=(v,tone)=>({val:v, valStyle:"font-size:12.5px;font-weight:700;padding:6px 12px;border-radius:9px;"+(tone==='on'?"background:var(--success-tint);color:var(--success)":tone==='off'?"background:var(--surface-3);color:var(--muted)":"background:var(--surface-2);border:1px solid var(--line-2);color:var(--ink-soft)")});
+    const setRows=[
+      {title:'Platforma nomi', sub:'Foydalanuvchilarga ko\u2019rinadi', ...valChip('Govori','plain')},
+      {title:'Standart til', sub:'Interfeys tili', ...valChip('O\u2019zbek','plain')},
+      {title:'Yangi ro\u2019yxatdan o\u2019tish', sub:'Ochiq registratsiya', ...valChip('Yoqilgan','on')},
+      {title:'Texnik ishlar rejimi', sub:'Saytni vaqtincha yopish', ...valChip('O\u2019chirilgan','off')},
+    ];
+    const aiRows=[
+      {title:'Avto-tasdiq chegarasi', sub:'Ishonch shu foizdan yuqori bo\u2019lsa', ...valChip('85%','plain')},
+      {title:'Qo\u2019lda tekshirish', sub:'Ishonch past javoblar navbatga', ...valChip('Yoqilgan','on')},
+      {title:'Talaffuz tahlili', sub:'Fonema darajasida baholash', ...valChip('Yoqilgan','on')},
+    ];
+
+    return {
+      navMain, navSys, pageTitle:t[0], pageSub:t[1],
+      isDash:S.screen==='dash', isUsers:S.screen==='users', isGroups:S.screen==='groups',
+      isContent:S.screen==='content', isPay:S.screen==='pay', isAnalytics:S.screen==='analytics', isSettings:S.screen==='settings',
+      isTeachersList:S.screen==='teachers' && !S.openTeacher, isTeacherDetail:S.screen==='teachers' && !!S.openTeacher,
+      teachers:teachers.map(t=>({...t, open:()=>this.setState({openTeacher:t.id})})), teacherCount:teacherData.length, td,
+      closeTeacher:()=>this.setState({openTeacher:null}),
+      kpis, chartCols, levelDist, activity, attention,
+      users, uAll:this.set('userTab','all'), uStudents:this.set('userTab','students'), uTeachers:this.set('userTab','teachers'),
+      segUAll:seg(S.userTab==='all'), segUStu:seg(S.userTab==='students'), segUTea:seg(S.userTab==='teachers'),
+      groups,
+      content, cMod:this.set('contentTab','modules'), cTask:this.set('contentTab','tasks'), cScen:this.set('contentTab','scenarios'),
+      segCMod:seg(S.contentTab==='modules'), segCTask:seg(S.contentTab==='tasks'), segCScen:seg(S.contentTab==='scenarios'),
+      payKpis, plans, txns, anKpis, topErrors, retention, setRows, aiRows,
+    };
+  }
+}
+</script>
+</body>
+</html>

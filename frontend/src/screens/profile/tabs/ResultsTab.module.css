@@ -1,0 +1,304 @@
+/* ResultsTab — the "Natijalar" tab body of the Profile screen.
+ * Composed from shared/ui + tokens; every colour / space / radius / shadow /
+ * motion value is a token. Full-width per docs/04 §4.10 — the root spans its
+ * column with no max-width + auto-margin centring; inner blocks align with
+ * flex/grid, never a centred narrow wrapper. */
+
+.tab {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-6);
+  width: 100%;
+}
+
+/* ---- XP banner (the hero gamification number) ---- */
+.xpBanner {
+  display: flex;
+  align-items: center;
+  gap: var(--s-4);
+  padding: var(--s-5);
+  border-radius: var(--r-lg);
+  background: var(--primary-tint);
+  border: 1.5px solid var(--primary);
+}
+.xpIcon {
+  display: grid;
+  place-items: center;
+  width: 48px;
+  height: 48px;
+  flex: none;
+  border-radius: var(--r-pill);
+  background: var(--primary);
+  font-size: 26px;
+  line-height: 1;
+}
+.xpBody {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.xpValue {
+  color: var(--primary);
+  line-height: 1.05;
+}
+.xpLabel {
+  color: var(--primary);
+  margin-top: var(--s-1);
+}
+.xpCaption {
+  color: var(--ink-soft);
+}
+
+.section {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+}
+.sectionLabel {
+  margin-bottom: var(--s-2);
+}
+
+/* ---- 2×2 stat tiles ---- */
+.statGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--s-3);
+  width: 100%;
+}
+
+/* ---- Recent results ---- */
+.empty {
+  padding: var(--s-4) 0;
+}
+
+.resultsCard {
+  width: 100%;
+  overflow: hidden;
+}
+
+.resultList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Hairlines between rows only — the border lives on the list item, so a row
+ * rendered as a <button> keeps them (a button is always its li's last child). */
+.resultItem {
+  display: block;
+}
+.resultItem:not(:last-child) {
+  border-bottom: 1px solid var(--line);
+}
+.resultRow {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  padding: var(--s-3) var(--s-4);
+}
+/* Tappable row → a full-width reset button that opens the attempt detail. */
+.resultRowBtn {
+  width: 100%;
+  appearance: none;
+  border: 0;
+  background: none;
+  font: inherit;
+  color: inherit;
+  text-align: start;
+  cursor: pointer;
+  transition: background var(--m-instant);
+}
+.resultRowBtn:hover {
+  background: var(--surface-2);
+}
+.resultRowBtn:focus-visible {
+  outline: var(--focus-ring-width) solid var(--focus-ring);
+  outline-offset: -2px;
+}
+.rowChevron {
+  display: inline-flex;
+  color: var(--ink-soft);
+}
+.seeAll {
+  margin-top: var(--s-3);
+}
+
+.bandDot {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  flex: none;
+  border-radius: var(--r-pill);
+  background: var(--primary-tint);
+  color: var(--primary);
+}
+.bandNum {
+  color: inherit;
+}
+
+.resultText {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-1);
+}
+
+.trendCell {
+  display: flex;
+  align-items: center;
+  flex: none;
+}
+.trendArrow {
+  font-size: var(--t-title-m-size);
+  line-height: 1;
+  font-weight: var(--fw-bold);
+}
+.trendUp {
+  color: var(--success);
+}
+.trendDown {
+  color: var(--danger);
+}
+.trendFlat {
+  color: var(--muted);
+}
+
+/* ---- Achievements ---- */
+/* Header row: the "YUTUQLAR" label with the "X/16 ochildi" summary beside it. */
+.achHeader {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--s-2);
+  margin-bottom: var(--s-2);
+  width: 100%;
+}
+.achSummary {
+  flex: none;
+  white-space: nowrap;
+}
+
+.achGrid {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: var(--s-3);
+  width: 100%;
+}
+.achCell {
+  display: flex;
+}
+
+.achTile {
+  height: 100%;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--s-2);
+  text-align: left;
+}
+/* Two-class selectors so the tile's OWN surface wins over Card's variant
+ * background whatever the stylesheet order. Colour is only a reinforcement —
+ * every tile also states unlocked/locked in text (SR-only) + the bar + counts. */
+.achTile.achUnlocked {
+  background: var(--success-tint);
+  border-color: transparent;
+}
+.achTile.achLocked {
+  background: var(--surface-2);
+  opacity: 0.72;
+}
+
+.achIcon {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  flex: none;
+  border-radius: var(--r-md);
+  font-size: 24px;
+  line-height: 1;
+}
+.achIconUnlocked {
+  background: var(--surface);
+}
+.achIconLocked {
+  background: var(--surface-3);
+}
+
+.achBody {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-1);
+  width: 100%;
+  min-width: 0;
+}
+.achTitle {
+  text-wrap: balance;
+}
+/* Locked tiles read as de-emphasised, and are announced as locked (SR-only text
+ * in the component) so the meaning never rests on styling alone. */
+.achLocked .achTitle {
+  color: var(--muted);
+}
+
+/* Footer pinned to the tile bottom so every bar lines up across a row. */
+.achFooter {
+  margin-top: auto;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-1);
+}
+
+/* Thin tokened progress bar: --primary fill on a --line track, --success once
+ * unlocked. Decorative (aria-hidden) — state is carried in text too. */
+.achBar {
+  display: block;
+  width: 100%;
+  height: 6px;
+  border-radius: var(--r-pill);
+  background: var(--line);
+  overflow: hidden;
+}
+.achBarFill {
+  display: block;
+  height: 100%;
+  border-radius: var(--r-pill);
+  background: var(--primary);
+  /* --m-base is zeroed under prefers-reduced-motion in tokens.css. */
+  transition: width var(--m-base);
+}
+.achBarFillDone {
+  background: var(--success);
+}
+
+.achCount {
+  align-self: flex-start;
+}
+
+/* ---- Responsive ---- */
+@media (max-width: 420px) {
+  .achGrid {
+    grid-template-columns: repeat(auto-fill, minmax(132px, 1fr));
+  }
+  .achIcon {
+    width: 40px;
+    height: 40px;
+    font-size: 22px;
+  }
+  .resultRow {
+    padding: var(--s-3);
+  }
+  .bandDot {
+    width: 40px;
+    height: 40px;
+  }
+}

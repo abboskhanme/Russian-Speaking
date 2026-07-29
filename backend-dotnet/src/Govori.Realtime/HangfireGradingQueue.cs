@@ -5,10 +5,11 @@ using Hangfire;
 namespace Govori.Realtime;
 
 /// <summary>
-/// The durable <see cref="IGradingQueue"/> (docs/07 §7.7, Faza 3.9) — the C# equivalent of Celery's
-/// <c>process_submission.delay(sub.id)</c>. Instead of running the pipeline in-process, it enqueues a
+/// The durable <see cref="IGradingQueue"/> (docs/07 §7.7, Faza 3.9) — the durable background
+/// grading queue. Instead of running the pipeline in-process, it enqueues a
 /// Hangfire <see cref="GradingJob"/> so submit returns immediately and the Worker's Hangfire server
-/// grades off-request, with automatic retry + worker-crash re-queue (the task_acks_late analogue).
+/// grades off-request, with bounded automatic retry and, because a job is only acknowledged once
+/// it completes, re-queue of anything a crashed worker was mid-way through.
 /// </summary>
 public sealed class HangfireGradingQueue : IGradingQueue
 {

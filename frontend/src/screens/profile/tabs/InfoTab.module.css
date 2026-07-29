@@ -1,0 +1,235 @@
+/* InfoTab — the "Ma'lumot" tab body (docs/04 §4.9).
+ * Tokens only: no hex, no raw radius. Full-width per docs/04 §4.10 — the root
+ * spans the shell's tabpanel with no max-width + auto-margin centring; the
+ * inner blocks align with flex/grid instead. */
+
+.tab {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-6);
+  width: 100%;
+}
+
+.section {
+  display: flex;
+  flex-direction: column;
+}
+.sectionLabel {
+  margin-bottom: var(--s-2);
+}
+
+/* ---- Label / value card ---- */
+
+/* The card plus its "Tahrirlash" control. Its own wrapper so the button sits
+ * tight above the card (--s-2) instead of inheriting the tab's --s-6 rhythm,
+ * which would read as two unrelated blocks. */
+.infoBlock {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+}
+
+.infoActions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+/* padding="none": each row owns its padding so the hairlines run edge to edge. */
+.infoCard {
+  overflow: hidden;
+}
+
+/* Shown instead of the group card when the student learns independently —
+ * a plain sentence rather than an empty-looking row. */
+.groupEmpty {
+  display: flex;
+}
+
+.rows {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-4);
+  padding: var(--s-4) var(--s-5);
+}
+
+/* Between rows only — the last row never carries a trailing divider. */
+.row + .row {
+  border-top: 1px solid var(--line);
+}
+
+.rowLabel {
+  flex: none;
+}
+
+.rowValue {
+  /* <dd> ships a 40px inline start margin in the UA sheet. */
+  margin: 0;
+  min-width: 0;
+  /* Flex rather than `text-align: end` so a row with its own action (Telefon)
+   * lays the value and the button out on one baseline; a row without one is
+   * unchanged, since a single flex item still ends up flush to the end. */
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--s-3);
+  text-align: end;
+}
+
+/* The Telefon row's "O'zgartirish". Negative inline-end margin pulls the ghost
+ * button's own padding back so its LABEL, not its hit area, aligns with the
+ * values above and below it — the hit area itself stays full size. */
+.rowAction {
+  flex: none;
+  margin-inline-end: calc(var(--s-3) * -1);
+}
+
+/* ---- Group + teacher ---- */
+.groupCard {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-4);
+}
+
+.teacher {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  min-width: 0;
+}
+
+.avatar {
+  display: grid;
+  place-items: center;
+  width: 56px;
+  height: 56px;
+  flex: none;
+  border-radius: var(--r-pill);
+  /* Teacher avatar reads blue (like the Home teacher block), not the brand orange. */
+  background: var(--info-tint);
+  color: var(--info);
+  font-family: var(--font-display);
+  font-size: var(--t-title-s-size);
+  font-weight: var(--fw-black);
+}
+
+.teacherMeta {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-1);
+}
+
+.groupStats {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--s-3);
+}
+
+/* Nesting rule (docs/03 §3.5): inner_radius = outer_radius − padding
+ * → r-lg (24) − pad-md (16) = 8 ≈ --r-xs. */
+.groupStat {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-1);
+  min-width: 0;
+  padding: var(--s-4);
+  border-radius: var(--r-md);
+  background: var(--surface-2);
+}
+
+/* Leave-group CTA — outlined with danger-coloured text (never a solid red fill). */
+.leaveBtn {
+  border: 1px solid var(--line);
+  color: var(--danger);
+  font-weight: var(--fw-bold);
+}
+.leaveBtn:hover {
+  border-color: var(--danger);
+  background: var(--surface-2);
+}
+
+/* ---- Leave-group confirm dialog ---- */
+.confirmActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--s-3);
+  margin-top: var(--s-5);
+}
+
+/* ---- Edit / phone-change dialogs ---- */
+
+/* Matches the auth screens' form rhythm, so the reused OTP step and the fields
+ * beside it sit on the same vertical grid. */
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-4);
+}
+
+.dialogActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--s-3);
+  margin-top: var(--s-2);
+}
+
+/* A whole-form failure (the server refused the save). */
+.formError {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  padding: var(--s-3);
+  border-radius: var(--r-sm);
+  background: var(--danger-tint);
+  color: var(--danger);
+  font-family: var(--font-sans);
+  font-size: var(--t-body-s-size);
+  font-weight: var(--fw-medium);
+}
+
+/* One field's own message (the name is required). Pulled up so it reads as
+ * part of the field above rather than as a new row in the form. */
+.fieldError {
+  margin: calc(var(--s-3) * -1) 0 0;
+  color: var(--danger);
+  font-family: var(--font-sans);
+  font-size: var(--t-body-s-size);
+  font-weight: var(--fw-medium);
+}
+
+@media (max-width: 480px) {
+  .row {
+    /* A long value gets its own line rather than squeezing the label. */
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--s-1);
+  }
+  .rowValue {
+    justify-content: flex-start;
+    text-align: start;
+  }
+  .rowAction {
+    margin-inline-end: 0;
+    margin-inline-start: calc(var(--s-3) * -1);
+  }
+  .groupStats {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  /* Reversed so the confirm action stays closest to the thumb. */
+  .confirmActions,
+  .dialogActions {
+    flex-direction: column-reverse;
+  }
+  .confirmActions > *,
+  .dialogActions > * {
+    width: 100%;
+  }
+}
