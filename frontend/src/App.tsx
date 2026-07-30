@@ -32,6 +32,8 @@ const GroupInvitePage = lazy(() => import("./app/routes/GroupInvitePage"));
 const StudentProfilePage = lazy(() => import("./app/routes/StudentProfilePage"));
 const ReviewQueuePage = lazy(() => import("./app/routes/ReviewQueuePage"));
 const AttemptReviewPage = lazy(() => import("./app/routes/AttemptReviewPage"));
+const ContentPage = lazy(() => import("./app/routes/ContentPage"));
+const ModuleEditorPage = lazy(() => import("./app/routes/ModuleEditorPage"));
 const PracticeHubPage = lazy(() => import("./app/routes/PracticeHubPage"));
 const ModuleDetailPage = lazy(() => import("./app/routes/ModuleDetailPage"));
 const PracticePage = lazy(() => import("./app/routes/PracticePage"));
@@ -98,6 +100,10 @@ export default function App() {
                 grading (B2/B3). This is what the centre FAB opens. */}
             <Route path="/teacher/queue" element={<ReviewQueuePage />} />
             <Route path="/teacher/queue/:attemptId" element={<AttemptReviewPage />} />
+            {/* Kontent — Modullar | Vazifalar (C1) → the module editor (C4), which
+                hosts the library picker (C5) and the new-task sheet (C2). */}
+            <Route path="/teacher/content" element={<ContentPage />} />
+            <Route path="/teacher/content/:blockId" element={<ModuleEditorPage />} />
           </Route>
 
           {/* Student app (students only). */}

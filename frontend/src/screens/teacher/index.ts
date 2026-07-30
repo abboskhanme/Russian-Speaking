@@ -78,3 +78,23 @@ export type {
 } from "./AttemptReviewScreen";
 
 export { mockReviewQueue, mockAttemptReview } from "./queue.mock";
+
+/** C1 «Kontent» — Modullar | Vazifalar. */
+export { ContentScreen, default as ContentDemo } from "./ContentScreen";
+export type {
+  ContentScreenProps,
+  ContentModule,
+  ContentTask,
+  ContentTabKey,
+} from "./ContentScreen";
+
+/** C4 «Modul yaratish» + C5 picker + C2 new-task sheet. */
+export { ModuleEditorScreen, default as ModuleEditorDemo } from "./ModuleEditorScreen";
+export type {
+  ModuleEditorProps,
+  EditorTask,
+  LibraryTask,
+  NewTaskDraft,
+} from "./ModuleEditorScreen";
+
+export { mockContentModules, mockContentTasks, mockModuleEditor } from "./content.mock";

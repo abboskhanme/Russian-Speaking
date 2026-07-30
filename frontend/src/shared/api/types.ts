@@ -587,3 +587,109 @@ export interface NotificationResponse {
 export interface UnreadCountResponse {
   count: number;
 }
+
+/* ── Teacher authoring (CatalogContracts.cs — Kontent board) ──────────────── */
+
+/** GET /api/blocks → one module as its owning teacher sees it. `student_count` is
+ * the teacher's roster reach, and is 0 for a DRAFT — a draft reaches nobody, so
+ * showing a count on one would be a lie. */
+export interface TeacherBlockResponse {
+  id: string;
+  name: string;
+  topic: string | null;
+  level: string | null;
+  ru_style: string | null;
+  visibility: string;
+  is_published: boolean;
+  sort_order: number;
+  task_count: number;
+  student_count: number;
+  created_at: string;
+  updated_at: string;
+}
+
+/** GET /api/blocks/{id} → the module plus its ordered tasks (the C4 editor). */
+export interface TeacherBlockDetailResponse extends TeacherBlockResponse {
+  tasks: TeacherQuestionResponse[];
+}
+
+/** One task as its owning teacher sees it (Vazifalar tab + C5's picker). */
+export interface TeacherQuestionResponse {
+  id: string;
+  title: string;
+  prompt_text: string;
+  type: string;
+  level: string | null;
+  topic: string | null;
+  ru_style: string | null;
+  instruction_text: string | null;
+  model_answer_text: string | null;
+  prep_time_sec: number;
+  answer_time_limit_sec: number;
+  is_published: boolean;
+  is_public: boolean;
+  block_id: string | null;
+  /** Name of the module it belongs to; null when unattached. */
+  block_name: string | null;
+  sort_order: number;
+  /** How many attempts exist — an edit to a task students already answered is
+   * worth warning about. */
+  submission_count: number;
+  created_at: string;
+  updated_at: string;
+}
+
+/** POST /api/blocks body. Only `name` is required; a module starts as a DRAFT. */
+export interface CreateBlockArgs {
+  name: string;
+  topic?: string | null;
+  level?: string | null;
+  ru_style?: string | null;
+  visibility?: string | null;
+}
+
+/** PATCH /api/blocks/{id} body. ABSENT means "leave alone", so publishing is
+ * `{ is_published: true }` with no risk of blanking anything else. */
+export interface UpdateBlockArgs {
+  name?: string;
+  topic?: string | null;
+  level?: string | null;
+  ru_style?: string | null;
+  visibility?: string;
+  is_published?: boolean;
+  sort_order?: number;
+}
+
+/** POST /api/questions body. `title` + `prompt_text` are required. */
+export interface CreateQuestionArgs {
+  title: string;
+  prompt_text: string;
+  level?: string | null;
+  topic?: string | null;
+  ru_style?: string | null;
+  instruction_text?: string | null;
+  model_answer_text?: string | null;
+  prep_time_sec?: number;
+  answer_time_limit_sec?: number;
+  /** Attach straight to a module (the C4 "+ Yangi vazifa" path). */
+  block_id?: string | null;
+}
+
+/** PATCH /api/questions/{id} body. `detach_block: true` removes the module link —
+ * over JSON an absent `block_id` and an explicit null are indistinguishable, so
+ * detaching needs its own flag. */
+export interface UpdateQuestionArgs {
+  title?: string;
+  prompt_text?: string;
+  level?: string | null;
+  topic?: string | null;
+  ru_style?: string | null;
+  instruction_text?: string | null;
+  model_answer_text?: string | null;
+  prep_time_sec?: number;
+  answer_time_limit_sec?: number;
+  is_published?: boolean;
+  sort_order?: number;
+  block_id?: string;
+  detach_block?: boolean;
+}

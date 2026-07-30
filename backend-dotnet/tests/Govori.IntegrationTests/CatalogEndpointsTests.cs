@@ -204,6 +204,210 @@ public sealed class CatalogEndpointsTests : IClassFixture<CatalogEndpointsTests.
         Assert.Equal(premium, task.GetProperty("premium_locked").GetBoolean());
     }
 
+
+    /// <summary>
+    /// The TEACHER AUTHORING surface (Kontent board C1 · C2 · C4 · C5): create a module and a task
+    /// over the existing question_blocks / questions tables, attach and detach, publish, and prove
+    /// the OWNERSHIP boundary in both directions.
+    ///
+    /// <para><b>The boundary is the point.</b> Authoring is the first write surface a teacher has
+    /// over content, so a second teacher must be unable to read OR mutate any of it, and must get
+    /// <b>404 rather than 403</b> — a 403 would confirm the id exists. A student is refused outright.
+    /// Attaching a task to someone else's module is likewise a 404, not a silent cross-owner
+    /// attachment.</para>
+    /// </summary>
+    [Fact]
+    public async Task Teacher_authoring_creates_attaches_publishes_and_stays_owner_scoped()
+    {
+        var teacherAId = Guid.NewGuid();
+        var teacherBId = Guid.NewGuid();
+        var studentId = Guid.NewGuid();
+        var hasher = new PasswordHasher();
+        const string password = "Authoring!123";
+
+        await using (var ctx = CreateContext())
+        {
+            ctx.Users.Add(NewUser(teacherAId, $"auth-tA-{teacherAId:N}@example.test", UserRole.Teacher, null));
+            ctx.Users.Add(NewUser(teacherBId, $"auth-tB-{teacherBId:N}@example.test", UserRole.Teacher, null));
+            ctx.Users.Add(NewUser(studentId, $"auth-s-{studentId:N}@example.test", UserRole.Student, hasher.Hash(password)));
+            await ctx.SaveChangesAsync();
+        }
+
+        var createdBlockIds = new List<Guid>();
+        var createdQuestionIds = new List<Guid>();
+
+        try
+        {
+            var client = _factory.CreateClient();
+            var tokenA = AuthToken(teacherAId);
+            var tokenB = AuthToken(teacherBId);
+            var tokenS = AuthToken(studentId);
+
+            // ── Anonymous → 401; student → 403 on every authoring route ──
+            Assert.Equal(HttpStatusCode.Unauthorized, (await client.GetAsync("/api/blocks")).StatusCode);
+            Assert.Equal(HttpStatusCode.Forbidden, (await Api(client, HttpMethod.Get, "/api/blocks", tokenS)).StatusCode);
+            Assert.Equal(HttpStatusCode.Forbidden,
+                (await Api(client, HttpMethod.Post, "/api/blocks", tokenS, Body(new { name = "nope" }))).StatusCode);
+            Assert.Equal(HttpStatusCode.Forbidden, (await Api(client, HttpMethod.Get, "/api/questions", tokenS)).StatusCode);
+
+            // ── A blank name is refused rather than creating an unidentifiable module ──
+            Assert.Equal(HttpStatusCode.BadRequest,
+                (await Api(client, HttpMethod.Post, "/api/blocks", tokenA, Body(new { name = "   " }))).StatusCode);
+
+            // ── Teacher A creates a module → 201, and it starts as a DRAFT ──
+            var mkBlock = await Api(client, HttpMethod.Post, "/api/blocks", tokenA,
+                Body(new { name = "  Kundalik muloqot  ", level = "A2", topic = "kundalik" }));
+            Assert.Equal(HttpStatusCode.Created, mkBlock.StatusCode);
+            Guid blockId;
+            using (var doc = JsonDocument.Parse(await mkBlock.Content.ReadAsStringAsync()))
+            {
+                blockId = doc.RootElement.GetProperty("id").GetGuid();
+                createdBlockIds.Add(blockId);
+                Assert.Equal("Kundalik muloqot", doc.RootElement.GetProperty("name").GetString());  // trimmed
+                Assert.False(doc.RootElement.GetProperty("is_published").GetBoolean());
+                Assert.Equal(0, doc.RootElement.GetProperty("task_count").GetInt32());
+                // A draft reaches nobody, so claiming a student count would be a lie.
+                Assert.Equal(0, doc.RootElement.GetProperty("student_count").GetInt32());
+                Assert.Empty(doc.RootElement.GetProperty("tasks").EnumerateArray());
+            }
+
+            // ── A task needs a prompt: title alone is not answerable ──
+            Assert.Equal(HttpStatusCode.BadRequest,
+                (await Api(client, HttpMethod.Post, "/api/questions", tokenA, Body(new { title = "Bo'sh" }))).StatusCode);
+
+            // ── Create a task straight into the module (the C4 "+ Yangi vazifa" path) ──
+            var mkQ = await Api(client, HttpMethod.Post, "/api/questions", tokenA, Body(new
+            {
+                title = "Do'konda xarid",
+                prompt_text = "Расскажите, что вы вчера купили в магазине.",
+                level = "A2",
+                block_id = blockId,
+            }));
+            Assert.Equal(HttpStatusCode.Created, mkQ.StatusCode);
+            Guid questionId;
+            using (var doc = JsonDocument.Parse(await mkQ.Content.ReadAsStringAsync()))
+            {
+                questionId = doc.RootElement.GetProperty("id").GetGuid();
+                createdQuestionIds.Add(questionId);
+                Assert.Equal(blockId, doc.RootElement.GetProperty("block_id").GetGuid());
+                Assert.False(doc.RootElement.GetProperty("is_published").GetBoolean());
+                Assert.Equal(0, doc.RootElement.GetProperty("submission_count").GetInt32());
+            }
+
+            // ── An UNATTACHED task, for the C5 library picker ──
+            var mkLoose = await Api(client, HttpMethod.Post, "/api/questions", tokenA,
+                Body(new { title = "Telefon suhbati", prompt_text = "Позвоните и запишитесь." , level = "A2" }));
+            Guid looseId;
+            using (var doc = JsonDocument.Parse(await mkLoose.Content.ReadAsStringAsync()))
+            {
+                looseId = doc.RootElement.GetProperty("id").GetGuid();
+                createdQuestionIds.Add(looseId);
+                Assert.True(doc.RootElement.TryGetProperty("block_id", out var bid) && bid.ValueKind == JsonValueKind.Null);
+            }
+
+            // ?unassigned=true offers ONLY the loose one — the picker must not let a task end up
+            // in two modules at once.
+            using (var doc = JsonDocument.Parse(await (await Api(client, HttpMethod.Get, "/api/questions?unassigned=true", tokenA)).Content.ReadAsStringAsync()))
+            {
+                var ids = doc.RootElement.EnumerateArray().Select(x => x.GetProperty("id").GetGuid()).ToList();
+                Assert.Contains(looseId, ids);
+                Assert.DoesNotContain(questionId, ids);
+            }
+
+            // Search matches the PROMPT as well as the title.
+            using (var doc = JsonDocument.Parse(await (await Api(client, HttpMethod.Get, "/api/questions?q=%D0%B7%D0%B0%D0%BF%D0%B8%D1%88%D0%B8%D1%82%D0%B5%D1%81%D1%8C", tokenA)).Content.ReadAsStringAsync()))
+                Assert.Contains(doc.RootElement.EnumerateArray(), x => x.GetProperty("id").GetGuid() == looseId);
+
+            // ── Attach the loose task via PATCH (C5 "Mavjuddan tanlash") ──
+            Assert.Equal(HttpStatusCode.OK,
+                (await Api(client, HttpMethod.Patch, $"/api/questions/{looseId}", tokenA, Body(new { block_id = blockId }))).StatusCode);
+            using (var doc = JsonDocument.Parse(await (await Api(client, HttpMethod.Get, $"/api/blocks/{blockId}", tokenA)).Content.ReadAsStringAsync()))
+            {
+                Assert.Equal(2, doc.RootElement.GetProperty("task_count").GetInt32());
+                var order = doc.RootElement.GetProperty("tasks").EnumerateArray()
+                    .Select(x => x.GetProperty("sort_order").GetInt32()).ToList();
+                Assert.Equal(new[] { 0, 1 }, order);                        // appended, not stacked at 0
+            }
+
+            // ── detach_block: true removes the link (absent block_id would leave it alone) ──
+            Assert.Equal(HttpStatusCode.OK,
+                (await Api(client, HttpMethod.Patch, $"/api/questions/{looseId}", tokenA, Body(new { detach_block = true }))).StatusCode);
+            await using (var ctx = CreateContext())
+                Assert.Null((await ctx.Questions.SingleAsync(q => q.Id == looseId)).BlockId);
+
+            // ── Publishing the module gives it real reach ──
+            await using (var ctx = CreateContext())
+            {
+                var gid = Guid.NewGuid();
+                ctx.Groups.Add(new Group { Id = gid, TeacherId = teacherAId, Name = "Auth grp", JoinCode = $"AU{gid:N}".ToUpperInvariant()[..6], CreatedAt = DateTime.UtcNow, UpdatedAt = DateTime.UtcNow });
+                await ctx.SaveChangesAsync();
+                ctx.GroupMembers.Add(new GroupMember { Id = Guid.NewGuid(), GroupId = gid, StudentId = studentId, CreatedAt = DateTime.UtcNow, UpdatedAt = DateTime.UtcNow });
+                await ctx.SaveChangesAsync();
+            }
+            using (var doc = JsonDocument.Parse(await (await Api(client, HttpMethod.Patch, $"/api/blocks/{blockId}", tokenA, Body(new { is_published = true }))).Content.ReadAsStringAsync()))
+            {
+                Assert.True(doc.RootElement.GetProperty("is_published").GetBoolean());
+                Assert.Equal(1, doc.RootElement.GetProperty("student_count").GetInt32());
+                // A partial PATCH must not blank the untouched fields.
+                Assert.Equal("Kundalik muloqot", doc.RootElement.GetProperty("name").GetString());
+                Assert.Equal("A2", doc.RootElement.GetProperty("level").GetString());
+            }
+
+            // Blanking the name is refused — an unnamed module is unrecoverable in the list.
+            Assert.Equal(HttpStatusCode.BadRequest,
+                (await Api(client, HttpMethod.Patch, $"/api/blocks/{blockId}", tokenA, Body(new { name = "  " }))).StatusCode);
+
+            // ── OWNERSHIP: teacher B can neither see nor touch any of it, and gets 404 not 403 ──
+            using (var doc = JsonDocument.Parse(await (await Api(client, HttpMethod.Get, "/api/blocks", tokenB)).Content.ReadAsStringAsync()))
+                Assert.DoesNotContain(doc.RootElement.EnumerateArray(), x => x.GetProperty("id").GetGuid() == blockId);
+            using (var doc = JsonDocument.Parse(await (await Api(client, HttpMethod.Get, "/api/questions", tokenB)).Content.ReadAsStringAsync()))
+                Assert.DoesNotContain(doc.RootElement.EnumerateArray(), x => x.GetProperty("id").GetGuid() == questionId);
+
+            Assert.Equal(HttpStatusCode.NotFound, (await Api(client, HttpMethod.Get, $"/api/blocks/{blockId}", tokenB)).StatusCode);
+            Assert.Equal(HttpStatusCode.NotFound,
+                (await Api(client, HttpMethod.Patch, $"/api/blocks/{blockId}", tokenB, Body(new { name = "hijack" }))).StatusCode);
+            Assert.Equal(HttpStatusCode.NotFound,
+                (await Api(client, HttpMethod.Patch, $"/api/questions/{questionId}", tokenB, Body(new { title = "hijack" }))).StatusCode);
+
+            // Teacher B creating a task INTO teacher A's module is a 404, not a cross-owner attach.
+            Assert.Equal(HttpStatusCode.NotFound,
+                (await Api(client, HttpMethod.Post, "/api/questions", tokenB,
+                    Body(new { title = "x", prompt_text = "y", block_id = blockId }))).StatusCode);
+
+            // None of the hijack attempts changed anything.
+            await using (var ctx = CreateContext())
+            {
+                Assert.Equal("Kundalik muloqot", (await ctx.QuestionBlocks.SingleAsync(x => x.Id == blockId)).Name);
+                Assert.Equal("Do'konda xarid", (await ctx.Questions.SingleAsync(x => x.Id == questionId)).Title);
+                Assert.Equal(0, await ctx.Questions.CountAsync(x => x.TeacherId == teacherBId));
+            }
+        }
+        finally
+        {
+            await using var ctx = CreateContext();
+            await ctx.Questions.Where(q => createdQuestionIds.Contains(q.Id)).ExecuteDeleteAsync();
+            await ctx.QuestionBlocks.Where(b => createdBlockIds.Contains(b.Id)).ExecuteDeleteAsync();
+            await ctx.GroupMembers.Where(gm => gm.StudentId == studentId).ExecuteDeleteAsync();
+            await ctx.Groups.Where(g => g.TeacherId == teacherAId).ExecuteDeleteAsync();
+            await ctx.Users.Where(u => u.Id == teacherAId || u.Id == teacherBId || u.Id == studentId).ExecuteDeleteAsync();
+        }
+    }
+
+    private static string AuthToken(Guid userId) =>
+        new TokenService(new IdentityAuthOptions { SecretKey = CatalogApiFactory.TestSecretKey })
+            .CreateAccessToken(userId.ToString());
+
+    private static Task<HttpResponseMessage> Api(
+        HttpClient client, HttpMethod method, string url, string token, HttpContent? content = null)
+    {
+        var req = new HttpRequestMessage(method, url) { Content = content };
+        req.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
+        return client.SendAsync(req);
+    }
+
+    // Property names AS WRITTEN (snake_case) — the API deserializes with a snake_case policy.
+    private static HttpContent Body(object body) => JsonContent.Create(body);
+
     private static User NewUser(Guid id, string email, UserRole role, string? passwordHash) => new()
     {
         Id = id,

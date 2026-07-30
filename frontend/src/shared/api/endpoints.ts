@@ -17,6 +17,13 @@ import type {
   GroupDetailResponse,
   GradebookRowResponse,
   GroupJoinRequestResponse,
+  TeacherBlockResponse,
+  TeacherBlockDetailResponse,
+  TeacherQuestionResponse,
+  CreateBlockArgs,
+  UpdateBlockArgs,
+  CreateQuestionArgs,
+  UpdateQuestionArgs,
   JoinGroupResponse,
   LeaderboardEntryResponse,
   LinksResponse,
@@ -514,4 +521,60 @@ export function reviewSubmission(
   if (args.band !== undefined) body.teacher_band = args.band;
   if (args.comment !== undefined) body.teacher_comment = args.comment;
   return apiClient.patch<void>(`/submissions/${encodeURIComponent(id)}/review`, body);
+}
+
+/* ── Teacher — Kontent authoring (mockup board C) ─────────────────────────── */
+
+/** GET /api/blocks → the teacher's OWN modules (403 for a student). */
+export function teacherBlocks(): Promise<TeacherBlockResponse[]> {
+  return apiClient.get<TeacherBlockResponse[]>("/blocks");
+}
+
+/** GET /api/blocks/{id} → module + ordered tasks. 404 when it is not yours. */
+export function teacherBlock(id: string): Promise<TeacherBlockDetailResponse> {
+  return apiClient.get<TeacherBlockDetailResponse>(`/blocks/${encodeURIComponent(id)}`);
+}
+
+/** POST /api/blocks → create a module (201). Starts as a DRAFT, so nothing
+ * reaches students until it is published explicitly. */
+export function createBlock(args: CreateBlockArgs): Promise<TeacherBlockDetailResponse> {
+  return apiClient.post<TeacherBlockDetailResponse>("/blocks", args);
+}
+
+/** PATCH /api/blocks/{id} → partial update; omitted fields are left alone. */
+export function updateBlock(
+  id: string,
+  args: UpdateBlockArgs,
+): Promise<TeacherBlockDetailResponse> {
+  return apiClient.patch<TeacherBlockDetailResponse>(`/blocks/${encodeURIComponent(id)}`, args);
+}
+
+/** GET /api/questions → the teacher's own tasks.
+ * `search` matches title OR prompt; `unassignedOnly` is what C5's picker offers,
+ * so a task can never be attached to two modules at once. */
+export function teacherQuestions(opts?: {
+  search?: string;
+  blockId?: string;
+  unassignedOnly?: boolean;
+  limit?: number;
+}): Promise<TeacherQuestionResponse[]> {
+  const p = new URLSearchParams();
+  if (opts?.search) p.set("q", opts.search);
+  if (opts?.blockId) p.set("block_id", opts.blockId);
+  if (opts?.unassignedOnly) p.set("unassigned", "true");
+  p.set("limit", String(opts?.limit ?? 100));
+  return apiClient.get<TeacherQuestionResponse[]>(`/questions?${p.toString()}`);
+}
+
+/** POST /api/questions → create a task (201). Starts as a DRAFT. */
+export function createQuestion(args: CreateQuestionArgs): Promise<TeacherQuestionResponse> {
+  return apiClient.post<TeacherQuestionResponse>("/questions", args);
+}
+
+/** PATCH /api/questions/{id} → partial update, incl. attach/detach + reorder. */
+export function updateQuestion(
+  id: string,
+  args: UpdateQuestionArgs,
+): Promise<TeacherQuestionResponse> {
+  return apiClient.patch<TeacherQuestionResponse>(`/questions/${encodeURIComponent(id)}`, args);
 }

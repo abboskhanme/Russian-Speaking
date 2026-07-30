@@ -258,4 +258,360 @@ public sealed class CatalogService
     // (same scale as the profile/results band).
     private static int Band(double overallBand)
         => Math.Clamp((int)Math.Round(overallBand, MidpointRounding.AwayFromZero), 0, 100);
+    // ─── Teacher authoring (Kontent board C1 · C2 · C4 · C5) ────────────────────
+    // A write surface over the EXISTING question_blocks / questions tables. Every method is
+    // OWNER-SCOPED: a teacher reads and mutates only rows whose TeacherId is theirs, and anything
+    // else answers NotFound rather than Forbidden so ids cannot be probed. Admin sees everything.
+
+    /// <summary>GET /api/blocks — the caller's own modules, newest sort order first. Teacher/admin.</summary>
+    public async Task<CatalogResult<IReadOnlyList<TeacherBlockResponse>>> ListBlocksAsync(
+        Guid userId, CancellationToken ct = default)
+    {
+        var user = await ActiveUserAsync(userId, ct);
+        if (user is null) return CatalogResult<IReadOnlyList<TeacherBlockResponse>>.Unauthorized();
+        if (!IsTeacher(user)) return CatalogResult<IReadOnlyList<TeacherBlockResponse>>.Forbidden();
+
+        var q = _db.QuestionBlocks.AsQueryable();
+        if (user.Role != UserRole.Admin) q = q.Where(b => b.TeacherId == user.Id);
+
+        var blocks = await q.OrderBy(b => b.SortOrder).ThenByDescending(b => b.CreatedAt).ToListAsync(ct);
+        var reach = await RosterReachAsync(user, ct);
+
+        var ids = blocks.Select(b => b.Id).ToList();
+        var counts = await CountsPerBlockAsync(ids, ct);
+
+        return CatalogResult<IReadOnlyList<TeacherBlockResponse>>.Ok(blocks
+            .Select(b => new TeacherBlockResponse(
+                Id: b.Id, Name: b.Name, Topic: b.Topic, Level: b.Level, RuStyle: b.RuStyle,
+                Visibility: b.Visibility, IsPublished: b.IsPublished, SortOrder: b.SortOrder,
+                TaskCount: counts.GetValueOrDefault(b.Id, 0),
+                // Reach is the same for every module the teacher owns — it is their roster size.
+                // A DRAFT reaches nobody yet, and saying "38 o'quvchi" on a draft would be a lie.
+                StudentCount: b.IsPublished ? reach : 0,
+                CreatedAt: b.CreatedAt, UpdatedAt: b.UpdatedAt))
+            .ToList());
+    }
+
+    /// <summary>GET /api/blocks/{id} — one module plus its ordered tasks (the C4 editor).</summary>
+    public async Task<CatalogResult<TeacherBlockDetailResponse>> GetBlockAsync(
+        Guid userId, Guid blockId, CancellationToken ct = default)
+    {
+        var user = await ActiveUserAsync(userId, ct);
+        if (user is null) return CatalogResult<TeacherBlockDetailResponse>.Unauthorized();
+        if (!IsTeacher(user)) return CatalogResult<TeacherBlockDetailResponse>.Forbidden();
+
+        var b = await _db.QuestionBlocks.FirstOrDefaultAsync(x => x.Id == blockId, ct);
+        if (b is null || (user.Role != UserRole.Admin && b.TeacherId != user.Id))
+            return CatalogResult<TeacherBlockDetailResponse>.NotFound();
+
+        var tasks = await _db.Questions
+            .Where(q => q.BlockId == b.Id && !q.IsDeleted)
+            .OrderBy(q => q.SortOrder).ThenBy(q => q.CreatedAt)
+            .ToListAsync(ct);
+        var subCounts = await SubmissionCountsAsync(tasks.Select(t => t.Id).ToList(), ct);
+        var reach = await RosterReachAsync(user, ct);
+
+        return CatalogResult<TeacherBlockDetailResponse>.Ok(new TeacherBlockDetailResponse(
+            Id: b.Id, Name: b.Name, Topic: b.Topic, Level: b.Level, RuStyle: b.RuStyle,
+            Visibility: b.Visibility, IsPublished: b.IsPublished, SortOrder: b.SortOrder,
+            TaskCount: tasks.Count, StudentCount: b.IsPublished ? reach : 0,
+            CreatedAt: b.CreatedAt, UpdatedAt: b.UpdatedAt,
+            Tasks: tasks.Select(q => QuestionOut(q, b.Name, subCounts.GetValueOrDefault(q.Id, 0))).ToList()));
+    }
+
+    /// <summary>POST /api/blocks — create a module. Starts as a DRAFT so nothing reaches students
+    /// until the teacher publishes it explicitly.</summary>
+    public async Task<CatalogResult<TeacherBlockDetailResponse>> CreateBlockAsync(
+        Guid userId, CreateBlockRequest body, CancellationToken ct = default)
+    {
+        var user = await ActiveUserAsync(userId, ct);
+        if (user is null) return CatalogResult<TeacherBlockDetailResponse>.Unauthorized();
+        if (!IsTeacher(user)) return CatalogResult<TeacherBlockDetailResponse>.Forbidden();
+
+        var name = (body.Name ?? string.Empty).Trim();
+        if (name.Length == 0) return CatalogResult<TeacherBlockDetailResponse>.BadRequest("name is required");
+
+        var now = DateTime.UtcNow;
+        var block = new QuestionBlock
+        {
+            Id = Guid.NewGuid(),
+            TeacherId = user.Id,
+            Name = name,
+            Topic = Trimmed(body.Topic),
+            Level = Trimmed(body.Level),
+            RuStyle = Trimmed(body.RuStyle),
+            // "group" = visible to the teacher's own students; "public" is an official module and
+            // is NOT something a teacher grants themselves, so it is not accepted here.
+            Visibility = body.Visibility == "private" ? "private" : "group",
+            IsPublished = false,
+            SortOrder = await NextBlockSortAsync(user.Id, ct),
+            CreatedAt = now,
+            UpdatedAt = now,
+        };
+        _db.QuestionBlocks.Add(block);
+        await _db.SaveChangesAsync(ct);
+
+        return await GetBlockAsync(userId, block.Id, ct);
+    }
+
+    /// <summary>PATCH /api/blocks/{id} — partial update; absent fields are left alone.</summary>
+    public async Task<CatalogResult<TeacherBlockDetailResponse>> UpdateBlockAsync(
+        Guid userId, Guid blockId, UpdateBlockRequest body, CancellationToken ct = default)
+    {
+        var user = await ActiveUserAsync(userId, ct);
+        if (user is null) return CatalogResult<TeacherBlockDetailResponse>.Unauthorized();
+        if (!IsTeacher(user)) return CatalogResult<TeacherBlockDetailResponse>.Forbidden();
+
+        var b = await _db.QuestionBlocks.FirstOrDefaultAsync(x => x.Id == blockId, ct);
+        if (b is null || (user.Role != UserRole.Admin && b.TeacherId != user.Id))
+            return CatalogResult<TeacherBlockDetailResponse>.NotFound();
+
+        if (body.Name is not null)
+        {
+            var name = body.Name.Trim();
+            // Refuse to blank the name rather than accepting an unnamed module: the list would
+            // render an empty card the teacher cannot identify or recover.
+            if (name.Length == 0)
+                return CatalogResult<TeacherBlockDetailResponse>.BadRequest("name cannot be blank");
+            b.Name = name;
+        }
+        if (body.Topic is not null) b.Topic = Trimmed(body.Topic);
+        if (body.Level is not null) b.Level = Trimmed(body.Level);
+        if (body.RuStyle is not null) b.RuStyle = Trimmed(body.RuStyle);
+        if (body.Visibility is not null && body.Visibility is "group" or "private")
+            b.Visibility = body.Visibility;
+        if (body.IsPublished is not null) b.IsPublished = body.IsPublished.Value;
+        if (body.SortOrder is not null) b.SortOrder = body.SortOrder.Value;
+        b.UpdatedAt = DateTime.UtcNow;
+
+        await _db.SaveChangesAsync(ct);
+        return await GetBlockAsync(userId, blockId, ct);
+    }
+
+    /// <summary>
+    /// GET /api/questions — the caller's own tasks. <paramref name="search"/> matches title OR
+    /// prompt (case-insensitive); <paramref name="blockId"/> narrows to one module;
+    /// <paramref name="unassignedOnly"/> returns only tasks with no module, which is what C5's
+    /// library picker offers so a task cannot be attached to two modules at once.
+    /// </summary>
+    public async Task<CatalogResult<IReadOnlyList<TeacherQuestionResponse>>> ListQuestionsAsync(
+        Guid userId, string? search, Guid? blockId, bool unassignedOnly, int limit,
+        CancellationToken ct = default)
+    {
+        var user = await ActiveUserAsync(userId, ct);
+        if (user is null) return CatalogResult<IReadOnlyList<TeacherQuestionResponse>>.Unauthorized();
+        if (!IsTeacher(user)) return CatalogResult<IReadOnlyList<TeacherQuestionResponse>>.Forbidden();
+
+        limit = Math.Clamp(limit, 1, 200);
+        var q = _db.Questions.Include(x => x.Block).Where(x => !x.IsDeleted);
+        if (user.Role != UserRole.Admin) q = q.Where(x => x.TeacherId == user.Id);
+        if (blockId is not null) q = q.Where(x => x.BlockId == blockId);
+        if (unassignedOnly) q = q.Where(x => x.BlockId == null);
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            var term = search.Trim();
+            q = q.Where(x => EF.Functions.ILike(x.Title, $"%{term}%")
+                             || EF.Functions.ILike(x.PromptText, $"%{term}%"));
+        }
+
+        var rows = await q.OrderBy(x => x.SortOrder).ThenByDescending(x => x.CreatedAt)
+            .Take(limit).ToListAsync(ct);
+        var subCounts = await SubmissionCountsAsync(rows.Select(r => r.Id).ToList(), ct);
+
+        return CatalogResult<IReadOnlyList<TeacherQuestionResponse>>.Ok(rows
+            .Select(x => QuestionOut(x, x.Block?.Name, subCounts.GetValueOrDefault(x.Id, 0)))
+            .ToList());
+    }
+
+    /// <summary>POST /api/questions — create a task. Starts as a DRAFT.</summary>
+    public async Task<CatalogResult<TeacherQuestionResponse>> CreateQuestionAsync(
+        Guid userId, CreateQuestionRequest body, CancellationToken ct = default)
+    {
+        var user = await ActiveUserAsync(userId, ct);
+        if (user is null) return CatalogResult<TeacherQuestionResponse>.Unauthorized();
+        if (!IsTeacher(user)) return CatalogResult<TeacherQuestionResponse>.Forbidden();
+
+        var title = (body.Title ?? string.Empty).Trim();
+        var prompt = (body.PromptText ?? string.Empty).Trim();
+        if (title.Length == 0) return CatalogResult<TeacherQuestionResponse>.BadRequest("title is required");
+        // A task with no prompt is not answerable — there would be nothing to speak about.
+        if (prompt.Length == 0) return CatalogResult<TeacherQuestionResponse>.BadRequest("prompt_text is required");
+
+        QuestionBlock? block = null;
+        if (body.BlockId is not null)
+        {
+            block = await _db.QuestionBlocks.FirstOrDefaultAsync(x => x.Id == body.BlockId, ct);
+            // Attaching to someone else's module is the same as it not existing.
+            if (block is null || (user.Role != UserRole.Admin && block.TeacherId != user.Id))
+                return CatalogResult<TeacherQuestionResponse>.NotFound();
+        }
+
+        var now = DateTime.UtcNow;
+        var q = new Question
+        {
+            Id = Guid.NewGuid(),
+            TeacherId = user.Id,
+            Type = QuestionType.Text,
+            Title = title,
+            PromptText = prompt,
+            Level = Trimmed(body.Level),
+            Topic = Trimmed(body.Topic),
+            RuStyle = Trimmed(body.RuStyle),
+            InstructionText = Trimmed(body.InstructionText),
+            ModelAnswerText = Trimmed(body.ModelAnswerText),
+            PrepTimeSec = Math.Clamp(body.PrepTimeSec ?? 30, 0, 600),
+            AnswerTimeLimitSec = Math.Clamp(body.AnswerTimeLimitSec ?? 120, 10, 1800),
+            IsPublished = false,
+            IsPublic = false,
+            IsDeleted = false,
+            BlockId = block?.Id,
+            SortOrder = block is null ? 0 : await NextQuestionSortAsync(block.Id, ct),
+            CreatedAt = now,
+            UpdatedAt = now,
+        };
+        _db.Questions.Add(q);
+        await _db.SaveChangesAsync(ct);
+
+        return CatalogResult<TeacherQuestionResponse>.Ok(QuestionOut(q, block?.Name, 0));
+    }
+
+    /// <summary>PATCH /api/questions/{id} — partial update; absent fields are left alone.
+    /// <c>detach_block: true</c> removes the module attachment (see the request DTO).</summary>
+    public async Task<CatalogResult<TeacherQuestionResponse>> UpdateQuestionAsync(
+        Guid userId, Guid questionId, UpdateQuestionRequest body, CancellationToken ct = default)
+    {
+        var user = await ActiveUserAsync(userId, ct);
+        if (user is null) return CatalogResult<TeacherQuestionResponse>.Unauthorized();
+        if (!IsTeacher(user)) return CatalogResult<TeacherQuestionResponse>.Forbidden();
+
+        var q = await _db.Questions.Include(x => x.Block)
+            .FirstOrDefaultAsync(x => x.Id == questionId && !x.IsDeleted, ct);
+        if (q is null || (user.Role != UserRole.Admin && q.TeacherId != user.Id))
+            return CatalogResult<TeacherQuestionResponse>.NotFound();
+
+        if (body.Title is not null)
+        {
+            var title = body.Title.Trim();
+            if (title.Length == 0) return CatalogResult<TeacherQuestionResponse>.BadRequest("title cannot be blank");
+            q.Title = title;
+        }
+        if (body.PromptText is not null)
+        {
+            var prompt = body.PromptText.Trim();
+            if (prompt.Length == 0) return CatalogResult<TeacherQuestionResponse>.BadRequest("prompt_text cannot be blank");
+            q.PromptText = prompt;
+        }
+        if (body.Level is not null) q.Level = Trimmed(body.Level);
+        if (body.Topic is not null) q.Topic = Trimmed(body.Topic);
+        if (body.RuStyle is not null) q.RuStyle = Trimmed(body.RuStyle);
+        if (body.InstructionText is not null) q.InstructionText = Trimmed(body.InstructionText);
+        if (body.ModelAnswerText is not null) q.ModelAnswerText = Trimmed(body.ModelAnswerText);
+        if (body.PrepTimeSec is not null) q.PrepTimeSec = Math.Clamp(body.PrepTimeSec.Value, 0, 600);
+        if (body.AnswerTimeLimitSec is not null)
+            q.AnswerTimeLimitSec = Math.Clamp(body.AnswerTimeLimitSec.Value, 10, 1800);
+        if (body.IsPublished is not null) q.IsPublished = body.IsPublished.Value;
+        if (body.SortOrder is not null) q.SortOrder = body.SortOrder.Value;
+
+        QuestionBlock? newBlock = q.Block;
+        if (body.DetachBlock == true)
+        {
+            q.BlockId = null;
+            newBlock = null;
+        }
+        else if (body.BlockId is not null)
+        {
+            var target = await _db.QuestionBlocks.FirstOrDefaultAsync(x => x.Id == body.BlockId, ct);
+            if (target is null || (user.Role != UserRole.Admin && target.TeacherId != user.Id))
+                return CatalogResult<TeacherQuestionResponse>.NotFound();
+            // Moving into a module puts it at the end unless the caller also set a sort order.
+            if (q.BlockId != target.Id && body.SortOrder is null)
+                q.SortOrder = await NextQuestionSortAsync(target.Id, ct);
+            q.BlockId = target.Id;
+            newBlock = target;
+        }
+
+        q.UpdatedAt = DateTime.UtcNow;
+        await _db.SaveChangesAsync(ct);
+
+        var subs = await _db.Submissions.CountAsync(s => s.QuestionId == q.Id, ct);
+        return CatalogResult<TeacherQuestionResponse>.Ok(QuestionOut(q, newBlock?.Name, subs));
+    }
+
+    // ─── authoring helpers ──────────────────────────────────────────────────────
+
+    private static TeacherQuestionResponse QuestionOut(Question q, string? blockName, int submissionCount)
+        => new(
+            Id: q.Id, Title: q.Title, PromptText: q.PromptText,
+            Type: q.Type.ToString().ToLowerInvariant(),
+            Level: q.Level, Topic: q.Topic, RuStyle: q.RuStyle,
+            InstructionText: q.InstructionText, ModelAnswerText: q.ModelAnswerText,
+            PrepTimeSec: q.PrepTimeSec, AnswerTimeLimitSec: q.AnswerTimeLimitSec,
+            IsPublished: q.IsPublished, IsPublic: q.IsPublic,
+            BlockId: q.BlockId, BlockName: blockName, SortOrder: q.SortOrder,
+            SubmissionCount: submissionCount,
+            CreatedAt: q.CreatedAt, UpdatedAt: q.UpdatedAt);
+
+    private static string? Trimmed(string? s)
+    {
+        if (s is null) return null;
+        var t = s.Trim();
+        return t.Length == 0 ? null : t;                                     // blank clears the field
+    }
+
+    private async Task<User?> ActiveUserAsync(Guid userId, CancellationToken ct)
+    {
+        var u = await _db.Users.FirstOrDefaultAsync(x => x.Id == userId, ct);
+        return u is null || !u.IsActive ? null : u;
+    }
+
+    private static bool IsTeacher(User u) => u.Role is UserRole.Teacher or UserRole.Admin;
+
+    /// <summary>Distinct students across the teacher's own groups — the reach a published module has.</summary>
+    private async Task<int> RosterReachAsync(User user, CancellationToken ct)
+        => user.Role == UserRole.Admin
+            ? await _db.GroupMembers.Select(gm => gm.StudentId).Distinct().CountAsync(ct)
+            : await _db.GroupMembers.Where(gm => gm.Group.TeacherId == user.Id)
+                .Select(gm => gm.StudentId).Distinct().CountAsync(ct);
+
+    private async Task<Dictionary<Guid, int>> CountsPerBlockAsync(List<Guid> blockIds, CancellationToken ct)
+        => blockIds.Count == 0
+            ? new Dictionary<Guid, int>()
+            : (await _db.Questions
+                .Where(q => q.BlockId != null && blockIds.Contains(q.BlockId.Value) && !q.IsDeleted)
+                .GroupBy(q => q.BlockId!.Value)
+                .Select(g => new { Id = g.Key, Count = g.Count() })
+                .ToListAsync(ct))
+                .ToDictionary(x => x.Id, x => x.Count);
+
+    private async Task<Dictionary<Guid, int>> SubmissionCountsAsync(List<Guid> questionIds, CancellationToken ct)
+        => questionIds.Count == 0
+            ? new Dictionary<Guid, int>()
+            : (await _db.Submissions
+                .Where(s => s.QuestionId != null && questionIds.Contains(s.QuestionId.Value))
+                .GroupBy(s => s.QuestionId!.Value)
+                .Select(g => new { Id = g.Key, Count = g.Count() })
+                .ToListAsync(ct))
+                .ToDictionary(x => x.Id, x => x.Count);
+
+    private async Task<int> NextBlockSortAsync(Guid teacherId, CancellationToken ct)
+        => (await _db.QuestionBlocks.Where(b => b.TeacherId == teacherId)
+                .MaxAsync(b => (int?)b.SortOrder, ct) ?? -1) + 1;
+
+    private async Task<int> NextQuestionSortAsync(Guid blockId, CancellationToken ct)
+        => (await _db.Questions.Where(q => q.BlockId == blockId && !q.IsDeleted)
+                .MaxAsync(q => (int?)q.SortOrder, ct) ?? -1) + 1;
+
+}
+
+/// <summary>Outcome of a Catalog authoring call.</summary>
+public enum CatalogOutcome { Ok, Unauthorized, Forbidden, NotFound, BadRequest }
+
+/// <summary>A Catalog authoring result: outcome + payload on success, detail on failure.</summary>
+public sealed record CatalogResult<T>(CatalogOutcome Outcome, T? Value = default, string? Detail = null)
+{
+    public static CatalogResult<T> Ok(T value) => new(CatalogOutcome.Ok, value);
+    public static CatalogResult<T> Unauthorized() => new(CatalogOutcome.Unauthorized);
+    public static CatalogResult<T> Forbidden() => new(CatalogOutcome.Forbidden);
+    public static CatalogResult<T> NotFound() => new(CatalogOutcome.NotFound);
+    public static CatalogResult<T> BadRequest(string detail) => new(CatalogOutcome.BadRequest, default, detail);
 }

@@ -266,13 +266,75 @@ than left implicit.
 browser (queue → detail → manual grade → saved, `reviewed_by` attributable in the
 DB); student routes error-free with no raw JSON anywhere.
 
-## Phase 5 — Kontent (C1–C6)
-- [ ] ⚠️ Audit what the catalog/authoring API already exposes vs. what C2/C4/C5/C6
-  need (module create, task create, task library picker, AI roleplay scenario).
-- [ ] C1 Modullar · C3 Ssenariylar lists (`/teacher/content`).
-- [ ] C4 Modul yaratish · C2 Vazifa yaratish · C5 Vazifa tanlash · C6 Ssenariy
-  yaratish.
-- [ ] i18n.
+## Phase 5 — Kontent (C1 · C2 · C4 · C5)
+
+**Audit result:** there is **no authoring API at all**. `Govori.Catalog` exposes
+exactly ONE endpoint — `GET /api/blocks/student` — and nothing anywhere creates or
+edits a module or a task. The `QuestionBlock` + `Question` ENTITIES do exist with
+every field these screens need (name/topic/level/ru_style/visibility/
+is_published/sort_order/cover_key; title/prompt_text/level/prep_time_sec/
+answer_time_limit_sec/model_answer_text/instruction_text/block_id), so this is a
+new HTTP surface over existing tables — **no migration**.
+
+**Backend** (all new, teacher-scoped) ✅
+- [x] 🔨 `GET /api/blocks` — the teacher's own modules + task counts.
+- [x] 🔨 `POST /api/blocks` · `PATCH /api/blocks/{id}` — create / rename /
+  publish↔draft.
+- [x] 🔨 `GET /api/questions` (`?q=` search, `?block_id`, `?unassigned`) — powers
+  both the Vazifalar tab and C5's library picker.
+- [x] 🔨 `POST /api/questions` · `PATCH /api/questions/{id}` — create / edit /
+  attach to a module / reorder / publish↔draft.
+
+**Frontend** ✅
+- [x] C1 `/teacher/content` — `Modullar | Vazifalar` tabs + "+ Yaratish".
+- [x] C4 `/teacher/content/:blockId` module editor, with C5's library picker and
+  C2's new-task sheet as full-size modals off it.
+- [x] i18n uz/ru/en.
+
+**Decisions worth keeping:**
+- **New content starts as a DRAFT.** Both `POST` routes force
+  `is_published = false`; publishing is a separate, explicit `PATCH`. Nothing
+  reaches a student because a teacher happened to save a half-written task.
+- **A draft's `student_count` is 0**, not the roster size — a draft reaches nobody,
+  and "38 o'quvchi" on an unpublished module would be a lie.
+- **The picker offers only UNATTACHED tasks** (`?unassigned=true`).
+  `questions.block_id` is a single column, so a task belongs to at most one
+  module; offering attached ones would invite a silent move out of another module.
+- **Detach ≠ delete.** "Olib tashlash" clears `block_id` and the task returns to
+  the library. This screen never deletes content.
+- **`detach_block` is its own flag** because over JSON an absent `block_id` and an
+  explicit `null` are indistinguishable — without it, "leave the module alone" and
+  "remove from the module" would be the same request.
+- **`PATCH` is partial**: an absent field is left alone, and a blank string clears
+  it. Publishing is `{ is_published: true }` with no risk of blanking the name.
+  Blanking a `name`/`title` is refused outright — an unnamed module is
+  unrecoverable in the list.
+
+**A third `dev-role.sh` gap found and fixed**: it moved `groups`, `questions` and
+`assignments` but not `question_blocks` or `topics`, so Kontent showed 0 modules
+while the questions inside them were visible. The script now moves every table
+carrying a `teacher_id`, with the enumerating query recorded in a comment so the
+next column added cannot be missed the same way.
+
+**Verified**: 207/0 across all four suites (Integration 50 → 51 with the new
+ownership test); the full authoring flow in the browser — create draft module →
+rename → add a task via C2 → C5 picker correctly empty when everything is
+attached; student routes error-free. Test content removed.
+
+### Deferred — C3 · C6 Ssenariylar (AI roleplay) — *needs a product decision*
+There is **no scenario table** anywhere in the schema, and the student's `/chat`
+scenario grid is **static frontend data** (`screens/conversation`) that the app
+never fetches. So teacher-authored scenarios are not a wiring job — they need a
+new table, an authoring surface, AND the student hub rewired to read from the API.
+
+**Decision needed first:** do teacher-authored scenarios REPLACE the curated
+static set, or supplement it (curated ones stay, teachers add their own)? That
+answer changes the schema (does a scenario need an owner? a visibility?) and what
+students see, so it should not be guessed at.
+
+**Media upload** (C2's "Rasm yoki video yuklash", marked optional in the mockup) is
+also deferred: `Question.MediaKey` and object storage both exist, but there is no
+multipart upload endpoint for it yet.
 
 ## Phase 6 — Analitika (D1 · D2 · D3)
 - [ ] ✅ Gradebook — `GET /api/reports/gradebook?group_id`.
