@@ -10,10 +10,15 @@
 # you cannot sign in as a demo teacher from your own Telegram. The only way to
 # be a teacher on your own number is for YOUR account to hold the teacher role.
 #
-# "teacher" mode also lends you the demo teacher's groups AND questions. Both are
-# required for the panel to show anything: PracticeService.ListAsync scopes a
-# teacher to answers to their OWN questions AND their OWN roster — owning the
-# group alone yields an empty queue.
+# "teacher" mode also lends you the demo teacher's groups, questions AND
+# assignments. All three are needed, each for a different query:
+#   groups      — the roster ("your students")
+#   questions   — PracticeService.ListAsync scopes a teacher to answers to their
+#                 OWN questions AND their OWN roster, so owning the group alone
+#                 still yields an empty grading queue
+#   assignments — ListAssignmentsTeacherAsync filters on assignments.teacher_id
+#                 (who CREATED the assignment), not on the question's owner, so
+#                 without this the group's "Faol topshiriqlar" comes back empty
 #
 # Fully reversible: "student" hands everything back to the donor and restores the
 # role. Nothing here touches prod — it talks to the local govori-db container.
@@ -68,8 +73,9 @@ DO \$\$ BEGIN
 END \$\$;
 
 UPDATE users SET role = 'teacher' WHERE id IN (SELECT id FROM t);
-UPDATE groups    SET teacher_id = (SELECT id FROM t) WHERE teacher_id = (SELECT id FROM d);
-UPDATE questions SET teacher_id = (SELECT id FROM t) WHERE teacher_id = (SELECT id FROM d);
+UPDATE groups      SET teacher_id = (SELECT id FROM t) WHERE teacher_id = (SELECT id FROM d);
+UPDATE questions   SET teacher_id = (SELECT id FROM t) WHERE teacher_id = (SELECT id FROM d);
+UPDATE assignments SET teacher_id = (SELECT id FROM t) WHERE teacher_id = (SELECT id FROM d);
 COMMIT;
 SQL
     echo "✅ $PHONE is now a TEACHER (borrowed $DONOR_EMAIL's groups + questions)."
@@ -83,12 +89,13 @@ CREATE TEMP TABLE t AS
   SELECT id FROM users WHERE phone = '$PHONE' ORDER BY created_at LIMIT 1;
 CREATE TEMP TABLE d AS SELECT id FROM users WHERE email = '$DONOR_EMAIL';
 
-UPDATE groups    SET teacher_id = (SELECT id FROM d) WHERE teacher_id = (SELECT id FROM t);
-UPDATE questions SET teacher_id = (SELECT id FROM d) WHERE teacher_id = (SELECT id FROM t);
+UPDATE groups      SET teacher_id = (SELECT id FROM d) WHERE teacher_id = (SELECT id FROM t);
+UPDATE questions   SET teacher_id = (SELECT id FROM d) WHERE teacher_id = (SELECT id FROM t);
+UPDATE assignments SET teacher_id = (SELECT id FROM d) WHERE teacher_id = (SELECT id FROM t);
 UPDATE users SET role = 'student' WHERE id IN (SELECT id FROM t);
 COMMIT;
 SQL
-    echo "✅ $PHONE is back to STUDENT; $DONOR_EMAIL has its groups + questions back."
+    echo "✅ $PHONE is back to STUDENT; $DONOR_EMAIL has its groups + questions + assignments back."
     echo "   Reload the app."
     ;;
 

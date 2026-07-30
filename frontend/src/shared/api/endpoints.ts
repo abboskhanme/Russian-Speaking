@@ -468,3 +468,21 @@ export function deleteNotification(id: string): Promise<void> {
 export function clearAllNotifications(): Promise<void> {
   return apiClient.del<void>("/notifications");
 }
+
+/** GET /api/assignments → the teacher's OWN assignments (admin: all). One row per
+ * (student, question), so group-level views must fold them by question. */
+export function teacherAssignments(): Promise<AssignmentResponse[]> {
+  return apiClient.get<AssignmentResponse[]>("/assignments");
+}
+
+/** GET /api/submissions?student_id=… → one student's attempts, newest first.
+ * The filter only NARROWS the caller's existing scope: a teacher asking for a
+ * student outside their roster gets an empty list, never that student's work. */
+export function teacherStudentSubmissions(
+  studentId: string,
+  limit = 50,
+): Promise<SubmissionResponse[]> {
+  return apiClient.get<SubmissionResponse[]>(
+    `/submissions?student_id=${encodeURIComponent(studentId)}&limit=${encodeURIComponent(String(limit))}`,
+  );
+}

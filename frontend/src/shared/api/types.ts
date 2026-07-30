@@ -239,6 +239,13 @@ export interface SubmissionResponse {
   teacher_comment: string | null;
   teacher_band: number | null;
   reviewed_at: string | null;
+  /** AI scores 0..100, null until graded. Present on every LIST row, so a
+   * teacher view never has to fetch `/detail` per attempt just for a number. */
+  overall_band: number | null;
+  fluency_score: number | null;
+  lexical_score: number | null;
+  grammar_score: number | null;
+  pronunciation_score: number | null;
 }
 
 /** GET /api/submissions/{id}/detail — one attempt's full detail (audio + transcript
@@ -458,6 +465,8 @@ export interface GroupMemberResponse {
   email: string;
   is_premium: boolean;
   submission_count: number;
+  /** When they joined the group — the "qo'shilgan mart" line on A6. */
+  joined_at: string;
 }
 
 /** GET /api/groups/{id} → a group plus its roster (owner/admin only). This is

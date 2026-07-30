@@ -130,7 +130,8 @@ public sealed class PracticeService
     /// the endpoint turns into a 401.
     /// </summary>
     public async Task<IReadOnlyList<SubmissionResponse>?> ListAsync(
-        Guid userId, Guid? questionId, int limit, int offset, CancellationToken ct = default)
+        Guid userId, Guid? questionId, int limit, int offset, CancellationToken ct = default,
+        Guid? studentId = null)
     {
         var user = await _db.Users.FirstOrDefaultAsync(u => u.Id == userId, ct);
         if (user is null || !user.IsActive)
@@ -162,9 +163,18 @@ public sealed class PracticeService
         if (questionId is not null)
             query = query.Where(s => s.QuestionId == questionId);
 
+        // ?student_id — one student's attempts, for the teacher's student profile (A6).
+        // Purely a NARROWING filter applied AFTER the role scoping above, never instead of
+        // it: a teacher asking for a student outside their roster gets an empty list, not
+        // that student's work. A student asking for anyone else likewise gets nothing,
+        // because their own clause already pinned StudentId to themselves.
+        if (studentId is not null)
+            query = query.Where(s => s.StudentId == studentId);
+
         var rows = await query
             .Include(s => s.Student)
             .Include(s => s.Question)
+            .Include(s => s.Evaluation)                                     // scores on each row
             .OrderByDescending(s => s.CreatedAt)
             .Skip(offset)
             .Take(limit)
@@ -190,6 +200,7 @@ public sealed class PracticeService
         var submission = await _db.Submissions
             .Include(s => s.Student)
             .Include(s => s.Question)
+            .Include(s => s.Evaluation)                                     // scores on the response
             .FirstOrDefaultAsync(s => s.Id == submissionId, ct);
         if (submission is null)
             return new GetResult(GetStatus.NotFound);
@@ -338,7 +349,16 @@ public sealed class PracticeService
             ModelAnswerText: sub.ModelAnswerText ?? question?.ModelAnswerText,
             TeacherComment: sub.TeacherComment,
             TeacherBand: sub.TeacherBand,
-            ReviewedAt: sub.ReviewedAt);
+            ReviewedAt: sub.ReviewedAt,
+            // Null whenever the Evaluation is absent — either not graded yet, or the
+            // caller's query did not Include(s => s.Evaluation). Every path that
+            // hands a score to a client MUST include it; a silently-null score reads
+            // as "ungraded" and would be indistinguishable from the real thing.
+            OverallBand: sub.Evaluation?.OverallBand,
+            FluencyScore: sub.Evaluation?.FluencyScore,
+            LexicalScore: sub.Evaluation?.LexicalScore,
+            GrammarScore: sub.Evaluation?.GrammarScore,
+            PronunciationScore: sub.Evaluation?.PronunciationScore);
 }
 
 /// <summary>The audio + metadata the endpoint hands the service for a submit (HTTP-layer parsed).</summary>

@@ -72,15 +72,16 @@ public static class PracticeEndpoints
             };
         }).RequireAuthorization().DisableAntiforgery();
 
-        // GET /api/submissions — list my attempts (?question_id, ?limit=1..200, ?offset>=0).
-        // Students see only their own; teachers their roster; admins all.
+        // GET /api/submissions — list my attempts (?question_id, ?student_id, ?limit=1..200,
+        // ?offset>=0). Students see only their own; teachers their roster; admins all.
+        // ?student_id only NARROWS that scope — it can never widen it (see ListAsync).
         submissions.MapGet("", async (
             ClaimsPrincipal principal, PracticeService svc,
-            Guid? question_id, int? limit, int? offset, CancellationToken ct) =>
+            Guid? question_id, Guid? student_id, int? limit, int? offset, CancellationToken ct) =>
         {
             if (!TryGetUserId(principal, out var userId))
                 return Results.Unauthorized();
-            var list = await svc.ListAsync(userId, question_id, limit ?? 100, offset ?? 0, ct);
+            var list = await svc.ListAsync(userId, question_id, limit ?? 100, offset ?? 0, ct, student_id);
             return list is null ? Results.Unauthorized() : Results.Ok(list);
         }).RequireAuthorization();
 

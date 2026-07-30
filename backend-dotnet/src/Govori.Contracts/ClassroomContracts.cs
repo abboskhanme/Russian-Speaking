@@ -43,7 +43,11 @@ public sealed record GroupMemberResponse(
     string FullName,
     string Email,
     bool IsPremium,
-    int SubmissionCount);
+    int SubmissionCount,
+    /// <summary>When they became a member — the "qo'shilgan mart" line on the student profile.
+    /// ADDITIVE (appended); the value was already on <c>GroupMember.CreatedAt</c> and merely
+    /// never projected.</summary>
+    DateTime JoinedAt);
 
 /// <summary>A group, as the teacher/owner sees it in lists.</summary>
 public sealed record GroupResponse(

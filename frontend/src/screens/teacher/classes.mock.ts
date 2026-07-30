@@ -1,4 +1,7 @@
 import type { ClassGroup, ClassJoinRequest, ClassStudent } from "./ClassesScreen";
+import type { TeacherGroupDetailProps } from "./TeacherGroupDetailScreen";
+import type { GroupInviteProps } from "./GroupInviteScreen";
+import type { TeacherStudentProfileProps } from "./TeacherStudentProfileScreen";
 
 /**
  * Fixture for the Klasslar screen — lets it render standalone (the screen's
@@ -29,3 +32,59 @@ export const mockClassStudents: ClassStudent[] = [
   // gradebook has no row for them, so the row shows "baholanmagan", not 0.
   { id: "s-6", fullName: "Jasur Toshev", groupName: "Ertalabki-1" },
 ];
+
+/* ── A5 · A6 · A7 fixtures (Phase 3) ─────────────────────────────────────── */
+
+/** A5 «Guruh detali» — the mockup's Kechki-3. */
+export const mockGroupDetail: TeacherGroupDetailProps = {
+  groupName: "Kechki-3",
+  level: "B1",
+  memberCount: 18,
+  avgScore: 74,
+  pendingCount: 2,
+  queuedCount: 23,
+  assignments: [
+    {
+      id: "q-tanishtir",
+      title: "O‘zingni tanishtir",
+      due: "Bugun 21:00",
+      dueUrgent: true,
+      completed: 11,
+      total: 18,
+    },
+  ],
+  roster: [
+    { id: "s-1", fullName: "Kamola Abdullayeva", level: "B1", score: 84 },
+    { id: "s-2", fullName: "Dilfuza Rashidova", level: "A2", score: 61 },
+    { id: "s-6", fullName: "Jasur Toshev" },
+  ],
+};
+
+/** A7 «A'zo qo'shish». */
+export const mockGroupInvite: GroupInviteProps = {
+  groupName: "Kechki-3",
+  joinCode: "KECHKI-3",
+  inviteLink: "https://govorim.uz/j/KECHKI-3",
+  queuedCount: 23,
+  pending: [
+    { id: "r-1", studentName: "Shahnoza Karimova", when: "10 daqiqa oldin" },
+    { id: "r-2", studentName: "Aziz Karimov", when: "2 soat oldin" },
+  ],
+};
+
+/** A6 «O'quvchi profili». */
+export const mockStudentProfile: TeacherStudentProfileProps = {
+  fullName: "Dilfuza Rashidova",
+  meta: "Kechki-3 · A2 · qo‘shilgan mart",
+  queuedCount: 23,
+  skills: [
+    { key: "fluency", label: "Ravonlik", score: 64 },
+    { key: "grammar", label: "Grammatika", score: 52 },
+    { key: "pronunciation", label: "Talaffuz", score: 71 },
+    { key: "lexical", label: "Lug‘at", score: 58 },
+  ],
+  attempts: [
+    { id: "a-1", title: "Do‘konda xarid", when: "Bugun", score: 58, reviewed: false },
+    { id: "a-2", title: "Telefon suhbati", when: "Kecha", score: 64, reviewed: true },
+  ],
+};

@@ -33,3 +33,31 @@ export type {
   ClassStudent,
 } from "./ClassesScreen";
 export { mockClassGroups, mockClassRequests, mockClassStudents } from "./classes.mock";
+
+/** A5 «Guruh detali». */
+export {
+  TeacherGroupDetailScreen,
+  default as TeacherGroupDetailDemo,
+} from "./TeacherGroupDetailScreen";
+export type {
+  TeacherGroupDetailProps,
+  GroupActiveAssignment,
+  GroupRosterStudent,
+} from "./TeacherGroupDetailScreen";
+
+/** A7 «A'zo qo'shish · havola + kod». */
+export { GroupInviteScreen, default as GroupInviteDemo } from "./GroupInviteScreen";
+export type { GroupInviteProps, InvitePendingStudent } from "./GroupInviteScreen";
+
+/** A6 «O'quvchi profili». */
+export {
+  TeacherStudentProfileScreen,
+  default as TeacherStudentProfileDemo,
+} from "./TeacherStudentProfileScreen";
+export type {
+  TeacherStudentProfileProps,
+  StudentSkill,
+  StudentAttempt,
+} from "./TeacherStudentProfileScreen";
+
+export { mockGroupDetail, mockGroupInvite, mockStudentProfile } from "./classes.mock";

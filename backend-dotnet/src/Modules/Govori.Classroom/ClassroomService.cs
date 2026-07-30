@@ -318,11 +318,13 @@ public sealed class ClassroomService
         if (group is null || (user.Role != UserRole.Admin && group.TeacherId != user.Id))
             return ClassroomResult<GroupDetailResponse>.NotFound();
 
-        // Roster student ids for this group.
-        var memberIds = await _db.GroupMembers
+        // Roster student ids for this group, with when each joined.
+        var memberRows = await _db.GroupMembers
             .Where(gm => gm.GroupId == group.Id)
-            .Select(gm => gm.StudentId)
+            .Select(gm => new { gm.StudentId, gm.CreatedAt })
             .ToListAsync(ct);
+        var memberIds = memberRows.Select(m => m.StudentId).ToList();
+        var joinedAt = memberRows.ToDictionary(m => m.StudentId, m => m.CreatedAt);
 
         var members = new List<GroupMemberResponse>();
         if (memberIds.Count > 0)
@@ -347,7 +349,8 @@ public sealed class ClassroomService
                     FullName: u.FullName,
                     Email: u.Email,
                     IsPremium: u.IsPremium,
-                    SubmissionCount: counts.GetValueOrDefault(sid, 0)));
+                    SubmissionCount: counts.GetValueOrDefault(sid, 0),
+                    JoinedAt: joinedAt.GetValueOrDefault(sid)));
             }
         }
 

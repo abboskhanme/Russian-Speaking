@@ -67,6 +67,41 @@ export function relativeTime(iso: string, now: Date = new Date()): RelativeTime 
   return { key: "time.justNow", count: 0 };
 }
 
+/** Calendar pieces of a timestamp, in LOCAL time, for i18n composition. */
+export interface DateParts {
+  day: number;
+  /** 1–12, matching the `time.month1` … `time.month12` keys. */
+  month: number;
+  year: number;
+  /** Zero-padded 24h clock, e.g. "21:00". */
+  time: string;
+}
+
+/**
+ * Split an ISO timestamp into the pieces a localized date string needs.
+ *
+ * **Not `Intl.DateTimeFormat` for the month name.** Same reduced-ICU trap as
+ * {@link relativeTime}: Chromium has no Uzbek month names, so
+ * `{ month: "long" }` renders `"2026 M07"` and `{ month: "short" }` renders
+ * `"M07 30"`. Node's full ICU formats both correctly, so it looks fine until it
+ * reaches a browser. Month names therefore come from `time.month*` keys and the
+ * ORDER comes from a per-language pattern (`time.dayMonthTime` / `time.monthYear`)
+ * — Uzbek writes "30-iyul", English "Jul 30".
+ *
+ * Returns null for an unparseable input so callers can omit the line entirely.
+ */
+export function dateParts(iso: string): DateParts | null {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return null;
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return {
+    day: d.getDate(),
+    month: d.getMonth() + 1,
+    year: d.getFullYear(),
+    time: `${pad(d.getHours())}:${pad(d.getMinutes())}`,
+  };
+}
+
 export function clampPct(n: number): number {
   return Math.max(0, Math.min(100, Math.round(n)));
 }

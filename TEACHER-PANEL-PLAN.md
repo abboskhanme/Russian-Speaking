@@ -151,20 +151,58 @@ round-trip in the browser — student asks → sees "So'rov yuborildi" (survives
 reload) → teacher's queue shows `So'rovlar · 1` → approve → queue empties and the
 student's Home shows the teacher block with the roster at 7. Test rows removed.
 
-## Phase 3 — A5 Guruh detali · A6 O'quvchi profili · A7 A'zo qo'shish
-**Backend**
-- [ ] ✅ Group detail + roster — `GET /api/groups/{id}`.
-- [ ] ✅ A teacher may read their roster students' attempts —
-  `GET /api/submissions` + `GET /api/submissions/{id}/detail`.
-- [ ] ⚠️ A5 stats (O'quvchi · O'rtacha · Davomat) + active-assignment progress
-  bars (`11/18`) — check what the group detail already returns.
+## Phase 3 — A5 Guruh detali · A6 O'quvchi profili · A7 A'zo qo'shish ✅
+**Backend** — all additive; no new endpoints beyond one query param.
+- [x] 🔨 **AI scores on `SubmissionResponse`** (`overall_band` + the four
+  sub-skills). `Evaluation` already held them; the LIST projection just never
+  surfaced them, so anything needing a score had to fetch `/detail` per attempt.
+  That single gap is why the Obzor trend card, the A4 arrows and A6's whole
+  content were blocked. `Include(s => s.Evaluation)` added to both read paths —
+  without it the score silently reads `null`, i.e. "ungraded".
+- [x] 🔨 `GET /api/submissions?student_id=` — a NARROWING filter applied after the
+  role scoping, never instead of it: a teacher asking for a non-roster student
+  gets an empty list, not that student's work.
+- [x] 🔨 `GroupMemberResponse.joined_at` (was on `GroupMember.CreatedAt`, unprojected).
+- [x] ✅ Group detail + roster, gradebook, assignments — already existed.
 
 **Frontend**
-- [ ] `TeacherGroupDetailScreen` (`/teacher/classes/:id`): 3 stat tiles,
-  `+ Topshiriq berish`, "Faol topshiriqlar" progress rows, "Guruh xatolari".
-- [ ] `TeacherStudentProfileScreen` (`/teacher/students/:id`).
-- [ ] A7 invite: share link + join code.
-- [ ] i18n.
+- [x] A5 `TeacherGroupDetailScreen` (`/teacher/classes/:groupId`) — stat tiles,
+  `+ Topshiriq berish` / `A'zo qo'shish`, "Faol topshiriqlar" progress rows
+  (assignments folded BY QUESTION — the endpoint returns one row per student),
+  roster → A6.
+- [x] A6 `TeacherStudentProfileScreen` (`/teacher/students/:studentId`) —
+  identity + meta, "Ko'nikmalar" bars, "So'nggi urinishlar" with score circles.
+- [x] A7 `GroupInviteScreen` (`/teacher/classes/:groupId/invite`) — invite link +
+  join code with copy, and that group's waiting students.
+- [x] i18n uz/ru/en.
+
+**Three honest omissions (no backing data — do NOT fake):**
+- A5's **Davomat 92%** tile — no attendance model exists at all, so the tile row
+  is two-up, not three-up.
+- A5's **"Guruh xatolari"** card — no error-pattern aggregation (Phase 6/D1).
+- A7's **`HAVOLA` / `KOD` source chips** — the invite link resolves to the same
+  join-by-code flow, so every request has one provenance. A `HAVOLA` chip would
+  be a guess presented as a fact.
+
+**Two bugs found while verifying:**
+1. **`Intl.DateTimeFormat` has no Uzbek month names in Chromium** — the same
+   reduced-ICU trap as Phase 2b's relative times. `{month:"long"}` rendered
+   `"2026 M07"` and `{month:"short"}` rendered `"M07 30"`; Node's full ICU formats
+   both fine, so it only shows up in a browser. Month names now come from
+   `time.month1…12` with a per-language order pattern (`time.dayMonthTime`,
+   `time.monthYear`) → "1-iyul 00:00", "qo'shilgan iyul 2026".
+   **Do not use `Intl.DateTimeFormat`/`Intl.RelativeTimeFormat` for uz here.**
+2. **`dev-role.sh` did not move `assignments.teacher_id`** — so A5's "Faol
+   topshiriqlar" came back empty even with 31 rows in the DB.
+   `ListAssignmentsTeacherAsync` filters on who CREATED the assignment, not on the
+   question's owner. Script fixed; both directions now move assignments too.
+
+**Also**: `copyText` helper — `navigator.clipboard` is undefined outside a secure
+context, and the invite screen is used over plain HTTP on a LAN address while
+testing on a phone, so it falls back to a hidden textarea + `execCommand`.
+
+**Verified**: 206/0 across all four suites; A5/A6/A7 on real data in light+dark
+mobile; all 7 student routes error-free.
 
 ## Phase 4 — Navbat (B1 · B2 · B3) — the FAB destination
 Goal: AI auto-OKs confident grades; only attempts needing attention reach here.

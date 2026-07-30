@@ -27,6 +27,9 @@ import { Spinner } from "./shared/ui";
 import { PublicOnly, RequireAuth, RequireRole, RoleHome, TEACHER_ROLES } from "./app/guards";
 const TeacherDashboardPage = lazy(() => import("./app/routes/TeacherDashboardPage"));
 const ClassesPage = lazy(() => import("./app/routes/ClassesPage"));
+const GroupDetailPage = lazy(() => import("./app/routes/GroupDetailPage"));
+const GroupInvitePage = lazy(() => import("./app/routes/GroupInvitePage"));
+const StudentProfilePage = lazy(() => import("./app/routes/StudentProfilePage"));
 const PracticeHubPage = lazy(() => import("./app/routes/PracticeHubPage"));
 const ModuleDetailPage = lazy(() => import("./app/routes/ModuleDetailPage"));
 const PracticePage = lazy(() => import("./app/routes/PracticePage"));
@@ -82,8 +85,13 @@ export default function App() {
               ship A1 Obzor + Klasslar; Navbat/Kontent/Analitika follow. */}
           <Route element={<RequireRole allow={TEACHER_ROLES} />}>
             <Route path="/teacher" element={<TeacherDashboardPage />} />
-            {/* Klasslar — Guruhlar | O'quvchilar tabs (?tab=students). */}
+            {/* Klasslar — Guruhlar | So'rovlar | O'quvchilar tabs (?tab=…). */}
             <Route path="/teacher/classes" element={<ClassesPage />} />
+            {/* A5 group detail → A7 invite (join code + waiting students). */}
+            <Route path="/teacher/classes/:groupId" element={<GroupDetailPage />} />
+            <Route path="/teacher/classes/:groupId/invite" element={<GroupInvitePage />} />
+            {/* A6 student profile, reached from a roster row or the students tab. */}
+            <Route path="/teacher/students/:studentId" element={<StudentProfilePage />} />
           </Route>
 
           {/* Student app (students only). */}

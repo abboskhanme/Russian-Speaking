@@ -39,7 +39,19 @@ public sealed record SubmissionResponse(
     string? ModelAnswerText,
     string? TeacherComment,
     double? TeacherBand,
-    DateTime? ReviewedAt);
+    DateTime? ReviewedAt,
+    // ── AI scores, 0..100; null until the attempt is graded ────────────────────
+    // ADDITIVE (appended, so existing positional/JSON consumers are unaffected).
+    // The Evaluation row already held all of these; the LIST projection simply
+    // never surfaced them, which forced every caller that needed a score to fetch
+    // /detail per attempt. That gap is why the teacher panel could show neither
+    // per-attempt scores, nor skill averages, nor a score TREND. Exposed here so
+    // one list call answers all three.
+    double? OverallBand,
+    double? FluencyScore,
+    double? LexicalScore,
+    double? GrammarScore,
+    double? PronunciationScore);
 
 /// <summary>
 /// GET /api/submissions/{id}/detail — one attempt's FULL detail for the student

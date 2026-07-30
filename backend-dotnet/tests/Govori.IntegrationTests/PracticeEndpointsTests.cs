@@ -131,6 +131,31 @@ public sealed class PracticeEndpointsTests : IClassFixture<PracticeEndpointsTest
             var rows = listDoc.RootElement.EnumerateArray().ToList();
             Assert.Contains(rows, r => r.GetProperty("id").GetGuid() == submissionId);
             Assert.All(rows, r => Assert.Equal(premiumId, r.GetProperty("student_id").GetGuid()));
+            // The score fields exist on every LIST row (null until graded) — the teacher panel
+            // reads scores from here rather than fetching /detail per attempt.
+            Assert.All(rows, r =>
+            {
+                Assert.True(r.TryGetProperty("overall_band", out _));
+                Assert.True(r.TryGetProperty("fluency_score", out _));
+                Assert.True(r.TryGetProperty("grammar_score", out _));
+                Assert.True(r.TryGetProperty("pronunciation_score", out _));
+                Assert.True(r.TryGetProperty("lexical_score", out _));
+            });
+
+            // ── ?student_id only NARROWS the caller's scope, never widens it ──
+            // Own id → own rows.
+            using (var ownDoc = JsonDocument.Parse(await (await Send(
+                client, HttpMethod.Get, $"/api/submissions?student_id={premiumId}", premiumToken)).Content.ReadAsStringAsync()))
+            {
+                Assert.Contains(ownDoc.RootElement.EnumerateArray(), r => r.GetProperty("id").GetGuid() == submissionId);
+            }
+            // SOMEONE ELSE's id → empty, not their attempts. Asking for another student must not
+            // be a way around the per-role scoping.
+            using (var otherDoc = JsonDocument.Parse(await (await Send(
+                client, HttpMethod.Get, $"/api/submissions?student_id={freeId}", premiumToken)).Content.ReadAsStringAsync()))
+            {
+                Assert.Empty(otherDoc.RootElement.EnumerateArray());
+            }
 
             // ── Attempt detail: owner reads their own; a different student gets 404 ──
             var detailResp = await Send(client, HttpMethod.Get, $"/api/submissions/{submissionId}", premiumToken);

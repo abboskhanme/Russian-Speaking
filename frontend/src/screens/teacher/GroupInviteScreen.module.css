@@ -1,0 +1,148 @@
+/* GroupInviteScreen — A7 «A'zo qo'shish · havola + kod». Teacher panel design;
+ * every value is a token. Full-width (docs/04 §4.10), compact density
+ * (docs/03 §3.5, scoped to .page). */
+
+.page {
+  --density-scale: 0.75;
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--s-5) * var(--density-scale));
+  width: 100%;
+}
+
+/* ---- Header ---- */
+.head {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  min-width: 0;
+}
+.back {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  flex: none;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: var(--r-pill);
+  background: var(--surface);
+  color: var(--ink);
+  cursor: pointer;
+  transition: background var(--motion-fast) var(--ease-standard);
+}
+.back:hover {
+  background: var(--surface-2);
+}
+.back:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+.title {
+  flex: 1;
+  min-width: 0;
+}
+
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--s-2) * var(--density-scale));
+}
+.sectionHead {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+}
+
+/* ---- Copy rows (link + code) ---- */
+.copyRow,
+.copyRowTint {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  padding: var(--s-3) var(--s-4);
+  border-radius: var(--r-md);
+  min-width: 0;
+}
+.copyRow {
+  background: var(--surface);
+  border: 1px solid var(--line-2);
+}
+/* The join code is the primary hand-off, so it carries the primary tint. */
+.copyRowTint {
+  background: var(--primary-tint);
+  border: 1px solid var(--primary-tint);
+}
+
+.copyBody {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+/* Selectable + ellipsised: if the clipboard is unavailable (plain-HTTP LAN) the
+   value must still be readable and hand-copyable rather than truncated away. */
+.copyValue {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  user-select: all;
+}
+
+/* ---- Pending requests ---- */
+.list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--s-3) * var(--density-scale));
+}
+.pendingCard {
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--s-3) * var(--density-scale));
+}
+.pendingTop {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  min-width: 0;
+}
+.avatar {
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  flex: none;
+  border-radius: var(--r-pill);
+  background: var(--accent-tint);
+  color: var(--accent);
+}
+.pendingBody {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+.pendingActions {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+}
+.approveBtn {
+  flex: 1.6;
+}
+.rejectBtn {
+  flex: 1;
+  color: var(--danger);
+}
+
+.empty {
+  display: grid;
+  place-items: center;
+  text-align: center;
+  padding-block: var(--s-6);
+}
