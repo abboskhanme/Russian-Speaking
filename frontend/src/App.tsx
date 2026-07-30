@@ -30,6 +30,8 @@ const ClassesPage = lazy(() => import("./app/routes/ClassesPage"));
 const GroupDetailPage = lazy(() => import("./app/routes/GroupDetailPage"));
 const GroupInvitePage = lazy(() => import("./app/routes/GroupInvitePage"));
 const StudentProfilePage = lazy(() => import("./app/routes/StudentProfilePage"));
+const ReviewQueuePage = lazy(() => import("./app/routes/ReviewQueuePage"));
+const AttemptReviewPage = lazy(() => import("./app/routes/AttemptReviewPage"));
 const PracticeHubPage = lazy(() => import("./app/routes/PracticeHubPage"));
 const ModuleDetailPage = lazy(() => import("./app/routes/ModuleDetailPage"));
 const PracticePage = lazy(() => import("./app/routes/PracticePage"));
@@ -92,6 +94,10 @@ export default function App() {
             <Route path="/teacher/classes/:groupId/invite" element={<GroupInvitePage />} />
             {/* A6 student profile, reached from a roster row or the students tab. */}
             <Route path="/teacher/students/:studentId" element={<StudentProfilePage />} />
+            {/* Navbat — the grading queue (B1) → one attempt's detail + manual
+                grading (B2/B3). This is what the centre FAB opens. */}
+            <Route path="/teacher/queue" element={<ReviewQueuePage />} />
+            <Route path="/teacher/queue/:attemptId" element={<AttemptReviewPage />} />
           </Route>
 
           {/* Student app (students only). */}

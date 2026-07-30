@@ -204,22 +204,67 @@ testing on a phone, so it falls back to a hidden textarea + `execCommand`.
 **Verified**: 206/0 across all four suites; A5/A6/A7 on real data in light+dark
 mobile; all 7 student routes error-free.
 
-## Phase 4 — Navbat (B1 · B2 · B3) — the FAB destination
-Goal: AI auto-OKs confident grades; only attempts needing attention reach here.
+## Phase 4 — Navbat (B1 · B2 · B3) — the FAB destination ✅
 
-**Backend**
-- [ ] 🔨 Review-queue filter — submissions needing attention (AI low-confidence /
-  ungraded); a new query param or endpoint.
-- [ ] 🔨 **Teacher review write endpoint** — set `TeacherBand` + `TeacherComment`
-  (+ `ReviewedBy`/`ReviewedAt`). Fields exist on the entity; the write endpoint
-  does **not** — build `PATCH /api/submissions/{id}/review` (teacher/admin,
-  roster-scoped).
+**Backend** — additive.
+- [x] 🔨 `GET /api/submissions?needs_review=true` — status `done` + `reviewed_at`
+  null. `failed` is excluded on purpose: a pipeline failure is an ops problem, not
+  a grading decision, and asks a teacher to judge an attempt never scored.
+- [x] 🔨 `PATCH /api/submissions/{id}/review` — `TeacherBand` and/or
+  `TeacherComment`, stamped with `ReviewedBy`/`ReviewedAt`. Both fields optional
+  so "confirm the AI but add a note" and "override the score" are both
+  expressible; **neither** is a 400 (an empty review would stamp `reviewed_at`,
+  clear the queue row and record no decision). Non-roster teacher → 404, not 403.
+- [x] 🔨 `AttemptDetailResponse` += `words[]` — parsed from
+  `Transcript.WordTimestamps` (`{word,start,end,accuracy,error_type}`), which the
+  STT provider has always written and nothing ever read out. This is what makes
+  the word-by-word coloured transcript real rather than decorative.
+- [x] 🔨 `AttemptDetailResponse` += `student_name` — the DTO was the student's own
+  result shape, where their name is redundant; a teacher opening an attempt by
+  direct link had nothing to identify it by.
 
 **Frontend**
-- [ ] B1 `ReviewQueueScreen` (`/teacher/queue`).
-- [ ] B2 answer detail — audio + word-by-word transcript + AI scores.
-- [ ] B3 manual band + "Izoh o'quvchiga" feedback.
-- [ ] i18n.
+- [x] B1 `ReviewQueueScreen` (`/teacher/queue`) — the FAB's destination.
+- [x] B2 `AttemptReviewScreen` (`/teacher/queue/:attemptId`) — audio, per-word
+  transcript coloured AND underlined by accuracy (colour is never the only
+  signal, docs/03 §3.3), AI scores, parsed corrections + feedback.
+- [x] B3 manual grading as a full-size sheet: overall band slider + "Izoh
+  o'quvchiga".
+- [x] i18n uz/ru/en.
+
+**Two mockup elements replaced rather than faked:**
+- B1's `Ishonch past` / `Shikoyat` chips → **`Hammasi` / `Past ball`**. Neither
+  original exists in the data: there is no AI-confidence value anywhere on
+  `Evaluation`, and no complaint/flag model at all. A chip labelled "Ishonch past"
+  would be sorting by a number we do not have. The band IS real, so the filter
+  says `Past ball`.
+- B3's three per-criterion sliders → **one overall band slider**, with the AI's
+  per-criterion scores shown read-only (labelled as not editable). `submissions`
+  carries a single `teacher_band`; making the criteria overridable needs three
+  more columns plus a roll-up rule.
+
+Also absent for want of data: B2's per-syllable pronunciation chips
+(`ма 92 га 88`) and correction accept/reject — `Transcript.Pronunciation` holds
+only aggregate scores, and there is no per-correction verdict model.
+
+**Bugs found while verifying:**
+1. `ReviewAsync` did not `Include(s => s.Question)`, but `TeacherDeniedAsync`
+   compares `sub.Question.TeacherId` — so the endpoint 404'd for the rightful
+   owner. Caught by the new integration test.
+2. **`feedback` and `corrections` are JSON columns, not prose**, and were being
+   rendered verbatim — a raw `{"summary": …}` blob on screen. This was ALSO live
+   on the **student's** own result screen, so students were seeing it too. Fixed
+   centrally: `parseFeedback` / `parseCorrections` in `app/adapters`, consumed by
+   both the teacher's B2 and the student's `AttemptDetailScreen`.
+
+**Behaviour pinned by a new test:** a teacher's band **overrides** the AI's
+everywhere downstream — the gradebook reports 77.5 after review, not the
+evaluation's 80. That is the point of a manual review, so it is asserted rather
+than left implicit.
+
+**Verified**: 206/0 across all four suites; full grade-an-attempt flow in the
+browser (queue → detail → manual grade → saved, `reviewed_by` attributable in the
+DB); student routes error-free with no raw JSON anywhere.
 
 ## Phase 5 — Kontent (C1–C6)
 - [ ] ⚠️ Audit what the catalog/authoring API already exposes vs. what C2/C4/C5/C6

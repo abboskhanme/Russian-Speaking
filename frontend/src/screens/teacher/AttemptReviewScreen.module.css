@@ -1,0 +1,357 @@
+/* AttemptReviewScreen — B2 «Javob detali» + B3 «Qo'lda baholash».
+ * Teacher panel design; every value is a token. Full-width (docs/04 §4.10),
+ * compact density (docs/03 §3.5, scoped to .page). */
+
+.page {
+  --density-scale: 0.75;
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--s-4) * var(--density-scale));
+  width: 100%;
+  /* Room for the sticky action bar so the last card is never hidden under it. */
+  padding-bottom: calc(var(--s-8) + 56px);
+}
+
+/* ---- Header ---- */
+.head {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  min-width: 0;
+}
+.back {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  flex: none;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: var(--r-pill);
+  background: var(--surface);
+  color: var(--ink);
+  cursor: pointer;
+  transition: background var(--motion-fast) var(--ease-standard);
+}
+.back:hover {
+  background: var(--surface-2);
+}
+.back:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+.headText {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.scoreBox {
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  flex: none;
+  border-radius: var(--r-sm);
+}
+.box-success {
+  background: var(--success-tint);
+  color: var(--success);
+}
+.box-warn {
+  background: var(--warn-tint);
+  color: var(--warn-ink);
+}
+.box-danger {
+  background: var(--danger-tint);
+  color: var(--danger);
+}
+.boxNone {
+  background: var(--surface-3);
+  color: var(--faint);
+}
+
+.reviewedNote {
+  border-inline-start: 4px solid var(--success);
+}
+
+/* ---- Audio ---- */
+.audio {
+  width: 100%;
+  height: 40px;
+}
+.audioGone {
+  display: grid;
+  place-items: center;
+  text-align: center;
+  padding-block: var(--s-4);
+}
+
+/* ---- Transcript ---- */
+.transcriptCard {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-3);
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+}
+.transcript {
+  font-family: var(--font-mono);
+  font-size: 15px;
+  line-height: 1.9;
+  margin: 0;
+}
+.word {
+  /* Each word is its own inline box so the underline hugs the word, not the line. */
+  margin-inline-end: 0.35em;
+  text-underline-offset: 4px;
+}
+
+/* Pronunciation tiers (docs/03 §3.3). Colour is NEVER the only signal — each tier
+   carries a distinct underline style so the meaning survives colour-blindness and
+   greyscale printing. */
+.pron-good {
+  color: var(--pron-good);
+  text-decoration: underline solid;
+}
+.pron-mid {
+  color: var(--warn-ink);
+  text-decoration: underline dotted;
+}
+.pron-low {
+  color: var(--pron-low);
+  text-decoration: underline wavy;
+}
+/* No accuracy from the provider — plain ink, no claim either way. */
+.pron-none {
+  color: var(--ink);
+}
+
+.legend {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  flex-wrap: wrap;
+}
+.legendChip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-1);
+}
+.legendSwatch {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  text-underline-offset: 3px;
+}
+
+/* ---- AI criteria (read-only) ---- */
+.criteria {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-3);
+}
+.critRow {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+}
+.critLabel {
+  width: 96px;
+  flex: none;
+}
+.track {
+  flex: 1;
+  height: 7px;
+  border-radius: var(--r-pill);
+  background: var(--surface-3);
+  overflow: hidden;
+}
+.fill {
+  height: 100%;
+  border-radius: var(--r-pill);
+}
+.fill-success {
+  background: var(--success);
+}
+.fill-warn {
+  background: var(--warn);
+}
+.fill-danger {
+  background: var(--danger);
+}
+.critScore {
+  width: 26px;
+  flex: none;
+  text-align: end;
+}
+
+/* ---- AI findings / teacher note ---- */
+.aiCard {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+}
+.corrections {
+  margin: 0;
+  line-height: 1.6;
+  word-break: break-word;
+}
+
+/* ---- Sticky bottom actions ---- */
+.bottomBar {
+  position: sticky;
+  bottom: 0;
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  padding-block: var(--s-3);
+  /* Fade the content out behind the bar rather than cutting it off hard. */
+  background: linear-gradient(transparent, var(--bg) 40%);
+}
+.confirmBtn {
+  flex: 1.2;
+}
+
+/* ---- B3 sheet ---- */
+.sheet {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-5);
+}
+.bandHead {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-bottom: var(--s-2);
+}
+.band-success {
+  color: var(--success);
+}
+.band-warn {
+  color: var(--warn-ink);
+}
+.band-danger {
+  color: var(--danger);
+}
+
+.slider {
+  width: 100%;
+  accent-color: var(--primary);
+}
+.slider:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 4px;
+}
+
+.aiRef {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+}
+.aiRefRow {
+  display: flex;
+  gap: var(--s-2);
+  flex-wrap: wrap;
+}
+.aiChip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-1);
+  padding: var(--s-1) var(--s-2);
+  border-radius: var(--r-xs);
+  background: var(--surface-2);
+}
+
+.commentBlock {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+}
+.textarea {
+  width: 100%;
+  padding: var(--s-3);
+  font: inherit;
+  color: var(--ink);
+  background: var(--surface);
+  border: 1.5px solid var(--line-2);
+  border-radius: var(--r-md);
+  resize: vertical;
+}
+.textarea:focus-visible {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px var(--primary-tint);
+}
+
+.sheetActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--s-2);
+}
+
+/* ---- Parsed corrections + feedback ---- */
+.correction {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.correctionLine {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: 14px;
+  line-height: 1.5;
+  display: flex;
+  align-items: baseline;
+  gap: var(--s-2);
+  flex-wrap: wrap;
+}
+/* What was said, struck through; what it should be, in success ink. The pairing
+   is the point — showing only the fix hides what to unlearn. */
+.wrong {
+  color: var(--muted);
+  text-decoration: line-through;
+}
+.arrow {
+  color: var(--faint);
+}
+.right {
+  color: var(--success);
+}
+
+.fbList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-1);
+}
+.bullets {
+  margin: 0;
+  padding-inline-start: var(--s-5);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.bullets-success::marker {
+  color: var(--success);
+}
+.bullets-warn::marker {
+  color: var(--warn-ink);
+}
+
+.vocabWrap {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+}
+.vocabRow {
+  display: flex;
+  gap: var(--s-2);
+  flex-wrap: wrap;
+}
+.vocabChip {
+  padding: var(--s-1) var(--s-2);
+  border-radius: var(--r-xs);
+  background: var(--surface-2);
+  color: var(--ink-soft);
+}

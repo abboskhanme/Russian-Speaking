@@ -345,6 +345,84 @@ public sealed class ClassroomEndpointsTests : IClassFixture<ClassroomEndpointsTe
             using (var mineAsg = JsonDocument.Parse(await (await Send(client, HttpMethod.Get, "/api/assignments/mine", tokenRoster)).Content.ReadAsStringAsync()))
                 Assert.Contains(mineAsg.RootElement.EnumerateArray(), a => a.GetProperty("question_id").GetGuid() == questionAId);
             Assert.Equal(HttpStatusCode.Forbidden, (await Send(client, HttpMethod.Get, "/api/reports/gradebook", tokenRoster)).StatusCode);
+
+            // ── PATCH /submissions/{id}/review — the manual verdict, and who may write it ──
+            // The rostered student's graded attempt is the one under review (seeded below as
+            // `submissionId`); it is reachable by teacher A only.
+            {
+                var reviewPath = $"/api/submissions/{submissionId}/review";
+
+                // A student may never grade — not even their own attempt.
+                Assert.Equal(HttpStatusCode.Forbidden,
+                    (await Send(client, HttpMethod.Patch, reviewPath, tokenRoster,
+                        Json(new { teacher_band = 80 }))).StatusCode);
+
+                // Another teacher gets 404, NOT 403 — submission ids must not be probeable.
+                Assert.Equal(HttpStatusCode.NotFound,
+                    (await Send(client, HttpMethod.Patch, reviewPath, tokenB,
+                        Json(new { teacher_band = 80 }))).StatusCode);
+
+                // An empty body is refused: it would stamp reviewed_at and clear the queue row
+                // while recording no decision at all.
+                Assert.Equal(HttpStatusCode.BadRequest,
+                    (await Send(client, HttpMethod.Patch, reviewPath, tokenA, Json(new { }))).StatusCode);
+
+                // Out-of-range band is refused.
+                Assert.Equal(HttpStatusCode.BadRequest,
+                    (await Send(client, HttpMethod.Patch, reviewPath, tokenA,
+                        Json(new { teacher_band = 140 }))).StatusCode);
+
+                // Nothing above may have written anything.
+                await using (var ctx = CreateContext())
+                {
+                    var untouched = await ctx.Submissions.SingleAsync(s => s.Id == submissionId);
+                    Assert.Null(untouched.TeacherBand);
+                    Assert.Null(untouched.ReviewedAt);
+                }
+
+                // The owning teacher writes the verdict → 204, all four fields set.
+                Assert.Equal(HttpStatusCode.NoContent,
+                    (await Send(client, HttpMethod.Patch, reviewPath, tokenA,
+                        Json(new { teacher_band = 77.5, teacher_comment = "  Yaxshi urinish!  " }))).StatusCode);
+                await using (var ctx = CreateContext())
+                {
+                    var reviewed = await ctx.Submissions.SingleAsync(s => s.Id == submissionId);
+                    Assert.Equal(77.5, reviewed.TeacherBand);
+                    Assert.Equal("Yaxshi urinish!", reviewed.TeacherComment);   // trimmed
+                    Assert.Equal(teacherAId, reviewed.ReviewedBy);              // attributable
+                    Assert.NotNull(reviewed.ReviewedAt);
+                }
+
+                // Reviewing drops it out of the ?needs_review queue.
+                using (var qDoc = JsonDocument.Parse(await (await Send(
+                    client, HttpMethod.Get, "/api/submissions?needs_review=true", tokenA)).Content.ReadAsStringAsync()))
+                {
+                    Assert.DoesNotContain(qDoc.RootElement.EnumerateArray(),
+                        r => r.GetProperty("id").GetGuid() == submissionId);
+                }
+
+                // A comment-only PATCH leaves the band alone (confirm-the-AI-but-add-a-note).
+                Assert.Equal(HttpStatusCode.NoContent,
+                    (await Send(client, HttpMethod.Patch, reviewPath, tokenA,
+                        Json(new { teacher_comment = "Ikkinchi izoh" }))).StatusCode);
+                await using (var ctx = CreateContext())
+                {
+                    var again = await ctx.Submissions.SingleAsync(s => s.Id == submissionId);
+                    Assert.Equal(77.5, again.TeacherBand);                      // untouched
+                    Assert.Equal("Ikkinchi izoh", again.TeacherComment);
+                }
+
+                // A teacher's verdict OVERRIDES the AI's band everywhere downstream — the gradebook
+                // now reports 77.5, not the evaluation's 80. This is the point of a manual review,
+                // and it is asserted here so a future change to the roll-up cannot quietly ignore it.
+                using (var gbAfter = JsonDocument.Parse(await (await Send(
+                    client, HttpMethod.Get, "/api/reports/gradebook", tokenA)).Content.ReadAsStringAsync()))
+                {
+                    var row = gbAfter.RootElement.EnumerateArray()
+                        .Single(r => r.GetProperty("student_id").GetGuid() == rosterStudentId);
+                    Assert.Equal(77.5, row.GetProperty("best_band").GetDouble());
+                }
+            }
         }
         finally
         {

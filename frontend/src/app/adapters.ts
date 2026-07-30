@@ -147,3 +147,90 @@ export function myLeaderboardRow(
 ): LeaderboardEntryResponse | null {
   return rows.find((r) => r.is_me) ?? null;
 }
+
+/* ── AI feedback / corrections: stored as JSON, not prose ─────────────────── */
+
+/**
+ * The grader's structured feedback (`evaluations.feedback`).
+ * Mirrors `GraderResult` in `Govori.Platform/Grader/IGraderProvider.cs`.
+ */
+export interface AiFeedback {
+  summary: string;
+  strengths: string[];
+  improvements: string[];
+  vocabulary: string[];
+}
+
+/** One targeted correction (`evaluations.corrections`). */
+export interface AiCorrection {
+  original: string;
+  corrected: string;
+  /** Grader's category, e.g. "word_order" | "grammar". */
+  type: string;
+  explanation: string;
+}
+
+/**
+ * Parse `AttemptDetailResponse.feedback`.
+ *
+ * **The column holds JSON, not prose.** The assessment pipeline serializes a whole
+ * `GraderResult` into it (`{summary, strengths, improvements, orthoepy_errors,
+ * vocabulary_suggestions}`), so rendering the field directly puts a raw JSON blob
+ * in front of the reader — which is what both this screen and the student's own
+ * result screen were doing.
+ *
+ * Returns null when there is nothing usable, so callers can hide the section
+ * rather than show an empty shell. A non-JSON value is treated as plain prose,
+ * which keeps any legacy row that really did store text readable.
+ */
+export function parseFeedback(raw?: string | null): AiFeedback | null {
+  if (!raw || !raw.trim()) return null;
+  try {
+    const o = JSON.parse(raw) as Record<string, unknown>;
+    if (typeof o !== "object" || o === null) return { summary: raw, strengths: [], improvements: [], vocabulary: [] };
+    const strs = (v: unknown): string[] =>
+      Array.isArray(v) ? v.filter((x): x is string => typeof x === "string") : [];
+    const fb: AiFeedback = {
+      summary: typeof o.summary === "string" ? o.summary : "",
+      strengths: strs(o.strengths),
+      improvements: strs(o.improvements),
+      vocabulary: strs(o.vocabulary_suggestions),
+    };
+    const empty =
+      !fb.summary && !fb.strengths.length && !fb.improvements.length && !fb.vocabulary.length;
+    return empty ? null : fb;
+  } catch {
+    // Legacy/plain text — show it as the summary rather than dropping it.
+    return { summary: raw, strengths: [], improvements: [], vocabulary: [] };
+  }
+}
+
+/**
+ * Parse `AttemptDetailResponse.corrections` — a JSON array of
+ * `{original, corrected, type, explanation}`. Same reasoning as
+ * {@link parseFeedback}: the column is JSON, so it must never be printed as-is.
+ *
+ * Returns an empty array for absent or unparseable data; entries missing both
+ * `original` and `corrected` are dropped, since a correction with neither side
+ * tells the reader nothing.
+ */
+export function parseCorrections(raw?: string | null): AiCorrection[] {
+  if (!raw || !raw.trim()) return [];
+  try {
+    const arr = JSON.parse(raw);
+    if (!Array.isArray(arr)) return [];
+    return arr
+      .map((x): AiCorrection => {
+        const o = (x ?? {}) as Record<string, unknown>;
+        return {
+          original: typeof o.original === "string" ? o.original : "",
+          corrected: typeof o.corrected === "string" ? o.corrected : "",
+          type: typeof o.type === "string" ? o.type : "",
+          explanation: typeof o.explanation === "string" ? o.explanation : "",
+        };
+      })
+      .filter((c) => c.original || c.corrected);
+  } catch {
+    return [];
+  }
+}

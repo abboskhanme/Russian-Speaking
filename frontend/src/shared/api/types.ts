@@ -277,6 +277,27 @@ export interface AttemptDetailResponse {
   teacher_band: number | null;
   teacher_comment: string | null;
   reviewed_at: string | null;
+  /** Per-word pronunciation, parsed server-side from the STT payload. EMPTY (never
+   * null) when the attempt has no word data — an older row, or a provider that
+   * returned none. Each `word` is what the student ACTUALLY said, verbatim: it is
+   * never corrected or swapped for the expected word. */
+  words: TranscriptWordResponse[];
+  /** Who recorded it. Present so a teacher opening an attempt by direct link can
+   * identify it — this DTO was written for the student's own result screen, where
+   * their own name would be redundant. */
+  student_name: string | null;
+}
+
+/** One transcript word with its pronunciation accuracy. */
+export interface TranscriptWordResponse {
+  word: string;
+  /** Seconds from the start of the recording, for seeking. */
+  start: number | null;
+  end: number | null;
+  /** Accuracy 0..100; null when the provider gave none. */
+  accuracy: number | null;
+  /** Provider label, e.g. "None" | "Mispronunciation" | "Omission". */
+  error_type: string | null;
 }
 
 /* ── Placement (PlacementContracts.cs) — one-time post-register CEFR check ── */

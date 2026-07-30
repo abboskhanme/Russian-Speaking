@@ -1,0 +1,112 @@
+/* ReviewQueueScreen — B1 «Tekshirish navbati». Teacher panel design; every value
+ * is a token. Full-width (docs/04 §4.10), compact density (docs/03 §3.5). */
+
+.page {
+  --density-scale: 0.75;
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--s-4) * var(--density-scale));
+  width: 100%;
+}
+
+.head {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-1);
+}
+
+.list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--s-3) * var(--density-scale));
+}
+
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--s-3) * var(--density-scale));
+}
+.cardTop {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  min-width: 0;
+}
+.avatar {
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  flex: none;
+  border-radius: var(--r-pill);
+  background: var(--surface-3);
+  color: var(--ink-soft);
+}
+.cardBody {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+/* Score box — the mockup's rounded square, tinted by band. */
+.scoreBox {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  flex: none;
+  border-radius: var(--r-sm);
+}
+.box-success {
+  background: var(--success-tint);
+  color: var(--success);
+}
+.box-warn {
+  background: var(--warn-tint);
+  color: var(--warn-ink);
+}
+.box-danger {
+  background: var(--danger-tint);
+  color: var(--danger);
+}
+/* No score at all — neutral, so it doesn't read as a failing grade. */
+.boxNone {
+  background: var(--surface-3);
+  color: var(--faint);
+}
+
+.meta {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  flex-wrap: wrap;
+}
+.audioCue {
+  margin-inline-start: auto;
+  padding: var(--s-1) var(--s-2);
+  border-radius: var(--r-xs);
+  background: var(--primary-tint);
+  color: var(--primary-press);
+  flex: none;
+}
+
+.actions {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+}
+.confirmBtn {
+  flex: 1;
+}
+
+.empty {
+  display: grid;
+  place-items: center;
+  text-align: center;
+  padding-block: var(--s-6);
+}

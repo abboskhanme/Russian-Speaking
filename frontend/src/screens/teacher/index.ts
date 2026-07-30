@@ -61,3 +61,20 @@ export type {
 } from "./TeacherStudentProfileScreen";
 
 export { mockGroupDetail, mockGroupInvite, mockStudentProfile } from "./classes.mock";
+
+/** B1 «Tekshirish navbati» — the Navbat FAB's destination. */
+export { ReviewQueueScreen, default as ReviewQueueDemo, LOW_BAND } from "./ReviewQueueScreen";
+export type { ReviewQueueProps, QueueItem, QueueFilter } from "./ReviewQueueScreen";
+
+/** B2 «Javob detali» + B3 «Qo'lda baholash». */
+export {
+  AttemptReviewScreen,
+  default as AttemptReviewDemo,
+} from "./AttemptReviewScreen";
+export type {
+  AttemptReviewProps,
+  ReviewWord,
+  ReviewCriterion,
+} from "./AttemptReviewScreen";
+
+export { mockReviewQueue, mockAttemptReview } from "./queue.mock";

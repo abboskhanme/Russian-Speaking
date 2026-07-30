@@ -486,3 +486,32 @@ export function teacherStudentSubmissions(
     `/submissions?student_id=${encodeURIComponent(studentId)}&limit=${encodeURIComponent(String(limit))}`,
   );
 }
+
+/* ── Teacher — Navbat (grading queue, mockup board B) ─────────────────────── */
+
+/** GET /api/submissions?needs_review=true → the teacher's grading queue: AI
+ * grading has FINISHED but no teacher has signed off. `failed` attempts are
+ * excluded server-side — a pipeline failure is an ops problem, not a grading
+ * decision. Teacher-scoped like every submission read. */
+export function teacherReviewQueue(limit = 50): Promise<SubmissionResponse[]> {
+  return apiClient.get<SubmissionResponse[]>(
+    `/submissions?needs_review=true&limit=${encodeURIComponent(String(limit))}`,
+  );
+}
+
+/** PATCH /api/submissions/{id}/review → write the teacher's verdict (204).
+ *
+ * Pass `band` to override the AI's score, `comment` for the "Izoh o'quvchiga",
+ * or both. Sending NEITHER is a 400 — an empty review would still stamp
+ * `reviewed_at` and drop the attempt out of the queue with no decision recorded.
+ * A blank `comment` clears an existing note; omitting it leaves it untouched.
+ * 404 when the attempt is outside this teacher's roster/questions. */
+export function reviewSubmission(
+  id: string,
+  args: { band?: number; comment?: string },
+): Promise<void> {
+  const body: { teacher_band?: number; teacher_comment?: string } = {};
+  if (args.band !== undefined) body.teacher_band = args.band;
+  if (args.comment !== undefined) body.teacher_comment = args.comment;
+  return apiClient.patch<void>(`/submissions/${encodeURIComponent(id)}/review`, body);
+}

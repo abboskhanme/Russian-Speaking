@@ -9,6 +9,7 @@ import { AttemptDetailScreen } from "../../screens/results";
 import type { AttemptDetail } from "../../screens/results";
 import { endpoints } from "../../shared/api";
 import { isApiError } from "../../shared/api/client";
+import { parseCorrections, parseFeedback } from "../adapters";
 import { PageError, PageLoading } from "../PageState";
 import { useNavHandler } from "../nav";
 
@@ -52,8 +53,9 @@ export default function AttemptDetailPage() {
           grammar: d.grammar_score,
           pronunciation: d.pronunciation_score,
           relevance: d.relevance_score,
-          feedback: d.feedback,
-          corrections: d.corrections,
+          // JSON columns — parse, never render raw.
+          feedback: parseFeedback(d.feedback),
+          corrections: parseCorrections(d.corrections),
           modelAnswer: d.model_answer_text,
           teacherBand: d.teacher_band,
           teacherComment: d.teacher_comment,

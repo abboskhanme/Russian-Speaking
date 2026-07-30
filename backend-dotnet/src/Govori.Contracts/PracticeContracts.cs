@@ -92,4 +92,52 @@ public sealed record AttemptDetailResponse(
     // Teacher's manual review, when present
     double? TeacherBand,
     string? TeacherComment,
-    DateTime? ReviewedAt);
+    DateTime? ReviewedAt,
+    // ── Per-word pronunciation (ADDITIVE, appended) ────────────────────────────
+    // Parsed from Transcript.WordTimestamps, which the STT provider has always
+    // written and NOTHING has ever read out to a client. It is what makes the
+    // word-by-word coloured transcript possible instead of one flat paragraph.
+    // Empty (never null) when the attempt has no per-word data — an older row, a
+    // provider that returned none, or an ungraded attempt.
+    IReadOnlyList<TranscriptWordResponse> Words,
+    /// <summary>Who recorded it. Null on legacy rows with no user. ADDITIVE: this DTO was written
+    /// for the STUDENT's own result screen, where their own name is redundant — but a TEACHER
+    /// reaching an attempt by direct link has nothing else to identify it by.</summary>
+    string? StudentName);
+
+/// <summary>
+/// One word of the STT transcript with its pronunciation accuracy.
+///
+/// <para><b>This is what the student actually said.</b> `Word` is reproduced verbatim from the STT
+/// output and is never corrected, normalised or swapped for the expected word — the transcript's
+/// whole value is that it is faithful. Corrections belong in
+/// <see cref="AttemptDetailResponse.Corrections"/>, alongside the answer, never inside it.</para>
+/// </summary>
+public sealed record TranscriptWordResponse(
+    string Word,
+    /// <summary>Seconds from the start of the recording — lets a UI seek to the word.</summary>
+    double? Start,
+    double? End,
+    /// <summary>Pronunciation accuracy 0..100; null when the provider gave none.</summary>
+    double? Accuracy,
+    /// <summary>Provider's error label (e.g. "None", "Mispronunciation", "Omission").</summary>
+    string? ErrorType);
+
+/// <summary>
+/// Body of PATCH /api/submissions/{id}/review — a teacher's manual verdict on one attempt.
+///
+/// <para>Both fields are optional so the two real gestures are expressible: "confirm the AI's score
+/// but add a note" (comment only) and "override the score" (band only). Sending neither is a
+/// 400 — an empty review would still stamp <c>ReviewedAt</c> and silently clear the queue row
+/// without recording any decision.</para>
+///
+/// <para><b>Only ONE band.</b> The mockup's B3 screen has three per-criterion sliders, but
+/// <c>submissions</c> carries a single <c>teacher_band</c>. Making the criteria individually
+/// overridable needs three more columns plus a rule for how they roll up into the overall band,
+/// so this endpoint deliberately writes the one field that exists rather than inventing storage.</para>
+/// </summary>
+public sealed record ReviewSubmissionRequest(
+    /// <summary>Teacher's overall band 0..100. Rejected outside that range.</summary>
+    double? TeacherBand,
+    /// <summary>"Izoh o'quvchiga" — free text shown to the student. Blank clears it.</summary>
+    string? TeacherComment);

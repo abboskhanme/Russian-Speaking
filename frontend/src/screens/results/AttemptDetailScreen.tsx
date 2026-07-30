@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { useTranslation } from "react-i18next";
+import type { AiCorrection, AiFeedback } from "../../app/adapters";
 import { Badge, Button, Card, Text, cx } from "../../shared/ui";
 import { AppShell, Brand, NotificationsBell, studentNavItems } from "../../widgets";
 import type { NavItem } from "../../widgets";
@@ -27,8 +28,11 @@ export interface AttemptDetail {
   grammar: number | null;
   pronunciation: number | null;
   relevance: number | null;
-  feedback: string | null;
-  corrections: string | null;
+  /** The AI's structured feedback, ALREADY PARSED by the page. The API column
+   * holds a JSON `GraderResult`, so passing the raw string here rendered a blob. */
+  feedback: AiFeedback | null;
+  /** The AI's targeted corrections, already parsed for the same reason. */
+  corrections: AiCorrection[];
   modelAnswer: string | null;
   teacherBand: number | null;
   teacherComment: string | null;
@@ -165,18 +169,51 @@ export function AttemptDetailScreen({
         {/* ---- AI feedback ---- */}
         {detail.feedback && (
           <Section title={t("results.feedback")}>
-            <Text as="p" variant="body" className={styles.prose}>
-              {detail.feedback}
-            </Text>
+            <div className={styles.fbBlock}>
+              {detail.feedback.summary && (
+                <Text as="p" variant="body" className={styles.prose}>
+                  {detail.feedback.summary}
+                </Text>
+              )}
+              {detail.feedback.strengths.length > 0 && (
+                <ul className={styles.fbBullets}>
+                  {detail.feedback.strengths.map((s, i) => (
+                    <li key={i}>
+                      <Text as="span" variant="body-s" color="ink-soft">{s}</Text>
+                    </li>
+                  ))}
+                </ul>
+              )}
+              {detail.feedback.improvements.length > 0 && (
+                <ul className={styles.fbBullets}>
+                  {detail.feedback.improvements.map((s, i) => (
+                    <li key={i}>
+                      <Text as="span" variant="body-s" color="ink-soft">{s}</Text>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
           </Section>
         )}
 
         {/* ---- Corrections ---- */}
-        {detail.corrections && (
+        {detail.corrections.length > 0 && (
           <Section title={t("results.corrections")}>
-            <Text as="p" variant="body" className={styles.prose}>
-              {detail.corrections}
-            </Text>
+            <div className={styles.fbBlock}>
+              {detail.corrections.map((c, i) => (
+                <div key={i}>
+                  <p className={styles.corrLine}>
+                    {c.original && <span className={styles.corrWrong}>{c.original}</span>}
+                    {c.original && c.corrected && <span>→</span>}
+                    {c.corrected && <span className={styles.corrRight}>{c.corrected}</span>}
+                  </p>
+                  {c.explanation && (
+                    <Text as="p" variant="body-s" color="ink-soft">{c.explanation}</Text>
+                  )}
+                </div>
+              ))}
+            </div>
           </Section>
         )}
 

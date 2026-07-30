@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.Security.Claims;
+using Govori.Contracts;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
@@ -72,16 +73,18 @@ public static class PracticeEndpoints
             };
         }).RequireAuthorization().DisableAntiforgery();
 
-        // GET /api/submissions — list my attempts (?question_id, ?student_id, ?limit=1..200,
-        // ?offset>=0). Students see only their own; teachers their roster; admins all.
-        // ?student_id only NARROWS that scope — it can never widen it (see ListAsync).
+        // GET /api/submissions — list my attempts (?question_id, ?student_id, ?needs_review,
+        // ?limit=1..200, ?offset>=0). Students see only their own; teachers their roster; admins
+        // all. Every filter only NARROWS that scope — none can widen it (see ListAsync).
         submissions.MapGet("", async (
             ClaimsPrincipal principal, PracticeService svc,
-            Guid? question_id, Guid? student_id, int? limit, int? offset, CancellationToken ct) =>
+            Guid? question_id, Guid? student_id, bool? needs_review,
+            int? limit, int? offset, CancellationToken ct) =>
         {
             if (!TryGetUserId(principal, out var userId))
                 return Results.Unauthorized();
-            var list = await svc.ListAsync(userId, question_id, limit ?? 100, offset ?? 0, ct, student_id);
+            var list = await svc.ListAsync(
+                userId, question_id, limit ?? 100, offset ?? 0, ct, student_id, needs_review);
             return list is null ? Results.Unauthorized() : Results.Ok(list);
         }).RequireAuthorization();
 
@@ -112,6 +115,30 @@ public static class PracticeEndpoints
                 GetStatus.Unauthorized => Results.Unauthorized(),
                 GetStatus.NotFound => Detail("Submission not found", StatusCodes.Status404NotFound),
                 _ => Results.Ok(result.Detail),
+            };
+        }).RequireAuthorization();
+
+        // PATCH /api/submissions/{id}/review — a teacher's manual verdict: overall band and/or the
+        // "Izoh o'quvchiga" comment → 204. Teacher/admin only (403 for a student). 404 when the
+        // submission is missing OR belongs outside this teacher's roster/questions, so ids cannot be
+        // probed. 400 on an empty body or a band outside 0..100.
+        submissions.MapPatch("/{id:guid}/review", async (
+            Guid id, ReviewSubmissionRequest body, ClaimsPrincipal principal,
+            PracticeService svc, CancellationToken ct) =>
+        {
+            if (!TryGetUserId(principal, out var userId))
+                return Results.Unauthorized();
+            var outcome = await svc.ReviewAsync(userId, id, body, ct);
+            return outcome switch
+            {
+                ReviewStatus.Ok => Results.NoContent(),
+                ReviewStatus.Unauthorized => Results.Unauthorized(),
+                ReviewStatus.Forbidden => Detail("Teacher role required", StatusCodes.Status403Forbidden),
+                ReviewStatus.NotFound => Detail("Submission not found", StatusCodes.Status404NotFound),
+                ReviewStatus.BadRequest => Detail(
+                    "Provide teacher_band (0..100) and/or teacher_comment",
+                    StatusCodes.Status400BadRequest),
+                _ => Results.StatusCode(StatusCodes.Status500InternalServerError),
             };
         }).RequireAuthorization();
 

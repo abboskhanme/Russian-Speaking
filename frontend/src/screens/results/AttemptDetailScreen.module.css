@@ -105,3 +105,35 @@
   border-radius: var(--r-pill);
   background: var(--primary);
 }
+
+/* ---- Parsed AI feedback / corrections ---- */
+.fbBlock {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-3);
+}
+.fbBullets {
+  margin: 0;
+  padding-inline-start: var(--s-5);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.corrLine {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: 14px;
+  line-height: 1.5;
+  display: flex;
+  align-items: baseline;
+  gap: var(--s-2);
+  flex-wrap: wrap;
+  color: var(--faint);
+}
+.corrWrong {
+  color: var(--muted);
+  text-decoration: line-through;
+}
+.corrRight {
+  color: var(--success);
+}

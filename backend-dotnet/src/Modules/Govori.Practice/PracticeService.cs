@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Govori.Catalog;
 using Govori.Contracts;
 using Govori.Infrastructure;
@@ -131,7 +132,7 @@ public sealed class PracticeService
     /// </summary>
     public async Task<IReadOnlyList<SubmissionResponse>?> ListAsync(
         Guid userId, Guid? questionId, int limit, int offset, CancellationToken ct = default,
-        Guid? studentId = null)
+        Guid? studentId = null, bool? needsReview = null)
     {
         var user = await _db.Users.FirstOrDefaultAsync(u => u.Id == userId, ct);
         if (user is null || !user.IsActive)
@@ -170,6 +171,13 @@ public sealed class PracticeService
         // because their own clause already pinned StudentId to themselves.
         if (studentId is not null)
             query = query.Where(s => s.StudentId == studentId);
+
+        // ?needs_review — the teacher's grading queue (B1 «Tekshirish navbati»): AI grading has
+        // FINISHED but no teacher has signed off. `failed` is excluded on purpose: a pipeline
+        // failure is an ops problem, not a grading decision, and putting it in front of a teacher
+        // asks them to judge an attempt that was never scored.
+        if (needsReview == true)
+            query = query.Where(s => s.Status == SubmissionStatus.Done && s.ReviewedAt == null);
 
         var rows = await query
             .Include(s => s.Student)
@@ -236,6 +244,7 @@ public sealed class PracticeService
             .Include(s => s.Question)
             .Include(s => s.Evaluation)
             .Include(s => s.Transcript)
+            .Include(s => s.Student)                                            // name for the teacher's header
             .FirstOrDefaultAsync(s => s.Id == submissionId, ct);
         if (sub is null)
             return new AttemptDetailResult(GetStatus.NotFound);
@@ -280,9 +289,105 @@ public sealed class PracticeService
             Corrections: e?.Corrections,
             TeacherBand: sub.TeacherBand,
             TeacherComment: sub.TeacherComment,
-            ReviewedAt: sub.ReviewedAt);
+            ReviewedAt: sub.ReviewedAt,
+            Words: ParseWords(sub.Transcript?.WordTimestamps),
+            StudentName: sub.Student?.FullName);
 
         return new AttemptDetailResult(GetStatus.Ok, detail);
+    }
+
+    /// <summary>Serializer for the STT jsonb columns — snake_case, matching what the assessment
+    /// pipeline wrote (<c>word_timestamps</c> holds <c>{word,start,end,accuracy,error_type}</c>).</summary>
+    private static readonly JsonSerializerOptions WordJsonOptions = new()
+    {
+        PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower,
+    };
+
+    /// <summary>
+    /// <c>transcripts.word_timestamps</c> → the per-word rows.
+    ///
+    /// <para>Returns an EMPTY list, never null, for absent or unparseable JSON: a malformed stored
+    /// payload must degrade to "no word data" and still render the plain transcript, not fail the
+    /// whole attempt-detail request. Words with no text are dropped — they would render as gaps the
+    /// reader cannot interpret.</para>
+    /// </summary>
+    private static IReadOnlyList<TranscriptWordResponse> ParseWords(string? json)
+    {
+        if (string.IsNullOrWhiteSpace(json)) return [];
+        try
+        {
+            var raw = JsonSerializer.Deserialize<List<StoredWord>>(json, WordJsonOptions);
+            if (raw is null) return [];
+            return raw
+                .Where(w => !string.IsNullOrWhiteSpace(w.Word))
+                .Select(w => new TranscriptWordResponse(w.Word!, w.Start, w.End, w.Accuracy, w.ErrorType))
+                .ToList();
+        }
+        catch (JsonException)
+        {
+            return [];
+        }
+    }
+
+    /// <summary>The stored per-word shape. Mirrors <c>Govori.Platform.Stt.SttWord</c>'s persisted
+    /// fields; declared locally so Practice does not take a dependency on the STT provider types
+    /// just to read a column it owns.</summary>
+    private sealed record StoredWord
+    {
+        public string? Word { get; init; }
+        public double? Start { get; init; }
+        public double? End { get; init; }
+        public double? Accuracy { get; init; }
+        public string? ErrorType { get; init; }
+    }
+
+    /// <summary>
+    /// PATCH /submissions/{id}/review — a teacher's manual verdict: overall band and/or the
+    /// "Izoh o'quvchiga" comment, stamped with who reviewed it and when.
+    ///
+    /// <para><b>Visibility is the same rule as reading the attempt</b> (<see cref="TeacherDeniedAsync"/>):
+    /// a teacher may review only their OWN students' answers to their OWN questions, and anything
+    /// else is 404 — never 403 — so a teacher cannot probe which submission ids exist. A student is
+    /// refused outright even for their own attempt: grading yourself is not a thing.</para>
+    ///
+    /// <para>An empty body (neither field) is a 400. Without that guard it would stamp
+    /// <c>ReviewedAt</c>, drop the row out of the review queue, and record no actual decision.</para>
+    /// </summary>
+    public async Task<ReviewStatus> ReviewAsync(
+        Guid userId, Guid submissionId, ReviewSubmissionRequest body, CancellationToken ct = default)
+    {
+        var user = await _db.Users.FirstOrDefaultAsync(u => u.Id == userId, ct);
+        if (user is null || !user.IsActive) return ReviewStatus.Unauthorized;
+        if (user.Role == UserRole.Student) return ReviewStatus.Forbidden;
+
+        var hasBand = body.TeacherBand is not null;
+        var hasComment = body.TeacherComment is not null;
+        if (!hasBand && !hasComment) return ReviewStatus.BadRequest;
+        if (hasBand && (body.TeacherBand < 0 || body.TeacherBand > 100)) return ReviewStatus.BadRequest;
+
+        // Include(Question) is REQUIRED, not incidental: TeacherDeniedAsync compares
+        // sub.Question.TeacherId, so an unloaded navigation makes it deny every teacher and this
+        // endpoint 404s even for the rightful owner.
+        var sub = await _db.Submissions
+            .Include(s => s.Question)
+            .FirstOrDefaultAsync(s => s.Id == submissionId, ct);
+        if (sub is null) return ReviewStatus.NotFound;
+        if (user.Role == UserRole.Teacher && await TeacherDeniedAsync(user.Id, sub, ct))
+            return ReviewStatus.NotFound;                                   // not yours ⇒ does not exist
+
+        var now = DateTime.UtcNow;
+        if (hasBand) sub.TeacherBand = body.TeacherBand;
+        // A blank comment CLEARS it; an absent one leaves the previous note alone.
+        if (hasComment)
+            sub.TeacherComment = string.IsNullOrWhiteSpace(body.TeacherComment)
+                ? null
+                : body.TeacherComment!.Trim();
+        sub.ReviewedBy = user.Id;
+        sub.ReviewedAt = now;
+        sub.UpdatedAt = now;
+
+        await _db.SaveChangesAsync(ct);
+        return ReviewStatus.Ok;
     }
 
     /// <summary>
@@ -371,6 +476,10 @@ public sealed record SubmitResult(SubmitStatus Status, SubmissionResponse? Submi
 
 /// <summary>Outcome of <see cref="PracticeService.GetAsync"/>.</summary>
 public enum GetStatus { Ok, Unauthorized, NotFound }
+
+/// <summary>Outcome of <see cref="PracticeService.ReviewAsync"/>. <c>NotFound</c> covers both a
+/// missing submission and one this teacher may not see, so existence is never leaked.</summary>
+public enum ReviewStatus { Ok, Unauthorized, Forbidden, NotFound, BadRequest }
 
 public sealed record GetResult(GetStatus Status, SubmissionResponse? Submission = null);
 
