@@ -174,6 +174,16 @@ public static class ClassroomEndpoints
             var r = await svc.GradebookAsync(userId, group_id, ct);
             return Map(r, StatusCodes.Status200OK, forbidden: "Teacher or admin role required");
         }).RequireAuthorization();
+
+        // GET /api/reports/insights — the Analitika · Insaytlar composite (?group_id). Same scoping
+        // as the gradebook; a group the caller does not own simply yields empty counts rather than a
+        // 404, because the answer "you teach nobody in there" leaks nothing about that group.
+        reports.MapGet("/insights", async (Guid? group_id, ClaimsPrincipal principal, ClassroomService svc, CancellationToken ct) =>
+        {
+            if (!TryGetUserId(principal, out var userId)) return Results.Unauthorized();
+            var r = await svc.InsightsAsync(userId, group_id, ct);
+            return Map(r, StatusCodes.Status200OK, forbidden: "Teacher or admin role required");
+        }).RequireAuthorization();
     }
 
     // A valid *access* token carrying a parseable `sub`; a refresh token is deliberately rejected

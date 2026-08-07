@@ -58,4 +58,26 @@ public static class ClassroomScoring
         var bands = GradedDesc(subs);
         return bands.Count == 0 ? null : Math.Round(bands.Max(), 2, MidpointRounding.ToEven);
     }
+
+    /// <summary>
+    /// The very answers <see cref="RollingAvg"/> averages — graded, newest first, capped at the same
+    /// window. Exists so a caller that needs more than the mean (the gradebook's per-skill columns
+    /// read each answer's <c>Evaluation</c>) describes the SAME set of answers as <c>avg_band</c>
+    /// instead of re-deriving a window that could drift out of sync. Reads the frozen definition; it
+    /// does not change it.
+    /// </summary>
+    public static List<Submission> RecentGraded(IEnumerable<Submission> subs, int window = RecentWindow)
+        => subs.Where(s => EffectiveBand(s) is not null)
+               .OrderByDescending(s => s.CreatedAt)              // stable, like GradedDesc
+               .Take(window)
+               .ToList();
+
+    /// <summary>Mean of the values that are present, half-to-even to 2 dp; <c>null</c> when none are.
+    /// The nullable input is the point: a missing score (an ungraded skill) must be SKIPPED, never
+    /// folded in as a zero that drags the mean down.</summary>
+    public static double? MeanOrNull(IEnumerable<double?> values)
+    {
+        var present = values.Where(v => v is not null).Select(v => v!.Value).ToList();
+        return present.Count == 0 ? null : Math.Round(present.Sum() / present.Count, 2, MidpointRounding.ToEven);
+    }
 }

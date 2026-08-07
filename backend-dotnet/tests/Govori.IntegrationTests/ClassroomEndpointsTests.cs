@@ -27,6 +27,11 @@ namespace Govori.IntegrationTests;
 ///   student) is filtered out, and NO assignment row is written for them;</item>
 ///   <item>after a graded submission, the rostered student appears in the teacher's gradebook with the
 ///   right band, and the outsider (even with a submission to the teacher's own question) never does;</item>
+///   <item><b>analytics inherit the same scoping</b>: <c>/reports/insights</c> summarises exactly the
+///   answers the gradebook shows (its headline IS the mean of those rows' <c>avg_band</c>), a student
+///   is 403, and a teacher passing another teacher's <c>group_id</c> learns nothing about it — not
+///   even its size, since the group filter intersects with the caller's roster instead of replacing
+///   it;</item>
 ///   <item>authorization negatives: a student can't create a group (403); a non-owner teacher can't
 ///   read the group (404); anonymous calls are 401.</item>
 /// </list>
@@ -329,6 +334,69 @@ public sealed class ClassroomEndpointsTests : IClassFixture<ClassroomEndpointsTe
                 Assert.Equal(80, mine.GetProperty("avg_band").GetDouble());
                 Assert.True(mine.GetProperty("attempts").GetInt32() >= 1);
                 Assert.DoesNotContain(rows, r => r.GetProperty("student_id").GetGuid() == outsiderStudentId);
+
+                // The per-skill columns (D2 Jurnal) describe the SAME answers as avg_band above.
+                // Pronunciation is null on this evaluation and must stay null — not 0, which would
+                // read as "scored zero" and drag any average built on it down.
+                Assert.Equal(75, mine.GetProperty("fluency").GetDouble());
+                Assert.Equal(75, mine.GetProperty("grammar").GetDouble());
+                Assert.Equal(75, mine.GetProperty("lexical").GetDouble());
+                Assert.Equal(JsonValueKind.Null, mine.GetProperty("pronunciation").ValueKind);
+            }
+
+            // ── Insights (D1): the composed analytics read, on the same scoped set ──
+            var insightsResp = await Send(client, HttpMethod.Get, "/api/reports/insights", tokenA);
+            Assert.Equal(HttpStatusCode.OK, insightsResp.StatusCode);
+            using (var inDoc = JsonDocument.Parse(await insightsResp.Content.ReadAsStringAsync()))
+            {
+                var root = inDoc.RootElement;
+
+                // The headline is the mean of the gradebook's own avg_band values, so the number on
+                // the Insaytlar card can never disagree with the Jurnal table under it.
+                Assert.Equal(80, root.GetProperty("class_avg").GetDouble());
+                Assert.Equal("B2", root.GetProperty("class_level").GetString());
+
+                // Only the ROSTERED student counts — the outsider has a submission to teacher A's own
+                // question and must move none of these numbers.
+                Assert.Equal(1, root.GetProperty("total_students").GetInt32());
+                Assert.Equal(1, root.GetProperty("active_students").GetInt32());
+
+                // Fixed-length series, so the chart's axes never shrink with the data.
+                Assert.Equal(3, root.GetProperty("trend").GetArrayLength());
+                Assert.Equal(7, root.GetProperty("week").GetArrayLength());
+                var thisMonth = root.GetProperty("trend").EnumerateArray().Last();
+                Assert.Equal(DateTime.UtcNow.Month, thisMonth.GetProperty("month").GetInt32());
+                Assert.Equal(80, thisMonth.GetProperty("avg").GetDouble());
+                // Only one month has anything graded, so there is no movement to report — one data
+                // point is not a trend, and the chip must stay absent rather than read "+0".
+                Assert.Equal(JsonValueKind.Null, root.GetProperty("trend_delta").ValueKind);
+                var today = root.GetProperty("week").EnumerateArray().Last();
+                Assert.Equal(DateOnly.FromDateTime(DateTime.UtcNow).ToString("yyyy-MM-dd"), today.GetProperty("date").GetString());
+                Assert.True(today.GetProperty("attempts").GetInt32() >= 1);
+
+                Assert.Equal(75, root.GetProperty("skills").GetProperty("fluency").GetDouble());
+                Assert.Equal(JsonValueKind.Null, root.GetProperty("skills").GetProperty("pronunciation").ValueKind);
+
+                // The assignment written above is the one the completion rate describes.
+                Assert.Equal(1, root.GetProperty("assignments_total").GetInt32());
+                Assert.Equal(1, root.GetProperty("assignments_done").GetInt32());
+
+                // Nothing reviewed yet, and this evaluation carries no corrections — both read as
+                // genuinely empty rather than as a zero-filled card.
+                Assert.Equal(0, root.GetProperty("reviewed_week").GetInt32());
+                Assert.Equal(0, root.GetProperty("errors").GetArrayLength());
+            }
+
+            // A student may not read the analytics at all.
+            Assert.Equal(HttpStatusCode.Forbidden, (await Send(client, HttpMethod.Get, "/api/reports/insights", tokenRoster)).StatusCode);
+
+            // Teacher B asking about teacher A's group learns NOTHING about it — not even its size.
+            // The group filter intersects with the caller's own roster; it never replaces it.
+            using (var foreignDoc = JsonDocument.Parse(await (await Send(
+                client, HttpMethod.Get, $"/api/reports/insights?group_id={groupAId}", tokenB)).Content.ReadAsStringAsync()))
+            {
+                Assert.Equal(0, foreignDoc.RootElement.GetProperty("total_students").GetInt32());
+                Assert.Equal(JsonValueKind.Null, foreignDoc.RootElement.GetProperty("class_avg").ValueKind);
             }
 
             // ── The assignment now reads as completed with the same band ──

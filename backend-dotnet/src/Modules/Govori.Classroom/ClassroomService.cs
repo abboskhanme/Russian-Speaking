@@ -1,4 +1,5 @@
 using System.Security.Cryptography;
+using System.Text.Json;
 using Govori.Contracts;
 using Govori.Infrastructure;
 using Govori.Infrastructure.Entities;
@@ -556,6 +557,14 @@ public sealed class ClassroomService
         {
             var slist = g.ToList();
             users.TryGetValue(g.Key, out var u);
+            // Per-skill columns read the SAME answers avg_band averages, so a row can never show a
+            // headline drawn from one window beside skills drawn from another. An answer graded only
+            // by a teacher (teacher_band, no evaluation) counts toward avg_band but has no skills.
+            var recent = ClassroomScoring.RecentGraded(slist)
+                .Select(s => s.Evaluation)
+                .Where(e => e is not null)
+                .Select(e => e!)
+                .ToList();
             rows.Add(new GradebookRowResponse(
                 StudentId: g.Key,
                 FullName: u?.FullName ?? "—",
@@ -563,10 +572,243 @@ public sealed class ClassroomService
                 Attempts: slist.Count,
                 AvgBand: ClassroomScoring.RollingAvg(slist),
                 BestBand: ClassroomScoring.BestBand(slist),
-                LastActivity: slist.Max(s => s.CreatedAt)));
+                LastActivity: slist.Max(s => s.CreatedAt),
+                Fluency: ClassroomScoring.MeanOrNull(recent.Select(e => (double?)e.FluencyScore)),
+                Grammar: ClassroomScoring.MeanOrNull(recent.Select(e => (double?)e.GrammarScore)),
+                Pronunciation: ClassroomScoring.MeanOrNull(recent.Select(e => e.PronunciationScore)),
+                Lexical: ClassroomScoring.MeanOrNull(recent.Select(e => (double?)e.LexicalScore))));
         }
         rows.Sort((a, b) => string.Compare(a.FullName, b.FullName, StringComparison.OrdinalIgnoreCase));
         return rows;
+    }
+
+    // ─── Analitika · Insaytlar ──────────────────────────────────────────────
+
+    /// <summary>
+    /// GET /reports/insights — everything the D1 Insaytlar screen shows, in one read. Same scoping as
+    /// <see cref="GradebookAsync"/> (own questions AND own roster; <paramref name="groupId"/> narrows).
+    /// Student ⇒ 403.
+    ///
+    /// <para>Every number is composed from rows that already exist — no new table, no migration. The
+    /// windows are UTC and rolling (<c>now - 7×24h</c>), not calendar weeks: a calendar week would
+    /// make Monday morning report a near-empty class, which reads as a data outage rather than a
+    /// fresh week.</para>
+    ///
+    /// <para>The whole scoped submission set is materialised once and every statistic is computed off
+    /// it in memory. That is deliberate: the set is already bounded by one teacher's roster, and the
+    /// alternative is a dozen round trips that could each see a slightly different instant — the
+    /// headline and the chart under it would then disagree.</para>
+    /// </summary>
+    public async Task<ClassroomResult<InsightsResponse>> InsightsAsync(
+        Guid userId, Guid? groupId, CancellationToken ct = default)
+    {
+        var user = await ActiveUserAsync(userId, ct);
+        if (user is null) return ClassroomResult<InsightsResponse>.Unauthorized();
+        if (!IsTeacher(user)) return ClassroomResult<InsightsResponse>.Forbidden();
+
+        var subs = await RelevantSubmissionsAsync(user, groupId, ct);
+        var rosterIds = await RosterIdsAsync(user, groupId, ct);
+        var now = DateTime.UtcNow;
+        var weekStart = now.AddDays(-7);
+
+        // Headline: the mean of the per-student rolling averages — literally the mean of the
+        // avg_band values the D2 Jurnal prints, so the two can never disagree. Ungraded students are
+        // absent from the rows entirely, so they are excluded rather than counted as zero.
+        var rows = await GradebookRowsAsync(subs, ct);
+        var classAvg = ClassroomScoring.MeanOrNull(rows.Select(r => r.AvgBand));
+        var (classLevel, classLevelLabel) = CefrScale.FromAverageBand(classAvg);
+
+        var trend = MonthlyTrend(subs, now);
+        var trendDelta = TrendDelta(trend);
+
+        var weekSubs = subs.Where(s => s.CreatedAt >= weekStart).ToList();
+
+        var (done, total) = await AssignmentProgressAsync(user, groupId, rosterIds, ct);
+
+        // Skills average over the graded answers in scope. PronunciationScore is nullable per
+        // evaluation, so it goes in as-is and MeanOrNull skips the missing ones.
+        var evals = subs.Select(s => s.Evaluation).Where(e => e is not null).Select(e => e!).ToList();
+        var skills = new InsightsSkillsResponse(
+            Fluency: ClassroomScoring.MeanOrNull(evals.Select(e => (double?)e.FluencyScore)),
+            Grammar: ClassroomScoring.MeanOrNull(evals.Select(e => (double?)e.GrammarScore)),
+            Pronunciation: ClassroomScoring.MeanOrNull(evals.Select(e => e.PronunciationScore)),
+            Lexical: ClassroomScoring.MeanOrNull(evals.Select(e => (double?)e.LexicalScore)));
+
+        return ClassroomResult<InsightsResponse>.Ok(new InsightsResponse(
+            ClassAvg: classAvg,
+            ClassLevel: classLevel,
+            ClassLevelLabel: classLevelLabel,
+            TrendDelta: trendDelta,
+            Trend: trend,
+            ActiveStudents: weekSubs.Select(s => s.StudentId).Distinct().Count(),
+            TotalStudents: rosterIds.Count,
+            AssignmentsDone: done,
+            AssignmentsTotal: total,
+            // Seconds on the wire; the UI rounds to minutes once, at the edge.
+            PracticeSecWeek: (int)Math.Round(weekSubs.Sum(s => s.AudioDurationSec ?? 0), MidpointRounding.AwayFromZero),
+            ReviewedWeek: subs.Count(s => s.ReviewedAt is { } r && r >= weekStart),
+            Skills: skills,
+            Week: DailyActivity(subs, now),
+            Errors: TopErrorPatterns(subs)));
+    }
+
+    /// <summary>
+    /// The class trend: the last 3 calendar months, oldest first, ALWAYS 3 entries so the chart keeps
+    /// a fixed x-axis. Each point is the mean effective band of the answers GIVEN that month —
+    /// volume-weighted on purpose (see <see cref="InsightsResponse"/>), and <c>null</c> for a month
+    /// with nothing graded so the client draws a gap instead of a plunge to zero.
+    /// </summary>
+    private static IReadOnlyList<InsightsMonthPoint> MonthlyTrend(List<Submission> subs, DateTime now)
+    {
+        var thisMonth = new DateTime(now.Year, now.Month, 1, 0, 0, 0, now.Kind);
+        var points = new List<InsightsMonthPoint>(3);
+        for (var back = 2; back >= 0; back--)
+        {
+            var start = thisMonth.AddMonths(-back);
+            var end = start.AddMonths(1);
+            var inMonth = subs.Where(s => s.CreatedAt >= start && s.CreatedAt < end).ToList();
+            points.Add(new InsightsMonthPoint(
+                Year: start.Year,
+                Month: start.Month,
+                Avg: ClassroomScoring.MeanOrNull(inMonth.Select(ClassroomScoring.EffectiveBand)),
+                Attempts: inMonth.Count));
+        }
+        return points;
+    }
+
+    /// <summary>
+    /// The "↑ +7 punkt" chip: the change between the two most recent months that BOTH have a graded
+    /// average — not simply "this month minus last month".
+    ///
+    /// <para>The naive rule reads null for the first days of every month, because the current month
+    /// has nothing graded yet. That is the moment a teacher is most likely to open the screen, so the
+    /// chip would be missing far more often than present. Skipping empty months keeps the last real
+    /// movement visible, and the chart beside it still shows the empty month as a gap, so the number
+    /// is never presented as fresher than it is.</para>
+    ///
+    /// <para>Still <c>null</c> when fewer than two months have any graded answer — one data point is
+    /// not a trend, and an unknown change is not a change of zero.</para>
+    /// </summary>
+    private static double? TrendDelta(IReadOnlyList<InsightsMonthPoint> trend)
+    {
+        var graded = trend.Where(p => p.Avg is not null).Select(p => p.Avg!.Value).ToList();
+        return graded.Count < 2
+            ? null
+            : Math.Round(graded[^1] - graded[^2], 2, MidpointRounding.ToEven);
+    }
+
+    /// <summary>Exactly 7 day buckets, oldest first, ending today (UTC). Days with no answers are
+    /// present with <c>0</c> rather than omitted — a missing day would silently shrink the chart.</summary>
+    private static IReadOnlyList<InsightsDayPoint> DailyActivity(List<Submission> subs, DateTime now)
+    {
+        var perDay = subs.GroupBy(s => DateOnly.FromDateTime(s.CreatedAt))
+                         .ToDictionary(g => g.Key, g => g.Count());
+        var today = DateOnly.FromDateTime(now);
+        var days = new List<InsightsDayPoint>(7);
+        for (var back = 6; back >= 0; back--)
+        {
+            var day = today.AddDays(-back);
+            days.Add(new InsightsDayPoint(day, perDay.GetValueOrDefault(day, 0)));
+        }
+        return days;
+    }
+
+    /// <summary>
+    /// "Topshiriq bajarilishi" — done / total over the caller's OWN assignments (admin: everyone's),
+    /// narrowed to the group's members when a group is given. "Done" delegates to
+    /// <see cref="AssignmentsOutAsync"/> so the percentage here and the progress rows on the A5 group
+    /// screen can never be computed by two different rules.
+    /// </summary>
+    private async Task<(int Done, int Total)> AssignmentProgressAsync(
+        User user, Guid? groupId, List<Guid> rosterIds, CancellationToken ct)
+    {
+        var stmt = _db.Assignments.AsQueryable();
+        if (user.Role != UserRole.Admin) stmt = stmt.Where(a => a.TeacherId == user.Id);
+        if (groupId is not null) stmt = stmt.Where(a => rosterIds.Contains(a.StudentId));
+
+        var items = await stmt.ToListAsync(ct);
+        if (items.Count == 0) return (0, 0);
+
+        var projected = await AssignmentsOutAsync(items, ct);
+        return (projected.Count(a => a.Completed), projected.Count);
+    }
+
+    /// <summary>
+    /// "Ko'p uchragan xatolar" — the top 5 correction types across the scoped graded answers.
+    ///
+    /// <para><c>evaluations.corrections</c> is a JSON column holding
+    /// <c>[{original,corrected,type,explanation}]</c>. It is parsed HERE, in memory, rather than
+    /// aggregated in SQL: the set is already bounded by one teacher's roster, and pushing JSON
+    /// unnesting into the query would tie this read to Postgres-specific SQL for no measurable gain.
+    /// A malformed or non-array blob is skipped silently — one bad row written by an older grader
+    /// must not take the whole analytics screen down.</para>
+    ///
+    /// <para>Ties break on the type string so the order is stable between two identical requests.</para>
+    /// </summary>
+    private static IReadOnlyList<InsightsErrorResponse> TopErrorPatterns(List<Submission> subs)
+    {
+        var counts = new Dictionary<string, int>(StringComparer.Ordinal);
+        var students = new Dictionary<string, HashSet<Guid>>(StringComparer.Ordinal);
+        var total = 0;
+
+        foreach (var s in subs)
+        {
+            var raw = s.Evaluation?.Corrections;
+            if (string.IsNullOrWhiteSpace(raw)) continue;
+
+            JsonDocument doc;
+            try { doc = JsonDocument.Parse(raw); }
+            catch (JsonException) { continue; }                  // legacy / half-written blob
+
+            using (doc)
+            {
+                if (doc.RootElement.ValueKind != JsonValueKind.Array) continue;
+                foreach (var item in doc.RootElement.EnumerateArray())
+                {
+                    if (item.ValueKind != JsonValueKind.Object) continue;
+                    if (!item.TryGetProperty("type", out var t) || t.ValueKind != JsonValueKind.String) continue;
+                    var type = t.GetString();
+                    if (string.IsNullOrWhiteSpace(type)) continue;
+
+                    counts[type] = counts.GetValueOrDefault(type) + 1;
+                    if (!students.TryGetValue(type, out var seen))
+                        students[type] = seen = [];
+                    seen.Add(s.StudentId);
+                    total++;
+                }
+            }
+        }
+
+        if (total == 0) return [];
+        return counts
+            .OrderByDescending(kv => kv.Value)
+            .ThenBy(kv => kv.Key, StringComparer.Ordinal)
+            .Take(5)
+            .Select(kv => new InsightsErrorResponse(
+                Type: kv.Key,                                    // verbatim — the client owns the label
+                Count: kv.Value,
+                StudentCount: students[kv.Key].Count,
+                Share: Math.Round((double)kv.Value / total, 4, MidpointRounding.ToEven)))
+            .ToList();
+    }
+
+    /// <summary>
+    /// The students an analytics view may count — the denominator of "41 / 48". A teacher's roster is
+    /// the members of the groups they OWN; admin sees every group's members.
+    ///
+    /// <para>The group filter INTERSECTS, it does not replace: a teacher passing another teacher's
+    /// <c>group_id</c> gets an empty roster, exactly as they get no submissions, so the screen can
+    /// never leak how many students are in a group they do not teach.</para>
+    /// </summary>
+    private async Task<List<Guid>> RosterIdsAsync(User user, Guid? groupId, CancellationToken ct)
+    {
+        var stmt = _db.GroupMembers.AsQueryable();
+        if (user.Role != UserRole.Admin)
+            stmt = stmt.Where(gm => gm.Group.TeacherId == user.Id);
+        if (groupId is not null)
+            stmt = stmt.Where(gm => gm.GroupId == groupId.Value);
+
+        return await stmt.Select(gm => gm.StudentId).Distinct().ToListAsync(ct);
     }
 
     // ─── Shared helpers ─────────────────────────────────────────────────────
