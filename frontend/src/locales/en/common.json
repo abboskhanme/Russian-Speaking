@@ -632,6 +632,28 @@
       "colScore": "Score",
       "colAttempts": "Attempts",
       "exportCsv": "Export CSV"
+    },
+    "assignTask": {
+      "title": "Assign work",
+      "what": "Task",
+      "who": "To whom",
+      "due": "Due",
+      "dueHint": "Leave empty for no deadline.",
+      "pickPrompt": "Pick a task or a module",
+      "pickTitle": "What to assign?",
+      "moduleBadge": "module",
+      "submit_one": "Assign to {{count}} student",
+      "submit_other": "Assign to {{count}} students",
+      "submitIdle": "Pick a group",
+      "created_one": "{{count}} assignment created",
+      "created_other": "{{count}} assignments created",
+      "createdNone": "Nothing new — this was already assigned.",
+      "createdHint": "A student who already has this task is not assigned it twice.",
+      "failed": "Could not assign. Please try again.",
+      "noGroups": "You have no groups yet. Create one and add students first.",
+      "goClasses": "Go to Classes",
+      "noContent": "No published task or module yet. Create and publish one in Content.",
+      "goContent": "Go to Content"
     }
   },
   "auth": {

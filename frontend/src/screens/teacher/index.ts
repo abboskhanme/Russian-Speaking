@@ -114,3 +114,14 @@ export type {
 } from "./AnalyticsScreen";
 
 export { mockAnalytics } from "./analytics.mock";
+
+/** D3 «Topshiriq berish» — bulk assign, reached from the A2 / A5 assign buttons. */
+export { AssignTaskScreen, default as AssignTaskDemo } from "./AssignTaskScreen";
+export type {
+  AssignTaskProps,
+  AssignSelection,
+  AssignGroupOption,
+  AssignOutcome,
+} from "./AssignTaskScreen";
+
+export { mockAssignTask } from "./assign.mock";

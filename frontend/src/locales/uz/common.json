@@ -632,6 +632,28 @@
       "colScore": "Ball",
       "colAttempts": "Urinishlar",
       "exportCsv": "CSV eksport"
+    },
+    "assignTask": {
+      "title": "Topshiriq berish",
+      "what": "Vazifa",
+      "who": "Kimga",
+      "due": "Muddat",
+      "dueHint": "Bo‘sh qoldirsangiz — muddatsiz.",
+      "pickPrompt": "Vazifa yoki modul tanlang",
+      "pickTitle": "Nimani berish kerak?",
+      "moduleBadge": "modul",
+      "submit_one": "{{count}} o‘quvchiga topshirish",
+      "submit_other": "{{count}} o‘quvchiga topshirish",
+      "submitIdle": "Guruh tanlang",
+      "created_one": "{{count}} ta topshiriq berildi",
+      "created_other": "{{count}} ta topshiriq berildi",
+      "createdNone": "Yangi topshiriq qo‘shilmadi — bu vazifa allaqachon berilgan.",
+      "createdHint": "Ba’zi o‘quvchilarda bu vazifa allaqachon bo‘lsa, takror berilmaydi.",
+      "failed": "Topshirib bo‘lmadi. Qaytadan urinib ko‘ring.",
+      "noGroups": "Hali guruhingiz yo‘q. Avval guruh oching va o‘quvchilarni qo‘shing.",
+      "goClasses": "Klasslarga o‘tish",
+      "noContent": "Nashr etilgan vazifa yoki modul yo‘q. Kontentda yarating va nashr eting.",
+      "goContent": "Kontentga o‘tish"
     }
   },
   "auth": {

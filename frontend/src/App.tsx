@@ -35,6 +35,7 @@ const AttemptReviewPage = lazy(() => import("./app/routes/AttemptReviewPage"));
 const ContentPage = lazy(() => import("./app/routes/ContentPage"));
 const ModuleEditorPage = lazy(() => import("./app/routes/ModuleEditorPage"));
 const AnalyticsPage = lazy(() => import("./app/routes/AnalyticsPage"));
+const AssignTaskPage = lazy(() => import("./app/routes/AssignTaskPage"));
 const PracticeHubPage = lazy(() => import("./app/routes/PracticeHubPage"));
 const ModuleDetailPage = lazy(() => import("./app/routes/ModuleDetailPage"));
 const PracticePage = lazy(() => import("./app/routes/PracticePage"));
@@ -108,6 +109,9 @@ export default function App() {
             {/* Analitika — Insaytlar | Jurnal (D1/D2), `?tab=grades` for the
                 gradebook, `?group=` for the per-group filter. */}
             <Route path="/teacher/analytics" element={<AnalyticsPage />} />
+            {/* Topshiriq berish — bulk assign (D3). `?group=` preselects, which is
+                how the A2 group cards and the A5 group detail already link here. */}
+            <Route path="/teacher/assign" element={<AssignTaskPage />} />
           </Route>
 
           {/* Student app (students only). */}

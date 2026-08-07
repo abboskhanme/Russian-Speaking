@@ -458,6 +458,32 @@
   border-radius: var(--r-xs);
   text-align: center;
 }
+
+/* On a phone the four columns overflow, and the wrap's sideways scroll would put
+   BALL — the column the teacher actually came for — off-screen until they think
+   to swipe. Tightening the gutters fits all four in a 390px viewport, so the
+   scroll stays a fallback for a very long name rather than the default state. */
+@media (max-width: 430px) {
+  .table thead th {
+    padding-inline: var(--s-2);
+  }
+  .thNum {
+    width: 52px;
+  }
+  .thScore {
+    width: 74px;
+  }
+  .tdName {
+    min-width: 0;
+    padding-inline: var(--s-3);
+  }
+  .tdNum {
+    padding-inline: var(--s-1);
+  }
+  .tdScore {
+    padding-inline: var(--s-3);
+  }
+}
 .band-success {
   background: var(--success-tint);
   color: var(--success);

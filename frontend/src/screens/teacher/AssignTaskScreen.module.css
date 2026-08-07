@@ -1,0 +1,238 @@
+/* AssignTaskScreen — D3 «Topshiriq berish» (bulk assign). Teacher panel design;
+ * every value is a token. Full-width (docs/04 §4.10), compact density
+ * (docs/03 §3.5, scoped to .page). */
+
+.page {
+  --density-scale: 0.75;
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--s-5) * var(--density-scale));
+  width: 100%;
+}
+
+/* ---- Header ---- */
+.head {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  min-width: 0;
+}
+.back {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  flex: none;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: var(--r-pill);
+  background: var(--surface);
+  color: var(--ink);
+  cursor: pointer;
+  transition: background var(--m-fast);
+}
+.back:hover {
+  background: var(--surface-2);
+}
+.back:focus-visible {
+  outline: var(--focus-ring-width) solid var(--focus-ring);
+  outline-offset: var(--focus-ring-offset);
+}
+.title {
+  flex: 1;
+  min-width: 0;
+}
+
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--s-2) * var(--density-scale));
+}
+/* The mockup's uppercase micro-label above each group of controls. */
+.legend {
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+/* ---- Vazifa: the picker trigger ---- */
+.pickRow {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  width: 100%;
+  min-width: 0;
+  padding: var(--s-3) var(--s-4);
+  border: 1.5px solid var(--line-2);
+  border-radius: var(--r-md);
+  background: var(--surface);
+  color: var(--ink);
+  text-align: start;
+  cursor: pointer;
+  transition: border-color var(--m-fast), background var(--m-fast);
+}
+.pickRow:hover {
+  background: var(--surface-2);
+}
+.pickRow:focus-visible {
+  outline: var(--focus-ring-width) solid var(--focus-ring);
+  outline-offset: var(--focus-ring-offset);
+}
+/* A filled slot reads as chosen by BORDER as well as by its text, so the state is
+ * not carried by colour alone (docs/03 §3.3). */
+.pickRowFilled {
+  border-color: var(--primary);
+}
+
+.pickIcon {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 34px;
+  height: 34px;
+  border-radius: var(--r-sm);
+  background: var(--surface-2);
+  color: var(--ink-soft);
+}
+.pickIconModule {
+  background: var(--accent-tint);
+  color: var(--accent);
+}
+
+.pickBody {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+  min-width: 0;
+}
+
+/* ---- Kimga: the group radio list ---- */
+.groupList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.groupRow {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  width: 100%;
+  min-width: 0;
+  padding: var(--s-3) var(--s-4);
+  border: 1.5px solid var(--line-2);
+  border-radius: var(--r-md);
+  background: var(--surface);
+  color: var(--ink);
+  text-align: start;
+  cursor: pointer;
+  transition: border-color var(--m-fast), background var(--m-fast);
+}
+.groupRow:hover {
+  background: var(--surface-2);
+}
+.groupRow:focus-visible {
+  outline: var(--focus-ring-width) solid var(--focus-ring);
+  outline-offset: var(--focus-ring-offset);
+}
+.groupRowOn {
+  border-color: var(--primary);
+}
+.groupName {
+  flex: 1;
+  min-width: 0;
+}
+
+/* The tick box. Selected state is a filled box AND a check mark, never colour
+ * alone — and the check is what a screen reader's aria-checked mirrors. */
+.mark {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 22px;
+  height: 22px;
+  border: 1.5px solid var(--line-2);
+  border-radius: var(--r-sm);
+  background: transparent;
+  color: transparent;
+  transition: background var(--m-fast), border-color var(--m-fast);
+}
+.markOn {
+  border-color: var(--primary);
+  background: var(--primary);
+  color: var(--primary-on);
+}
+
+/* ---- Outcome ---- */
+.outcome {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-1);
+  border-color: var(--success);
+}
+.outcomeError {
+  border-color: var(--danger);
+}
+
+/* ---- Footer action ---- */
+.footer {
+  display: flex;
+  flex-direction: column;
+  padding-top: var(--s-2);
+}
+.footer > * {
+  width: 100%;
+}
+
+/* ---- Empty states ---- */
+.empty {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--s-3);
+}
+
+/* ---- Picker sheet ---- */
+.sheet {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-4);
+  width: 100%;
+}
+.pickerSection {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+}
+.pickerList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.pickerRow {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  width: 100%;
+  min-width: 0;
+  padding: var(--s-3) var(--s-4);
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  background: var(--surface);
+  color: var(--ink);
+  text-align: start;
+  cursor: pointer;
+  transition: background var(--m-fast);
+}
+.pickerRow:hover {
+  background: var(--surface-2);
+}
+.pickerRow:focus-visible {
+  outline: var(--focus-ring-width) solid var(--focus-ring);
+  outline-offset: var(--focus-ring-offset);
+}

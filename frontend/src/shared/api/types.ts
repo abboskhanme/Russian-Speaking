@@ -616,6 +616,27 @@ export interface InsightsResponse {
 /** GET /api/assignments/mine → the caller's assignments. The Home screen shows
  * the soonest incomplete one ("Keyingi topshiriq"). `question_title` is the task
  * name; `due_at` is the deadline (null = no deadline); `completed` marks done. */
+/** Body of POST /api/assignments — assign one task to a group and/or explicit
+ * students. `due_at` is ISO-8601 or omitted for no deadline.
+ *
+ * There is deliberately NO attempt limit: `assignments` has no such column and
+ * nothing in the pipeline enforces one, so the mockup's "Urinish · 3 ta" control
+ * would promise a rule the server does not keep. */
+export interface CreateAssignmentArgs {
+  question_id: string;
+  group_id?: string;
+  student_ids?: string[];
+  due_at?: string;
+}
+
+/** Body of POST /api/assignments/module — assign a whole module's published tasks. */
+export interface CreateModuleAssignmentArgs {
+  block_id: string;
+  group_id?: string;
+  student_ids?: string[];
+  due_at?: string;
+}
+
 export interface AssignmentResponse {
   id: string;
   student_id: string;

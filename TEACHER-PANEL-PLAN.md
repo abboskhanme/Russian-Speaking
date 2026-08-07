@@ -65,17 +65,18 @@ and the mockup's Obzor screen ("bugun kimga yordam kerak"), on real data.
 - [x] `TeacherDashboardPage` wired to real fetches, `allSettled` fault-tolerant.
 - [x] i18n `teacher.*` + the new teacher `nav.*` keys in uz/ru/en.
 
-**Deferred from A1 — no backend behind them, and a faked count on a triage
-screen is worse than a missing card:**
-- [ ] "N o'quvchi X punkt tushdi · Profilni ko'rish" (warn card) →
-  `SubmissionResponse` carries **no AI score** (only `teacher_band`), and
-  `GradebookRowResponse` exposes only a lifetime `AvgBand`/`BestBand`. A trend
-  needs two time windows — so this needs a backend change (Phase 6/D1).
+**Deferred from A1 — a faked count on a triage screen is worse than a missing
+card. ALL THREE ARE NOW UNBLOCKED by Phase 6's backend; they just need wiring
+(tracked as Phase 6b below):**
+- [ ] "N o'quvchi X punkt tushdi · Profilni ko'rish" (warn card) → needed two
+  time windows, which nothing exposed. `GET /api/reports/insights` now carries
+  `trend` + `trend_delta`, and `SubmissionResponse` carries AI scores as of
+  Phase 3.
 - [ ] "N ta guruhga qo'shilish so'rovi · Tasdiqlash kerak" (accent card) → the
-  join-request model now EXISTS (Phase 2b, shipped). This card is just not wired
-  into A1 yet — `GET /api/groups/requests` already returns what it needs.
-- [ ] "Shu hafta sinf xatolari" (`родительный падеж · 12 o'quvchi qoqildi` +
-  "Mashq ber") → needs error-pattern aggregation (Phase 6/D1).
+  join-request model has existed since Phase 2b; `GET /api/groups/requests`
+  already returns what this needs.
+- [ ] "Shu hafta sinf xatolari" (`родительный падеж · 12 o'quvchi qoqildi`) →
+  `insights.errors` now aggregates correction types with per-type student counts.
 
 **Verified on the running stack** (`aziz.karimov@govori.uz` — 1 group, 5
 students, 21 queued): Obzor renders on real data in light + dark, desktop +
@@ -337,14 +338,116 @@ also deferred: `Question.MediaKey` and object storage both exist, but there is n
 multipart upload endpoint for it yet.
 
 ## Phase 6 — Analitika (D1 · D2 · D3)
-- [ ] ✅ Gradebook — `GET /api/reports/gradebook?group_id`.
-- [ ] 🔨 D1 Insaytlar KPIs: hero class-average chart, 2×2 stat tiles (Faol
-  o'quvchi `41/48` · Topshiriq bajarilishi `78%` · Haftalik mashq `312 daq` · Bu
-  hafta baholandi `94 javob`), skill distribution, class error patterns.
-- [ ] D2 Jurnal — the scores table.
-- [ ] D3 Topshiriq berish — bulk assign (`POST /api/assignments` ✅,
-  `POST /api/assignments/module` ✅).
-- [ ] i18n.
+
+**Audit result:** every D1 KPI already had a column behind it — the numbers were
+simply never projected. `Evaluation` carries the four sub-skills, `Submission`
+carries `audio_duration_sec` + `reviewed_at`, `assignments` carries completion,
+and `evaluations.corrections` carries a `type` per correction. So Phase 6's
+backend is **one composed read over existing rows — no migration**.
+
+**Backend** ✅ — all additive.
+- [x] 🔨 `GET /api/reports/insights?group_id=` — the whole D1 payload in one
+  read, scoped exactly like the gradebook. The group filter **intersects** with
+  the caller's roster rather than replacing it, so a teacher passing another
+  teacher's `group_id` learns nothing about it — **not even its size**.
+- [x] 🔨 `GradebookRowResponse` += `fluency/grammar/pronunciation/lexical`,
+  APPENDED (wire shape untouched), averaged over the SAME recent window
+  `avg_band` uses so a row's headline and its skills describe one set of answers.
+- [x] ✅ Gradebook itself — `GET /api/reports/gradebook?group_id` already existed.
+
+**Frontend** ✅
+- [x] D1 Insaytlar (`/teacher/analytics`): hero class-average + CEFR badge +
+  3-month trend, 2×2 stat tiles, skill distribution, weekly activity, class error
+  patterns. The nav item already pointed here — the PATH had no route, so it fell
+  through to the `*` catch-all and bounced to Obzor.
+- [x] D2 Jurnal (`?tab=grades`) — the scores table with the new per-skill columns,
+  plus CSV export built client-side (UTF-8 BOM so Excel reads the Cyrillic and
+  Uzbek names). One `?group=` param drives BOTH fetches, so an exported CSV always
+  matches the table the teacher filtered.
+- [x] D3 Topshiriq berish (`/teacher/assign`, `?group=` preselects) — task OR
+  module, one group, optional deadline. The A2 group cards and the A5 group detail
+  were ALREADY navigating here; only the route was missing.
+- [x] i18n uz/ru/en.
+
+**Decisions worth keeping:**
+- **Two different class averages ship side by side, on purpose.** `class_avg` is
+  the mean of the per-student rolling averages — literally the mean of the
+  `avg_band` values D2's table prints, so the headline can never disagree with
+  the table under it. The trend points are per-SUBMISSION means: averaging
+  students would let a month in which one student practised speak for the class.
+- **`trend_delta` compares the two most recent months that BOTH have data**, not
+  "this month minus last month". The naive rule is blank for the first days of
+  every month — exactly when a teacher opens the screen. Caught on real data:
+  it read `null` on 7 Aug and now reports `-4.1` (July 78.44 vs June 82.54).
+- **Error types stay VERBATIM on the wire.** `corrections[].type` is an
+  open-ended vocabulary the grader writes (today's rows hold `word_order` and
+  `relevance`); the client maps known ones to labels and falls back to the raw
+  string, so a type nobody has seen yet still appears instead of vanishing into
+  an "other" pile. Parsed in C#, not SQL — the set is already roster-bounded.
+- **Fixed-length series.** `trend` is always 3 and `week` always 7, so the charts
+  keep a fixed axis; a month with nothing graded is `null` (a GAP in the line),
+  never `0` (a plunge).
+- **Rolling 7×24h windows, not calendar weeks** — a calendar week makes Monday
+  morning report a near-empty class, which reads as an outage, not a fresh week.
+
+- **D3 reports what the SERVER did, not what the UI hoped.** The assignment count
+  comes from the response array: the server drops targets outside the teacher's
+  roster (the S1 filter) and skips tasks a student already has, so "6 o'quvchiga
+  topshirish" legitimately produced **4** rows in the live test. Saying so beats
+  hiding it. Only PUBLISHED tasks/modules are offered — a draft reaches nobody,
+  and an empty module 400s server-side anyway.
+
+**Omitted for want of data (do NOT fake):**
+- D1's **"Mashq ber"** button on each error row — nothing maps an error type to a
+  task, so the button would have nowhere honest to go. Same for the **"Hammasi"**
+  link beside that heading: the endpoint returns the top 5 and there is no
+  all-errors destination.
+- D3's **"Urinish · 3 ta"** (max attempts) — `assignments` has no attempts column
+  and nothing in the pipeline enforces a limit, so the control would promise a
+  rule the server does not keep.
+
+**Two bugs found while verifying (both only visible in a real browser):**
+1. The hero rendered the LEVEL LABEL at display size — "o'rta-yuqori" wrapped to
+   two lines and shoved the band off the card. The CEFR CODE is the headline;
+   the label is secondary text beside the score.
+2. D2's table overflowed a 390px phone, and since the wrap scrolls sideways,
+   **Ball** — the column the teacher came for — sat off-screen until they thought
+   to swipe. Tightened gutters under 430px fit all four columns.
+
+**Also fixed here (pre-existing, whole panel):** all 8 teacher stylesheets used
+`var(--focus)` and `var(--motion-fast)`, and NEITHER is defined in `tokens.css`
+(the real names are `--focus-ring` / `--m-fast`, and `--m-fast` already bundles
+its easing). Every one of those declarations was invalid at computed-value time,
+so the teacher panel had **no visible focus ring for keyboard users** and no hover
+transitions. 28 declarations repaired.
+
+**Verified**: 207/0 across all four suites (86 Unit · 35 Arch · 35 Characterization
+· 51 Integration) against a scratch DB clone; the insights endpoint live on real
+data (`class_avg 81.4 · B2`, June 82.54 → July 78.44, `word_order` 23× across 5
+students) and the foreign-group guard live (all null, `total_students 0`).
+
+**Screens verified in a REAL browser** — the Claude-in-Chrome extension is not
+connected in this environment, so the pass ran headless Chromium inside
+`govori-net` (hitting `http://govori-web` exactly as a phone would, /api proxied
+by the same nginx): 16 screenshots = D1 · D2 · D3 · A1 × mobile 390×844 +
+desktop × light + dark. No route bounced, no console error, no raw JSON on screen.
+The D3 WRITE path was driven as a real click-through (open with `?group=` →
+picker → module → submit): the screen reported "4 ta topshiriq berildi" and the
+DB moved 31 → 35, matching exactly. Test rows removed.
+
+**Verification wart worth knowing:** the dev seed writes ABSOLUTE timestamps, so
+the fixture ages — as of Aug 2026 the newest submission anywhere is ~5 weeks old
+and every "this week" tile reads 0 legitimately. That is correct behaviour, not a
+bug, but it means the populated state of the weekly tiles/chart can only be seen
+by shifting a slice of `submissions.created_at` forward and shifting it back.
+
+## Phase 6b — Wire A1 Obzor's three deferred cards
+Pure frontend: Phase 6's `GET /api/reports/insights` + Phase 2b's
+`GET /api/groups/requests` now supply every number these cards were waiting on.
+- [ ] Trend warn card ← `insights.trend_delta` (and per-student drops once a
+  student-level trend exists — the class delta alone cannot name a student).
+- [ ] Join-requests accent card ← `GET /api/groups/requests` count → A3.
+- [ ] "Shu hafta sinf xatolari" ← `insights.errors[0]`.
 
 ## Phase 7 — Teacher profile
 - [ ] Reached from the A1 header avatar (there is no Profil nav item): name,

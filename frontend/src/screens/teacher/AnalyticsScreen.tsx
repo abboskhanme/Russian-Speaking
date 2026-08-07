@@ -50,8 +50,13 @@ export interface AnalyticsErrorRow {
 /** Everything D1 draws. Null throughout = "no data yet", never zero. */
 export interface AnalyticsInsights {
   classAvg: number | null;
-  /** CEFR bucket, e.g. "B1". */
+  /** CEFR bucket, e.g. "B1" — the hero's DISPLAY value. It has to be the short
+   * code: the Uzbek label ("o'rta-yuqori") wraps to two lines at display size and
+   * shoves the band off the card. */
   classLevel: string | null;
+  /** The short label paired with {@link classLevel} ("o'rta-yuqori"). Secondary
+   * text beside the band, so the code stays the headline and nothing is lost. */
+  classLevelLabel?: string | null;
   /** Points vs. the previous month; null when either month is empty. */
   trendDelta: number | null;
   trend: AnalyticsTrendPoint[];
@@ -240,7 +245,7 @@ function InsightsTab({ insights }: { insights: AnalyticsInsights | null }) {
 
 function HeroCard({ insights }: { insights: AnalyticsInsights }) {
   const { t } = useTranslation();
-  const { classAvg, classLevel, trendDelta, trend } = insights;
+  const { classAvg, classLevel, classLevelLabel, trendDelta, trend } = insights;
   const hasTrend = trend.some((p) => p.avg != null);
 
   return (
@@ -260,7 +265,9 @@ function HeroCard({ insights }: { insights: AnalyticsInsights }) {
                 {classLevel ?? "—"}
               </Text>
               <Text as="span" variant="body-s" numeric className={styles.heroBand}>
-                {t("teacher.analytics.outOf", { score: Math.round(classAvg) })}
+                {classLevelLabel
+                  ? `${classLevelLabel} · ${t("teacher.analytics.outOf", { score: Math.round(classAvg) })}`
+                  : t("teacher.analytics.outOf", { score: Math.round(classAvg) })}
               </Text>
             </p>
           )}

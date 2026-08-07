@@ -11,6 +11,8 @@ import { apiClient } from "./client";
 import type {
   AchievementResponse,
   AssignmentResponse,
+  CreateAssignmentArgs,
+  CreateModuleAssignmentArgs,
   AttemptDetailResponse,
   AuthConfigResponse,
   GroupResponse,
@@ -494,6 +496,24 @@ export function clearAllNotifications(): Promise<void> {
  * (student, question), so group-level views must fold them by question. */
 export function teacherAssignments(): Promise<AssignmentResponse[]> {
   return apiClient.get<AssignmentResponse[]>("/assignments");
+}
+
+/** POST /api/assignments → assign ONE task (201). Targets are `student_ids` ∪ the
+ * group's members, then filtered through the teacher's own roster server-side, so
+ * the returned array is the authoritative count of what was actually created —
+ * it can legitimately be shorter than the group's size. Report ITS length, never
+ * the number you hoped for. */
+export function createAssignments(args: CreateAssignmentArgs): Promise<AssignmentResponse[]> {
+  return apiClient.post<AssignmentResponse[]>("/assignments", args);
+}
+
+/** POST /api/assignments/module → assign every PUBLISHED task of a module (201).
+ * Tasks a student already has are skipped, so the result is usually smaller than
+ * `task_count × students`; an empty module is a 400, not an empty success. */
+export function createModuleAssignments(
+  args: CreateModuleAssignmentArgs,
+): Promise<AssignmentResponse[]> {
+  return apiClient.post<AssignmentResponse[]>("/assignments/module", args);
 }
 
 /** GET /api/submissions?student_id=… → one student's attempts, newest first.

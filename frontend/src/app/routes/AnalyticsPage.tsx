@@ -136,9 +136,11 @@ export default function AnalyticsPage() {
 
     return {
       classAvg: insights.class_avg,
-      // Prefer the server's own label so the teacher and the student read the
-      // same CEFR bucket; fall back to the bare code.
-      classLevel: insights.class_level_label ?? insights.class_level,
+      // The CODE is the headline and the LABEL is secondary — not the other way
+      // round. "o'rta-yuqori" at display size wraps onto two lines and pushes the
+      // band off the hero card, which is what it did before this split.
+      classLevel: insights.class_level,
+      classLevelLabel: insights.class_level_label,
       trendDelta: insights.trend_delta,
       trend: insights.trend.map((p) => ({
         key: `${p.year}-${p.month}`,
