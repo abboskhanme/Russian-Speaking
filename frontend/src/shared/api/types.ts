@@ -533,6 +533,84 @@ export interface GradebookRowResponse {
   avg_band: number | null;
   best_band: number | null;
   last_activity: string | null;
+  /* The four per-criterion averages, APPENDED in Phase 6 so the Jurnal can show
+   * "Ravon. · Gram." beside the overall band without one detail request per
+   * student. Null when the student has no graded attempt — never 0, which would
+   * read as "scored zero" rather than "never measured". */
+  fluency: number | null;
+  grammar: number | null;
+  pronunciation: number | null;
+  lexical: number | null;
+}
+
+/* ── Analitika · D1 Insaytlar (GET /api/reports/insights) ─────────────────── */
+
+/** One month of the hero chart. `avg` is null for a month with no graded
+ * attempt — the line must GAP there, not drop to zero. */
+export interface InsightsTrendPoint {
+  year: number;
+  /** 1–12, matching the `time.month1` … `time.month12` keys. */
+  month: number;
+  avg: number | null;
+  attempts: number;
+}
+
+/** Class-wide averages per criterion, 0–100. Null = nothing scored yet. */
+export interface InsightsSkills {
+  fluency: number | null;
+  grammar: number | null;
+  pronunciation: number | null;
+  lexical: number | null;
+}
+
+/** One day of the "Haftalik faollik" chart. `date` is `YYYY-MM-DD`, local. */
+export interface InsightsWeekDay {
+  date: string;
+  attempts: number;
+}
+
+/** One row of "Ko'p uchragan xatolar". `type` is a stable machine key
+ * (`word_order`, `relevance`, …) that the UI localizes via `teacher.errorType.*`,
+ * falling back to the raw string for a type it does not know yet. `share` is
+ * 0–1, not a percentage. */
+export interface InsightsErrorPattern {
+  type: string;
+  count: number;
+  student_count: number;
+  share: number;
+}
+
+/**
+ * GET /api/reports/insights (?group_id) → the teacher's class analytics
+ * (D1 Insaytlar). Teacher/admin only; scoped server-side to the caller's own
+ * roster and questions, exactly like the gradebook.
+ *
+ * Every aggregate is nullable on purpose: a brand-new teacher has no attempts,
+ * and an honest empty state beats a wall of zeros. `trend` is always exactly 3
+ * entries (oldest first, current month last) and `week` always exactly 7 (oldest
+ * first, ending today), so the charts have a stable axis even at zero.
+ */
+export interface InsightsResponse {
+  class_avg: number | null;
+  class_level: string | null;
+  class_level_label: string | null;
+  /** Points gained/lost between the two most recent months that BOTH have a
+   * graded average — empty months are skipped rather than nulling the chip, since
+   * "this month minus last month" is blank for the first days of every month.
+   * Null when fewer than two months have anything graded. */
+  trend_delta: number | null;
+  trend: InsightsTrendPoint[];
+  active_students: number;
+  total_students: number;
+  assignments_done: number;
+  assignments_total: number;
+  /** Seconds of practice this week; the UI shows minutes. */
+  practice_sec_week: number;
+  reviewed_week: number;
+  skills: InsightsSkills;
+  week: InsightsWeekDay[];
+  /** Top 5, most frequent first. */
+  errors: InsightsErrorPattern[];
 }
 
 /** GET /api/assignments/mine → the caller's assignments. The Home screen shows

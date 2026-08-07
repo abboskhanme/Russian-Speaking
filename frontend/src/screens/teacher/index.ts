@@ -98,3 +98,19 @@ export type {
 } from "./ModuleEditorScreen";
 
 export { mockContentModules, mockContentTasks, mockModuleEditor } from "./content.mock";
+
+/** D1 «Insaytlar» + D2 «Jurnal» as one tabbed screen. */
+export { AnalyticsScreen, default as AnalyticsDemo } from "./AnalyticsScreen";
+export type {
+  AnalyticsScreenProps,
+  AnalyticsTabKey,
+  AnalyticsInsights,
+  AnalyticsTrendPoint,
+  AnalyticsSkill,
+  AnalyticsWeekDay,
+  AnalyticsErrorRow,
+  AnalyticsGroupOption,
+  GradebookStudent,
+} from "./AnalyticsScreen";
+
+export { mockAnalytics } from "./analytics.mock";

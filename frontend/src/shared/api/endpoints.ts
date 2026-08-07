@@ -16,6 +16,7 @@ import type {
   GroupResponse,
   GroupDetailResponse,
   GradebookRowResponse,
+  InsightsResponse,
   GroupJoinRequestResponse,
   TeacherBlockResponse,
   TeacherBlockDetailResponse,
@@ -415,6 +416,19 @@ export function rejectJoinRequest(id: string): Promise<void> {
 export function teacherGradebook(groupId?: string): Promise<GradebookRowResponse[]> {
   const q = groupId ? `?group_id=${encodeURIComponent(groupId)}` : "";
   return apiClient.get<GradebookRowResponse[]>(`/reports/gradebook${q}`);
+}
+
+/** GET /api/reports/insights (?group_id) → the class analytics behind D1
+ * «Insaytlar»: hero average + 3-month trend, the four KPIs, skill distribution,
+ * this week's activity and the top error patterns. Teacher/admin; scoped
+ * server-side to the caller's own roster and questions.
+ *
+ * Every aggregate can come back null — a teacher whose class has not been graded
+ * yet gets nulls, not zeros, and the screen renders empty states rather than
+ * inventing numbers. */
+export function teacherInsights(groupId?: string): Promise<InsightsResponse> {
+  const q = groupId ? `?group_id=${encodeURIComponent(groupId)}` : "";
+  return apiClient.get<InsightsResponse>(`/reports/insights${q}`);
 }
 
 /* ── Settings ──────────────────────────────────────────────────────────── */

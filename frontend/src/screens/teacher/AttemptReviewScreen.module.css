@@ -31,14 +31,14 @@
   background: var(--surface);
   color: var(--ink);
   cursor: pointer;
-  transition: background var(--motion-fast) var(--ease-standard);
+  transition: background var(--m-fast);
 }
 .back:hover {
   background: var(--surface-2);
 }
 .back:focus-visible {
-  outline: 2px solid var(--focus);
-  outline-offset: 2px;
+  outline: var(--focus-ring-width) solid var(--focus-ring);
+  outline-offset: var(--focus-ring-offset);
 }
 .headText {
   flex: 1;
@@ -241,7 +241,7 @@
   accent-color: var(--primary);
 }
 .slider:focus-visible {
-  outline: 2px solid var(--focus);
+  outline: var(--focus-ring-width) solid var(--focus-ring);
   outline-offset: 4px;
 }
 

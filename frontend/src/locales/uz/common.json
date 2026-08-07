@@ -590,7 +590,49 @@
     "taskPromptPlaceholder": "Расскажите, что вы вчера купили в магазине. 3–4 предложения.",
     "taskLevel": "Daraja",
     "mediaLater": "Media yuklash hozircha mavjud emas — keyingi bosqichda qo‘shiladi.",
-    "saveDraft": "Qoralama sifatida saqlash"
+    "saveDraft": "Qoralama sifatida saqlash",
+    "errorType": {
+      "word_order": "So‘z tartibi",
+      "relevance": "Mavzuga moslik",
+      "grammar": "Grammatika",
+      "vocabulary": "Lug‘at",
+      "pronunciation": "Talaffuz"
+    },
+    "analytics": {
+      "tabInsights": "Insaytlar",
+      "tabGrades": "Jurnal",
+      "groupFilter": "Guruh",
+      "allGroups": "Barcha guruhlar",
+      "noInsights": "Analitika hozircha mavjud emas.",
+      "classAvgTitle": "Sinf o‘rtacha darajasi",
+      "outOf": "{{score}} / 100 ball",
+      "noScores": "Hali baholangan javob yo‘q",
+      "noTrend": "Oylik dinamika uchun ma’lumot yetarli emas",
+      "deltaPoints": "{{delta}} punkt",
+      "deltaUpAria": "o‘tgan oyga nisbatan o‘sish",
+      "deltaDownAria": "o‘tgan oyga nisbatan pasayish",
+      "deltaFlatAria": "o‘tgan oyga nisbatan o‘zgarishsiz",
+      "kpiActive": "Faol o‘quvchi",
+      "kpiCompletion": "Topshiriq bajarilishi",
+      "kpiPractice": "Haftalik mashq",
+      "kpiReviewed": "Bu hafta baholandi",
+      "unitMinutes": "daq",
+      "unitAnswers": "javob",
+      "skillsTitle": "Ko‘nikma taqsimoti",
+      "noSkills": "Ko‘nikmalar hali baholanmagan",
+      "weekTitle": "Haftalik faollik",
+      "weekBarAria": "{{day}}: {{count}} javob",
+      "noActivity": "Bu hafta javob yo‘q",
+      "errorsTitle": "Ko‘p uchragan xatolar",
+      "errorMeta": "{{count}} o‘quvchi · {{pct}}%",
+      "noErrors": "Xato namunalari topilmadi",
+      "colStudent": "O‘quvchi",
+      "colFluency": "Ravon.",
+      "colGrammar": "Gram.",
+      "colScore": "Ball",
+      "colAttempts": "Urinishlar",
+      "exportCsv": "CSV eksport"
+    }
   },
   "auth": {
     "phoneLabel": "Telefon raqam",
@@ -860,6 +902,13 @@
     "month11": "noyabr",
     "month12": "dekabr",
     "dayMonthTime": "{{day}}-{{month}} {{time}}",
-    "monthYear": "{{month}} {{year}}"
+    "monthYear": "{{month}} {{year}}",
+    "wd1": "Du",
+    "wd2": "Se",
+    "wd3": "Ch",
+    "wd4": "Pa",
+    "wd5": "Ju",
+    "wd6": "Sh",
+    "wd7": "Ya"
   }
 }

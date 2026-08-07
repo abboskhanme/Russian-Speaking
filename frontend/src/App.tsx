@@ -34,6 +34,7 @@ const ReviewQueuePage = lazy(() => import("./app/routes/ReviewQueuePage"));
 const AttemptReviewPage = lazy(() => import("./app/routes/AttemptReviewPage"));
 const ContentPage = lazy(() => import("./app/routes/ContentPage"));
 const ModuleEditorPage = lazy(() => import("./app/routes/ModuleEditorPage"));
+const AnalyticsPage = lazy(() => import("./app/routes/AnalyticsPage"));
 const PracticeHubPage = lazy(() => import("./app/routes/PracticeHubPage"));
 const ModuleDetailPage = lazy(() => import("./app/routes/ModuleDetailPage"));
 const PracticePage = lazy(() => import("./app/routes/PracticePage"));
@@ -104,6 +105,9 @@ export default function App() {
                 hosts the library picker (C5) and the new-task sheet (C2). */}
             <Route path="/teacher/content" element={<ContentPage />} />
             <Route path="/teacher/content/:blockId" element={<ModuleEditorPage />} />
+            {/* Analitika — Insaytlar | Jurnal (D1/D2), `?tab=grades` for the
+                gradebook, `?group=` for the per-group filter. */}
+            <Route path="/teacher/analytics" element={<AnalyticsPage />} />
           </Route>
 
           {/* Student app (students only). */}

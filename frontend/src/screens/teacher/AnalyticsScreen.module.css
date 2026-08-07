@@ -1,0 +1,484 @@
+/* AnalyticsScreen — D1 «Insaytlar» + D2 «Jurnal»
+ * (Govorim - Teacher.dc.html). Teacher panel design; composed from shared/ui +
+ * tokens. Full-width per docs/04 §4.10, compact density per docs/03 §3.5
+ * (scoped to .page). */
+
+.page {
+  --density-scale: 0.75;
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--s-5) * var(--density-scale));
+  width: 100%;
+}
+
+/* ---- Group filter (only rendered with 2+ groups) ---- */
+.filter {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  flex-wrap: wrap;
+}
+.filterLabel {
+  flex: none;
+}
+.select {
+  flex: 1;
+  min-width: 180px;
+  max-width: 340px;
+  padding: var(--s-2) var(--s-3);
+  font: inherit;
+  font-size: var(--t-body-s-size);
+  font-weight: var(--fw-semibold);
+  color: var(--ink);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r-xs);
+  cursor: pointer;
+}
+.select:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+/* ==========================================================================
+   D1 — Hero: class average + CEFR + delta chip + 3-month chart
+   ========================================================================== */
+
+/* The mockup's hero is an INVERTED card (dark surface, light ink). Taken
+   literally that flips to a glaring near-white slab in dark mode, so the tokens
+   are declared locally and re-pointed for dark: the card stays the darkest thing
+   on the page in BOTH themes, which is the point of the treatment. */
+.hero {
+  --hero-bg: var(--ink);
+  --hero-ink: var(--bg);
+  --hero-soft: oklch(0.78 0.015 78);
+  --hero-faint: oklch(0.62 0.015 78);
+  --hero-line: var(--primary);
+
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+  padding: var(--s-5);
+  border-radius: var(--r-lg);
+  background: var(--hero-bg);
+  color: var(--hero-ink);
+}
+:global(:root[data-theme="dark"]) .hero {
+  --hero-bg: var(--surface-2);
+  --hero-ink: var(--ink);
+  --hero-soft: var(--ink-soft);
+  --hero-faint: var(--muted);
+}
+@media (prefers-color-scheme: dark) {
+  :global(:root:not([data-theme="light"])) .hero {
+    --hero-bg: var(--surface-2);
+    --hero-ink: var(--ink);
+    --hero-soft: var(--ink-soft);
+    --hero-faint: var(--muted);
+  }
+}
+
+.heroTop {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--s-3);
+}
+.heroHeadline {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-1);
+}
+.heroLabel {
+  color: var(--hero-soft);
+  text-transform: uppercase;
+}
+.heroValue {
+  display: flex;
+  align-items: baseline;
+  gap: var(--s-2);
+  margin: 0;
+  min-width: 0;
+}
+.heroLevel {
+  color: var(--hero-ink);
+}
+.heroBand {
+  color: var(--hero-faint);
+}
+.heroEmpty,
+.heroChartEmpty {
+  color: var(--hero-soft);
+}
+.heroChartEmpty {
+  padding-block: var(--s-4);
+}
+
+/* ---- ↑ +7 punkt ---- */
+.delta {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-1);
+  flex: none;
+  padding: var(--s-1) var(--s-3);
+  border-radius: var(--r-pill);
+  white-space: nowrap;
+}
+/* Arrow + sign + colour all carry the direction, so colour is never the only
+   signal (docs/03 §3.3). */
+.delta-up {
+  background: var(--success-tint);
+  color: var(--success);
+}
+.delta-down {
+  background: var(--danger-tint);
+  color: var(--danger);
+}
+.delta-flat {
+  background: var(--surface-3);
+  color: var(--ink-soft);
+}
+
+/* ---- 3-month area chart ---- */
+.chart {
+  display: block;
+  width: 100%;
+  height: 72px;
+  margin-top: var(--s-3);
+  color: var(--hero-line);
+  /* The end dots are drawn in device space and sit on the box edges; without
+     this they'd be clipped in half. */
+  overflow: visible;
+}
+.heroAxis {
+  list-style: none;
+  margin: 0;
+  padding: var(--s-1) 0 0;
+  display: flex;
+  justify-content: space-between;
+}
+.heroAxisLabel {
+  flex: 1;
+  text-align: center;
+  color: var(--hero-faint);
+  font-weight: var(--fw-semibold);
+}
+/* The end labels sit under the end points, not centred over their third. */
+.heroAxisLabel:first-child {
+  text-align: start;
+}
+.heroAxisLabel:last-child {
+  text-align: end;
+}
+
+/* ==========================================================================
+   D1 — 2×2 KPI tiles
+   ========================================================================== */
+.kpis {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: calc(var(--s-3) * var(--density-scale));
+}
+@media (min-width: 720px) {
+  .kpis {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+/* ==========================================================================
+   D1 — Ko'nikma taqsimoti
+   ========================================================================== */
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--s-3) * var(--density-scale));
+}
+
+.skills {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-3);
+}
+.skillRow {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+}
+.skillLabel {
+  width: 96px;
+  flex: none;
+}
+.track {
+  flex: 1;
+  height: 8px;
+  border-radius: var(--r-pill);
+  background: var(--surface-3);
+  overflow: hidden;
+}
+.fill {
+  height: 100%;
+  border-radius: var(--r-pill);
+  transition: width var(--m-slow);
+}
+/* Tone the bar by score so a weak skill reads as weak at a glance. The number
+   beside it says the same thing, so colour is never the only signal. */
+.fill-success {
+  background: var(--success);
+}
+.fill-warn {
+  background: var(--warn);
+}
+.fill-danger {
+  background: var(--danger);
+}
+.skillScore {
+  width: 28px;
+  flex: none;
+  text-align: end;
+}
+/* "baholanmagan" instead of a number — wider than the numeric cell. */
+.skillScoreNone {
+  flex: none;
+  text-align: end;
+}
+
+/* Shared numeric tones (skill scores + Jurnal sub-scores). */
+.score-success {
+  color: var(--success);
+}
+.score-warn {
+  color: var(--warn-ink);
+}
+.score-danger {
+  color: var(--danger);
+}
+
+/* ==========================================================================
+   D1 — Haftalik faollik
+   ========================================================================== */
+.weekCard {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+}
+.weekBars {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  align-items: flex-end;
+  gap: var(--s-2);
+  height: 96px;
+  /* The axis stays visible even when every column is zero. */
+  border-bottom: 1px solid var(--line);
+}
+.weekCol {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  height: 100%;
+  gap: 2px;
+}
+.weekCount {
+  flex: none;
+  line-height: 1;
+}
+.weekBar {
+  width: 100%;
+  max-width: 26px;
+  min-height: 0;
+  background: var(--accent-tint);
+  border-radius: 7px 7px 3px 3px;
+  transition: height var(--m-slow);
+}
+/* Today's column — weight + colour, and the label beneath repeats it. */
+.weekBarToday {
+  background: var(--accent);
+}
+.weekAxis {
+  display: flex;
+  gap: var(--s-2);
+}
+.weekLabel {
+  flex: 1;
+  min-width: 0;
+  text-align: center;
+  color: var(--muted);
+  font-weight: var(--fw-semibold);
+}
+.weekLabelToday {
+  color: var(--accent);
+  font-weight: var(--fw-black);
+}
+
+/* ==========================================================================
+   D1 — Ko'p uchragan xatolar
+   ========================================================================== */
+.errorList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--s-3) * var(--density-scale));
+}
+.errorCard {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-3);
+}
+.errorTop {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  min-width: 0;
+}
+.rank {
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  flex: none;
+  border-radius: var(--r-xs);
+}
+.rank-danger {
+  background: var(--danger-tint);
+  color: var(--danger);
+}
+.rank-warn {
+  background: var(--warn-tint);
+  color: var(--warn-ink);
+}
+.rank-neutral {
+  background: var(--surface-3);
+  color: var(--ink-soft);
+}
+.errorBody {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+.errorLabel {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.errorTrack {
+  height: 5px;
+  border-radius: var(--r-pill);
+  background: var(--surface-3);
+  overflow: hidden;
+}
+.errorFill {
+  height: 100%;
+  border-radius: var(--r-pill);
+  transition: width var(--m-slow);
+}
+.errorFill-danger {
+  background: var(--danger);
+}
+.errorFill-warn {
+  background: var(--warn);
+}
+.errorFill-neutral {
+  background: var(--muted);
+}
+
+/* ==========================================================================
+   D2 — Jurnal
+   ========================================================================== */
+/* The table is the one place a teacher panel screen may scroll sideways: the
+   page itself never does (docs/04 §4.10). */
+.tableWrap {
+  width: 100%;
+  overflow-x: auto;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+}
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: auto;
+}
+.table thead th {
+  position: sticky;
+  top: 0;
+  padding: var(--s-3) var(--s-4);
+  background: var(--surface-2);
+  border-bottom: 1px solid var(--line);
+  font-size: var(--t-label-size);
+  line-height: var(--t-label-line);
+  font-weight: var(--fw-black);
+  letter-spacing: var(--t-label-tracking);
+  text-transform: uppercase;
+  color: var(--muted);
+  white-space: nowrap;
+}
+.thName {
+  text-align: start;
+}
+.thNum {
+  text-align: center;
+  width: 68px;
+}
+.thScore {
+  text-align: end;
+  width: 92px;
+}
+.table tbody tr + tr th,
+.table tbody tr + tr td {
+  border-top: 1px solid var(--line);
+}
+.tdName {
+  padding: var(--s-3) var(--s-4);
+  text-align: start;
+  font-weight: var(--fw-regular);
+  min-width: 140px;
+}
+.tdNum {
+  padding: var(--s-3) var(--s-2);
+  text-align: center;
+  white-space: nowrap;
+}
+.tdScore {
+  padding: var(--s-3) var(--s-4);
+  text-align: end;
+  white-space: nowrap;
+}
+.band {
+  display: inline-block;
+  min-width: 34px;
+  padding: 3px var(--s-2);
+  border-radius: var(--r-xs);
+  text-align: center;
+}
+.band-success {
+  background: var(--success-tint);
+  color: var(--success);
+}
+.band-warn {
+  background: var(--warn-tint);
+  color: var(--warn-ink);
+}
+.band-danger {
+  background: var(--danger-tint);
+  color: var(--danger);
+}
+
+.export {
+  align-self: stretch;
+}
+
+/* ---- Shared ---- */
+.empty {
+  display: grid;
+  place-items: center;
+  text-align: center;
+  padding-block: var(--s-6);
+}

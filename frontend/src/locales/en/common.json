@@ -590,7 +590,49 @@
     "taskPromptPlaceholder": "Расскажите, что вы вчера купили в магазине.",
     "taskLevel": "Level",
     "mediaLater": "Media upload is not available yet — coming in a later step.",
-    "saveDraft": "Save as draft"
+    "saveDraft": "Save as draft",
+    "errorType": {
+      "word_order": "Word order",
+      "relevance": "Relevance",
+      "grammar": "Grammar",
+      "vocabulary": "Vocabulary",
+      "pronunciation": "Pronunciation"
+    },
+    "analytics": {
+      "tabInsights": "Insights",
+      "tabGrades": "Gradebook",
+      "groupFilter": "Group",
+      "allGroups": "All groups",
+      "noInsights": "Analytics are not available yet.",
+      "classAvgTitle": "Class average level",
+      "outOf": "{{score}} / 100 points",
+      "noScores": "No graded answers yet",
+      "noTrend": "Not enough data for a monthly trend",
+      "deltaPoints": "{{delta}} pts",
+      "deltaUpAria": "up on last month",
+      "deltaDownAria": "down on last month",
+      "deltaFlatAria": "unchanged from last month",
+      "kpiActive": "Active students",
+      "kpiCompletion": "Assignment completion",
+      "kpiPractice": "Practice this week",
+      "kpiReviewed": "Reviewed this week",
+      "unitMinutes": "min",
+      "unitAnswers": "answers",
+      "skillsTitle": "Skill distribution",
+      "noSkills": "No skills scored yet",
+      "weekTitle": "Weekly activity",
+      "weekBarAria": "{{day}}: {{count}} answers",
+      "noActivity": "No answers this week",
+      "errorsTitle": "Most common errors",
+      "errorMeta": "{{count}} students · {{pct}}%",
+      "noErrors": "No recurring error patterns found",
+      "colStudent": "Student",
+      "colFluency": "Fluency",
+      "colGrammar": "Gram.",
+      "colScore": "Score",
+      "colAttempts": "Attempts",
+      "exportCsv": "Export CSV"
+    }
   },
   "auth": {
     "phoneLabel": "Phone number",
@@ -860,6 +902,13 @@
     "month11": "November",
     "month12": "December",
     "dayMonthTime": "{{month}} {{day}}, {{time}}",
-    "monthYear": "{{month}} {{year}}"
+    "monthYear": "{{month}} {{year}}",
+    "wd1": "Mon",
+    "wd2": "Tue",
+    "wd3": "Wed",
+    "wd4": "Thu",
+    "wd5": "Fri",
+    "wd6": "Sat",
+    "wd7": "Sun"
   }
 }

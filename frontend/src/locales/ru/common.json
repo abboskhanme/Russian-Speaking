@@ -607,7 +607,49 @@
     "taskPromptPlaceholder": "Расскажите, что вы вчера купили в магазине. 3–4 предложения.",
     "taskLevel": "Уровень",
     "mediaLater": "Загрузка медиа пока недоступна — появится позже.",
-    "saveDraft": "Сохранить черновик"
+    "saveDraft": "Сохранить черновик",
+    "errorType": {
+      "word_order": "Порядок слов",
+      "relevance": "Соответствие теме",
+      "grammar": "Грамматика",
+      "vocabulary": "Лексика",
+      "pronunciation": "Произношение"
+    },
+    "analytics": {
+      "tabInsights": "Аналитика",
+      "tabGrades": "Журнал",
+      "groupFilter": "Группа",
+      "allGroups": "Все группы",
+      "noInsights": "Аналитика пока недоступна.",
+      "classAvgTitle": "Средний уровень класса",
+      "outOf": "{{score}} / 100 баллов",
+      "noScores": "Пока нет оценённых ответов",
+      "noTrend": "Недостаточно данных для динамики по месяцам",
+      "deltaPoints": "{{delta}} п.",
+      "deltaUpAria": "рост по сравнению с прошлым месяцем",
+      "deltaDownAria": "снижение по сравнению с прошлым месяцем",
+      "deltaFlatAria": "без изменений по сравнению с прошлым месяцем",
+      "kpiActive": "Активных учеников",
+      "kpiCompletion": "Выполнение заданий",
+      "kpiPractice": "Практика за неделю",
+      "kpiReviewed": "Проверено на этой неделе",
+      "unitMinutes": "мин",
+      "unitAnswers": "отв.",
+      "skillsTitle": "Распределение навыков",
+      "noSkills": "Навыки пока не оценены",
+      "weekTitle": "Активность за неделю",
+      "weekBarAria": "{{day}}: {{count}} ответов",
+      "noActivity": "На этой неделе ответов нет",
+      "errorsTitle": "Частые ошибки",
+      "errorMeta": "{{count}} учеников · {{pct}}%",
+      "noErrors": "Повторяющихся ошибок не найдено",
+      "colStudent": "Ученик",
+      "colFluency": "Беглость",
+      "colGrammar": "Грам.",
+      "colScore": "Балл",
+      "colAttempts": "Попытки",
+      "exportCsv": "Экспорт CSV"
+    }
   },
   "auth": {
     "phoneLabel": "Номер телефона",
@@ -886,6 +928,13 @@
     "month11": "ноябрь",
     "month12": "декабрь",
     "dayMonthTime": "{{day}} {{month}}, {{time}}",
-    "monthYear": "{{month}} {{year}}"
+    "monthYear": "{{month}} {{year}}",
+    "wd1": "Пн",
+    "wd2": "Вт",
+    "wd3": "Ср",
+    "wd4": "Чт",
+    "wd5": "Пт",
+    "wd6": "Сб",
+    "wd7": "Вс"
   }
 }
