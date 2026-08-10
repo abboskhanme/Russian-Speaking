@@ -31,8 +31,14 @@ SET client_min_messages = warning;
 -- ─────────────────────────────────────────────────────────────────────────────
 -- 1) USERS — 4 teachers + 10 students (realistic Uzbek names).
 --    Natural key = email → ON CONFLICT (email) DO NOTHING.
---    AUTH IS PHONE + OTP: every user has a UNIQUE +998 phone (teachers +99890111220x,
+--    AUTH IS PHONE + OTP: every user has a UNIQUE +998 phone (teachers +9989110021xx,
 --    students +9989110020xx). In dev (no Telegram token) log in as any of them with:
+--
+--    The teachers used to sit on +99890111220x, which the DEMO DUMP (10-seed.sql.gz)
+--    had already given to teacher1..4@demo.uz. Nothing enforces phone uniqueness, so
+--    both rows simply existed and login — which resolves the OLDEST match — always
+--    landed on the dump's account. The richer sample teachers here were therefore
+--    unreachable by phone, which is exactly the one thing a demo login is for.
 --      otp/request { phone } → otp/verify { phone, code: "000000" } → tokens.
 --    (The bcrypt hash is legacy parity only; email/password login no longer exists.)
 -- ─────────────────────────────────────────────────────────────────────────────
@@ -42,10 +48,10 @@ INSERT INTO users
    last_practice_date, phone, age, region, district, created_at, updated_at)
 VALUES
   -- Teachers
-  (md5('sample:user:aziz.karimov@govori.uz')::uuid,     'aziz.karimov@govori.uz',     '$2b$12$g75bPHh6YmJRoVn4NUDFBe6Qo6plRjc3xAgahpafi6HdBZrMQ7JJO', 'Aziz Karimov',      'teacher', true, true,  'uz', 0, 1, 0, 0, 0, NULL, '+998901112201', 34, 'Toshkent',   'Chilonzor',  now(), now()),
-  (md5('sample:user:dilnoza.yusupova@govori.uz')::uuid, 'dilnoza.yusupova@govori.uz', '$2b$12$g75bPHh6YmJRoVn4NUDFBe6Qo6plRjc3xAgahpafi6HdBZrMQ7JJO', 'Dilnoza Yusupova',  'teacher', true, true,  'uz', 0, 1, 0, 0, 0, NULL, '+998901112202', 29, 'Toshkent',   'Yunusobod',  now(), now()),
-  (md5('sample:user:sherzod.rashidov@govori.uz')::uuid, 'sherzod.rashidov@govori.uz', '$2b$12$g75bPHh6YmJRoVn4NUDFBe6Qo6plRjc3xAgahpafi6HdBZrMQ7JJO', 'Sherzod Rashidov',  'teacher', true, true,  'uz', 0, 1, 0, 0, 0, NULL, '+998901112203', 41, 'Samarqand',  'Registon',   now(), now()),
-  (md5('sample:user:nodira.tosheva@govori.uz')::uuid,   'nodira.tosheva@govori.uz',   '$2b$12$g75bPHh6YmJRoVn4NUDFBe6Qo6plRjc3xAgahpafi6HdBZrMQ7JJO', 'Nodira Tosheva',    'teacher', true, true,  'uz', 0, 1, 0, 0, 0, NULL, '+998901112204', 37, 'Toshkent',   'Mirzo Ulugbek', now(), now()),
+  (md5('sample:user:aziz.karimov@govori.uz')::uuid,     'aziz.karimov@govori.uz',     '$2b$12$g75bPHh6YmJRoVn4NUDFBe6Qo6plRjc3xAgahpafi6HdBZrMQ7JJO', 'Aziz Karimov',      'teacher', true, true,  'uz', 0, 1, 0, 0, 0, NULL, '+998911002101', 34, 'Toshkent',   'Chilonzor',  now(), now()),
+  (md5('sample:user:dilnoza.yusupova@govori.uz')::uuid, 'dilnoza.yusupova@govori.uz', '$2b$12$g75bPHh6YmJRoVn4NUDFBe6Qo6plRjc3xAgahpafi6HdBZrMQ7JJO', 'Dilnoza Yusupova',  'teacher', true, true,  'uz', 0, 1, 0, 0, 0, NULL, '+998911002102', 29, 'Toshkent',   'Yunusobod',  now(), now()),
+  (md5('sample:user:sherzod.rashidov@govori.uz')::uuid, 'sherzod.rashidov@govori.uz', '$2b$12$g75bPHh6YmJRoVn4NUDFBe6Qo6plRjc3xAgahpafi6HdBZrMQ7JJO', 'Sherzod Rashidov',  'teacher', true, true,  'uz', 0, 1, 0, 0, 0, NULL, '+998911002103', 41, 'Samarqand',  'Registon',   now(), now()),
+  (md5('sample:user:nodira.tosheva@govori.uz')::uuid,   'nodira.tosheva@govori.uz',   '$2b$12$g75bPHh6YmJRoVn4NUDFBe6Qo6plRjc3xAgahpafi6HdBZrMQ7JJO', 'Nodira Tosheva',    'teacher', true, true,  'uz', 0, 1, 0, 0, 0, NULL, '+998911002104', 37, 'Toshkent',   'Mirzo Ulugbek', now(), now()),
   -- Students (xp / streak varied → meaningful leaderboard; Sevara is premium)
   (md5('sample:user:jasur.abdullayev@govori.uz')::uuid,  'jasur.abdullayev@govori.uz',  '$2b$12$g75bPHh6YmJRoVn4NUDFBe6Qo6plRjc3xAgahpafi6HdBZrMQ7JJO', 'Jasur Abdullayev',  'student', true, false, 'uz', 245, 3, 1, 6,  9, CURRENT_DATE,          '+998911002001', 19, 'Toshkent',  'Chilonzor',   now(), now()),
   (md5('sample:user:malika.ibragimova@govori.uz')::uuid, 'malika.ibragimova@govori.uz', '$2b$12$g75bPHh6YmJRoVn4NUDFBe6Qo6plRjc3xAgahpafi6HdBZrMQ7JJO', 'Malika Ibragimova', 'student', true, false, 'uz', 120, 2, 0, 3,  5, CURRENT_DATE,          '+998911002002', 21, 'Toshkent',  'Yakkasaroy',  now(), now()),

@@ -429,11 +429,22 @@ The D3 WRITE path was driven as a real click-through (open with `?group=` →
 picker → module → submit): the screen reported "4 ta topshiriq berildi" and the
 DB moved 31 → 35, matching exactly. Test rows removed.
 
-**Verification wart worth knowing:** the dev seed writes ABSOLUTE timestamps, so
-the fixture ages — as of Aug 2026 the newest submission anywhere is ~5 weeks old
-and every "this week" tile reads 0 legitimately. That is correct behaviour, not a
-bug, but it means the populated state of the weekly tiles/chart can only be seen
-by shifting a slice of `submissions.created_at` forward and shifting it back.
+**Verification wart — FIXED, and the original diagnosis was wrong.** The seed does
+NOT write absolute timestamps: `30-sample-data.sql` writes
+`now() - (0..5 days) - (0..7 hours)`, so on a fresh volume every answer lands
+inside the last six days. The problem is that the seed runs ONCE, on a fresh
+volume's initdb, and is idempotent — so weeks later the newest answer is weeks old
+and every "this week" number legitimately reads 0. Nothing to fix in the SQL; what
+was missing was a way to make an EXISTING fixture current again.
+
+`./deploy/dev-refresh-fixture.sh` does that: one delta, taken from the newest
+answer's `created_at`, added to every timestamp on the activity tables in a single
+transaction. One delta for everything is load-bearing — an assignment counts as
+completed only when a matching answer is not older than it, so shifting answers
+without shifting assignments identically would silently flip the completion rate.
+Identity and content rows are left alone. First run showed the trap: deriving the
+delta from the greatest timestamp of ANY kind under-shifts by a week, because
+`updated_at` gets touched by ordinary testing and is already near now.
 
 ## Phase 6b — A1's deferred cards + A4's trend arrows ✅
 
@@ -600,9 +611,15 @@ From a phone, reach the local stack at `http://<mac-lan-ip>:8081` (same Wi-Fi);
 the frontend calls `/api` relatively and nginx proxies it, so there is no CORS or
 host config. Prod (`govorim.uz`) does **not** have the teacher panel yet.
 
-> Seed-data wart: several demo accounts share phone numbers (e.g.
-> `+998901112201` is on both `teacher1@demo.uz` and `aziz.karimov@govori.uz`).
-> Login resolves the OLDEST match. Worth cleaning up.
+> ~~Seed-data wart: several demo accounts share phone numbers~~ — **fixed**. The
+> sample teachers sat on `+99890111220x`, which the demo dump had already given to
+> `teacher1..4@demo.uz`; nothing enforces phone uniqueness, so both rows existed
+> and login (which resolves the OLDEST match) always landed on the dump's account,
+> making the richer sample teachers unreachable by phone. They now use
+> `+9989110021xx`, matching the student block the same file already owns.
+>
+> Still latent: **nothing enforces `users.phone` uniqueness**, so "oldest match
+> wins" remains the tie-break if two rows ever collide again.
 
 ## When everything is done
 Every phase (1 · 2 · 2b · 3 · 4 · 5 · 6 · 6b · 7) is shipped. What is left is NOT
@@ -640,8 +657,12 @@ stays until those are closed.
   endpoint).
 - [ ] Attempt limits on assignments (D3's omitted "Urinish"), if the product
   wants them.
-- [ ] Seed data writes ABSOLUTE timestamps, so the dev fixture ages out of every
-  "this week" window. Regenerate relative to `now()`.
-- [ ] Clean the duplicate demo phone numbers (login resolves the OLDEST match).
+- [x] The aged dev fixture — **done**, `./deploy/dev-refresh-fixture.sh`. The seed
+  was already relative; what was missing was refreshing an EXISTING volume.
+- [x] Duplicate demo phone numbers — **done**; the sample teachers moved off the
+  demo dump's range. A uniqueness CONSTRAINT on `users.phone` is still absent.
+- [ ] Consider a unique index on `users.phone` (partial, `WHERE phone IS NOT
+  NULL`) so a collision is a write error rather than a silent "oldest wins" at
+  login. Needs a prod dedupe check first.
 
 - [ ] Delete this file (`TEACHER-PANEL-PLAN.md`) and `dev-role.sh`.
