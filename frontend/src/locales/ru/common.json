@@ -675,7 +675,23 @@
       "goClasses": "К классам",
       "noContent": "Нет опубликованных заданий или модулей. Создайте и опубликуйте их в Контенте.",
       "goContent": "К контенту"
-    }
+    },
+    "joinRequests_one": "{{count}} заявка на вступление",
+    "joinRequests_few": "{{count}} заявки на вступление",
+    "joinRequests_many": "{{count}} заявок на вступление",
+    "joinRequests_other": "{{count}} заявок на вступление",
+    "joinRequestsHint": "Нужно подтвердить",
+    "classErrors": "Ошибка недели: {{error}}",
+    "classErrorsHint_one": "Ошибся {{count}} ученик",
+    "classErrorsHint_few": "Ошиблись {{count}} ученика",
+    "classErrorsHint_many": "Ошиблись {{count}} учеников",
+    "classErrorsHint_other": "Ошиблись {{count}} учеников",
+    "trend": {
+      "up": "рост на {{points}} б.",
+      "down": "падение на {{points}} б.",
+      "flat": "без изменений"
+    },
+    "droppedHintMany": "Посмотреть учеников"
   },
   "auth": {
     "phoneLabel": "Номер телефона",

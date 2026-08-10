@@ -55,9 +55,11 @@ export function useNavHandler() {
  * Route path for each teacher nav destination — the mockup's own bar, not the
  * student one relabelled (see `teacherNavItems`). The teacher app lives under
  * its own `/teacher/*` space (so `/` stays the student home): a teacher who
- * lands on `/` is redirected here by {@link RoleHome}. Only `home` (A1 Obzor) is
- * built in Phase 1 — the rest arrive with their screens (Phases 2–6); until then
- * they resolve to the catch-all and bounce back to Obzor.
+ * lands on `/` is redirected here by {@link RoleHome}. All five destinations are
+ * built as of Phase 6. A path with no route does NOT 404 here — it falls through
+ * to the `*` catch-all and silently bounces to Obzor, which is exactly how
+ * Analitika looked "broken" while its screen existed but its route did not. When
+ * adding a destination, add the route in `App.tsx` in the same change.
  */
 export const TEACHER_NAV_PATH: Record<TeacherNavKey, string> = {
   home: "/teacher",

@@ -173,9 +173,36 @@
   gap: 1px;
 }
 
-.score {
+/* Arrow + score travel together so the pair stays flush right as names vary. */
+.scoreWrap {
+  display: inline-flex;
+  align-items: baseline;
+  gap: var(--s-1);
   flex: none;
   margin-inline-start: var(--s-2);
+}
+.score {
+  flex: none;
+}
+/* Fixed width so scores stay in one column whether or not a row has an arrow —
+   a trend that appears as a student's fourth answer lands must not shove every
+   number on the screen sideways. */
+.trend {
+  display: inline-flex;
+  justify-content: center;
+  width: 12px;
+  font-size: var(--t-body-s-size);
+  font-weight: var(--fw-bold);
+  line-height: 1;
+}
+.trend-up {
+  color: var(--success);
+}
+.trend-down {
+  color: var(--danger);
+}
+.trend-flat {
+  color: var(--muted);
 }
 .score-success {
   color: var(--success);

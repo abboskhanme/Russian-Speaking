@@ -153,13 +153,17 @@ export default function ClassesPage() {
     const rows: ClassStudent[] = [];
     for (const d of details) {
       for (const m of d.members) {
-        const band = scoreById.get(m.id)?.avg_band ?? undefined;
+        const row = scoreById.get(m.id);
+        const band = row?.avg_band ?? undefined;
         rows.push({
           id: m.id,
           fullName: m.full_name,
           groupName: d.name,
           level: band != null ? levelFromBand(band) : undefined,
           score: band != null ? Math.round(band) : undefined,
+          // Left undefined below four graded answers, which is what the server
+          // returns — the row then shows no arrow rather than claiming a plateau.
+          trend: row?.trend_delta ?? undefined,
         });
       }
     }

@@ -144,7 +144,14 @@ public sealed record GradebookRowResponse(
     double? Fluency = null,
     double? Grammar = null,
     double? Pronunciation = null,
-    double? Lexical = null);
+    double? Lexical = null,
+    /// <summary>Which way this student is moving: the newer half of their recent graded answers minus
+    /// the older half, 2dp. Positive = improving. This is what the A4 roster's ↑/↓ arrow and the A1
+    /// Obzor's "N o'quvchi ball tushirdi" card read.
+    ///
+    /// <para><c>null</c> under four graded answers — a single answer is not a direction — and it is
+    /// NOT the difference between two <c>avg_band</c> values, so do not present it as one.</para></summary>
+    double? TrendDelta = null);
 
 // ─── Analitika · D1 Insaytlar (GET /api/reports/insights) ────────────────────
 // One composed read behind the teacher's Analitika screen. Every number here is derived from rows

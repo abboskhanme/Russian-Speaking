@@ -654,7 +654,19 @@
       "goClasses": "Go to Classes",
       "noContent": "No published task or module yet. Create and publish one in Content.",
       "goContent": "Go to Content"
-    }
+    },
+    "joinRequests_one": "{{count}} join request",
+    "joinRequests_other": "{{count}} join requests",
+    "joinRequestsHint": "Needs approval",
+    "classErrors": "This week's class error: {{error}}",
+    "classErrorsHint_one": "{{count}} student tripped on it",
+    "classErrorsHint_other": "{{count}} students tripped on it",
+    "trend": {
+      "up": "up {{points}} points",
+      "down": "down {{points}} points",
+      "flat": "unchanged"
+    },
+    "droppedHintMany": "See the students"
   },
   "auth": {
     "phoneLabel": "Phone number",

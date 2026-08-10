@@ -21,6 +21,10 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\Modules\Govori.Identity\Govori.Identity.csproj" />
+    <!-- ClassroomScoring is pure math over Submission entities, so it is unit-testable without a
+         database. The FROZEN parts (RollingAvg/BestBand) stay pinned by the C3 characterization
+         fixture; only the newer statistics are covered here. -->
+    <ProjectReference Include="..\..\src\Modules\Govori.Classroom\Govori.Classroom.csproj" />
   </ItemGroup>
 
 </Project>

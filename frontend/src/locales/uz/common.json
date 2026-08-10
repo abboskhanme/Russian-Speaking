@@ -654,7 +654,19 @@
       "goClasses": "Klasslarga o‘tish",
       "noContent": "Nashr etilgan vazifa yoki modul yo‘q. Kontentda yarating va nashr eting.",
       "goContent": "Kontentga o‘tish"
-    }
+    },
+    "joinRequests_one": "{{count}} ta guruhga qo‘shilish so‘rovi",
+    "joinRequests_other": "{{count}} ta guruhga qo‘shilish so‘rovi",
+    "joinRequestsHint": "Tasdiqlash kerak",
+    "classErrors": "Shu hafta sinf xatosi: {{error}}",
+    "classErrorsHint_one": "{{count}} o‘quvchi qoqildi",
+    "classErrorsHint_other": "{{count}} o‘quvchi qoqildi",
+    "trend": {
+      "up": "{{points}} punkt ko‘tarildi",
+      "down": "{{points}} punkt tushdi",
+      "flat": "o‘zgarishsiz"
+    },
+    "droppedHintMany": "O‘quvchilarni ko‘rish"
   },
   "auth": {
     "phoneLabel": "Telefon raqam",

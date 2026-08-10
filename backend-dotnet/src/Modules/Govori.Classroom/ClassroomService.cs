@@ -576,7 +576,8 @@ public sealed class ClassroomService
                 Fluency: ClassroomScoring.MeanOrNull(recent.Select(e => (double?)e.FluencyScore)),
                 Grammar: ClassroomScoring.MeanOrNull(recent.Select(e => (double?)e.GrammarScore)),
                 Pronunciation: ClassroomScoring.MeanOrNull(recent.Select(e => e.PronunciationScore)),
-                Lexical: ClassroomScoring.MeanOrNull(recent.Select(e => (double?)e.LexicalScore))));
+                Lexical: ClassroomScoring.MeanOrNull(recent.Select(e => (double?)e.LexicalScore)),
+                TrendDelta: ClassroomScoring.TrendDelta(slist)));
         }
         rows.Sort((a, b) => string.Compare(a.FullName, b.FullName, StringComparison.OrdinalIgnoreCase));
         return rows;

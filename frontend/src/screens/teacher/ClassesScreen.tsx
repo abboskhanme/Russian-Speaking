@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Badge, Button, Card, Input, Modal, Tabs, Text, cx } from "../../shared/ui";
+import { Badge, Button, Card, Input, Modal, Tabs, Text, VisuallyHidden, cx } from "../../shared/ui";
 import type { TabItem } from "../../shared/ui";
 import { AppShell, Brand, NotificationsBell, teacherNavItems } from "../../widgets";
 import type { NavItem } from "../../widgets";
@@ -35,6 +35,16 @@ export interface ClassStudent {
   level?: string;
   /** Average band 0–100; null/undefined when the student has no graded attempt. */
   score?: number;
+  /**
+   * Which way the student is moving — the mockup's `↑ 84` / `↓ 61` / `→ 72` arrow.
+   * Positive = improving.
+   *
+   * Undefined means the direction is UNKNOWN (under four graded answers), which is
+   * not the same as flat: an unknown trend shows no arrow at all, while a genuine
+   * plateau shows `→`. Held back through Phases 2–5 for want of a windowed trend;
+   * `GradebookRowResponse.trend_delta` supplies it as of Phase 6b.
+   */
+  trend?: number;
 }
 
 /** One student waiting for the teacher's decision (A3 So'rovlar). */
@@ -477,15 +487,18 @@ function StudentRow({
       </span>
 
       {student.score != null ? (
-        <Text
-          as="span"
-          variant="body"
-          weight="black"
-          numeric
-          className={cx(styles.score, styles[`score-${scoreTone(student.score)}` as const])}
-        >
-          {student.score}
-        </Text>
+        <span className={styles.scoreWrap}>
+          <TrendArrow trend={student.trend} />
+          <Text
+            as="span"
+            variant="body"
+            weight="black"
+            numeric
+            className={cx(styles.score, styles[`score-${scoreTone(student.score)}` as const])}
+          >
+            {student.score}
+          </Text>
+        </span>
       ) : (
         // No graded attempt yet — say so rather than showing a 0 that reads as a
         // bad score. The gradebook simply has no row for this student.
@@ -494,6 +507,33 @@ function StudentRow({
         </Text>
       )}
     </button>
+  );
+}
+
+/** Points inside which a student counts as holding steady rather than moving.
+ * Without a dead band every roster is a wall of arrows pointing at noise. */
+const TREND_FLAT = 2;
+
+/**
+ * The mockup's `↑` / `↓` / `→` beside a score.
+ *
+ * Renders NOTHING when the trend is unknown — under four graded answers there is
+ * no direction, and a `→` there would claim a plateau we have not measured.
+ * Direction is carried by the glyph and by the screen-reader label, never by
+ * colour alone (docs/03 §3.3).
+ */
+function TrendArrow({ trend }: { trend?: number }) {
+  const { t } = useTranslation();
+  if (trend == null) return null;
+
+  const dir = trend >= TREND_FLAT ? "up" : trend <= -TREND_FLAT ? "down" : "flat";
+  const points = Math.abs(Math.round(trend));
+
+  return (
+    <span className={cx(styles.trend, styles[`trend-${dir}` as const])}>
+      <span aria-hidden>{dir === "up" ? "↑" : dir === "down" ? "↓" : "→"}</span>
+      <VisuallyHidden>{t(`teacher.trend.${dir}`, { points })}</VisuallyHidden>
+    </span>
   );
 }
 

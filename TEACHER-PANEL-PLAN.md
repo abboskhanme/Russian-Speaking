@@ -66,17 +66,11 @@ and the mockup's Obzor screen ("bugun kimga yordam kerak"), on real data.
 - [x] i18n `teacher.*` + the new teacher `nav.*` keys in uz/ru/en.
 
 **Deferred from A1 — a faked count on a triage screen is worse than a missing
-card. ALL THREE ARE NOW UNBLOCKED by Phase 6's backend; they just need wiring
-(tracked as Phase 6b below):**
-- [ ] "N o'quvchi X punkt tushdi · Profilni ko'rish" (warn card) → needed two
-  time windows, which nothing exposed. `GET /api/reports/insights` now carries
-  `trend` + `trend_delta`, and `SubmissionResponse` carries AI scores as of
-  Phase 3.
-- [ ] "N ta guruhga qo'shilish so'rovi · Tasdiqlash kerak" (accent card) → the
-  join-request model has existed since Phase 2b; `GET /api/groups/requests`
-  already returns what this needs.
-- [ ] "Shu hafta sinf xatolari" (`родительный падеж · 12 o'quvchi qoqildi`) →
-  `insights.errors` now aggregates correction types with per-type student counts.
+card. ALL THREE SHIPPED in Phase 6b (below); the Obzor now renders all four:**
+- [x] "N o'quvchi X punkt tushdi" (warn) ← `GradebookRowResponse.trend_delta`.
+- [x] "N ta guruhga qo'shilish so'rovi · Tasdiqlash kerak" (accent) ←
+  `GET /api/groups/requests` (the model has existed since Phase 2b).
+- [x] "Shu hafta sinf xatosi" (warn) ← `insights.errors[0]`.
 
 **Verified on the running stack** (`aziz.karimov@govori.uz` — 1 group, 5
 students, 21 queued): Obzor renders on real data in light + dark, desktop +
@@ -100,12 +94,12 @@ Goal: the `Guruhlar | O'quvchilar` segmented screen.
   scored students sorted first.
 - [x] i18n uz/ru/en.
 
-**One honest deviation from the mockup, data-driven:**
-- **No trend arrows** (`↑ 84` / `↓ 61` / `→ 72`). `GradebookRowResponse` carries
-  only a lifetime `avg_band` — no second time window to compare against. The bare
-  score ships now; the arrow needs the same backend work as the Obzor's trend
-  card (Phase 6/D1). A student with no graded attempt reads **"baholanmagan"**
-  rather than `0`, since the gradebook simply has no row for them.
+**One honest deviation from the mockup, data-driven — SINCE CLOSED in Phase 6b:**
+- ~~**No trend arrows** (`↑ 84` / `↓ 61` / `→ 72`)~~ — `GradebookRowResponse`
+  carried only a lifetime `avg_band`, with no second window to compare against.
+  `trend_delta` supplied that in Phase 6b and the arrows now ship. A student with
+  no graded attempt still reads **"baholanmagan"** rather than `0`, since the
+  gradebook simply has no row for them.
 
 **Verified**: create-group round-trip through the real UI (server minted code
 `NMMEXJ`, card appeared, test group removed); both tabs render on real data in
@@ -441,13 +435,47 @@ and every "this week" tile reads 0 legitimately. That is correct behaviour, not 
 bug, but it means the populated state of the weekly tiles/chart can only be seen
 by shifting a slice of `submissions.created_at` forward and shifting it back.
 
-## Phase 6b — Wire A1 Obzor's three deferred cards
-Pure frontend: Phase 6's `GET /api/reports/insights` + Phase 2b's
-`GET /api/groups/requests` now supply every number these cards were waiting on.
-- [ ] Trend warn card ← `insights.trend_delta` (and per-student drops once a
-  student-level trend exists — the class delta alone cannot name a student).
-- [ ] Join-requests accent card ← `GET /api/groups/requests` count → A3.
-- [ ] "Shu hafta sinf xatolari" ← `insights.errors[0]`.
+## Phase 6b — A1's deferred cards + A4's trend arrows ✅
+
+It was scoped as pure frontend and was not: the mockup's card names STUDENTS
+("N o'quvchi ball tushdi") and `insights.trend_delta` is a CLASS figure, which
+can never name anyone. So one additive backend field came first — and it closed
+Phase 2's deferred A4 arrows in the same stroke.
+
+**Backend** ✅ — additive, no migration.
+- [x] 🔨 `ClassroomScoring.TrendDelta` + `GradebookRowResponse.trend_delta`
+  (appended): the mean of the NEWER half of a student's recent graded answers
+  minus the OLDER half. The window is SPLIT rather than "last N vs the N before"
+  because a fixed split needs twice `RecentWindow` answers before it says
+  anything, and students here have far fewer — splitting what they do have gives
+  a student with six answers a real 3-vs-3 comparison. `null` under four graded
+  answers, and on an odd count the MIDDLE answer is dropped rather than counted
+  on both sides (which would pull both means together and flatten every trend).
+
+**Frontend** ✅
+- [x] A1 renders all four attention cards, each behind its own fetch so a failing
+  aggregate costs one card, not the triage screen.
+- [x] A4 roster shows the mockup's `↑ 84 / ↓ 61 / → 72` arrows.
+- [x] i18n uz/ru/en.
+
+**Decisions worth keeping:**
+- **A drop card that fires every morning is one a teacher learns to ignore.** The
+  card counts only students at or below **−5 points**, and the arrow treats
+  anything inside **±2** as flat.
+- **Unknown ≠ flat.** With under four graded answers there is no direction, so the
+  row shows NO arrow — a `→` there would claim a plateau nobody measured. Seen
+  live: the student with 3 attempts has no arrow while the five with 5 do.
+- **The headline quotes the STEEPEST fall**, not the mean of the fallers — the
+  card exists to surface the worst case first.
+- **The hint matches where the tap goes**: "Profilni ko'rish" only when there is
+  exactly ONE faller to open; several land on the roster and the card says so.
+
+**Verified**: 213/0 across all four suites (92 Unit — 6 new trend tests · 35 Arch ·
+35 Characterization · 51 Integration); `trend_delta` live on real data (5-attempt
+students get a delta, the 3-attempt student is `null`); 12 screenshots of A1 · A3 ·
+A4 in light+dark, mobile+desktop. The join-request card was proven by filing a
+REAL request through the student API, screenshotting all four cards, then removing
+it — a card nobody ever sees fire is not verified.
 
 ## Phase 7 — Teacher profile
 - [ ] Reached from the A1 header avatar (there is no Profil nav item): name,

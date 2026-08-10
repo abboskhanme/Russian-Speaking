@@ -541,6 +541,13 @@ export interface GradebookRowResponse {
   grammar: number | null;
   pronunciation: number | null;
   lexical: number | null;
+  /** Which way the student is moving: the newer half of their recent graded
+   * answers minus the older half. Positive = improving. Backs A4's ↑/↓ arrow and
+   * A1's "N o'quvchi ball tushirdi" card.
+   *
+   * Null under four graded answers — one answer is not a direction — and it is
+   * NOT the difference between two `avg_band` values, so never label it that way. */
+  trend_delta: number | null;
 }
 
 /* ── Analitika · D1 Insaytlar (GET /api/reports/insights) ─────────────────── */

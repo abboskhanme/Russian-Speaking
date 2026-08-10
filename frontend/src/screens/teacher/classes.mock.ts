@@ -23,11 +23,13 @@ export const mockClassRequests: ClassJoinRequest[] = [
 ];
 
 export const mockClassStudents: ClassStudent[] = [
-  { id: "s-1", fullName: "Kamola Abdullayeva", groupName: "Kechki-3", level: "B1", score: 84 },
-  { id: "s-2", fullName: "Dilfuza Rashidova", groupName: "Kechki-3", level: "A2", score: 61 },
-  { id: "s-3", fullName: "Bekzod Mirzayev", groupName: "Ertalabki-1", level: "A2", score: 72 },
+  // The mockup's ↑ 84 / ↓ 61 / → 72 — plus a scored student with NO trend, since
+  // under four graded answers the direction is unknown and no arrow is drawn.
+  { id: "s-1", fullName: "Kamola Abdullayeva", groupName: "Kechki-3", level: "B1", score: 84, trend: 7.2 },
+  { id: "s-2", fullName: "Dilfuza Rashidova", groupName: "Kechki-3", level: "A2", score: 61, trend: -9.4 },
+  { id: "s-3", fullName: "Bekzod Mirzayev", groupName: "Ertalabki-1", level: "A2", score: 72, trend: 0.5 },
   { id: "s-4", fullName: "Nigora Saidova", groupName: "Kechki-3", level: "A2", score: 78 },
-  { id: "s-5", fullName: "Sardor Umarov", groupName: "Ertalabki-1", level: "A1", score: 55 },
+  { id: "s-5", fullName: "Sardor Umarov", groupName: "Ertalabki-1", level: "A1", score: 55, trend: -2.8 },
   // A member who has not answered any of this teacher's questions yet — the
   // gradebook has no row for them, so the row shows "baholanmagan", not 0.
   { id: "s-6", fullName: "Jasur Toshev", groupName: "Ertalabki-1" },

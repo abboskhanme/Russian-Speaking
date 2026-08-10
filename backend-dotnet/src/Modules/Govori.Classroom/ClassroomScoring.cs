@@ -72,6 +72,44 @@ public static class ClassroomScoring
                .Take(window)
                .ToList();
 
+    /// <summary>Fewest graded answers a trend may be computed from — 2 per half, so a single answer
+    /// can never be called a direction.</summary>
+    public const int MinTrendSample = 4;
+
+    /// <summary>
+    /// Which way this student is moving: the mean of the NEWER half of their recent graded answers
+    /// minus the mean of the OLDER half, half-to-even to 2 dp. Positive = improving.
+    ///
+    /// <para>The window is split rather than fixed at "last N vs the N before" because a fixed split
+    /// needs twice <see cref="RecentWindow"/> answers before it says anything at all, and most
+    /// students here have well under twenty. Splitting what they DO have means a student with six
+    /// answers gets a real 3-vs-3 comparison.</para>
+    ///
+    /// <para><c>null</c> below <see cref="MinTrendSample"/> graded answers, and on an odd count the
+    /// MIDDLE answer is dropped rather than counted on both sides — it would otherwise pull both
+    /// means toward each other and flatten every trend.</para>
+    ///
+    /// <para>This is a different statistic from <see cref="RollingAvg"/> and deliberately so: one says
+    /// where the student is, the other which way they are going. Callers must not present the delta
+    /// as the difference between two <c>avg_band</c> values.</para>
+    /// </summary>
+    public static double? TrendDelta(IEnumerable<Submission> subs, int window = RecentWindow)
+    {
+        // Newest first, then reversed so the halves read oldest → newest.
+        var bands = RecentGraded(subs, window)
+            .Select(s => EffectiveBand(s)!.Value)
+            .Reverse()
+            .ToList();
+        if (bands.Count < MinTrendSample) return null;
+
+        var half = bands.Count / 2;
+        var older = bands.Take(half).ToList();
+        var newer = bands.Skip(bands.Count - half).ToList();   // skips the middle on an odd count
+        return Math.Round(
+            newer.Sum() / newer.Count - older.Sum() / older.Count,
+            2, MidpointRounding.ToEven);
+    }
+
     /// <summary>Mean of the values that are present, half-to-even to 2 dp; <c>null</c> when none are.
     /// The nullable input is the point: a missing score (an ungraded skill) must be SKIPPED, never
     /// folded in as a zero that drags the mean down.</summary>
