@@ -12,6 +12,7 @@
  * order and task counts are computed server-side, so guessing them here would
  * drift from what the next load shows.
  */
+import { useTranslation } from "react-i18next";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { ModuleEditorScreen } from "../../screens/teacher";
@@ -28,6 +29,7 @@ export default function ModuleEditorPage() {
   const { blockId = "" } = useParams();
   const navigate = useNavigate();
   const onNavigate = useTeacherNavHandler();
+  const { t } = useTranslation();
 
   const [block, setBlock] = useState<TeacherBlockDetailResponse | null>(null);
   const [library, setLibrary] = useState<TeacherQuestionResponse[]>([]);
@@ -35,6 +37,9 @@ export default function ModuleEditorPage() {
   const [queued, setQueued] = useState(0);
   const [loading, setLoading] = useState(true);
   const [failed, setFailed] = useState(false);
+  /** Set only when a task SAVED but its cover did not upload — a partial success
+   * the screen must state, since the task is really there. */
+  const [mediaNotice, setMediaNotice] = useState<string | null>(null);
   const [reloadKey, setReloadKey] = useState(0);
 
   const searchTimer = useRef<number | undefined>(undefined);
@@ -80,6 +85,7 @@ export default function ModuleEditorPage() {
         level: q.level ?? undefined,
         published: q.is_published,
         submissionCount: q.submission_count,
+        mediaUrl: q.media_url,
       })),
     [block],
   );
@@ -148,15 +154,46 @@ export default function ModuleEditorPage() {
 
   const createTask = useCallback(
     async (draft: NewTaskDraft) => {
-      await endpoints.createQuestion({
+      const created = await endpoints.createQuestion({
         title: draft.title,
         prompt_text: draft.prompt,
         level: draft.level || null,
         block_id: blockId,
       });
+      // The cover can only be uploaded once the task has an id, so it is a second
+      // request. If it fails the task still exists and is saved — reporting "save
+      // failed" would be a lie and would tempt the teacher into a duplicate. The
+      // row's own media control is where they retry.
+      if (draft.media) {
+        try {
+          await endpoints.setQuestionMedia(created.id, draft.media);
+        } catch {
+          setMediaNotice(t("teacher.mediaUploadFailed"));
+        }
+      }
       refetch();
     },
-    [blockId, refetch],
+    [blockId, refetch, t],
+  );
+
+  const setTaskMedia = useCallback(
+    async (taskId: string, file: File) => {
+      setMediaNotice(null);
+      // Rejections propagate: the row shows the server's own detail, which says
+      // WHICH rule was broken (wrong type vs too big).
+      await endpoints.setQuestionMedia(taskId, file);
+      refetch();
+    },
+    [refetch],
+  );
+
+  const removeTaskMedia = useCallback(
+    async (taskId: string) => {
+      setMediaNotice(null);
+      await endpoints.removeQuestionMedia(taskId);
+      refetch();
+    },
+    [refetch],
   );
 
   if (loading) return <PageLoading />;
@@ -180,6 +217,9 @@ export default function ModuleEditorPage() {
       onAttachTask={attachTask}
       onDetachTask={detachTask}
       onCreateTask={createTask}
+      onSetTaskMedia={setTaskMedia}
+      onRemoveTaskMedia={removeTaskMedia}
+      notice={mediaNotice}
       onSearchLibrary={searchLibrary}
       // A dedicated per-task editor screen is not part of this phase; the module
       // editor is where a task's module membership and order are changed.

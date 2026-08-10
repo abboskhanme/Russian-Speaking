@@ -3,6 +3,10 @@
   <ItemGroup>
     <ProjectReference Include="..\..\Govori.Contracts\Govori.Contracts.csproj" />
     <ProjectReference Include="..\..\Govori.Infrastructure\Govori.Infrastructure.csproj" />
+    <!-- Object storage for task media. A module → Platform edge, which is the allowed
+         direction (Platform must never reference a domain); Govori.Identity already
+         has the same one for avatars. -->
+    <ProjectReference Include="..\..\Govori.Platform\Govori.Platform.csproj" />
   </ItemGroup>
 
   <ItemGroup>

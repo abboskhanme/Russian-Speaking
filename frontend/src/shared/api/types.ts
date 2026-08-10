@@ -751,6 +751,10 @@ export interface TeacherQuestionResponse {
   is_published: boolean;
   is_public: boolean;
   block_id: string | null;
+  /** The task cover — an image or short video — as a PRESIGNED-GET url minted per
+   * request from `Question.MediaKey`. A short-lived download link, never a stored
+   * column, like a submission's `audio_url`. Null when the task has no media. */
+  media_url: string | null;
   /** Name of the module it belongs to; null when unattached. */
   block_name: string | null;
   sort_order: number;

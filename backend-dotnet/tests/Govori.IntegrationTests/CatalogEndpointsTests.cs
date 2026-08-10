@@ -329,6 +329,77 @@ public sealed class CatalogEndpointsTests : IClassFixture<CatalogEndpointsTests.
                 Assert.Equal(new[] { 0, 1 }, order);                        // appended, not stacked at 0
             }
 
+            // ── Task media (C2's optional "Rasm yoki video yuklash") ──
+            {
+                var mediaPath = $"/api/questions/{looseId}/media";
+
+                // A task starts with none, and the url is null rather than an empty string.
+                using (var doc = JsonDocument.Parse(await (await Api(
+                    client, HttpMethod.Get, $"/api/questions?unassigned=false", tokenA)).Content.ReadAsStringAsync()))
+                {
+                    var row = doc.RootElement.EnumerateArray().First(x => x.GetProperty("id").GetGuid() == looseId);
+                    Assert.Equal(JsonValueKind.Null, row.GetProperty("media_url").ValueKind);
+                }
+
+                // SVG is refused even though it is an image: it can carry script and would be a
+                // stored-XSS vector the moment its presigned url is opened.
+                Assert.Equal(HttpStatusCode.BadRequest,
+                    (await Api(client, HttpMethod.Post, mediaPath, tokenA, MediaForm("image/svg+xml", "x.svg", 32))).StatusCode);
+                // …as is an arbitrary type, and an empty body.
+                Assert.Equal(HttpStatusCode.BadRequest,
+                    (await Api(client, HttpMethod.Post, mediaPath, tokenA, MediaForm("application/zip", "x.zip", 32))).StatusCode);
+                Assert.Equal(HttpStatusCode.BadRequest,
+                    (await Api(client, HttpMethod.Post, mediaPath, tokenA, MediaForm("image/png", "x.png", 0))).StatusCode);
+
+                // None of those rejects wrote anything.
+                await using (var ctx = CreateContext())
+                    Assert.Null((await ctx.Questions.SingleAsync(q => q.Id == looseId)).MediaKey);
+
+                // A real image lands, and the response carries a presigned url immediately.
+                var up = await Api(client, HttpMethod.Post, mediaPath, tokenA, MediaForm("image/png", "cover.png", 64));
+                Assert.Equal(HttpStatusCode.OK, up.StatusCode);
+                string firstKey;
+                using (var doc = JsonDocument.Parse(await up.Content.ReadAsStringAsync()))
+                    Assert.False(string.IsNullOrEmpty(doc.RootElement.GetProperty("media_url").GetString()));
+                await using (var ctx = CreateContext())
+                {
+                    firstKey = (await ctx.Questions.SingleAsync(q => q.Id == looseId)).MediaKey!;
+                    // The client's filename is ignored entirely — the key is random, under questions/,
+                    // with the extension taken from the VALIDATED content-type.
+                    Assert.StartsWith("questions/", firstKey);
+                    Assert.EndsWith(".png", firstKey);
+                    Assert.DoesNotContain("cover", firstKey);
+                }
+
+                // Replacing swaps the key rather than appending a second object.
+                Assert.Equal(HttpStatusCode.OK,
+                    (await Api(client, HttpMethod.Post, mediaPath, tokenA, MediaForm("video/mp4", "clip.mp4", 128))).StatusCode);
+                await using (var ctx = CreateContext())
+                {
+                    var key = (await ctx.Questions.SingleAsync(q => q.Id == looseId)).MediaKey!;
+                    Assert.NotEqual(firstKey, key);
+                    Assert.EndsWith(".mp4", key);
+                }
+
+                // Another teacher gets 404, NOT 403 — task ids must not be probeable.
+                Assert.Equal(HttpStatusCode.NotFound,
+                    (await Api(client, HttpMethod.Post, mediaPath, tokenB, MediaForm("image/png", "x.png", 32))).StatusCode);
+                Assert.Equal(HttpStatusCode.NotFound,
+                    (await Api(client, HttpMethod.Delete, mediaPath, tokenB)).StatusCode);
+                // A student may not author at all.
+                Assert.Equal(HttpStatusCode.Forbidden,
+                    (await Api(client, HttpMethod.Delete, mediaPath, tokenS)).StatusCode);
+
+                // Clearing works, and is idempotent — "make sure this has none" is the intent.
+                Assert.Equal(HttpStatusCode.OK, (await Api(client, HttpMethod.Delete, mediaPath, tokenA)).StatusCode);
+                var again = await Api(client, HttpMethod.Delete, mediaPath, tokenA);
+                Assert.Equal(HttpStatusCode.OK, again.StatusCode);
+                using (var doc = JsonDocument.Parse(await again.Content.ReadAsStringAsync()))
+                    Assert.Equal(JsonValueKind.Null, doc.RootElement.GetProperty("media_url").ValueKind);
+                await using (var ctx = CreateContext())
+                    Assert.Null((await ctx.Questions.SingleAsync(q => q.Id == looseId)).MediaKey);
+            }
+
             // ── detach_block: true removes the link (absent block_id would leave it alone) ──
             Assert.Equal(HttpStatusCode.OK,
                 (await Api(client, HttpMethod.Patch, $"/api/questions/{looseId}", tokenA, Body(new { detach_block = true }))).StatusCode);
@@ -407,6 +478,18 @@ public sealed class CatalogEndpointsTests : IClassFixture<CatalogEndpointsTests.
 
     // Property names AS WRITTEN (snake_case) — the API deserializes with a snake_case policy.
     private static HttpContent Body(object body) => JsonContent.Create(body);
+
+    /// <summary>A multipart body for the task-media endpoint. The bytes are arbitrary: validation is
+    /// by DECLARED content-type and length, so a "png" here need not be a real image — what is under
+    /// test is the allow-list and the ceiling, not image decoding.</summary>
+    private static HttpContent MediaForm(string contentType, string fileName, int bytes)
+    {
+        var form = new MultipartFormDataContent();
+        var part = new ByteArrayContent(new byte[bytes]);
+        part.Headers.ContentType = new MediaTypeHeaderValue(contentType);
+        form.Add(part, "media", fileName);
+        return form;
+    }
 
     private static User NewUser(Guid id, string email, UserRole role, string? passwordHash) => new()
     {

@@ -589,7 +589,6 @@
     "taskPrompt": "Prompt (in Russian)",
     "taskPromptPlaceholder": "Расскажите, что вы вчера купили в магазине.",
     "taskLevel": "Level",
-    "mediaLater": "Media upload is not available yet — coming in a later step.",
     "saveDraft": "Save as draft",
     "errorType": {
       "word_order": "Word order",
@@ -676,7 +675,15 @@
       "settings": "Settings",
       "language": "Language",
       "theme": "Appearance"
-    }
+    },
+    "media": "Media",
+    "mediaHint": "Image or video — optional (JPEG/PNG/WebP, MP4/WebM, up to 25 MB)",
+    "mediaAddShort": "Media",
+    "mediaReplaceShort": "Replace",
+    "mediaRemove": "Remove",
+    "mediaAdd": "Upload media for “{{task}}”",
+    "mediaReplace": "Replace media on “{{task}}”",
+    "mediaUploadFailed": "Media did not upload — the task was saved; add media from its row."
   },
   "auth": {
     "phoneLabel": "Phone number",

@@ -605,6 +605,25 @@ export function createQuestion(args: CreateQuestionArgs): Promise<TeacherQuestio
   return apiClient.post<TeacherQuestionResponse>("/questions", args);
 }
 
+/** POST /api/questions/{id}/media → set/replace the task's image or short video
+ * (multipart, field "media"). Returns the updated task with a fresh presigned
+ * `media_url`. 400 on a rejected type/size — the server's `detail` says which. */
+export function setQuestionMedia(id: string, file: File): Promise<TeacherQuestionResponse> {
+  const form = new FormData();
+  form.append("media", file);
+  // The browser sets the multipart boundary — we must NOT set Content-Type
+  // (mirrors `uploadAvatar` / `submitAudio`).
+  return apiClient.post<TeacherQuestionResponse>(
+    `/questions/${encodeURIComponent(id)}/media`,
+    form,
+  );
+}
+
+/** DELETE /api/questions/{id}/media → clear it. Idempotent. */
+export function removeQuestionMedia(id: string): Promise<TeacherQuestionResponse> {
+  return apiClient.del<TeacherQuestionResponse>(`/questions/${encodeURIComponent(id)}/media`);
+}
+
 /** PATCH /api/questions/{id} → partial update, incl. attach/detach + reorder. */
 export function updateQuestion(
   id: string,

@@ -113,7 +113,7 @@ public sealed class CatalogAccessSqlParityTests : IDisposable
 
                 await using (var ctx = CreateContext())
                 {
-                    var svc = new CatalogService(ctx, new CatalogOptions());
+                    var svc = new CatalogService(ctx, new CatalogOptions(), new NullObjectStorage());
                     var actual = await svc.TaskIndexAsync(target);
                     if (actual != s.Expected)
                         mismatches.Add($"'{s.Name}': EF/SQL={actual} vs frozen={s.Expected}");
@@ -192,7 +192,8 @@ public sealed class CatalogAccessSqlParityTests : IDisposable
 
                 await using (var ctx = CreateContext())
                 {
-                    var svc = new CatalogService(ctx, new CatalogOptions { FreeTasksPerModule = s.FreeTasks });
+                    var svc = new CatalogService(
+                        ctx, new CatalogOptions { FreeTasksPerModule = s.FreeTasks }, new NullObjectStorage());
                     var actual = await svc.NeedsPremiumAsync(student, target);
                     if (actual != s.Expected)
                         mismatches.Add($"'{s.Name}': EF/SQL={actual} vs frozen={s.Expected}");

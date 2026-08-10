@@ -77,6 +77,17 @@
   display: flex;
   align-items: center;
   gap: var(--s-3);
+  /* Wraps so the actions drop to their own line on a phone. Without this the media
+     control competed with the title and truncated "Еда и вкусы" to "Еда и вк…" —
+     the row's actions are secondary, its name is not. */
+  flex-wrap: wrap;
+}
+/* Groups the row's actions so they wrap together rather than one at a time. */
+.taskActions {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-1);
+  flex: none;
 }
 .ordinal {
   display: grid;
@@ -193,4 +204,30 @@
   place-items: center;
   text-align: center;
   padding-block: var(--s-6);
+}
+
+/* ---- Per-task media control (C2 cover, set/replaced from the row) ---- */
+.mediaCell {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-1);
+  flex: none;
+}
+/* The real input is driven by the buttons beside it — a bare file input cannot be
+   styled to match, and its "Choose file / no file selected" text is browser copy
+   in the browser's own language, which would sit untranslated next to ours. */
+.fileInput {
+  display: none;
+}
+
+/* Under 430px the actions take their own line, leaving the title the full width of
+   the first one. Widening `.taskBody` instead does NOT work: `flex: 1` keeps
+   `flex-shrink: 1`, so a 100% basis is simply shrunk back and the row stays on one
+   line with the title truncated. `.taskActions` is `flex: none`, i.e. shrink 0, so
+   giving IT the full basis is what actually forces the break. */
+@media (max-width: 430px) {
+  .taskActions {
+    flex-basis: 100%;
+    justify-content: flex-end;
+  }
 }

@@ -589,7 +589,6 @@
     "taskPrompt": "Shart (ruscha)",
     "taskPromptPlaceholder": "Расскажите, что вы вчера купили в магазине. 3–4 предложения.",
     "taskLevel": "Daraja",
-    "mediaLater": "Media yuklash hozircha mavjud emas — keyingi bosqichda qo‘shiladi.",
     "saveDraft": "Qoralama sifatida saqlash",
     "errorType": {
       "word_order": "So‘z tartibi",
@@ -676,7 +675,15 @@
       "settings": "Sozlamalar",
       "language": "Til",
       "theme": "Ko‘rinish"
-    }
+    },
+    "media": "Media",
+    "mediaHint": "Rasm yoki video — ixtiyoriy (JPEG/PNG/WebP, MP4/WebM, 25 MB gacha)",
+    "mediaAddShort": "Media",
+    "mediaReplaceShort": "Almashtirish",
+    "mediaRemove": "O‘chirish",
+    "mediaAdd": "«{{task}}» uchun media yuklash",
+    "mediaReplace": "«{{task}}» mediasini almashtirish",
+    "mediaUploadFailed": "Media yuklanmadi — vazifa saqlandi, mediani qatordan qo‘shing."
   },
   "auth": {
     "phoneLabel": "Telefon raqam",

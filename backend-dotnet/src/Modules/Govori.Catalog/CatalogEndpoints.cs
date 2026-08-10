@@ -110,6 +110,41 @@ public static class CatalogEndpoints
             if (!TryUserId(principal, out var userId)) return Results.Unauthorized();
             return Map(await svc.UpdateQuestionAsync(userId, id, body, ct));
         }).RequireAuthorization();
+
+        // POST /api/questions/{id}/media — set/replace the task's image or short video
+        // (multipart/form-data, field "media"). → 200 the updated task with a fresh `media_url`;
+        // 400 on a rejected upload (wrong type / empty / over 25 MB, each with its own {detail});
+        // 404 when the task is missing or belongs to another teacher — never 403, so ids stay
+        // unprobeable.
+        //
+        // The form is read MANUALLY rather than via IFormFile binding, to sidestep the antiforgery
+        // middleware that form-binding minimal APIs require — the same pattern POST /api/submissions
+        // and POST /api/auth/me/avatar already use. Every validation rule lives in the service and is
+        // applied server-side; nothing about the file is trusted from the client, including its name.
+        questions.MapPost("/{id:guid}/media", async (
+            Guid id, HttpRequest request, ClaimsPrincipal principal, CatalogService svc, CancellationToken ct) =>
+        {
+            if (!TryUserId(principal, out var userId)) return Results.Unauthorized();
+            if (!request.HasFormContentType)
+                return Detail("Expected multipart/form-data", StatusCodes.Status400BadRequest);
+
+            var form = await request.ReadFormAsync(ct);
+            var file = form.Files["media"] ?? (form.Files.Count > 0 ? form.Files[0] : null);
+            if (file is null)
+                return Detail("media file is required", StatusCodes.Status400BadRequest);
+
+            await using var stream = file.OpenReadStream();
+            return Map(await svc.SetQuestionMediaAsync(userId, id, stream, file.ContentType, file.Length, ct));
+        }).RequireAuthorization().DisableAntiforgery();
+
+        // DELETE /api/questions/{id}/media — clear the task's media → 200 the updated task
+        // (`media_url` now null). Idempotent: a task with no media is still a 200.
+        questions.MapDelete("/{id:guid}/media", async (
+            Guid id, ClaimsPrincipal principal, CatalogService svc, CancellationToken ct) =>
+        {
+            if (!TryUserId(principal, out var userId)) return Results.Unauthorized();
+            return Map(await svc.RemoveQuestionMediaAsync(userId, id, ct));
+        }).RequireAuthorization();
     }
 
     /// <summary>A valid ACCESS token carrying a parseable `sub`; a refresh token is rejected.</summary>

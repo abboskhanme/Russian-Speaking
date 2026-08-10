@@ -653,8 +653,33 @@ stays until those are closed.
   arrow the A4 roster draws for the same student. Absent when the direction is
   unknown. It sits under the meta rather than beside the name because as a sibling
   it competed for width and truncated "Анна Иванова" on a phone.
-- [ ] Media upload for C2 (`Question.MediaKey` + storage exist; no multipart
-  endpoint).
+- [x] Media upload for C2 — **done**. `Question.MediaKey` and object storage both
+  existed; what was missing was the HTTP surface.
+  - `POST /api/questions/{id}/media` (multipart, field `media`) and `DELETE` the
+    same path. Validation mirrors the avatar path and is entirely server-side:
+    an allow-list of JPEG/PNG/WebP + MP4/WebM, non-empty, ≤ 25 MB, all checked
+    BEFORE the user is loaded or storage is touched. **`image/svg+xml` is refused
+    even though it is an image** — an SVG can carry script and would be a
+    stored-XSS vector the moment its presigned url opens.
+  - The object lands under a RANDOM `questions/` key with the extension taken
+    from the VALIDATED content-type; the client's filename is ignored entirely,
+    so a hostile name can never influence the key. Verified live: `cover.png`
+    became `questions/05463bb4….png`.
+  - Another teacher's task is **404, not 403** — task ids stay unprobeable.
+  - `TeacherQuestionResponse` += `media_url`, a presigned GET minted per request
+    (never a stored column), so the projection became async. Presigning is local
+    HMAC signing rather than a round trip, which is why every row in a 200-item
+    library can carry a real url instead of a bare "has media" flag the editor
+    would then have to resolve with a second request.
+  - `Govori.Catalog` gained a Platform reference for `IObjectStorage` — the
+    allowed direction, the same edge `Govori.Identity` already has for avatars.
+    ArchTests still green.
+  - Frontend: the C2 create sheet takes an optional file, and because the task has
+    no id until it is created, the PAGE creates first and then uploads. If that
+    second request fails the task is still saved, so the screen says exactly that
+    instead of reporting a failed save and tempting a duplicate. Existing tasks get
+    a per-row Media / Almashtirish / O'chirish control — there is no task-editor
+    screen, so without it a wrong file would be unfixable.
 - [ ] Attempt limits on assignments (D3's omitted "Urinish"), if the product
   wants them.
 - [x] The aged dev fixture — **done**, `./deploy/dev-refresh-fixture.sh`. The seed

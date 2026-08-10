@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Badge, Button, Card, Input, Modal, Text } from "../../shared/ui";
 import { AppShell, Brand, NotificationsBell, teacherNavItems } from "../../widgets";
@@ -19,7 +19,15 @@ export interface EditorTask {
   published: boolean;
   /** Attempts already recorded — an edit here changes what students answered. */
   submissionCount: number;
+  /** Presigned url of the task's image / short video, or null when it has none. */
+  mediaUrl?: string | null;
 }
+
+/** Mirrors the server's allow-list exactly. `image/svg+xml` is absent on both
+ * sides: an SVG can carry script and would be a stored-XSS vector once its
+ * presigned url is opened. This only filters the OS picker — the server re-checks
+ * everything, because an accept attribute is a hint, not a control. */
+const MEDIA_ACCEPT = "image/jpeg,image/png,image/webp,video/mp4,video/webm";
 
 /** A library row offered by the C5 picker (unattached tasks only). */
 export interface LibraryTask {
@@ -35,6 +43,13 @@ export interface NewTaskDraft {
   prompt: string;
   level?: string;
   ruStyle?: string;
+  /**
+   * Optional cover, picked in the create sheet. The task does not exist yet when
+   * the teacher chooses it, so there is no id to upload against — the PAGE creates
+   * the task first and then uploads. A failure there leaves a real, saved task
+   * with no media, which the page reports rather than pretending the save failed.
+   */
+  media?: File | null;
 }
 
 export interface ModuleEditorProps {
@@ -62,9 +77,105 @@ export interface ModuleEditorProps {
   onDetachTask?: (taskId: string) => Promise<void>;
   /** C2 — create a task directly into this module. */
   onCreateTask?: (draft: NewTaskDraft) => Promise<void>;
+  /** Set or REPLACE an existing task's media. Omit and the row's media control is
+   * not rendered, so a read-only host stays read-only. */
+  onSetTaskMedia?: (taskId: string, file: File) => Promise<void>;
+  /** Clear an existing task's media. */
+  onRemoveTaskMedia?: (taskId: string) => Promise<void>;
+  /** A partial-success message from the host (e.g. the task saved but its cover
+   * did not upload). Shown above the task list; null hides it. */
+  notice?: string | null;
   /** Library search, debounced by the caller. */
   onSearchLibrary?: (term: string) => void;
   onOpenTask?: (taskId: string) => void;
+}
+
+/**
+ * Per-row media control. There is no task-editor screen — the row's own click is a
+ * no-op today — so this is the only place an EXISTING task's cover can be set,
+ * replaced or cleared. Without it a teacher who picked the wrong file while
+ * creating the task would be stuck with it.
+ *
+ * Renders nothing at all when the host supplies no `onSetTaskMedia`, keeping a
+ * read-only host read-only.
+ */
+function TaskMediaControl({
+  task,
+  onSetTaskMedia,
+  onRemoveTaskMedia,
+}: {
+  task: EditorTask;
+  onSetTaskMedia?: (taskId: string, file: File) => Promise<void>;
+  onRemoveTaskMedia?: (taskId: string) => Promise<void>;
+}) {
+  const { t } = useTranslation();
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  if (!onSetTaskMedia) return null;
+  const has = Boolean(task.mediaUrl);
+
+  const pick = async (file: File | null) => {
+    if (!file || busy) return;
+    setBusy(true);
+    setError(null);
+    try {
+      await onSetTaskMedia(task.id, file);
+    } catch (e) {
+      // The server's own detail says WHICH rule was broken (type vs size), which
+      // is the difference between a fixable mistake and a mystery.
+      setError(e instanceof Error && e.message ? e.message : t("teacher.saveFailed"));
+    } finally {
+      setBusy(false);
+      // Let the same file be re-picked after a failure.
+      if (inputRef.current) inputRef.current.value = "";
+    }
+  };
+
+  const clear = async () => {
+    if (busy) return;
+    setBusy(true);
+    setError(null);
+    try {
+      await onRemoveTaskMedia?.(task.id);
+    } catch {
+      setError(t("teacher.saveFailed"));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <span className={styles.mediaCell}>
+      <input
+        ref={inputRef}
+        type="file"
+        accept={MEDIA_ACCEPT}
+        className={styles.fileInput}
+        onChange={(e) => void pick(e.currentTarget.files?.[0] ?? null)}
+        aria-label={t(has ? "teacher.mediaReplace" : "teacher.mediaAdd", { task: task.title })}
+      />
+      <Button
+        variant="ghost"
+        size="sm"
+        disabled={busy}
+        onClick={() => inputRef.current?.click()}
+      >
+        {has ? t("teacher.mediaReplaceShort") : t("teacher.mediaAddShort")}
+      </Button>
+      {has && onRemoveTaskMedia && (
+        <Button variant="ghost" size="sm" disabled={busy} onClick={() => void clear()}>
+          {t("teacher.mediaRemove")}
+        </Button>
+      )}
+      {error && (
+        <Text as="span" variant="body-s" color="danger" role="alert">
+          {error}
+        </Text>
+      )}
+    </span>
+  );
 }
 
 /* -------------------------------------------------------------------------- */
@@ -103,6 +214,9 @@ export function ModuleEditorScreen({
   onAttachTask,
   onDetachTask,
   onCreateTask,
+  onSetTaskMedia,
+  onRemoveTaskMedia,
+  notice,
   onSearchLibrary,
   onOpenTask,
 }: ModuleEditorProps) {
@@ -257,18 +371,31 @@ export function ModuleEditorScreen({
                           .join(" · ")}
                       </Text>
                     </button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className={styles.detachBtn}
-                      onClick={() => void onDetachTask?.(task.id)}
-                    >
-                      {t("teacher.removeFromModule")}
-                    </Button>
+                    <span className={styles.taskActions}>
+                      <TaskMediaControl
+                        task={task}
+                        onSetTaskMedia={onSetTaskMedia}
+                        onRemoveTaskMedia={onRemoveTaskMedia}
+                      />
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className={styles.detachBtn}
+                        onClick={() => void onDetachTask?.(task.id)}
+                      >
+                        {t("teacher.removeFromModule")}
+                      </Button>
+                    </span>
                   </Card>
                 </li>
               ))}
             </ol>
+          )}
+
+          {notice && (
+            <Text as="p" variant="body-s" color="warn" role="status">
+              {notice}
+            </Text>
           )}
 
           <div className={styles.addRow}>
@@ -435,6 +562,7 @@ function NewTaskSheet({
   const [title, setTitle] = useState("");
   const [prompt, setPrompt] = useState("");
   const [level, setLevel] = useState("");
+  const [media, setMedia] = useState<File | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -442,6 +570,7 @@ function NewTaskSheet({
     setTitle("");
     setPrompt("");
     setLevel("");
+    setMedia(null);
     setError(null);
   };
 
@@ -450,7 +579,7 @@ function NewTaskSheet({
     setBusy(true);
     setError(null);
     try {
-      await onCreate?.({ title: title.trim(), prompt: prompt.trim(), level: level.trim() });
+      await onCreate?.({ title: title.trim(), prompt: prompt.trim(), level: level.trim(), media });
       reset();
       onClose();
     } catch {
@@ -500,12 +629,22 @@ function NewTaskSheet({
           placeholder="A2"
         />
 
-        {/* Media upload is not wired: Question.MediaKey and object storage exist,
-            but there is no multipart endpoint for it yet. Saying so beats an
-            upload control that silently does nothing. */}
-        <Text as="p" variant="body-s" color="faint">
-          {t("teacher.mediaLater")}
-        </Text>
+        <div className={styles.field}>
+          <Text as="label" variant="body-s" weight="semibold">
+            {t("teacher.media")}
+          </Text>
+          {/* The file is held, not uploaded: the task has no id yet. The page
+              uploads it immediately after the create succeeds. */}
+          <input
+            type="file"
+            accept={MEDIA_ACCEPT}
+            onChange={(e) => setMedia(e.currentTarget.files?.[0] ?? null)}
+            aria-label={t("teacher.media")}
+          />
+          <Text as="p" variant="body-s" color="faint">
+            {media ? media.name : t("teacher.mediaHint")}
+          </Text>
+        </div>
 
         {error && (
           <Text as="p" variant="body-s" color="danger" role="alert">

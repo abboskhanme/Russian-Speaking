@@ -127,7 +127,12 @@ public sealed record TeacherQuestionResponse(
     /// the editor warns before an edit that would change what students already answered.</summary>
     int SubmissionCount,
     DateTime CreatedAt,
-    DateTime UpdatedAt);
+    DateTime UpdatedAt,
+    /// <summary>APPEND-ONLY: the task's optional image or short video, as a PRESIGNED-GET url minted
+    /// per request from <c>Question.MediaKey</c> — the same short-lived-download-link treatment
+    /// <c>MeResponse.AvatarUrl</c> and a submission's <c>audio_url</c> get, never a stored column.
+    /// <c>null</c> when the task has no media.</summary>
+    string? MediaUrl = null);
 
 /// <summary>Body of POST /api/blocks. Only <c>name</c> is required; a module starts as a DRAFT
 /// (<c>is_published = false</c>) so nothing reaches students until the teacher says so.</summary>

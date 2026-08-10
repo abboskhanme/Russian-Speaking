@@ -1,6 +1,7 @@
 using Govori.Contracts;
 using Govori.Infrastructure;
 using Govori.Infrastructure.Entities;
+using Govori.Platform.Storage;
 using Microsoft.EntityFrameworkCore;
 
 namespace Govori.Catalog;
@@ -21,12 +22,32 @@ public sealed class CatalogService
 {
     private readonly GovoriDbContext _db;
     private readonly CatalogOptions _options;
+    private readonly IObjectStorage _storage;
 
-    public CatalogService(GovoriDbContext db, CatalogOptions options)
+    public CatalogService(GovoriDbContext db, CatalogOptions options, IObjectStorage storage)
     {
         _db = db;
         _options = options;
+        _storage = storage;
     }
+
+    /// <summary>Ceiling for a task's media. Larger than an avatar because this may be a short video
+    /// clip, and small enough that a rejected upload never buffers anything big — the length is
+    /// checked before the stream reaches storage.</summary>
+    private const long MaxMediaBytes = 25L * 1024 * 1024;
+
+    /// <summary>The ONLY accepted media content-types, mapped to their storage-key extension.
+    /// Raster + two web-native video containers. <c>image/svg+xml</c> is absent for the same reason
+    /// it is absent from the avatar allow-list: an SVG can carry script and would be a stored-XSS
+    /// vector the moment its presigned url is opened. Anything not in this map is a 400.</summary>
+    private static readonly Dictionary<string, string> MediaTypes = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ["image/jpeg"] = "jpg",
+        ["image/png"] = "png",
+        ["image/webp"] = "webp",
+        ["video/mp4"] = "mp4",
+        ["video/webm"] = "webm",
+    };
 
     /// <summary>
     /// Teacher ids of every group the student belongs to: DISTINCT <c>group.teacher_id</c> over
@@ -316,7 +337,7 @@ public sealed class CatalogService
             Visibility: b.Visibility, IsPublished: b.IsPublished, SortOrder: b.SortOrder,
             TaskCount: tasks.Count, StudentCount: b.IsPublished ? reach : 0,
             CreatedAt: b.CreatedAt, UpdatedAt: b.UpdatedAt,
-            Tasks: tasks.Select(q => QuestionOut(q, b.Name, subCounts.GetValueOrDefault(q.Id, 0))).ToList()));
+            Tasks: await Task.WhenAll(tasks.Select(q => QuestionOutAsync(q, b.Name, subCounts.GetValueOrDefault(q.Id, 0), ct)))));
     }
 
     /// <summary>POST /api/blocks — create a module. Starts as a DRAFT so nothing reaches students
@@ -418,9 +439,8 @@ public sealed class CatalogService
             .Take(limit).ToListAsync(ct);
         var subCounts = await SubmissionCountsAsync(rows.Select(r => r.Id).ToList(), ct);
 
-        return CatalogResult<IReadOnlyList<TeacherQuestionResponse>>.Ok(rows
-            .Select(x => QuestionOut(x, x.Block?.Name, subCounts.GetValueOrDefault(x.Id, 0)))
-            .ToList());
+        return CatalogResult<IReadOnlyList<TeacherQuestionResponse>>.Ok(
+            await Task.WhenAll(rows.Select(x => QuestionOutAsync(x, x.Block?.Name, subCounts.GetValueOrDefault(x.Id, 0), ct))));
     }
 
     /// <summary>POST /api/questions — create a task. Starts as a DRAFT.</summary>
@@ -472,7 +492,7 @@ public sealed class CatalogService
         _db.Questions.Add(q);
         await _db.SaveChangesAsync(ct);
 
-        return CatalogResult<TeacherQuestionResponse>.Ok(QuestionOut(q, block?.Name, 0));
+        return CatalogResult<TeacherQuestionResponse>.Ok(await QuestionOutAsync(q, block?.Name, 0, ct));
     }
 
     /// <summary>PATCH /api/questions/{id} — partial update; absent fields are left alone.
@@ -534,12 +554,111 @@ public sealed class CatalogService
         await _db.SaveChangesAsync(ct);
 
         var subs = await _db.Submissions.CountAsync(s => s.QuestionId == q.Id, ct);
-        return CatalogResult<TeacherQuestionResponse>.Ok(QuestionOut(q, newBlock?.Name, subs));
+        return CatalogResult<TeacherQuestionResponse>.Ok(await QuestionOutAsync(q, newBlock?.Name, subs, ct));
+    }
+
+    /// <summary>
+    /// POST /api/questions/{id}/media — set (or replace) a task's image / short video. The mockup's
+    /// optional "Rasm yoki video yuklash" on C2.
+    ///
+    /// <para>Validation is ENTIRELY server-side, mirroring the avatar path: the content-type must be
+    /// in <see cref="MediaTypes"/> (notably NOT <c>image/svg+xml</c>, a stored-XSS vector), and the
+    /// body must be non-empty and at most <see cref="MaxMediaBytes"/>. Both are checked BEFORE the
+    /// user is loaded or storage is touched, so a rejected upload writes nothing.</para>
+    ///
+    /// <para>The object goes under a RANDOM <c>questions/</c> key with the extension derived from the
+    /// VALIDATED content-type — the client's filename is ignored entirely, so a hostile name can
+    /// never influence the stored key. The superseded object is then deleted BEST-EFFORT: an orphan
+    /// is acceptable, a failed cleanup must never fail a request whose media already changed.</para>
+    ///
+    /// <para>Ownership is the same rule the rest of this surface uses — a teacher may only touch
+    /// their OWN task (admin: any), and a task belonging to someone else is a 404, not a 403, so
+    /// task ids stay unprobeable.</para>
+    /// </summary>
+    public async Task<CatalogResult<TeacherQuestionResponse>> SetQuestionMediaAsync(
+        Guid userId, Guid questionId, Stream content, string? contentType, long length,
+        CancellationToken ct = default)
+    {
+        if (contentType is null || !MediaTypes.TryGetValue(contentType.Split(';')[0].Trim(), out var ext))
+            return CatalogResult<TeacherQuestionResponse>.BadRequest(
+                "Faqat rasm (JPEG/PNG/WebP) yoki video (MP4/WebM) yuklash mumkin");
+        if (length <= 0)
+            return CatalogResult<TeacherQuestionResponse>.BadRequest("Fayl bo'sh");
+        if (length > MaxMediaBytes)
+            return CatalogResult<TeacherQuestionResponse>.BadRequest("Fayl juda katta (eng ko'pi 25 MB)");
+
+        var user = await ActiveUserAsync(userId, ct);
+        if (user is null) return CatalogResult<TeacherQuestionResponse>.Unauthorized();
+        if (!IsTeacher(user)) return CatalogResult<TeacherQuestionResponse>.Forbidden();
+
+        var q = await _db.Questions.Include(x => x.Block)
+            .FirstOrDefaultAsync(x => x.Id == questionId && !x.IsDeleted, ct);
+        if (q is null || (user.Role != UserRole.Admin && q.TeacherId != user.Id))
+            return CatalogResult<TeacherQuestionResponse>.NotFound();
+
+        var oldKey = q.MediaKey;
+        var newKey = _storage.NewKey("questions", ext);
+        await _storage.PutAsync(newKey, content, contentType, ct);
+
+        q.MediaKey = newKey;
+        q.UpdatedAt = DateTime.UtcNow;
+        await _db.SaveChangesAsync(ct);
+
+        // Only after the new key is committed, so a failure here never loses the new media.
+        if (!string.IsNullOrEmpty(oldKey) && oldKey != newKey)
+            await TryDeleteMediaAsync(oldKey, ct);
+
+        var subs = await _db.Submissions.CountAsync(s => s.QuestionId == q.Id, ct);
+        return CatalogResult<TeacherQuestionResponse>.Ok(await QuestionOutAsync(q, q.Block?.Name, subs, ct));
+    }
+
+    /// <summary>DELETE /api/questions/{id}/media — clear a task's media. Idempotent: a task with none
+    /// is still a 200, because "make sure this has no media" is the caller's actual intent.</summary>
+    public async Task<CatalogResult<TeacherQuestionResponse>> RemoveQuestionMediaAsync(
+        Guid userId, Guid questionId, CancellationToken ct = default)
+    {
+        var user = await ActiveUserAsync(userId, ct);
+        if (user is null) return CatalogResult<TeacherQuestionResponse>.Unauthorized();
+        if (!IsTeacher(user)) return CatalogResult<TeacherQuestionResponse>.Forbidden();
+
+        var q = await _db.Questions.Include(x => x.Block)
+            .FirstOrDefaultAsync(x => x.Id == questionId && !x.IsDeleted, ct);
+        if (q is null || (user.Role != UserRole.Admin && q.TeacherId != user.Id))
+            return CatalogResult<TeacherQuestionResponse>.NotFound();
+
+        var oldKey = q.MediaKey;
+        if (oldKey is not null)
+        {
+            q.MediaKey = null;
+            q.UpdatedAt = DateTime.UtcNow;
+            await _db.SaveChangesAsync(ct);
+            await TryDeleteMediaAsync(oldKey, ct);
+        }
+
+        var subs = await _db.Submissions.CountAsync(s => s.QuestionId == q.Id, ct);
+        return CatalogResult<TeacherQuestionResponse>.Ok(await QuestionOutAsync(q, q.Block?.Name, subs, ct));
+    }
+
+    // Best-effort object cleanup: the row already points elsewhere, so a storage hiccup must not
+    // surface as a failed request. An orphaned object is the cheaper of the two problems.
+    private async Task TryDeleteMediaAsync(string key, CancellationToken ct)
+    {
+        try { await _storage.DeleteAsync(key, ct); }
+        catch { /* orphan is acceptable; losing the request is not */ }
     }
 
     // ─── authoring helpers ──────────────────────────────────────────────────────
 
-    private static TeacherQuestionResponse QuestionOut(Question q, string? blockName, int submissionCount)
+    /// <summary>
+    /// Project one task, minting a PRESIGNED url for its media when it has any.
+    ///
+    /// <para>Async only because of that url — presigning is local HMAC signing, not a round trip, so
+    /// doing it per row in a 200-item library costs 200 hashes and no I/O. That is why every response
+    /// can carry a real url rather than the list returning a bare "has media" flag the editor would
+    /// then have to resolve with a second request.</para>
+    /// </summary>
+    private async Task<TeacherQuestionResponse> QuestionOutAsync(
+        Question q, string? blockName, int submissionCount, CancellationToken ct)
         => new(
             Id: q.Id, Title: q.Title, PromptText: q.PromptText,
             Type: q.Type.ToString().ToLowerInvariant(),
@@ -549,7 +668,8 @@ public sealed class CatalogService
             IsPublished: q.IsPublished, IsPublic: q.IsPublic,
             BlockId: q.BlockId, BlockName: blockName, SortOrder: q.SortOrder,
             SubmissionCount: submissionCount,
-            CreatedAt: q.CreatedAt, UpdatedAt: q.UpdatedAt);
+            CreatedAt: q.CreatedAt, UpdatedAt: q.UpdatedAt,
+            MediaUrl: q.MediaKey is null ? null : await _storage.GetPresignedUrlAsync(q.MediaKey, ct: ct));
 
     private static string? Trimmed(string? s)
     {

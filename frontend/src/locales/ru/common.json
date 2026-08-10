@@ -606,7 +606,6 @@
     "taskPrompt": "Задание (по-русски)",
     "taskPromptPlaceholder": "Расскажите, что вы вчера купили в магазине. 3–4 предложения.",
     "taskLevel": "Уровень",
-    "mediaLater": "Загрузка медиа пока недоступна — появится позже.",
     "saveDraft": "Сохранить черновик",
     "errorType": {
       "word_order": "Порядок слов",
@@ -701,7 +700,15 @@
       "settings": "Настройки",
       "language": "Язык",
       "theme": "Тема"
-    }
+    },
+    "media": "Медиа",
+    "mediaHint": "Изображение или видео — необязательно (JPEG/PNG/WebP, MP4/WebM, до 25 МБ)",
+    "mediaAddShort": "Медиа",
+    "mediaReplaceShort": "Заменить",
+    "mediaRemove": "Удалить",
+    "mediaAdd": "Загрузить медиа для «{{task}}»",
+    "mediaReplace": "Заменить медиа у «{{task}}»",
+    "mediaUploadFailed": "Медиа не загрузилось — задание сохранено, добавьте медиа из строки."
   },
   "auth": {
     "phoneLabel": "Номер телефона",
