@@ -43,6 +43,8 @@ export default function StudentProfilePage() {
   const [subs, setSubs] = useState<SubmissionResponse[]>([]);
   const [group, setGroup] = useState<GroupDetailResponse | null>(null);
   const [queued, setQueued] = useState(0);
+  /** Null = no direction: under four graded answers the server does not claim one. */
+  const [trend, setTrend] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [failed, setFailed] = useState(false);
   const [reloadKey, setReloadKey] = useState(0);
@@ -56,8 +58,13 @@ export default function StudentProfilePage() {
       endpoints.teacherStudentSubmissions(studentId, 100),
       groupId ? endpoints.teacherGroupDetail(groupId) : Promise.resolve(null),
       endpoints.teacherSubmissions(),
+      // For the trend direction only. Deliberately taken from the SERVER rather
+      // than recomputed from `subs` here: the newer-half-vs-older-half rule lives
+      // in ClassroomScoring, and a second copy in the client would drift from the
+      // arrow the roster shows for the same student.
+      endpoints.teacherGradebook(),
     ])
-      .then(([s, g, all]) => {
+      .then(([s, g, all, gb]) => {
         if (!alive) return;
         if (s.status !== "fulfilled") {
           setFailed(true);
@@ -69,6 +76,11 @@ export default function StudentProfilePage() {
           all.status === "fulfilled"
             ? all.value.filter((x) => x.status === "done" && x.reviewed_at === null).length
             : 0,
+        );
+        setTrend(
+          gb.status === "fulfilled"
+            ? (gb.value.find((r) => r.student_id === studentId)?.trend_delta ?? null)
+            : null,
         );
       })
       .finally(() => alive && setLoading(false));
@@ -134,6 +146,7 @@ export default function StudentProfilePage() {
       meta={meta}
       skills={skills}
       attempts={attempts}
+      trend={trend}
       activeNavKey="classes"
       onNavigate={onNavigate}
       queuedCount={queued}

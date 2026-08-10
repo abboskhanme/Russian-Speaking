@@ -49,7 +49,12 @@ public sealed record MeResponse(
     string? AvatarUrl = null,
     /// <summary>APPEND-ONLY, again: the notification preference. Defaults to <c>true</c> so a client
     /// reading an older response — or a row predating the column — behaves as it always did.</summary>
-    bool NotificationsEnabled = true);
+    bool NotificationsEnabled = true,
+    /// <summary>The user's UI language (<c>uz</c> · <c>ru</c> · <c>en</c>). The column has existed
+    /// since the baseline but nothing ever read or wrote it after registration, so the choice lived
+    /// only in each device's <c>localStorage</c> and did not follow the account. This is what makes
+    /// it an account setting.</summary>
+    string PreferredLanguage = "uz");
 
 /// <summary>
 /// Partial profile update body for <c>PATCH /api/auth/me</c> (auth-required). All fields are
@@ -75,7 +80,7 @@ public sealed record MeResponse(
 /// bool is what makes those two distinguishable over JSON.</para>
 public sealed record UpdateProfileRequest(
     string? Region = null, string? District = null, string? Address = null, string? FullName = null,
-    bool? NotificationsEnabled = null);
+    bool? NotificationsEnabled = null, string? PreferredLanguage = null);
 
 /// <summary>
 /// Body of <c>POST /api/auth/phone/change/request</c> (auth-required) — start a verified change of

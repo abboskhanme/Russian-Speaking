@@ -26,7 +26,7 @@ import type { EditableInfo, ProfileUser, SettingsLanguage } from "../../screens/
 import { endpoints } from "../../shared/api";
 import type { GroupResponse } from "../../shared/api";
 import { useAuth } from "../../shared/auth";
-import { setLang } from "../../shared/i18n";
+import { getLang, setLang } from "../../shared/i18n";
 import type { AppLang } from "../../shared/i18n";
 import { applyTheme, getEffectiveTheme, storeTheme } from "../../widgets";
 import type { ThemeMode } from "../../widgets";
@@ -156,6 +156,20 @@ export default function TeacherProfilePage() {
 
   /* ---- Sozlamalar ------------------------------------------------------ */
 
+  /** Apply immediately, then persist to the ACCOUNT so the choice follows the
+   * teacher to another device. Theme stays per-device on purpose. */
+  const changeLanguage = useCallback(
+    (lang: SettingsLanguage) => {
+      const previous = getLang();
+      setLang(lang as AppLang);
+      endpoints
+        .updateProfile({ preferred_language: lang })
+        .then(loadMe)
+        .catch(() => setLang(previous));
+    },
+    [loadMe],
+  );
+
   const changeTheme = useCallback((next: ThemeMode) => {
     applyTheme(next);
     storeTheme(next);
@@ -223,7 +237,7 @@ export default function TeacherProfilePage() {
       onConfirmPhoneChange={handleConfirmPhoneChange}
       onChangeAvatar={handleChangeAvatar}
       onRemoveAvatar={handleRemoveAvatar}
-      onChangeLanguage={(lang) => setLang(lang as AppLang)}
+      onChangeLanguage={changeLanguage}
       onChangeTheme={changeTheme}
       onChangeNotifications={changeNotifications}
       onLogout={handleLogout}

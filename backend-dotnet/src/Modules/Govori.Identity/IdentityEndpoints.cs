@@ -174,6 +174,7 @@ public static class IdentityEndpoints
             return result.Status switch
             {
                 UpdateProfileStatus.InvalidFullName => Detail(result.Error!, StatusCodes.Status400BadRequest),
+                UpdateProfileStatus.InvalidLanguage => Detail(result.Error!, StatusCodes.Status400BadRequest),
                 UpdateProfileStatus.Unauthorized => Results.Unauthorized(),
                 _ => Results.Ok(result.Me),
             };

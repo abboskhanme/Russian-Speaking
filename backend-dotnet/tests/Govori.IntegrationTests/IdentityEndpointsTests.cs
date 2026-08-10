@@ -333,6 +333,26 @@ public sealed class IdentityEndpointsTests : IClassFixture<IdentityEndpointsTest
             using (var doc = JsonDocument.Parse(
                 await (await Patch(client, token, new { notifications_enabled = true })).Content.ReadAsStringAsync()))
                 Assert.True(doc.RootElement.GetProperty("notifications_enabled").GetBoolean());
+
+            // ── The UI language: an ACCOUNT setting, not a per-device one ──
+            using (var doc = JsonDocument.Parse(await (await GetMe(client, token)).Content.ReadAsStringAsync()))
+                Assert.Equal("uz", doc.RootElement.GetProperty("preferred_language").GetString());
+
+            using (var doc = JsonDocument.Parse(
+                await (await Patch(client, token, new { preferred_language = "RU" })).Content.ReadAsStringAsync()))
+                Assert.Equal("ru", doc.RootElement.GetProperty("preferred_language").GetString());  // normalised
+            // The point of the column: another device reading /me gets the same answer.
+            using (var doc = JsonDocument.Parse(await (await GetMe(client, token)).Content.ReadAsStringAsync()))
+                Assert.Equal("ru", doc.RootElement.GetProperty("preferred_language").GetString());
+
+            // An unsupported locale is REFUSED, not coerced to the default: the column is 8 chars
+            // wide, so a silent accept would let Postgres truncate it into something meaningless, and
+            // reporting success for a change that did not happen is worse than a 400.
+            foreach (var bad in new[] { "de", "uz-Cyrl-UZ", "", "  " })
+                Assert.Equal(HttpStatusCode.BadRequest, (await Patch(client, token, new { preferred_language = bad })).StatusCode);
+
+            await using (var ctx = _db.CreateContext())
+                Assert.Equal("ru", (await ctx.Users.SingleAsync(u => u.Phone == phone)).PreferredLanguage);
         }
         finally
         {

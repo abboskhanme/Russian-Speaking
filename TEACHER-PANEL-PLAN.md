@@ -615,14 +615,27 @@ stays until those are closed.
   and what students see, so it must not be guessed.
 
 **Follow-ups, in rough value order:**
-- [ ] Wire `users.preferred_language` so a language choice follows the user across
-  devices (touches the shared Identity path — students too). Same one-column
-  treatment `notifications_enabled` just got.
+- [x] Wire `users.preferred_language` — **done**. No migration: the column has
+  existed since the baseline and was written once at registration, then never read
+  or updated, so the choice lived only in each device's `localStorage`. Now
+  exposed on `MeResponse`, settable via `PATCH /api/auth/me`, and ADOPTED by the
+  auth store whenever identity resolves — one effect covering boot, login and any
+  refresh, for both panels. An unsupported locale is a 400, not a silent coercion:
+  the column is 8 characters wide, so accepting one would let Postgres truncate it
+  into nonsense, and reporting success for a change that did not happen is worse.
+  Theme stays per-device on purpose — a phone in the dark and a laptop in daylight
+  are not the same environment. Verified across TWO browser contexts: switched to
+  Russian on one, and a second with an EMPTY localStorage opened in Russian.
 - [ ] `notifications_enabled` is honoured by the ONE notification writer that
   exists today (`review_added`). Any future writer must resolve the opted-out set
   per batch — `EngagementService.Notify` deliberately does not check it, so that a
   loop cannot put a query behind every ping.
-- [ ] Per-student trend on A6 (the profile shows skills, not direction).
+- [x] Per-student trend on A6 — **done**. A chip under the meta line
+  (`↓ 8 punkt tushdi`), reading the SERVER's `trend_delta` rather than recomputing
+  the newer-half-vs-older-half rule client-side, so it can never disagree with the
+  arrow the A4 roster draws for the same student. Absent when the direction is
+  unknown. It sits under the meta rather than beside the name because as a sibling
+  it competed for width and truncated "Анна Иванова" on a phone.
 - [ ] Media upload for C2 (`Question.MediaKey` + storage exist; no multipart
   endpoint).
 - [ ] Attempt limits on assignments (D3's omitted "Urinish"), if the product

@@ -1,5 +1,5 @@
 import { useTranslation } from "react-i18next";
-import { Button, Card, Text, cx } from "../../shared/ui";
+import { Badge, Button, Card, Text, cx } from "../../shared/ui";
 import { AppShell, Brand, NotificationsBell, teacherNavItems } from "../../widgets";
 import type { NavItem } from "../../widgets";
 import { mockStudentProfile } from "./classes.mock";
@@ -41,6 +41,15 @@ export interface TeacherStudentProfileProps {
    */
   skills: StudentSkill[];
   attempts: StudentAttempt[];
+  /**
+   * Which way the student is moving — the same `trend_delta` the A4 roster's
+   * arrow reads, taken from the server so the two can never disagree.
+   *
+   * Null/undefined means UNKNOWN (under four graded answers), and the chip is
+   * then absent rather than showing a flat arrow: the skills bars already say
+   * where the student is, and a "→" would claim a plateau nobody measured.
+   */
+  trend?: number | null;
   activeNavKey?: string;
   onNavigate?: (key: string, item: NavItem) => void;
   queuedCount?: number;
@@ -76,6 +85,7 @@ export function TeacherStudentProfileScreen({
   meta,
   skills,
   attempts,
+  trend,
   activeNavKey = "classes",
   onNavigate,
   queuedCount = 0,
@@ -129,6 +139,9 @@ export function TeacherStudentProfileScreen({
             <Text as="p" variant="body-s" color="muted">
               {meta}
             </Text>
+            {/* Under the meta rather than beside the name: as a sibling it competed
+                for width and truncated "Анна Иванова" to "Анна Иван…" on a phone. */}
+            <TrendChip trend={trend} />
           </div>
         </header>
 
@@ -175,6 +188,34 @@ export function TeacherStudentProfileScreen({
 /* -------------------------------------------------------------------------- */
 /* Parts                                                                      */
 /* -------------------------------------------------------------------------- */
+
+/** Points inside which the student counts as holding steady. Must match the A4
+ * roster's dead band, or the same student reads "flat" in one place and "moving"
+ * in the other. */
+const TREND_FLAT = 2;
+
+/**
+ * The direction chip beside the student's name. Renders NOTHING when the trend is
+ * unknown — the server withholds a direction under four graded answers, and a
+ * "o'zgarishsiz" chip there would claim a plateau nobody measured.
+ *
+ * The arrow, the signed number and the wording all carry the direction, so colour
+ * is never the only signal (docs/03 §3.3).
+ */
+function TrendChip({ trend }: { trend?: number | null }) {
+  const { t } = useTranslation();
+  if (trend == null) return null;
+
+  const dir = trend >= TREND_FLAT ? "up" : trend <= -TREND_FLAT ? "down" : "flat";
+  const points = Math.abs(Math.round(trend));
+
+  return (
+    <Badge variant={dir === "up" ? "success" : dir === "down" ? "danger" : "neutral"} size="sm">
+      {dir === "up" ? "↑ " : dir === "down" ? "↓ " : "→ "}
+      {t(`teacher.trend.${dir}`, { points })}
+    </Badge>
+  );
+}
 
 function SkillBar({ skill }: { skill: StudentSkill }) {
   const tone = scoreTone(skill.score);

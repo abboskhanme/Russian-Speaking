@@ -19,6 +19,8 @@ import {
 } from "react";
 import { endpoints, isNeedsRegistration } from "../api";
 import type { MeResponse, OtpRequestResponse } from "../api";
+import { SUPPORTED_LANGS, getLang, setLang } from "../i18n";
+import type { AppLang } from "../i18n";
 import { tokenStore } from "./tokens";
 
 /** boot = hydrating from a stored token; ready = resolved (in or out). */
@@ -137,6 +139,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(me);
     setStatus("ready");
   }, []);
+
+  /**
+   * Adopt the ACCOUNT's language whenever identity resolves — boot, login, or any
+   * `/me` refresh.
+   *
+   * The choice used to live only in each device's `localStorage`, so signing in
+   * on a second device silently showed a language the user had already changed
+   * away from. The server row is the source of truth for a signed-in user; the
+   * local copy stays as the pre-login default and as the no-flash value while
+   * `/me` is still in flight.
+   *
+   * Guarded on a real difference, so this never fights the profile's own switch:
+   * that one applies the language immediately and then PATCHes, and by the time
+   * `/me` comes back the two already agree.
+   */
+  useEffect(() => {
+    const stored = user?.preferred_language;
+    if (!stored || !(SUPPORTED_LANGS as readonly string[]).includes(stored)) return;
+    if (stored === getLang()) return;
+    setLang(stored as AppLang);
+  }, [user]);
 
   const clearJustRegistered = useCallback(() => setJustRegistered(false), []);
 

@@ -85,6 +85,12 @@ public enum UpdateProfileStatus
     /// characters → 400. Deliberately NOT silently ignored: a caller that sent a name expects it
     /// stored, and a blank display name breaks the avatar initials and every "Salom, {name}".</summary>
     InvalidFullName,
+
+    /// <summary>The supplied <c>preferred_language</c> is not one of the three the app ships → 400.
+    /// Refused rather than coerced to the default: silently storing "uz" for a caller that asked for
+    /// something else would report success for a change that did not happen, and the column is only
+    /// 8 characters wide anyway.</summary>
+    InvalidLanguage,
 }
 
 /// <summary>Result of a partial profile update. <see cref="Error"/> carries the user-facing message

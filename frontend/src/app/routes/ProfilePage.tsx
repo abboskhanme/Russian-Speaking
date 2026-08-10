@@ -32,7 +32,7 @@ import type {
   ProfileUser,
 } from "../../screens/profile";
 import { endpoints } from "../../shared/api";
-import { setLang } from "../../shared/i18n";
+import { getLang, setLang } from "../../shared/i18n";
 import { useAuth } from "../../shared/auth";
 import { applyTheme, getEffectiveTheme, storeTheme } from "../../widgets";
 import type { ThemeMode } from "../../widgets";
@@ -155,6 +155,21 @@ export default function ProfilePage() {
         .catch(() => setNotifications(previous));
     },
     [notifications, loadMe],
+  );
+
+  /** Apply immediately, then persist to the ACCOUNT so the choice follows the
+   * user to another device. Theme stays per-device on purpose — a phone in the
+   * dark and a laptop in daylight are not the same environment. */
+  const changeLanguage = useCallback(
+    (lang: AppLanguage) => {
+      const previous = getLang();
+      setLang(lang);
+      endpoints
+        .updateProfile({ preferred_language: lang })
+        .then(loadMe)
+        .catch(() => setLang(previous));
+    },
+    [loadMe],
   );
 
   const changeTheme = useCallback((next: ThemeMode) => {
@@ -287,7 +302,7 @@ export default function ProfilePage() {
       onConfirmPhoneChange={handleConfirmPhoneChange}
       onChangeAvatar={handleChangeAvatar}
       onRemoveAvatar={handleRemoveAvatar}
-      onChangeLanguage={(lang) => setLang(lang)}
+      onChangeLanguage={changeLanguage}
       onChangeTheme={changeTheme}
       onChangeNotifications={changeNotifications}
       onUpgrade={() => undefined}

@@ -30,6 +30,13 @@ public sealed class AuthService
     /// a surrogate pair is 2 here and 1 there, so this can only ever be stricter, never looser.</summary>
     private const int FullNameMaxLength = 255;
 
+    /// <summary>The three UI languages the app ships (docs/08 §4.7). Kept as an allow-list rather
+    /// than a length check because <c>preferred_language</c> is only 8 characters wide, so an
+    /// unrecognised locale would be silently TRUNCATED by Postgres into something meaningless
+    /// instead of failing loudly.</summary>
+    private static readonly HashSet<string> SupportedLanguages =
+        new(StringComparer.Ordinal) { "uz", "ru", "en" };
+
     /// <summary>Ceiling for an uploaded avatar. 5 MB is generous for a raster profile photo and small
     /// enough that a rejected upload never buffers anything large — the size is checked before the
     /// stream is ever handed to storage.</summary>
@@ -339,6 +346,17 @@ public sealed class AuthService
                 UpdateProfileStatus.InvalidFullName, Error: "Ism va familiya noto'g'ri kiritilgan");
         }
 
+        string? language = null;
+        if (req.PreferredLanguage is not null)
+        {
+            language = req.PreferredLanguage.Trim().ToLowerInvariant();
+            if (!SupportedLanguages.Contains(language))
+            {
+                return new UpdateProfileOutcome(
+                    UpdateProfileStatus.InvalidLanguage, Error: "Til qo'llab-quvvatlanmaydi");
+            }
+        }
+
         var user = await _db.Users.FirstOrDefaultAsync(u => u.Id == userId, ct);
         if (user is null || !user.IsActive)
             return new UpdateProfileOutcome(UpdateProfileStatus.Unauthorized);
@@ -350,6 +368,7 @@ public sealed class AuthService
         // A nullable bool, so an absent field leaves the preference alone while an explicit `false`
         // turns notifications OFF — over JSON those two are otherwise the same request.
         if (req.NotificationsEnabled is { } notifications) user.NotificationsEnabled = notifications;
+        if (language is not null) user.PreferredLanguage = language;
         user.UpdatedAt = DateTime.UtcNow;
 
         await _db.SaveChangesAsync(ct);
@@ -673,6 +692,6 @@ public sealed class AuthService
         return new(user.Id, user.Email, user.FullName, user.Role.ToString().ToLowerInvariant(), user.IsActive, user.IsPremium,
             user.Region, user.District, user.Address,
             user.Phone, user.CreatedAt, level.Level, level.LabelUz, avatarUrl,
-            user.NotificationsEnabled);
+            user.NotificationsEnabled, user.PreferredLanguage);
     }
 }

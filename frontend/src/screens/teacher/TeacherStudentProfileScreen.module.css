@@ -60,6 +60,9 @@
   min-width: 0;
   display: flex;
   flex-direction: column;
+  /* align-items so the trend chip hugs its own text instead of stretching the
+     full column width. */
+  align-items: flex-start;
   gap: 2px;
 }
 

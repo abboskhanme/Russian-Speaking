@@ -53,6 +53,10 @@ export interface MeResponse {
    * Phase 7 profile work — the toggle used to be session-local and forgot the
    * choice on every reload. Defaults to `true` for every pre-existing account. */
   notifications_enabled: boolean;
+  /** The account's UI language (`uz` · `ru` · `en`). The auth store adopts it
+   * whenever identity resolves, so the choice follows the user to another device
+   * instead of living only in each browser's localStorage. */
+  preferred_language: string;
 }
 
 /** PATCH /api/auth/me body — partial profile update (the registration "Manzil"
@@ -73,6 +77,9 @@ export interface UpdateProfileArgs {
    * nullability on the wire those two requests would be indistinguishable and
    * the switch could never be turned off. */
   notifications_enabled?: boolean;
+  /** `uz` · `ru` · `en`. Anything else is a 400 — the column is 8 characters
+   * wide, so a silent accept would let Postgres truncate it into nonsense. */
+  preferred_language?: string;
 }
 
 /** How the one-time code reaches the user: a Telegram bot deep-link, or (dev)
