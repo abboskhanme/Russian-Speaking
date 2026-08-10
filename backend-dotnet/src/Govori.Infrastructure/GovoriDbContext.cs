@@ -768,6 +768,9 @@ public partial class GovoriDbContext : DbContext
             entity.Property(e => e.IsPremium)
                 .HasDefaultValue(false)
                 .HasColumnName("is_premium");
+            entity.Property(e => e.NotificationsEnabled)
+                .HasDefaultValue(true)
+                .HasColumnName("notifications_enabled");
             entity.Property(e => e.LastPracticeDate).HasColumnName("last_practice_date");
             entity.Property(e => e.LongestStreak)
                 .HasDefaultValue(0)

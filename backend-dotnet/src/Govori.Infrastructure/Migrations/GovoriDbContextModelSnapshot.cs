@@ -1082,6 +1082,12 @@ namespace Govori.Infrastructure.Migrations
                         .HasDefaultValue(0)
                         .HasColumnName("longest_streak");
 
+                    b.Property<bool>("NotificationsEnabled")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(true)
+                        .HasColumnName("notifications_enabled");
+
                     b.Property<string>("PasswordHash")
                         .HasMaxLength(255)
                         .HasColumnType("character varying(255)")

@@ -46,7 +46,10 @@ public sealed record MeResponse(
     string? Region = null, string? District = null, string? Address = null,
     string? Phone = null, DateTime CreatedAt = default,
     string? Level = null, string? LevelLabel = null,
-    string? AvatarUrl = null);
+    string? AvatarUrl = null,
+    /// <summary>APPEND-ONLY, again: the notification preference. Defaults to <c>true</c> so a client
+    /// reading an older response — or a row predating the column — behaves as it always did.</summary>
+    bool NotificationsEnabled = true);
 
 /// <summary>
 /// Partial profile update body for <c>PATCH /api/auth/me</c> (auth-required). All fields are
@@ -66,8 +69,13 @@ public sealed record MeResponse(
 /// therefore rejected (400), not stored. It is also trimmed, capped at the column width
 /// (<c>varchar(255)</c>) and refused if it carries control characters.</para>
 /// </summary>
+/// <para>APPEND-ONLY, like <see cref="MeResponse"/>. <c>NotificationsEnabled</c> was added at the END:
+/// it is a genuine user PREFERENCE with a column behind it, so unlike the other fields here an
+/// absent value means "leave it alone" and an explicit <c>false</c> means "turn it off". A nullable
+/// bool is what makes those two distinguishable over JSON.</para>
 public sealed record UpdateProfileRequest(
-    string? Region = null, string? District = null, string? Address = null, string? FullName = null);
+    string? Region = null, string? District = null, string? Address = null, string? FullName = null,
+    bool? NotificationsEnabled = null);
 
 /// <summary>
 /// Body of <c>POST /api/auth/phone/change/request</c> (auth-required) — start a verified change of

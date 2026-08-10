@@ -1,12 +1,13 @@
-/* TeacherProfileScreen — Phase 7. The one teacher screen with no mockup, so the
- * layout is the panel's own idiom rather than the student profile re-skinned.
- * Every value is a token. Full-width (docs/04 §4.10), compact density. */
+/* TeacherProfileScreen — Phase 7. The layout deliberately mirrors the student's
+ * Profil (identity card → tabs → panel), so most of the styling lives in the
+ * reused IdentityCard / InfoTab / SettingsTab. What is here is the teacher's own
+ * header row and the GURUHLARIM block that replaces the student's group card.
+ * Every value is a token; full-width (docs/04 §4.10). */
 
 .page {
-  --density-scale: 0.75;
   display: flex;
   flex-direction: column;
-  gap: calc(var(--s-5) * var(--density-scale));
+  gap: var(--s-4);
   width: 100%;
 }
 
@@ -43,42 +44,23 @@
   min-width: 0;
 }
 
-/* ---- Identity ---- */
-.identity {
-  display: flex;
-  align-items: center;
-  gap: var(--s-4);
-  min-width: 0;
+.panel {
+  width: 100%;
 }
-.avatar {
-  display: grid;
-  place-items: center;
-  flex: none;
-  width: 56px;
-  height: 56px;
-  border-radius: var(--r-pill);
-  background: var(--accent-tint);
-  color: var(--accent);
-}
-.identityBody {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  min-width: 0;
+.panel:focus {
+  outline: none;
 }
 
-/* ---- Sections ---- */
+/* ---- GURUHLARIM ---- */
 .section {
   display: flex;
   flex-direction: column;
-  gap: calc(var(--s-2) * var(--density-scale));
+  gap: var(--s-2);
 }
 .legend {
   text-transform: uppercase;
   letter-spacing: 0.06em;
 }
-
-/* ---- Groups ---- */
 .groupList {
   display: flex;
   flex-direction: column;
@@ -112,59 +94,4 @@
 .groupName {
   flex: 1;
   min-width: 0;
-}
-
-/* ---- Settings rows ---- */
-.settingRow {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--s-3);
-  flex-wrap: wrap;
-}
-
-.langGroup {
-  display: inline-flex;
-  gap: var(--s-1);
-  padding: 3px;
-  border: 1px solid var(--line);
-  border-radius: var(--r-pill);
-  background: var(--surface-2);
-}
-.lang {
-  padding: var(--s-1) var(--s-3);
-  border: 0;
-  border-radius: var(--r-pill);
-  background: transparent;
-  color: var(--muted);
-  font-size: var(--t-body-s-size);
-  font-weight: var(--fw-bold);
-  white-space: nowrap;
-  cursor: pointer;
-  transition: background var(--m-fast), color var(--m-fast);
-}
-.lang:hover {
-  color: var(--ink);
-}
-.lang:focus-visible {
-  outline: var(--focus-ring-width) solid var(--focus-ring);
-  outline-offset: var(--focus-ring-offset);
-}
-/* The selected language is filled AND its aria-checked is what a screen reader
-   announces — colour is never the only signal (docs/03 §3.3). */
-.langOn {
-  background: var(--surface);
-  color: var(--accent);
-  box-shadow: var(--e-1);
-}
-
-/* ---- Footer ---- */
-.footer {
-  display: flex;
-  flex-direction: column;
-  padding-top: var(--s-2);
-}
-.logout {
-  width: 100%;
-  color: var(--danger);
 }

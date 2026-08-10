@@ -87,6 +87,22 @@ export interface InfoTabProps {
   onRequestPhoneChange?: (phoneE164: string) => Promise<OtpDeliveryInfo>;
   /** Phone change step 2 — confirm the code. Rejects with 401 on a bad code. */
   onConfirmPhoneChange?: (code: string) => Promise<void>;
+  /**
+   * The CEFR "Daraja" row. It is a LEARNER's number, so the teacher panel hides
+   * it — a teacher has no band, and the row would read "kiritilmagan" forever.
+   * Defaults to shown, so the student screen is unchanged.
+   */
+  showLevel?: boolean;
+  /**
+   * Replaces the "GURUH VA O'QITUVCHI" block below the identity rows.
+   *
+   * A student's connection is the one group they are in and who teaches it; a
+   * teacher's is the several groups they OWN. Everything above this block — the
+   * identity rows and both editing flows — is genuinely the same on both panels,
+   * which is why only this part is swappable rather than the tab being forked.
+   * Omit it and the student's group block renders exactly as before.
+   */
+  relatedBlock?: ReactNode;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -115,6 +131,8 @@ export function InfoTab({
   onSaveInfo,
   onRequestPhoneChange,
   onConfirmPhoneChange,
+  showLevel = true,
+  relatedBlock,
 }: InfoTabProps) {
   const { t } = useTranslation();
 
@@ -187,39 +205,43 @@ export function InfoTab({
               value={user.district ?? notSet}
               empty={!user.district}
             />
-            <InfoRow
-              label={t("profile.info.level")}
-              value={level}
-              empty={!user.level}
-            />
+            {showLevel && (
+              <InfoRow
+                label={t("profile.info.level")}
+                value={level}
+                empty={!user.level}
+              />
+            )}
             <InfoRow label={t("profile.info.registered")} value={registered} />
           </dl>
         </Card>
       </div>
 
-      <section
-        className={styles.section}
-        aria-label={t("profile.group.sectionLabel")}
-      >
-        <Text
-          as="h2"
-          variant="label"
-          color="faint"
-          className={styles.sectionLabel}
+      {relatedBlock ?? (
+        <section
+          className={styles.section}
+          aria-label={t("profile.group.sectionLabel")}
         >
-          {t("profile.group.sectionLabel")}
-        </Text>
+          <Text
+            as="h2"
+            variant="label"
+            color="faint"
+            className={styles.sectionLabel}
+          >
+            {t("profile.group.sectionLabel")}
+          </Text>
 
-        {group ? (
-          <GroupCard group={group} onLeaveGroup={onLeaveGroup} />
-        ) : (
-          <Card variant="flat" padding="lg" className={styles.groupEmpty}>
-            <Text as="p" variant="body" color="muted">
-              {t("profile.group.empty")}
-            </Text>
-          </Card>
-        )}
-      </section>
+          {group ? (
+            <GroupCard group={group} onLeaveGroup={onLeaveGroup} />
+          ) : (
+            <Card variant="flat" padding="lg" className={styles.groupEmpty}>
+              <Text as="p" variant="body" color="muted">
+                {t("profile.group.empty")}
+              </Text>
+            </Card>
+          )}
+        </section>
+      )}
 
       {editing && onSaveInfo && (
         <EditInfoDialog

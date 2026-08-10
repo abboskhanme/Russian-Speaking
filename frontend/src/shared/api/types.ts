@@ -49,6 +49,10 @@ export interface MeResponse {
    * no avatar, and the UI falls back to the name initials. Set/cleared via
    * `uploadAvatar` / `removeAvatar`. */
   avatar_url: string | null;
+  /** Whether the user wants product notifications. A real column since the
+   * Phase 7 profile work — the toggle used to be session-local and forgot the
+   * choice on every reload. Defaults to `true` for every pre-existing account. */
+  notifications_enabled: boolean;
 }
 
 /** PATCH /api/auth/me body — partial profile update (the registration "Manzil"
@@ -64,6 +68,11 @@ export interface UpdateProfileArgs {
   district?: string | null;
   address?: string | null;
   full_name?: string | null;
+  /** The notification preference. Tri-state on purpose: omit it to leave the
+   * stored value alone, send `false` to turn notifications OFF. Without the
+   * nullability on the wire those two requests would be indistinguishable and
+   * the switch could never be turned off. */
+  notifications_enabled?: boolean;
 }
 
 /** How the one-time code reaches the user: a Telegram bot deep-link, or (dev)

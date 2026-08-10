@@ -485,32 +485,79 @@ ko'rish"*, which points at a STUDENT profile (A6). So the layout is the teacher
 panel's own idiom, not the student profile re-skinned. The shared CONTROLS
 (`ThemeToggle`) are reused because they are infrastructure; the layout is not.
 
-- [x] `/teacher/profile` — identity card (name · role · joined · phone),
-  "Guruhlarim" with member counts → A5, settings, sign out. Frontend only; the
-  account comes from the auth context and the groups from `GET /api/groups`.
+- [x] `/teacher/profile` — identity card → `Ma'lumot | Sozlamalar` (`?tab=`).
 - [x] The A1 header avatar has navigated here since Phase 1; until this route
   existed the path fell through to the `*` catch-all and bounced back to Obzor.
 - [x] i18n uz/ru/en.
 
-**Omitted for want of data:** the **notifications toggle**. There is no
-notification-preference column and no endpoint behind one, so the switch would
-forget the teacher's choice on every reload — a control that silently does
-nothing is worse than an absent one. (The student profile ships one as
-session-local; duplicating that into a second panel would double the lie.)
+### Product call: the profile matches the STUDENT's, and reuses its parts
+The first cut was a teacher-shaped one-pager. The product decision was to give the
+teacher the same profile the student has, so the screen now **reuses**
+`IdentityCard`, `InfoTab` and `SettingsTab` from `screens/profile` rather than
+restating them: avatar upload/replace/remove, the identity rows, the "Tahrirlash"
+dialog, the verified phone-change flow, and the full settings list
+(Interfeys tili · Mavzu · **Bildirishnomalar** · Yordam · Maxfiylik · Chiqish).
 
-**Follow-up worth doing — `users.preferred_language` EXISTS and nothing writes
+This NARROWS the panel's "never a student re-skin" rule to where it earns its
+keep — the teacher's WORK screens (Obzor · Klasslar · Navbat · Kontent ·
+Analitika) stay entirely their own. Account management is not teacher work, and
+two copies of an account header would drift the moment either gained a field.
+
+The three genuine differences ride as new optional props rather than a fork:
+- `InfoTab.showLevel={false}` — a CEFR band is a LEARNER's number; the row would
+  read "kiritilmagan" forever on a teacher.
+- `InfoTab.relatedBlock` — a student is IN one group and has a teacher; a teacher
+  OWNS several and has none, so the block becomes GURUHLARIM, a list leading to A5.
+- `SettingsTab.hideUpgrade` — a teacher has no LEARNER subscription to buy, so the
+  PRO card is not merely redundant, it is addressed to the wrong person. (Passing
+  `isPremium` to suppress it would have been a lie in the prop.)
+
+There is no "Natijalar" tab: those are a learner's attempts.
+
+### The notifications toggle became real — for BOTH panels
+It was originally omitted here because the switch had nowhere to store its answer
+and forgot the choice on every reload. Rather than ship that twice, the column was
+added:
+- [x] 🔨 `users.notifications_enabled bool NOT NULL DEFAULT true` — migration
+  `AddUserNotificationsEnabled`. Purely additive: one column with a default, no
+  backfill, so applying it to prod changes nobody's behaviour until a user flips
+  the switch. All 55 dev rows stayed opted in.
+- [x] 🔨 `MeResponse` += `notifications_enabled` (appended);
+  `UpdateProfileRequest` += `NotificationsEnabled` as a **nullable** bool —
+  absent means "leave it alone", explicit `false` means "turn it off". Without the
+  nullability those two requests are identical over JSON and the switch could
+  never be turned off.
+- [x] The STUDENT profile was switched off its session-local `useState` at the
+  same time, so the original bug is gone from both panels.
+- [x] 🔨 The flag is **honoured**, not just stored: the one notification writer
+  that exists (`review_added`) resolves the opted-out students once per batch and
+  skips their ping. They still GET the review items — a teacher's assignment is
+  not a preference — they are simply not pinged. A stored preference nothing acts
+  on is a decorative switch.
+- Both toggles are optimistic (the switch moves at once and reverts on failure):
+  a settings control that waits on a round-trip feels broken, and one that lies
+  about what was saved is worse.
+
+**Follow-up still open — `users.preferred_language` EXISTS and nothing writes
 it.** The column is there (`varchar(8) NOT NULL DEFAULT 'uz'`), but
 `UpdateProfileArgs` does not expose it and the i18n bootstrap reads only
-`localStorage`. So a language choice does not follow a user to another device.
-Wiring it touches the shared Identity profile path, i.e. students too, so it was
-not folded into a teacher-profile change.
+`localStorage`, so a language choice does not follow a user to another device.
+The same one-column treatment as notifications would close it.
 
-**Verified**: built and deployed; 4 screenshots (mobile + desktop × light + dark).
-Both interactive controls driven for real in a browser — the language switch
-turns "Profil" into "Профиль", moves the radio state, **and survives a reload**;
-sign out clears both tokens and lands on `/login`. The nav FAB's queue badge is
-fetched here too: it is on every other teacher screen, so dropping it on this one
-would read as "the queue emptied" rather than "this page didn't ask".
+**Verified**: 213/0 across all four suites, including a new integration case that
+pins the tri-state PATCH (default on → explicit `false` persists → an unrelated
+patch does NOT switch it back on → back on again). 8 screenshots of both tabs
+(mobile + desktop × light + dark). The notification switch was driven for real in
+a browser: DB `t` → click → `false` → **still `false` after a reload** → DB `f`,
+then restored. Sign out clears both tokens and lands on `/login`. The nav FAB's
+queue badge is fetched here too: it is on every other teacher screen, so dropping
+it on this one would read as "the queue emptied" rather than "this page didn't
+ask".
+
+> Harness note: the avatar's presigned URL points at `localhost:9000` (MinIO),
+> which the headless container cannot reach, so screenshots show a broken avatar
+> image. It resolves fine from the host browser — an artifact of the screenshot
+> setup, not a product bug.
 
 ## Guard added — `npm run check:tokens`
 `var(--nope)` is not an error anywhere in the toolchain: the declaration is
@@ -569,8 +616,12 @@ stays until those are closed.
 
 **Follow-ups, in rough value order:**
 - [ ] Wire `users.preferred_language` so a language choice follows the user across
-  devices (touches the shared Identity path — students too).
-- [ ] Notification preferences: a column + endpoint, then the Phase 7 toggle.
+  devices (touches the shared Identity path — students too). Same one-column
+  treatment `notifications_enabled` just got.
+- [ ] `notifications_enabled` is honoured by the ONE notification writer that
+  exists today (`review_added`). Any future writer must resolve the opted-out set
+  per batch — `EngagementService.Notify` deliberately does not check it, so that a
+  loop cannot put a query behind every ping.
 - [ ] Per-student trend on A6 (the profile shows skills, not direction).
 - [ ] Media upload for C2 (`Question.MediaKey` + storage exist; no multipart
   endpoint).

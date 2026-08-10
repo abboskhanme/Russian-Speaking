@@ -130,9 +130,8 @@ export { mockAssignTask } from "./assign.mock";
 export { TeacherProfileScreen, default as TeacherProfileDemo } from "./TeacherProfileScreen";
 export type {
   TeacherProfileProps,
-  TeacherProfileIdentity,
   TeacherProfileGroup,
-  TeacherLanguage,
+  TeacherProfileTabKey,
 } from "./TeacherProfileScreen";
 
 export { mockTeacherProfile } from "./profile.mock";

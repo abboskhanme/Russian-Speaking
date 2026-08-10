@@ -13,7 +13,9 @@
  * a missing user is a hard error.
  *
  * Language persists through i18n, theme through the shared theme module, and
- * notifications stay session-local (no endpoint yet).
+ * notifications through `PATCH /api/auth/me` — they used to be session-local and
+ * forgot the choice on every reload, which is exactly the bug a settings switch
+ * must not have.
  */
 import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -53,6 +55,8 @@ export default function ProfilePage() {
 
   const [theme, setTheme] = useState<ThemeMode>(() => getEffectiveTheme());
   // No settings endpoint yet → local state (persists for the session).
+  // Mirrors the stored preference so the switch can move at once; the request
+  // then confirms it. Seeded from the user the auth store already holds.
   const [notifications, setNotifications] = useState(true);
 
   useEffect(() => {
@@ -132,6 +136,26 @@ export default function ProfilePage() {
       alive = false;
     };
   }, [reloadKey]);
+
+  // Adopt the stored preference whenever identity (re)loads.
+  useEffect(() => {
+    if (user) setNotifications(user.notifications_enabled);
+  }, [user]);
+
+  /** Optimistic: the switch moves at once, because a settings toggle that waits
+   * on a round-trip feels broken. A failure puts it back where it was — the one
+   * outcome worse than a slow switch is one that lies about what was saved. */
+  const changeNotifications = useCallback(
+    (next: boolean) => {
+      const previous = notifications;
+      setNotifications(next);
+      endpoints
+        .updateProfile({ notifications_enabled: next })
+        .then(loadMe)
+        .catch(() => setNotifications(previous));
+    },
+    [notifications, loadMe],
+  );
 
   const changeTheme = useCallback((next: ThemeMode) => {
     applyTheme(next);
@@ -265,7 +289,7 @@ export default function ProfilePage() {
       onRemoveAvatar={handleRemoveAvatar}
       onChangeLanguage={(lang) => setLang(lang)}
       onChangeTheme={changeTheme}
-      onChangeNotifications={setNotifications}
+      onChangeNotifications={changeNotifications}
       onUpgrade={() => undefined}
       onLogout={handleLogout}
       activeNavKey="profile"

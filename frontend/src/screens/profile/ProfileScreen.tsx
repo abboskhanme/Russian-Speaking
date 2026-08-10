@@ -323,7 +323,13 @@ const AVATAR_ACCEPT = "image/jpeg,image/png,image/webp";
 const AVATAR_TYPES = ["image/jpeg", "image/png", "image/webp"];
 const AVATAR_MAX_BYTES = 5 * 1024 * 1024;
 
-function IdentityCard({
+/**
+ * The account card: avatar (with upload/replace/remove when the host supplies the
+ * callbacks), name, verified check. EXPORTED because the teacher panel's own
+ * profile shows the identical card — the account header is not a student concept,
+ * and a second copy would drift the moment either gained a field.
+ */
+export function IdentityCard({
   user,
   onChangeAvatar,
   onRemoveAvatar,

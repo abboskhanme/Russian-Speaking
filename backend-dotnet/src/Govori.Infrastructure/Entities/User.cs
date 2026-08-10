@@ -26,6 +26,11 @@ public partial class User
 
     public bool IsPremium { get; set; }
 
+    /// <summary>Whether the user wants product notifications. Defaults to TRUE so every existing row
+    /// keeps the behaviour it already had — the profile toggle previously forgot the choice on every
+    /// reload because there was nowhere to put it.</summary>
+    public bool NotificationsEnabled { get; set; } = true;
+
     public string? GoogleSub { get; set; }
 
     public int Xp { get; set; }

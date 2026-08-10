@@ -25,6 +25,13 @@ export interface SettingsTabProps {
   onChangeNotifications?: (on: boolean) => void;
   onUpgrade?: () => void;
   onLogout?: () => void;
+  /**
+   * Drops the PRO upsell entirely, whatever `isPremium` says. The teacher panel
+   * uses it: a teacher has no LEARNER subscription to buy, so the card is not
+   * merely redundant there, it is addressed to the wrong person. Passing
+   * `isPremium` for that would be a lie in the prop rather than an omission.
+   */
+  hideUpgrade?: boolean;
 }
 
 /** Which sheet is open. Only one at a time. */
@@ -54,6 +61,7 @@ export function SettingsTab({
   onChangeNotifications,
   onUpgrade,
   onLogout,
+  hideUpgrade = false,
 }: SettingsTabProps) {
   const { t } = useTranslation();
   const [sheet, setSheet] = useState<Sheet>(null);
@@ -123,7 +131,7 @@ export function SettingsTab({
         </ul>
       </Card>
 
-      {!isPremium && <ProCard onUpgrade={onUpgrade} />}
+      {!hideUpgrade && !isPremium && <ProCard onUpgrade={onUpgrade} />}
 
       <Card variant="flat" padding="none" className={styles.group}>
         <ul className={styles.groupList}>

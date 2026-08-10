@@ -347,6 +347,9 @@ public sealed class AuthService
         if (req.Region is not null) user.Region = Normalize(req.Region);
         if (req.District is not null) user.District = Normalize(req.District);
         if (req.Address is not null) user.Address = Normalize(req.Address);
+        // A nullable bool, so an absent field leaves the preference alone while an explicit `false`
+        // turns notifications OFF — over JSON those two are otherwise the same request.
+        if (req.NotificationsEnabled is { } notifications) user.NotificationsEnabled = notifications;
         user.UpdatedAt = DateTime.UtcNow;
 
         await _db.SaveChangesAsync(ct);
@@ -669,6 +672,7 @@ public sealed class AuthService
             : await _storage.GetPresignedUrlAsync(user.AvatarKey, ct: ct);
         return new(user.Id, user.Email, user.FullName, user.Role.ToString().ToLowerInvariant(), user.IsActive, user.IsPremium,
             user.Region, user.District, user.Address,
-            user.Phone, user.CreatedAt, level.Level, level.LabelUz, avatarUrl);
+            user.Phone, user.CreatedAt, level.Level, level.LabelUz, avatarUrl,
+            user.NotificationsEnabled);
     }
 }

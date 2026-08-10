@@ -300,8 +300,39 @@ public sealed class IdentityEndpointsTests : IClassFixture<IdentityEndpointsTest
             }
 
             // …and none of those rejected writes touched the stored name.
-            await using var ctx = _db.CreateContext();
-            Assert.Equal("Ali Valiyev", (await ctx.Users.SingleAsync(u => u.Phone == phone)).FullName);
+            await using (var ctx = _db.CreateContext())
+                Assert.Equal("Ali Valiyev", (await ctx.Users.SingleAsync(u => u.Phone == phone)).FullName);
+
+            // ── The notification preference: a real column, not a session-local switch ──
+            // A new account starts opted IN, matching the column default, so applying the migration
+            // to live data changes nobody's behaviour.
+            using (var doc = JsonDocument.Parse(await (await GetMe(client, token)).Content.ReadAsStringAsync()))
+                Assert.True(doc.RootElement.GetProperty("notifications_enabled").GetBoolean());
+
+            // Turning it OFF must persist. `false` is the value most at risk here: over JSON an
+            // absent field and an explicit false look identical unless the contract is nullable, and
+            // a request that silently means "leave it alone" would make the switch un-turn-off-able.
+            var off = await Patch(client, token, new { notifications_enabled = false });
+            Assert.Equal(HttpStatusCode.OK, off.StatusCode);
+            using (var doc = JsonDocument.Parse(await off.Content.ReadAsStringAsync()))
+                Assert.False(doc.RootElement.GetProperty("notifications_enabled").GetBoolean());
+            // Re-read from a fresh request — the point of the column is that it survives.
+            using (var doc = JsonDocument.Parse(await (await GetMe(client, token)).Content.ReadAsStringAsync()))
+                Assert.False(doc.RootElement.GetProperty("notifications_enabled").GetBoolean());
+
+            // An UNRELATED patch must not silently switch it back on.
+            Assert.Equal(HttpStatusCode.OK, (await Patch(client, token, new { region = "Farg'ona" })).StatusCode);
+            await using (var ctx = _db.CreateContext())
+            {
+                var user = await ctx.Users.SingleAsync(u => u.Phone == phone);
+                Assert.False(user.NotificationsEnabled);
+                Assert.Equal("Farg'ona", user.Region);
+            }
+
+            // And back on again.
+            using (var doc = JsonDocument.Parse(
+                await (await Patch(client, token, new { notifications_enabled = true })).Content.ReadAsStringAsync()))
+                Assert.True(doc.RootElement.GetProperty("notifications_enabled").GetBoolean());
         }
         finally
         {

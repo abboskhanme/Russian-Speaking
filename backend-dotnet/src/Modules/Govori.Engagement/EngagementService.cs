@@ -720,6 +720,16 @@ public sealed class EngagementService
         if (validIds.Count == 0)
             return EngagementResult<IReadOnlyList<ReviewItemResponse>>.BadRequest("No target students");
 
+        // Students who have switched notifications OFF still GET the review items — the teacher's
+        // assignment is not a preference — they just are not pinged about them. Resolved once for the
+        // whole batch rather than per student, and read here because a stored preference nothing
+        // honours is a decorative switch.
+        var muted = (await _db.Users
+                .Where(u => validIds.Contains(u.Id) && !u.NotificationsEnabled)
+                .Select(u => u.Id)
+                .ToListAsync(ct))
+            .ToHashSet();
+
         var now = DateTime.UtcNow;
         var created = new List<ReviewItem>();
         foreach (var sid in validIds)
@@ -746,7 +756,7 @@ public sealed class EngagementService
                 created.Add(item);
                 made++;
             }
-            if (made > 0)                                           // only ping when something was added
+            if (made > 0 && !muted.Contains(sid))                   // only ping when something was added
                 Notify(sid, "review_added",
                     "Takrorlash uchun yangi mashqlar",
                     "O'qituvchi sizga takrorlash uchun mashq(lar) qo'shdi.",
@@ -847,7 +857,12 @@ public sealed class EngagementService
     }
 
     /// <summary>Create an in-app notification. Adds it to the change tracker ONLY — the caller owns
-    /// the commit, so the notification lands in the same transaction as the write that raised it.</summary>
+    /// the commit, so the notification lands in the same transaction as the write that raised it.
+    ///
+    /// <para>The caller is responsible for checking <c>User.NotificationsEnabled</c> first. It is not
+    /// checked here on purpose: this method is sync by design (no commit, no I/O), and a per-call
+    /// lookup would put one query behind every notification in a loop. Callers resolve the opted-out
+    /// set once per batch instead.</para></summary>
     private void Notify(Guid userId, string type, string title, string? body, string? link)
     {
         var now = DateTime.UtcNow;
