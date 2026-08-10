@@ -691,7 +691,17 @@
       "down": "падение на {{points}} б.",
       "flat": "без изменений"
     },
-    "droppedHintMany": "Посмотреть учеников"
+    "droppedHintMany": "Посмотреть учеников",
+    "profile": {
+      "title": "Профиль",
+      "joined": "с {{date}}",
+      "groups": "Мои группы",
+      "noGroups": "Вы ещё не создали группу.",
+      "reach": "Всего {{count}} учеников",
+      "settings": "Настройки",
+      "language": "Язык",
+      "theme": "Тема"
+    }
   },
   "auth": {
     "phoneLabel": "Номер телефона",

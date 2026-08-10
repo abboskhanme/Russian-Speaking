@@ -36,6 +36,7 @@ const ContentPage = lazy(() => import("./app/routes/ContentPage"));
 const ModuleEditorPage = lazy(() => import("./app/routes/ModuleEditorPage"));
 const AnalyticsPage = lazy(() => import("./app/routes/AnalyticsPage"));
 const AssignTaskPage = lazy(() => import("./app/routes/AssignTaskPage"));
+const TeacherProfilePage = lazy(() => import("./app/routes/TeacherProfilePage"));
 const PracticeHubPage = lazy(() => import("./app/routes/PracticeHubPage"));
 const ModuleDetailPage = lazy(() => import("./app/routes/ModuleDetailPage"));
 const PracticePage = lazy(() => import("./app/routes/PracticePage"));
@@ -112,6 +113,9 @@ export default function App() {
             {/* Topshiriq berish — bulk assign (D3). `?group=` preselects, which is
                 how the A2 group cards and the A5 group detail already link here. */}
             <Route path="/teacher/assign" element={<AssignTaskPage />} />
+            {/* Profil — reached from the A1 header avatar, NOT from the nav bar
+                (the teacher's bar has no Profil item, by design). */}
+            <Route path="/teacher/profile" element={<TeacherProfilePage />} />
           </Route>
 
           {/* Student app (students only). */}

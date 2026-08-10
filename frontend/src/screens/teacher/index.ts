@@ -125,3 +125,14 @@ export type {
 } from "./AssignTaskScreen";
 
 export { mockAssignTask } from "./assign.mock";
+
+/** Phase 7 «Profil» — the A1 header avatar's destination (there is no nav item). */
+export { TeacherProfileScreen, default as TeacherProfileDemo } from "./TeacherProfileScreen";
+export type {
+  TeacherProfileProps,
+  TeacherProfileIdentity,
+  TeacherProfileGroup,
+  TeacherLanguage,
+} from "./TeacherProfileScreen";
+
+export { mockTeacherProfile } from "./profile.mock";

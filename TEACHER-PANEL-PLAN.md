@@ -477,10 +477,51 @@ A4 in light+dark, mobile+desktop. The join-request card was proven by filing a
 REAL request through the student API, screenshotting all four cards, then removing
 it — a card nobody ever sees fire is not verified.
 
-## Phase 7 — Teacher profile
-- [ ] Reached from the A1 header avatar (there is no Profil nav item): name,
-  groups, settings (language/theme/notifications), logout.
-- [ ] i18n.
+## Phase 7 — Teacher profile ✅
+
+**This is the ONE teacher screen with no mockup.** `Govorim - Teacher.dc.html` has
+no profile board at all — the only "Profil" in it is the A1 drop card's *"Profilni
+ko'rish"*, which points at a STUDENT profile (A6). So the layout is the teacher
+panel's own idiom, not the student profile re-skinned. The shared CONTROLS
+(`ThemeToggle`) are reused because they are infrastructure; the layout is not.
+
+- [x] `/teacher/profile` — identity card (name · role · joined · phone),
+  "Guruhlarim" with member counts → A5, settings, sign out. Frontend only; the
+  account comes from the auth context and the groups from `GET /api/groups`.
+- [x] The A1 header avatar has navigated here since Phase 1; until this route
+  existed the path fell through to the `*` catch-all and bounced back to Obzor.
+- [x] i18n uz/ru/en.
+
+**Omitted for want of data:** the **notifications toggle**. There is no
+notification-preference column and no endpoint behind one, so the switch would
+forget the teacher's choice on every reload — a control that silently does
+nothing is worse than an absent one. (The student profile ships one as
+session-local; duplicating that into a second panel would double the lie.)
+
+**Follow-up worth doing — `users.preferred_language` EXISTS and nothing writes
+it.** The column is there (`varchar(8) NOT NULL DEFAULT 'uz'`), but
+`UpdateProfileArgs` does not expose it and the i18n bootstrap reads only
+`localStorage`. So a language choice does not follow a user to another device.
+Wiring it touches the shared Identity profile path, i.e. students too, so it was
+not folded into a teacher-profile change.
+
+**Verified**: built and deployed; 4 screenshots (mobile + desktop × light + dark).
+Both interactive controls driven for real in a browser — the language switch
+turns "Profil" into "Профиль", moves the radio state, **and survives a reload**;
+sign out clears both tokens and lands on `/login`. The nav FAB's queue badge is
+fetched here too: it is on every other teacher screen, so dropping it on this one
+would read as "the queue emptied" rather than "this page didn't ask".
+
+## Guard added — `npm run check:tokens`
+`var(--nope)` is not an error anywhere in the toolchain: the declaration is
+invalid at computed-value time and the property silently falls back. Nothing
+warns — not the console, not the build, not eslint. That cost this panel its
+entire keyboard focus ring for five phases without anyone noticing.
+
+`frontend/scripts/check-tokens.mjs` now fails the build on any `var(--x)` with no
+definition and no explicit fallback. It found `--motion-slow` still live in two
+screens after the first sweep. A `var(--x, 28px)` with a real fallback is a
+deliberate default and is not reported.
 
 ---
 
@@ -517,4 +558,26 @@ host config. Prod (`govorim.uz`) does **not** have the teacher panel yet.
 > Login resolves the OLDEST match. Worth cleaning up.
 
 ## When everything is done
+Every phase (1 · 2 · 2b · 3 · 4 · 5 · 6 · 6b · 7) is shipped. What is left is NOT
+build-out — it is one product decision and a short list of follow-ups, so the file
+stays until those are closed.
+
+**Blocked on a product decision (see Phase 5's deferred section):**
+- [ ] C3 · C6 Ssenariylar. Do teacher-authored scenarios REPLACE the curated
+  static set or supplement it? The answer changes the schema (owner? visibility?)
+  and what students see, so it must not be guessed.
+
+**Follow-ups, in rough value order:**
+- [ ] Wire `users.preferred_language` so a language choice follows the user across
+  devices (touches the shared Identity path — students too).
+- [ ] Notification preferences: a column + endpoint, then the Phase 7 toggle.
+- [ ] Per-student trend on A6 (the profile shows skills, not direction).
+- [ ] Media upload for C2 (`Question.MediaKey` + storage exist; no multipart
+  endpoint).
+- [ ] Attempt limits on assignments (D3's omitted "Urinish"), if the product
+  wants them.
+- [ ] Seed data writes ABSOLUTE timestamps, so the dev fixture ages out of every
+  "this week" window. Regenerate relative to `now()`.
+- [ ] Clean the duplicate demo phone numbers (login resolves the OLDEST match).
+
 - [ ] Delete this file (`TEACHER-PANEL-PLAN.md`) and `dev-role.sh`.

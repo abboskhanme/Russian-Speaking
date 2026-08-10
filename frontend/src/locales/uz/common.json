@@ -666,7 +666,17 @@
       "down": "{{points}} punkt tushdi",
       "flat": "o‘zgarishsiz"
     },
-    "droppedHintMany": "O‘quvchilarni ko‘rish"
+    "droppedHintMany": "O‘quvchilarni ko‘rish",
+    "profile": {
+      "title": "Profil",
+      "joined": "qo‘shilgan {{date}}",
+      "groups": "Guruhlarim",
+      "noGroups": "Hali guruh ochmagansiz.",
+      "reach": "Jami {{count}} o‘quvchi",
+      "settings": "Sozlamalar",
+      "language": "Til",
+      "theme": "Ko‘rinish"
+    }
   },
   "auth": {
     "phoneLabel": "Telefon raqam",

@@ -666,7 +666,17 @@
       "down": "down {{points}} points",
       "flat": "unchanged"
     },
-    "droppedHintMany": "See the students"
+    "droppedHintMany": "See the students",
+    "profile": {
+      "title": "Profile",
+      "joined": "joined {{date}}",
+      "groups": "My groups",
+      "noGroups": "You have not created a group yet.",
+      "reach": "{{count}} students in total",
+      "settings": "Settings",
+      "language": "Language",
+      "theme": "Appearance"
+    }
   },
   "auth": {
     "phoneLabel": "Phone number",
