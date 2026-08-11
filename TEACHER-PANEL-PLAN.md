@@ -626,6 +626,76 @@ Every phase (1 · 2 · 2b · 3 · 4 · 5 · 6 · 6b · 7) is shipped. What is le
 build-out — it is one product decision and a short list of follow-ups, so the file
 stays until those are closed.
 
+## Admin panel ✅ — `/admin/*`
+The one whole panel that was missing. The backend had 12 endpoints and there was a
+finished design, but the app had ZERO `/admin` routes: an admin who signed in
+landed in the teacher panel, looking at someone else's groups.
+
+**Its own product, like the teacher panel.** Four-item nav
+(`Boshqaruv · O'qituvchilar · O'quvchilar · Sozlamalar`) and **no centre FAB** —
+that is a judgement, not an omission: the student's FAB is "record", the teacher's
+is "grade the queue", and administration has no comparable single repeated action,
+so promoting one of four items would invent an emphasis the work does not have.
+`RoleHome` now sends an admin here, and `/admin/*` admits **admins only** (unlike
+`/teacher/*`, which admits both) — verified in a browser: a teacher opening
+`/admin/students` lands back on `/teacher`.
+
+- [x] **Boshqaruv** — the six real counters from `GET /api/admin/stats`, grouped
+  people / content / activity, plus the one derived figure worth acting on: how
+  much of the submitted work is graded.
+- [x] **O'qituvchilar · O'quvchilar** — one screen, two configurations. Search
+  (server-side), rename, suspend, premium grant, guarded delete.
+- [x] **Sozlamalar** — the runtime AI + STT settings and the outbound Telegram
+  links.
+- [x] i18n uz/ru/en.
+
+**The decision that shaped this panel: deactivate is the primary action, delete is
+not.** `DELETE /api/admin/{teachers,students}/{id}` is `Users.Remove`, and every
+foreign key into `users` is `ON DELETE CASCADE` — deleting a teacher also destroys
+their groups, modules, tasks, topics and assignments; deleting a student destroys
+every answer, evaluation, transcript, XP event and review item they produced.
+There is no soft-delete column and no undo. So the row offers a reversible
+suspension, and deletion sits behind a dialog that names the account, states the
+count it will destroy ("21 ta javobi, baholari va butun tarixi"), and stays
+disarmed until the operator TYPES that name. A confirm people clear by reflex
+would not prevent the one mistake that matters here.
+
+**Other decisions worth keeping:**
+- **Secrets are never displayed.** The API returns `{ set, hint }`, and a blank key
+  field means "unchanged", never "clear" — typing nothing is what happens by
+  accident, and losing a production key that way is not an acceptable outcome of
+  opening a settings page. The reveal endpoint exists but is deliberately not
+  wired: printing a live key into the DOM is a decision to make on purpose.
+- **Selected ≠ active.** `active_provider` / `stt_active_provider` are computed
+  server-side and shown beside the pickers, because choosing Azure without a key
+  leaves `auto` quietly on Gemini, and a settings screen that only echoes your
+  choice back cannot tell you it is being ignored.
+
+**Omitted — no table, column or endpoint exists (do NOT fake):** revenue by plan
+and recent payments (`plans` / `subscriptions` / `entitlements` are absent),
+teacher star ratings, daily-active-users, the retention cohort grid, the
+moderation queue, data export and cache-clear. An admin panel whose numbers are
+decorative is worse than a small one that is true — it is the screen decisions get
+made from.
+
+**Three bugs the browser pass caught, all fixed:**
+1. The settings endpoints are under `/api/admin/settings/*`, not `/api/admin/*` —
+   I had guessed, and the page 404'd twice.
+2. `768/770` rounded to **100 % graded** directly above "2 answers are still
+   ungraded". Now floored, so only a genuinely empty queue reads 100 %.
+3. The manage sheet held a SNAPSHOT of the row, so granting premium updated the
+   database and the list but not the switch under your finger — whose obvious next
+   move is to flip it back off. It now reads the live row by id.
+
+Plus two smaller ones: the model picker crammed five long labels into one pill
+with no visible selection (now chips, and it says so when nothing is set), and the
+student rows printed "Javoblar" with no number because the reused key had no
+`{{count}}`.
+
+**Verified**: 16 screenshots (4 screens × mobile+desktop × light+dark); the role
+guard, the delete guard and a real premium round-trip driven in a browser; the two
+test grants reverted.
+
 **Blocked on a product decision (see Phase 5's deferred section):**
 - [ ] C3 · C6 Ssenariylar. Do teacher-authored scenarios REPLACE the curated
   static set or supplement it? The answer changes the schema (owner? visibility?)

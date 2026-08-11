@@ -8,7 +8,7 @@
  */
 import { useCallback } from "react";
 import { useNavigate } from "react-router-dom";
-import type { NavItem, StudentNavKey, TeacherNavKey } from "../widgets";
+import type { AdminNavKey, NavItem, StudentNavKey, TeacherNavKey } from "../widgets";
 
 /** Route path for each of the 5 student nav destinations. The centre mic FAB
  * ("chat") owns the AI Suhbat surface at `/chat` — its OWN place, separate from
@@ -89,6 +89,45 @@ export function useTeacherNavHandler() {
   return useCallback(
     (key: string, _item?: NavItem) => {
       const path = TEACHER_NAV_PATH[key as TeacherNavKey];
+      if (path) navigate(path);
+    },
+    [navigate],
+  );
+}
+
+/**
+ * Route path for each admin nav destination (`Govorim - Admin.dc.html`). The admin
+ * app has its own `/admin/*` space for the same reason the teacher app does — a
+ * shared route tree would force one panel's URLs onto the other. An admin who
+ * lands on `/` is redirected here by {@link RoleHome}.
+ *
+ * The catch-all warning above applies here too: a missing route does not 404, it
+ * bounces silently. Add the route in `App.tsx` in the same change.
+ */
+export const ADMIN_NAV_PATH: Record<AdminNavKey, string> = {
+  home: "/admin",
+  teachers: "/admin/teachers",
+  students: "/admin/students",
+  settings: "/admin/settings",
+};
+
+/** Reverse lookup: pathname → admin nav key, for the active nav state. */
+export function adminNavKeyForPath(pathname: string): AdminNavKey {
+  const keys = Object.keys(ADMIN_NAV_PATH) as AdminNavKey[];
+  const exact = keys.find((k) => ADMIN_NAV_PATH[k] === pathname);
+  if (exact) return exact;
+  const prefix = keys
+    .filter((k) => pathname.startsWith(ADMIN_NAV_PATH[k] + "/"))
+    .sort((a, b) => ADMIN_NAV_PATH[b].length - ADMIN_NAV_PATH[a].length)[0];
+  return prefix ?? "home";
+}
+
+/** Maps an admin nav key back to its `/admin/*` route and navigates. */
+export function useAdminNavHandler() {
+  const navigate = useNavigate();
+  return useCallback(
+    (key: string, _item?: NavItem) => {
+      const path = ADMIN_NAV_PATH[key as AdminNavKey];
       if (path) navigate(path);
     },
     [navigate],

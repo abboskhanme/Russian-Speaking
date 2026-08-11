@@ -9,6 +9,8 @@ import {
   ProfileIcon,
   ProgressIcon,
   QueueIcon,
+  SettingsIcon,
+  TeachersIcon,
 } from "./icons";
 
 /** Stable keys for the 5 student destinations (docs/03 §3.8, §4.8). */
@@ -79,5 +81,29 @@ export function teacherNavItems(t: TFunction, pendingReviews = 0): NavItem[] {
     },
     { key: "content", label: t("nav.content"), icon: <ContentIcon /> },
     { key: "analytics", label: t("nav.analytics"), icon: <ProgressIcon /> },
+  ];
+}
+
+/** Stable keys for the 4 admin destinations (`Govorim - Admin.dc.html`). */
+export type AdminNavKey = "home" | "teachers" | "students" | "settings";
+
+/**
+ * The admin nav model: **Boshqaruv · O'qituvchilar · O'quvchilar · Sozlamalar**.
+ *
+ * Four items and **no raised centre FAB**, unlike the other two bars. That is a
+ * judgement, not an oversight: the student's FAB is "record", the teacher's is
+ * "grade the queue" — each panel has one dominant, repeated action. Administration
+ * has no such action; promoting one of these four would invent an emphasis the
+ * work does not have.
+ *
+ * There is no Profil item either — an admin manages other people's accounts here,
+ * and their own account lives where every other user's does.
+ */
+export function adminNavItems(t: TFunction): NavItem[] {
+  return [
+    { key: "home", label: t("nav.adminHome"), icon: <HomeIcon /> },
+    { key: "teachers", label: t("nav.adminTeachers"), icon: <TeachersIcon /> },
+    { key: "students", label: t("nav.adminStudents"), icon: <GroupsIcon /> },
+    { key: "settings", label: t("nav.adminSettings"), icon: <SettingsIcon /> },
   ];
 }

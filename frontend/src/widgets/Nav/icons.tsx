@@ -228,3 +228,36 @@ export function ProfileIcon(props: IconProps) {
     </svg>
   );
 }
+
+/** Sozlamalar — gear. The admin panel's fourth destination; no existing icon
+ *  carried "settings", and reusing an unrelated glyph would make the bar read as
+ *  a relabelled teacher nav rather than its own. */
+export function SettingsIcon(props: IconProps) {
+  return (
+    <svg {...base(props)}>
+      <circle cx="12" cy="12" r="3.2" stroke="currentColor" strokeWidth={1.8} />
+      <path
+        d="M12 3.5v2M12 18.5v2M20.5 12h-2M5.5 12h-2M18 6l-1.4 1.4M7.4 16.6 6 18M18 18l-1.4-1.4M7.4 7.4 6 6"
+        stroke="currentColor"
+        strokeWidth={1.8}
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}
+
+/** O'qituvchilar — a person with a board, distinct from GroupsIcon (a class of
+ *  students) so the admin bar does not read "Guruhlar" twice. */
+export function TeachersIcon(props: IconProps) {
+  return (
+    <svg {...base(props)}>
+      <rect x="3" y="4" width="18" height="11" rx="2" stroke="currentColor" strokeWidth={1.8} />
+      <path
+        d="M12 15v5M8.5 20h7M7.5 8.5h6M7.5 11.5h4"
+        stroke="currentColor"
+        strokeWidth={1.8}
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}

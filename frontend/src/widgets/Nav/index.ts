@@ -15,7 +15,9 @@ export {
   // (mockup boards C + D) and assignment cards.
   AssignmentsIcon,
   GradebookIcon,
+  SettingsIcon,
+  TeachersIcon,
 } from "./icons";
 
-export { studentNavItems, teacherNavItems } from "./navItems";
-export type { StudentNavKey, TeacherNavKey } from "./navItems";
+export { studentNavItems, teacherNavItems, adminNavItems } from "./navItems";
+export type { StudentNavKey, TeacherNavKey, AdminNavKey } from "./navItems";

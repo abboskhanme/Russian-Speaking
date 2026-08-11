@@ -37,6 +37,10 @@ const ModuleEditorPage = lazy(() => import("./app/routes/ModuleEditorPage"));
 const AnalyticsPage = lazy(() => import("./app/routes/AnalyticsPage"));
 const AssignTaskPage = lazy(() => import("./app/routes/AssignTaskPage"));
 const TeacherProfilePage = lazy(() => import("./app/routes/TeacherProfilePage"));
+const AdminDashboardPage = lazy(() => import("./app/routes/AdminDashboardPage"));
+const AdminTeachersPage = lazy(() => import("./app/routes/AdminTeachersPage"));
+const AdminStudentsPage = lazy(() => import("./app/routes/AdminStudentsPage"));
+const AdminSettingsPage = lazy(() => import("./app/routes/AdminSettingsPage"));
 const PracticeHubPage = lazy(() => import("./app/routes/PracticeHubPage"));
 const ModuleDetailPage = lazy(() => import("./app/routes/ModuleDetailPage"));
 const PracticePage = lazy(() => import("./app/routes/PracticePage"));
@@ -116,6 +120,16 @@ export default function App() {
             {/* Profil — reached from the A1 header avatar, NOT from the nav bar
                 (the teacher's bar has no Profil item, by design). */}
             <Route path="/teacher/profile" element={<TeacherProfilePage />} />
+          </Route>
+
+          {/* Admin app (admins ONLY — teachers are deliberately not allowed here,
+              unlike the /teacher subtree which admits both). Its own /admin/*
+              space, its own four-item nav, its own design. */}
+          <Route element={<RequireRole allow={["admin"]} />}>
+            <Route path="/admin" element={<AdminDashboardPage />} />
+            <Route path="/admin/teachers" element={<AdminTeachersPage />} />
+            <Route path="/admin/students" element={<AdminStudentsPage />} />
+            <Route path="/admin/settings" element={<AdminSettingsPage />} />
           </Route>
 
           {/* Student app (students only). */}

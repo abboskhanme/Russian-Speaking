@@ -9,8 +9,8 @@
  *                 (teacher/admin) vs the student subtree. A user outside the
  *                 allowed set is bounced to `/`, where {@link RoleHome} sends
  *                 them to the right home for their role.
- *   RoleHome    — the role-aware `/`: teachers/admins → the teacher dashboard;
- *                 students → the student Home.
+ *   RoleHome    — the role-aware `/`: admins → the admin panel; teachers → the
+ *                 teacher dashboard; students → the student Home.
  *
  * The auth guards wait out the boot hydration (a stored token being validated)
  * behind a full-screen Spinner so we never flash the login page for a returning
@@ -75,6 +75,12 @@ export function RequireRole({ allow }: { allow: readonly UserRole[] }) {
  */
 export function RoleHome() {
   const { user } = useAuth();
+  // An admin gets the ADMIN home, not the teacher one. Until the admin panel
+  // existed they were folded in with teachers, which meant signing in as an admin
+  // landed on a dashboard about someone else's groups.
+  if (user?.role === "admin") {
+    return <Navigate to="/admin" replace />;
+  }
   if (user && TEACHER_ROLES.includes(user.role)) {
     return <Navigate to="/teacher" replace />;
   }

@@ -819,3 +819,130 @@ export interface UpdateQuestionArgs {
   block_id?: string;
   detach_block?: boolean;
 }
+
+/* ── Administration (AdminContracts.cs) ──────────────────────────────────── */
+
+/** GET /api/admin/stats → the six counters the admin landing page shows.
+ * Deliberately a small, honest set: everything here is a COUNT the database can
+ * answer directly. The mockup's revenue, ratings, retention and moderation cards
+ * have no tables behind them and are not faked. */
+export interface AdminStatsResponse {
+  teachers: number;
+  students: number;
+  questions: number;
+  published_questions: number;
+  submissions: number;
+  evaluated_submissions: number;
+}
+
+/** GET /api/admin/teachers (?search) → one row per teacher. */
+export interface AdminTeacherResponse {
+  id: string;
+  email: string;
+  full_name: string;
+  is_active: boolean;
+  created_at: string;
+  /** Tasks they authored — also what a deletion would destroy. */
+  question_count: number;
+}
+
+/** PATCH /api/admin/teachers/{id}. Null/omitted = leave unchanged. There is no
+ * password field: setting one needs the frozen auth hasher, which the
+ * Administration module deliberately does not reference. */
+export interface AdminTeacherUpdateArgs {
+  full_name?: string;
+  is_active?: boolean;
+}
+
+/** GET /api/admin/students (?search) → one row per student. */
+export interface AdminStudentResponse {
+  id: string;
+  email: string;
+  full_name: string;
+  phone: string | null;
+  region: string | null;
+  district: string | null;
+  age: number | null;
+  is_active: boolean;
+  is_premium: boolean;
+  created_at: string;
+  /** Answers recorded — also what a deletion would destroy. */
+  submission_count: number;
+}
+
+/** PATCH /api/admin/students/{id}. The freemium grant/revoke rides `is_premium`. */
+export interface AdminStudentUpdateArgs {
+  full_name?: string;
+  is_active?: boolean;
+  is_premium?: boolean;
+}
+
+/** A secret is never sent to the client — only whether it is set, plus a hint
+ * (its last characters). The raw value comes from `GET /api/admin/reveal/{key}`
+ * on an explicit, deliberate request. */
+export interface SecretState {
+  set: boolean;
+  hint: string;
+}
+
+/** One entry in the curated Gemini-model dropdown. */
+export interface KnownModel {
+  id: string;
+  label: string;
+  note: string;
+}
+
+/** GET /api/admin/ai → the grader + STT settings, secrets masked. The `*_ready`
+ * and `*_active_*` fields are read-only status computed server-side: they answer
+ * "what would actually run right now", which is not the same as what is selected. */
+export interface AiSettingsResponse {
+  llm_provider: string;
+  gemini_model: string;
+  orthoepy_enabled: boolean;
+  known_gemini_models: KnownModel[];
+  azure_openai_endpoint: string;
+  azure_openai_deployment: string;
+  azure_openai_api_version: string;
+  gemini_api_key: SecretState;
+  azure_openai_api_key: SecretState;
+  azure_ready: boolean;
+  active_provider: string;
+  stt_provider: string;
+  azure_speech_region: string;
+  whisper_model: string;
+  azure_speech_key: SecretState;
+  openai_api_key: SecretState;
+  azure_speech_ready: boolean;
+  stt_active_provider: string;
+}
+
+/** PATCH /api/admin/ai. Tri-state: omit a field to leave it unchanged, send ""
+ * to clear it back to the env default, or a value to store it. `orthoepy_enabled`
+ * is a STRING on the wire ("true"/"false"), normalised server-side. */
+export interface AiSettingsUpdateArgs {
+  llm_provider?: string;
+  gemini_model?: string;
+  gemini_api_key?: string;
+  orthoepy_enabled?: string;
+  azure_openai_endpoint?: string;
+  azure_openai_api_key?: string;
+  azure_openai_deployment?: string;
+  azure_openai_api_version?: string;
+  stt_provider?: string;
+  azure_speech_region?: string;
+  whisper_model?: string;
+  azure_speech_key?: string;
+  openai_api_key?: string;
+}
+
+/** GET /api/admin/reveal/{key} → the raw value of one secret. */
+export interface RevealResponse {
+  key: string;
+  value: string;
+}
+
+/** PATCH /api/admin/links — same tri-state rules as the AI settings. */
+export interface LinksUpdateArgs {
+  tg_support_url?: string;
+  tg_channel_url?: string;
+}

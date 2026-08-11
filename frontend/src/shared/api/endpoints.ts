@@ -10,6 +10,13 @@
 import { apiClient } from "./client";
 import type {
   AchievementResponse,
+  AdminStatsResponse,
+  AdminStudentResponse,
+  AdminStudentUpdateArgs,
+  AdminTeacherResponse,
+  AdminTeacherUpdateArgs,
+  AiSettingsResponse,
+  AiSettingsUpdateArgs,
   AssignmentResponse,
   CreateAssignmentArgs,
   CreateModuleAssignmentArgs,
@@ -30,6 +37,8 @@ import type {
   JoinGroupResponse,
   LeaderboardEntryResponse,
   LinksResponse,
+  LinksUpdateArgs,
+  RevealResponse,
   MeResponse,
   NotificationResponse,
   OtpRequestResponse,
@@ -630,4 +639,88 @@ export function updateQuestion(
   args: UpdateQuestionArgs,
 ): Promise<TeacherQuestionResponse> {
   return apiClient.patch<TeacherQuestionResponse>(`/questions/${encodeURIComponent(id)}`, args);
+}
+
+/* ── Administration ────────────────────────────────────────────────────────
+ * Every route here is admin-gated server-side (the token's `sub` is looked up
+ * and its role read from the DB). The client never decides who is an admin — it
+ * only decides what to render. */
+
+/** GET /api/admin/stats → the six dashboard counters. */
+export function adminStats(): Promise<AdminStatsResponse> {
+  return apiClient.get<AdminStatsResponse>("/admin/stats");
+}
+
+/** GET /api/admin/teachers (?search) → teachers with their authored-task counts. */
+export function adminTeachers(search?: string): Promise<AdminTeacherResponse[]> {
+  const q = search ? `?search=${encodeURIComponent(search)}` : "";
+  return apiClient.get<AdminTeacherResponse[]>(`/admin/teachers${q}`);
+}
+
+/** PATCH /api/admin/teachers/{id} → rename / (de)activate. */
+export function adminUpdateTeacher(
+  id: string,
+  args: AdminTeacherUpdateArgs,
+): Promise<AdminTeacherResponse> {
+  return apiClient.patch<AdminTeacherResponse>(`/admin/teachers/${encodeURIComponent(id)}`, args);
+}
+
+/** DELETE /api/admin/teachers/{id} → 204.
+ *
+ * **PERMANENT AND CASCADING.** The row is `Users.Remove`d, and the foreign keys
+ * are ON DELETE CASCADE, so this also destroys that teacher's groups, modules,
+ * tasks, topics and assignments. There is no undo and no soft-delete flag. The UI
+ * must never offer this as a casual row action — deactivation is the reversible
+ * answer to "make this account stop working". */
+export function adminDeleteTeacher(id: string): Promise<void> {
+  return apiClient.del<void>(`/admin/teachers/${encodeURIComponent(id)}`);
+}
+
+/** GET /api/admin/students (?search). */
+export function adminStudents(search?: string): Promise<AdminStudentResponse[]> {
+  const q = search ? `?search=${encodeURIComponent(search)}` : "";
+  return apiClient.get<AdminStudentResponse[]>(`/admin/students${q}`);
+}
+
+/** PATCH /api/admin/students/{id} → rename, (de)activate, grant/revoke premium. */
+export function adminUpdateStudent(
+  id: string,
+  args: AdminStudentUpdateArgs,
+): Promise<AdminStudentResponse> {
+  return apiClient.patch<AdminStudentResponse>(`/admin/students/${encodeURIComponent(id)}`, args);
+}
+
+/** DELETE /api/admin/students/{id} → 204.
+ *
+ * **PERMANENT AND CASCADING**, like the teacher one: it takes every answer,
+ * evaluation, transcript, XP event, review item and group membership with it. */
+export function adminDeleteStudent(id: string): Promise<void> {
+  return apiClient.del<void>(`/admin/students/${encodeURIComponent(id)}`);
+}
+
+/** GET /api/admin/settings/ai → grader + STT settings with secrets MASKED. */
+export function adminAiSettings(): Promise<AiSettingsResponse> {
+  return apiClient.get<AiSettingsResponse>("/admin/settings/ai");
+}
+
+/** PATCH /api/admin/settings/ai → partial update (tri-state; see AiSettingsUpdateArgs). */
+export function adminUpdateAiSettings(args: AiSettingsUpdateArgs): Promise<AiSettingsResponse> {
+  return apiClient.patch<AiSettingsResponse>("/admin/settings/ai", args);
+}
+
+/** GET /api/admin/settings/reveal/{key} → the RAW value of one secret. A deliberate,
+ * explicit request: the masked state is what the settings screen shows by
+ * default, and this is only called when an admin asks to see the value. */
+export function adminRevealSecret(key: string): Promise<RevealResponse> {
+  return apiClient.get<RevealResponse>(`/admin/settings/reveal/${encodeURIComponent(key)}`);
+}
+
+/** GET /api/admin/settings/links → the outbound Telegram links (admin view). */
+export function adminLinks(): Promise<LinksResponse> {
+  return apiClient.get<LinksResponse>("/admin/settings/links");
+}
+
+/** PATCH /api/admin/settings/links → tri-state update of the outbound links. */
+export function adminUpdateLinks(args: LinksUpdateArgs): Promise<LinksResponse> {
+  return apiClient.patch<LinksResponse>("/admin/settings/links", args);
 }

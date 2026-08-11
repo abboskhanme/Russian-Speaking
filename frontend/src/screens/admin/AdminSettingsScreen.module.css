@@ -1,0 +1,138 @@
+/* AdminSettingsScreen — Sozlamalar. Every value is a token. */
+
+.page {
+  --density-scale: 0.75;
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--s-5) * var(--density-scale));
+  width: 100%;
+}
+
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--s-2) * var(--density-scale));
+}
+.sectionHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-2);
+}
+.legend {
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-4);
+}
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+}
+.actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.switchRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-3);
+}
+.switchText {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+
+/* ---- Segmented chooser ---- */
+.choices {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: var(--s-1);
+  padding: 3px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-pill);
+  background: var(--surface-2);
+}
+.choice,
+.choiceOn {
+  padding: var(--s-1) var(--s-3);
+  border: 0;
+  border-radius: var(--r-pill);
+  background: transparent;
+  color: var(--muted);
+  font-size: var(--t-body-s-size);
+  font-weight: var(--fw-bold);
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background var(--m-fast), color var(--m-fast);
+}
+.choice:hover {
+  color: var(--ink);
+}
+.choice:focus-visible,
+.choiceOn:focus-visible {
+  outline: var(--focus-ring-width) solid var(--focus-ring);
+  outline-offset: var(--focus-ring-offset);
+}
+/* Selected is filled AND announced via aria-checked — colour is never the only
+   signal (docs/03 §3.3). */
+.choiceOn {
+  background: var(--surface);
+  color: var(--accent);
+  box-shadow: var(--e-1);
+}
+
+.secretHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-2);
+}
+
+/* ---- Chip chooser ----
+   For lists that are too long or too wordy for the segmented pill: five model
+   names like "Gemini 2.5 Flash (avoid on free tier)" wrapped inside one pill read
+   as a paragraph, and the selected entry was impossible to pick out. Each option
+   gets its own bordered chip instead, so selection survives wrapping. */
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-2);
+}
+.chip,
+.chipOn {
+  padding: var(--s-2) var(--s-3);
+  border: 1.5px solid var(--line-2);
+  border-radius: var(--r-pill);
+  background: var(--surface);
+  color: var(--ink-soft);
+  font-size: var(--t-body-s-size);
+  font-weight: var(--fw-bold);
+  text-align: start;
+  cursor: pointer;
+  transition: border-color var(--m-fast), background var(--m-fast), color var(--m-fast);
+}
+.chip:hover {
+  background: var(--surface-2);
+}
+.chip:focus-visible,
+.chipOn:focus-visible {
+  outline: var(--focus-ring-width) solid var(--focus-ring);
+  outline-offset: var(--focus-ring-offset);
+}
+/* Selected is carried by the border AND the fill AND aria-checked — never by
+   colour alone (docs/03 §3.3). */
+.chipOn {
+  border-color: var(--primary);
+  background: var(--primary-tint);
+  color: var(--primary);
+}
