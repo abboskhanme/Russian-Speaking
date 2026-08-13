@@ -28,10 +28,11 @@ post-baseline objects removed so the migrations had to genuinely apply:
 | Full integration suite against the migrated copy | ✅ 51/51 |
 | `rollback-db.sh` | ✅ restored the pre-cutover dump: data intact, EF history gone, `alembic_version` back, new columns gone |
 
-**One migration is newer than that rehearsal.** `AddUsersPhoneUniqueIndex` was
-added afterwards and has been applied to the dev database only. It is also the
-first migration real data can REFUSE rather than merely take time over — see the
-duplicate-phone check in step 3.
+**Two migrations are newer than that rehearsal**, both applied to the dev database
+only: `AddUsersPhoneUniqueIndex` and `AddAssignmentMaxAttempts`. The second is a
+plain nullable column and cannot fail; the FIRST is the only migration in the set
+real data can REFUSE rather than merely take time over — see the duplicate-phone
+check in step 3.
 
 **The caveat that matters:** the starting schema was *assumed*, not read off the
 live server. If prod has drifted from what this repo believes, the first honest

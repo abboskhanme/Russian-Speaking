@@ -640,24 +640,25 @@ export interface InsightsResponse {
  * the soonest incomplete one ("Keyingi topshiriq"). `question_title` is the task
  * name; `due_at` is the deadline (null = no deadline); `completed` marks done. */
 /** Body of POST /api/assignments — assign one task to a group and/or explicit
- * students. `due_at` is ISO-8601 or omitted for no deadline.
- *
- * There is deliberately NO attempt limit: `assignments` has no such column and
- * nothing in the pipeline enforces one, so the mockup's "Urinish · 3 ta" control
- * would promise a rule the server does not keep. */
+ * students. `due_at` is ISO-8601 or omitted for no deadline; `max_attempts` is
+ * 1–10 or omitted for unlimited (a 400 outside that range). Submit enforces it,
+ * so it is a real constraint and not a label. */
 export interface CreateAssignmentArgs {
   question_id: string;
   group_id?: string;
   student_ids?: string[];
   due_at?: string;
+  max_attempts?: number;
 }
 
-/** Body of POST /api/assignments/module — assign a whole module's published tasks. */
+/** Body of POST /api/assignments/module — assign a whole module's published tasks.
+ * `max_attempts` applies to EVERY task the module hands out, per task. */
 export interface CreateModuleAssignmentArgs {
   block_id: string;
   group_id?: string;
   student_ids?: string[];
   due_at?: string;
+  max_attempts?: number;
 }
 
 export interface AssignmentResponse {
@@ -673,6 +674,11 @@ export interface AssignmentResponse {
   completed: boolean;
   submission_id: string | null;
   overall_band: number | null;
+  /** Attempt budget, or null for unlimited. */
+  max_attempts: number | null;
+  /** Attempts already spent on THIS assignment. Excludes answers whose grading
+   * failed — the same rule submit enforces, so "2/3" and a refusal agree. */
+  attempts_used: number;
 }
 
 /* ── Settings (SettingsContracts.cs) ─────────────────────────────────────── */

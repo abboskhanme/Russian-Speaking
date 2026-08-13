@@ -165,6 +165,40 @@
   color: var(--primary-on);
 }
 
+/* ---- Urinish (attempt budget) ----
+ * A chip row rather than a number field. The server accepts 1–10, and a free
+ * number input's most likely wrong value is "30" typed for "3" — which reads as
+ * no limit at all. Chips wrap on a phone and cannot express an invalid budget. */
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-2);
+}
+.chip {
+  padding: var(--s-2) var(--s-4);
+  border: 1.5px solid var(--line-2);
+  border-radius: var(--r-pill);
+  background: var(--surface);
+  color: var(--ink);
+  font: inherit;
+  cursor: pointer;
+  transition: border-color var(--m-fast), background var(--m-fast), color var(--m-fast);
+}
+.chip:hover {
+  background: var(--surface-2);
+}
+.chip:focus-visible {
+  outline: var(--focus-ring-width) solid var(--focus-ring);
+  outline-offset: var(--focus-ring-offset);
+}
+/* Selected is a filled chip, and aria-pressed carries the same fact for a screen
+ * reader — never colour alone. */
+.chipOn {
+  border-color: var(--primary);
+  background: var(--primary);
+  color: var(--primary-on);
+}
+
 /* ---- Outcome ---- */
 .outcome {
   display: flex;

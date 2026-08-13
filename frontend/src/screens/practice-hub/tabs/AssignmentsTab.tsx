@@ -17,6 +17,10 @@ export interface Assignment {
   completed: boolean;
   /** Best overall band once graded (0..100); null while not done. */
   band: number | null;
+  /** Attempts the teacher allowed, or null for unlimited (the default). */
+  maxAttempts?: number | null;
+  /** Attempts already spent. Only meaningful beside `maxAttempts`. */
+  attemptsUsed?: number;
 }
 
 export interface AssignmentsTabProps {
@@ -84,9 +88,14 @@ function AssignmentRow({
   onStart: (id: string) => void;
 }) {
   const { t, i18n } = useTranslation();
-  const { id, title, dueAt, completed, band } = assignment;
+  const { id, title, dueAt, completed, band, maxAttempts, attemptsUsed = 0 } = assignment;
 
   const due = formatDue(t, i18n.language, dueAt, completed, now);
+  // Shown ONLY when the teacher set a budget. With no limit there is no number
+  // worth carrying: "3 attempts used" on an unlimited task is noise that looks
+  // like a rule.
+  const spent = maxAttempts != null;
+  const exhausted = spent && attemptsUsed >= maxAttempts;
 
   return (
     <Card variant="panel" padding="md" className={styles.row}>
@@ -105,6 +114,17 @@ function AssignmentRow({
           <Text as="span" variant="body-s" color="faint" className={styles.from}>
             {t("mashq.assignments.from")}
           </Text>
+          {spent && (
+            <Text
+              as="span"
+              variant="body-s"
+              numeric
+              color={exhausted ? "danger" : "muted"}
+              className={styles.attempts}
+            >
+              {t("mashq.assignments.attempts", { used: attemptsUsed, max: maxAttempts })}
+            </Text>
+          )}
         </div>
       </div>
 
@@ -121,8 +141,16 @@ function AssignmentRow({
             )}
           </span>
         ) : (
-          <Button variant="primary" size="sm" onClick={() => onStart(id)}>
-            {t("mashq.assignments.start")}
+          // Exhausted-but-open is rare (the first answer already marks it done),
+          // but when it happens the button must not lead to a submit the server
+          // will refuse.
+          <Button
+            variant="primary"
+            size="sm"
+            disabled={exhausted}
+            onClick={() => onStart(id)}
+          >
+            {exhausted ? t("mashq.assignments.noAttempts") : t("mashq.assignments.start")}
           </Button>
         )}
       </div>

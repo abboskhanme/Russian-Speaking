@@ -124,11 +124,16 @@ export default function AssignTaskPage() {
       selection,
       groupId,
       dueAt,
+      maxAttempts,
     }: {
       selection: AssignSelection;
       groupId: string;
       dueAt: string | null;
+      maxAttempts: number | null;
     }): Promise<AssignOutcome> => {
+      // Omitted rather than sent as null: "unlimited" is the server's default for
+      // an absent field, so not sending it says the same thing with less wire.
+      const budget = maxAttempts === null ? {} : { max_attempts: maxAttempts };
       try {
         const rows =
           selection.kind === "module"
@@ -136,11 +141,13 @@ export default function AssignTaskPage() {
                 block_id: selection.id,
                 group_id: groupId,
                 ...(dueAt ? { due_at: dueAt } : {}),
+                ...budget,
               })
             : await endpoints.createAssignments({
                 question_id: selection.id,
                 group_id: groupId,
                 ...(dueAt ? { due_at: dueAt } : {}),
+                ...budget,
               });
         // The RESPONSE is the count: the server drops targets outside the
         // teacher's roster and skips tasks a student already has.

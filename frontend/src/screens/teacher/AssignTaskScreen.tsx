@@ -11,6 +11,10 @@ import styles from "./AssignTaskScreen.module.css";
 /* Public contract                                                            */
 /* -------------------------------------------------------------------------- */
 
+/** The attempt budgets on offer; `null` is Cheksiz and is the default. The server
+ * accepts 1–10, so these are a usable subset, not the whole legal range. */
+const ATTEMPT_CHOICES: (number | null)[] = [null, 1, 2, 3, 5];
+
 /** Something assignable: a single task, or a whole module's published tasks.
  * `kind` is load-bearing — it picks which endpoint the page calls. */
 export interface AssignSelection {
@@ -54,6 +58,8 @@ export interface AssignTaskProps {
     groupId: string;
     /** ISO-8601, or null for "no deadline". */
     dueAt: string | null;
+    /** Attempts allowed per task, or null for unlimited. */
+    maxAttempts: number | null;
   }) => Promise<AssignOutcome> | AssignOutcome;
   /** Escape hatches for the two empty states. */
   onGoToClasses?: () => void;
@@ -78,9 +84,10 @@ export interface AssignTaskProps {
  * a time. The picker keeps the two visibly distinct because their consequences
  * differ.
  *
- * **The mockup's «Urinish · 3 ta» control is omitted.** `assignments` has no
- * attempt-limit column and nothing in the pipeline enforces one, so the control
- * would promise a rule the server does not keep. See the plan file.
+ * **«Urinish» ships now that the server keeps the rule.** `assignments.max_attempts`
+ * exists and submit refuses past it, so the control is a real constraint rather
+ * than decoration. Default is **Cheksiz** — unlimited is what every assignment
+ * meant before the column existed, and a limit is the deliberate choice.
  *
  * **The button's count comes from the selected group's roster, and the success
  * line comes from the RESPONSE.** The server filters targets through the
@@ -109,6 +116,9 @@ export function AssignTaskScreen({
     initialGroupId && groups.some((g) => g.id === initialGroupId) ? initialGroupId : null,
   );
   const [dueAt, setDueAt] = useState("");
+  // null = Cheksiz. The offered budgets stop well short of the server's ceiling of
+  // 10: past a handful, "how many tries" stops being a teaching decision.
+  const [maxAttempts, setMaxAttempts] = useState<number | null>(null);
   const [pickerOpen, setPickerOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const [outcome, setOutcome] = useState<AssignOutcome | null>(null);
@@ -128,6 +138,7 @@ export function AssignTaskScreen({
         // A blank input means "no deadline", which is a real, nullable state —
         // not today's date, and not an error.
         dueAt: dueAt ? new Date(dueAt).toISOString() : null,
+        maxAttempts,
       });
       setOutcome(result ?? null);
     } finally {
@@ -264,6 +275,34 @@ export function AssignTaskScreen({
               />
               <Text as="p" variant="body-s" color="muted">
                 {t("teacher.assignTask.dueHint")}
+              </Text>
+            </section>
+
+            {/* ---- Urinish ---- */}
+            <section className={styles.section}>
+              <Text as="h2" variant="label" color="faint" className={styles.legend}>
+                {t("teacher.assignTask.attempts")}
+              </Text>
+              <div className={styles.chips} role="group" aria-label={t("teacher.assignTask.attempts")}>
+                {ATTEMPT_CHOICES.map((n) => {
+                  const on = maxAttempts === n;
+                  return (
+                    <button
+                      key={n ?? "unlimited"}
+                      type="button"
+                      className={cx(styles.chip, on && styles.chipOn)}
+                      aria-pressed={on}
+                      onClick={() => setMaxAttempts(n)}
+                    >
+                      {n === null
+                        ? t("teacher.assignTask.attemptsUnlimited")
+                        : t("teacher.assignTask.attemptsN", { count: n })}
+                    </button>
+                  );
+                })}
+              </div>
+              <Text as="p" variant="body-s" color="muted">
+                {t("teacher.assignTask.attemptsHint")}
               </Text>
             </section>
 

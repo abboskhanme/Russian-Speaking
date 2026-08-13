@@ -379,6 +379,9 @@ public sealed class ClassroomService
         if (user is null) return ClassroomResult<IReadOnlyList<AssignmentResponse>>.Unauthorized();
         if (!IsTeacher(user)) return ClassroomResult<IReadOnlyList<AssignmentResponse>>.Forbidden();
 
+        if (InvalidMaxAttempts(payload.MaxAttempts) is { } badLimit)
+            return ClassroomResult<IReadOnlyList<AssignmentResponse>>.BadRequest(badLimit);
+
         var q = await _db.Questions.FirstOrDefaultAsync(x => x.Id == payload.QuestionId, ct);
         if (q is null || (user.Role != UserRole.Admin && q.TeacherId != user.Id))
             return ClassroomResult<IReadOnlyList<AssignmentResponse>>.NotFound();  // missing, or not theirs
@@ -398,6 +401,7 @@ public sealed class ClassroomService
                 QuestionId = payload.QuestionId,
                 GroupId = payload.GroupId,
                 DueAt = payload.DueAt,
+                MaxAttempts = payload.MaxAttempts,
                 CreatedAt = now,
                 UpdatedAt = now,
             };
@@ -418,6 +422,9 @@ public sealed class ClassroomService
         var user = await ActiveUserAsync(userId, ct);
         if (user is null) return ClassroomResult<IReadOnlyList<AssignmentResponse>>.Unauthorized();
         if (!IsTeacher(user)) return ClassroomResult<IReadOnlyList<AssignmentResponse>>.Forbidden();
+
+        if (InvalidMaxAttempts(payload.MaxAttempts) is { } badLimit)
+            return ClassroomResult<IReadOnlyList<AssignmentResponse>>.BadRequest(badLimit);
 
         var block = await _db.QuestionBlocks.FirstOrDefaultAsync(b => b.Id == payload.BlockId, ct);
         if (block is null || (user.Role != UserRole.Admin && block.TeacherId != user.Id))
@@ -454,6 +461,7 @@ public sealed class ClassroomService
                     QuestionId = task.Id,
                     GroupId = payload.GroupId,
                     DueAt = payload.DueAt,
+                    MaxAttempts = payload.MaxAttempts,   // per task, not shared across the module
                     CreatedAt = now,
                     UpdatedAt = now,
                 };
@@ -942,6 +950,10 @@ public sealed class ClassroomService
                                                && s.CreatedAt >= a.CreatedAt);
             students.TryGetValue(a.StudentId, out var student);
             questions.TryGetValue(a.QuestionId, out var q);
+            // Attempts spent, by the SAME rule the submit gate enforces (AttemptsSpent) — one
+            // definition, so the number a student is shown can never disagree with the number that
+            // turns them away.
+            var used = subs.Count(s => s.AssignmentId == a.Id && s.Status != SubmissionStatus.Failed);
             result.Add(new AssignmentResponse(
                 Id: a.Id,
                 StudentId: a.StudentId,
@@ -954,10 +966,29 @@ public sealed class ClassroomService
                 CreatedAt: a.CreatedAt,
                 Completed: sub is not null,
                 SubmissionId: sub?.Id,
-                OverallBand: sub is null ? null : ClassroomScoring.EffectiveBand(sub)));
+                OverallBand: sub is null ? null : ClassroomScoring.EffectiveBand(sub),
+                MaxAttempts: a.MaxAttempts,
+                AttemptsUsed: used));
         }
         return result;
     }
+
+    /// <summary>
+    /// Validates an attempt budget. <c>null</c> is valid and means unlimited.
+    ///
+    /// <para>The ceiling is deliberate. The field exists so a teacher can say "three tries, make them
+    /// count"; a budget of 40 is not a budget, and an unbounded integer invites a typo (30 meant as
+    /// 3) that silently reads as no limit at all. A teacher who wants no limit says so by leaving it
+    /// empty, which is unambiguous.</para>
+    /// </summary>
+    /// <returns>An error message, or <c>null</c> when the value is acceptable.</returns>
+    private static string? InvalidMaxAttempts(int? value)
+        => value is null || (value >= 1 && value <= MaxAttemptsCeiling)
+            ? null
+            : $"max_attempts must be between 1 and {MaxAttemptsCeiling}, or omitted for unlimited";
+
+    /// <summary>Upper bound for <c>max_attempts</c>. See <see cref="InvalidMaxAttempts"/>.</summary>
+    private const int MaxAttemptsCeiling = 10;
 }
 
 // ─── Result plumbing (mirrors the Practice module's outcome→HTTP mapping) ────

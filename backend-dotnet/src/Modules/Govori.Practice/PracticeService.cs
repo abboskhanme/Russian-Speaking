@@ -88,6 +88,30 @@ public sealed class PracticeService
             if (!reachable)
                 return new SubmitResult(SubmitStatus.Forbidden);
 
+            // Attempt budget (D3's "Urinish"). Only an ASSIGNMENT carries one, and it binds exactly
+            // the answers ATTRIBUTED to it — the same rule that already decides `assignment_id`
+            // above. So while the assignment is open every answer to that task counts against it,
+            // however the student navigated there, and answers given before it was set (or after it
+            // closes) do not: they carry a different assignment_id, or none. Anything narrower would
+            // make the budget depend on which route the student happened to take, which they cannot
+            // see. `null` — every row written before this column existed — means unlimited.
+            //
+            // Checked BEFORE the premium gate on purpose. Out of attempts, the answer cannot be
+            // accepted at any price, and prompting someone to upgrade for something they still could
+            // not submit would be a lie told by ordering.
+            if (assignment?.MaxAttempts is int limit)
+            {
+                // Same rule the response projection reports, so "2/3" and the refusal agree. A
+                // FAILED attempt does not count: grading fell over on our side, and charging the
+                // student for it would make an outage cost them their last try.
+                var used = await _db.Submissions.CountAsync(
+                    s => s.AssignmentId == assignment.Id && s.Status != SubmissionStatus.Failed, ct);
+                if (used >= limit)
+                    return new SubmitResult(
+                        SubmitStatus.AttemptsExhausted,
+                        Detail: $"All {limit} attempts for this task have been used.");
+            }
+
             // Positional freemium gate — the ONLY 402 in the app, raised here at submit and
             // BEFORE any upload. Reuses Catalog's frozen decision.
             if (await _catalog.NeedsPremiumAsync(student, question, ct))
@@ -469,10 +493,15 @@ public sealed class PracticeService
 /// <summary>The audio + metadata the endpoint hands the service for a submit (HTTP-layer parsed).</summary>
 public sealed record SubmitAudio(Guid QuestionId, Stream Content, string ContentType, double? DurationSec);
 
-/// <summary>Outcome of <see cref="PracticeService.SubmitAsync"/> — the service owns the status decision (§7.2).</summary>
-public enum SubmitStatus { Ok, Unauthorized, QuestionNotFound, Forbidden, PaymentRequired }
+/// <summary>Outcome of <see cref="PracticeService.SubmitAsync"/> — the service owns the status decision (§7.2).
+/// <c>AttemptsExhausted</c> is separate from <c>Forbidden</c> because it is the one refusal here that
+/// is not about permission: the task IS the student's, they have simply spent its budget.</summary>
+public enum SubmitStatus { Ok, Unauthorized, QuestionNotFound, Forbidden, PaymentRequired, AttemptsExhausted }
 
-public sealed record SubmitResult(SubmitStatus Status, SubmissionResponse? Submission = null);
+/// <summary><paramref name="Detail"/> carries a message the endpoint can pass through verbatim, for
+/// the refusals whose specifics (a limit, a count) the endpoint has no way to know.</summary>
+public sealed record SubmitResult(
+    SubmitStatus Status, SubmissionResponse? Submission = null, string? Detail = null);
 
 /// <summary>Outcome of <see cref="PracticeService.GetAsync"/>.</summary>
 public enum GetStatus { Ok, Unauthorized, NotFound }

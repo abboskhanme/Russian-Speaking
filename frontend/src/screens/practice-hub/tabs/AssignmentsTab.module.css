@@ -61,6 +61,19 @@
   color: var(--line-2);
 }
 
+/* The attempt budget, when the teacher set one. Same "·" separator as .from, so
+ * the meta line reads as one sentence however many parts it happens to have. */
+.attempts {
+  position: relative;
+  padding-inline-start: var(--s-3);
+}
+.attempts::before {
+  content: "·";
+  position: absolute;
+  inset-inline-start: var(--s-1);
+  color: var(--line-2);
+}
+
 /* ---- Trailing state ---- */
 .trailing {
   flex: none;

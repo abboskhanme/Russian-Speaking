@@ -69,6 +69,10 @@ public static class PracticeEndpoints
                     "This task isn't assigned to you, or its deadline has passed.", StatusCodes.Status403Forbidden),
                 SubmitStatus.PaymentRequired => Detail(
                     "This task needs premium. Upgrade to continue this module.", StatusCodes.Status402PaymentRequired),
+                // 403, not 409: the answer is refused outright and no retry will change that. The
+                // service supplies the message because only it knows the limit.
+                SubmitStatus.AttemptsExhausted => Detail(
+                    result.Detail ?? "No attempts left for this task.", StatusCodes.Status403Forbidden),
                 _ => Results.Json(result.Submission, statusCode: StatusCodes.Status201Created),
             };
         }).RequireAuthorization().DisableAntiforgery();

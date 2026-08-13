@@ -23,7 +23,10 @@ public sealed record CreateAssignmentRequest(
     Guid QuestionId,
     List<Guid>? StudentIds,
     Guid? GroupId,
-    DateTime? DueAt);
+    DateTime? DueAt,
+    /// <summary>How many answers the student may submit. OMIT or <c>null</c> for unlimited — the
+    /// behaviour every assignment had before this field existed. 1–10 when given.</summary>
+    int? MaxAttempts = null);
 
 /// <summary>
 /// Body of POST /api/assignments/module — assign every published task of a module to a
@@ -33,7 +36,10 @@ public sealed record CreateModuleAssignmentRequest(
     Guid BlockId,
     List<Guid>? StudentIds,
     Guid? GroupId,
-    DateTime? DueAt);
+    DateTime? DueAt,
+    /// <summary>Applied to EVERY task the module produces — a per-task budget, not a shared one.
+    /// Omit or <c>null</c> for unlimited. 1–10 when given.</summary>
+    int? MaxAttempts = null);
 
 // ── Responses ──
 
@@ -121,7 +127,13 @@ public sealed record AssignmentResponse(
     DateTime CreatedAt,
     bool Completed,
     Guid? SubmissionId,
-    double? OverallBand);
+    double? OverallBand,
+    /// <summary>The attempt budget, or <c>null</c> for unlimited.</summary>
+    int? MaxAttempts = null,
+    /// <summary>Attempts already spent on THIS assignment. Counts answers carrying its id and
+    /// excludes the ones whose grading FAILED — a broken pipeline must not cost a student a try.
+    /// Always present, so the UI can show "2/3" whether or not a limit is set.</summary>
+    int AttemptsUsed = 0);
 
 /// <summary>
 /// One student's line in the gradebook.

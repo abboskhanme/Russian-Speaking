@@ -175,6 +175,117 @@ public sealed class PracticeEndpointsTests : IClassFixture<PracticeEndpointsTest
         }
     }
 
+    /// <summary>
+    /// D3's "Urinish" budget end to end: the cap is enforced at submit, a FAILED attempt does not
+    /// spend one, and an assignment with no budget stays unlimited — which is what every assignment
+    /// written before the column existed says.
+    /// </summary>
+    [Fact]
+    public async Task Assignment_attempt_budget_is_enforced_and_a_failed_attempt_costs_nothing()
+    {
+        var teacherId = Guid.NewGuid();
+        var studentId = Guid.NewGuid();
+        var blockId = Guid.NewGuid();
+        var cappedQ = Guid.NewGuid();          // assignment with max_attempts = 2
+        var openQ = Guid.NewGuid();            // assignment with max_attempts = null
+        var cappedAssignment = Guid.NewGuid();
+        var openAssignment = Guid.NewGuid();
+
+        using var storage = new MinioObjectStorage(BuildStorageOptions());
+        var uploadedKeys = new List<string>();
+
+        await using (var ctx = CreateContext())
+        {
+            ctx.Users.Add(NewUser(teacherId, $"cap-teacher-{teacherId:N}@example.test", UserRole.Teacher, null, premium: false));
+            // Premium so the freemium gate can never be the thing that refuses a submit here.
+            ctx.Users.Add(NewUser(studentId, $"cap-student-{studentId:N}@example.test", UserRole.Student, null, premium: true));
+            ctx.QuestionBlocks.Add(NewBlock(blockId, teacherId, "public"));
+            ctx.Questions.Add(NewQuestion(cappedQ, teacherId, blockId, sortOrder: 0));
+            ctx.Questions.Add(NewQuestion(openQ, teacherId, blockId, sortOrder: 1));
+            ctx.Assignments.Add(NewAssignment(cappedAssignment, teacherId, studentId, cappedQ, maxAttempts: 2));
+            ctx.Assignments.Add(NewAssignment(openAssignment, teacherId, studentId, openQ, maxAttempts: null));
+            await ctx.SaveChangesAsync();
+        }
+
+        try
+        {
+            var client = _factory.CreateClient();
+            var token = TokenFor(studentId);
+
+            async Task<HttpResponseMessage> SubmitTo(Guid questionId)
+            {
+                var resp = await Send(client, HttpMethod.Post, "/api/submissions", token, BuildAudioForm(questionId));
+                if (resp.StatusCode == HttpStatusCode.Created)
+                {
+                    using var doc = JsonDocument.Parse(await resp.Content.ReadAsStringAsync());
+                    uploadedKeys.Add(doc.RootElement.GetProperty("audio_key").GetString()!);
+                }
+                return resp;
+            }
+
+            // ── Both attempts of the budget are accepted, and both attach to the assignment ──
+            Assert.Equal(HttpStatusCode.Created, (await SubmitTo(cappedQ)).StatusCode);
+            Assert.Equal(HttpStatusCode.Created, (await SubmitTo(cappedQ)).StatusCode);
+            await using (var ctx = CreateContext())
+                Assert.Equal(2, await ctx.Submissions.CountAsync(s => s.AssignmentId == cappedAssignment));
+
+            // ── The third is refused, and NOTHING is written for it ──
+            var refused = await SubmitTo(cappedQ);
+            Assert.Equal(HttpStatusCode.Forbidden, refused.StatusCode);
+            using (var doc = JsonDocument.Parse(await refused.Content.ReadAsStringAsync()))
+            {
+                // The limit itself is in the message — "no attempts left" alone does not say how
+                // many there were, and the student cannot see the assignment row.
+                Assert.Contains("2", doc.RootElement.GetProperty("detail").GetString()!);
+            }
+            await using (var ctx = CreateContext())
+                Assert.Equal(2, await ctx.Submissions.CountAsync(s => s.AssignmentId == cappedAssignment));
+
+            // ── A FAILED attempt is refunded: grading fell over on our side ──
+            await using (var ctx = CreateContext())
+            {
+                var first = await ctx.Submissions
+                    .Where(s => s.AssignmentId == cappedAssignment)
+                    .OrderBy(s => s.CreatedAt)
+                    .FirstAsync();
+                first.Status = SubmissionStatus.Failed;
+                await ctx.SaveChangesAsync();
+            }
+            Assert.Equal(HttpStatusCode.Created, (await SubmitTo(cappedQ)).StatusCode);
+
+            // ── /assignments/mine reports the budget and the spend, by the same rule ──
+            var mineResp = await Send(client, HttpMethod.Get, "/api/assignments/mine", token);
+            Assert.Equal(HttpStatusCode.OK, mineResp.StatusCode);
+            using (var mineDoc = JsonDocument.Parse(await mineResp.Content.ReadAsStringAsync()))
+            {
+                var capped = mineDoc.RootElement.EnumerateArray()
+                    .Single(r => r.GetProperty("id").GetGuid() == cappedAssignment);
+                Assert.Equal(2, capped.GetProperty("max_attempts").GetInt32());
+                Assert.Equal(2, capped.GetProperty("attempts_used").GetInt32());   // 3 rows, one failed
+
+                var open = mineDoc.RootElement.EnumerateArray()
+                    .Single(r => r.GetProperty("id").GetGuid() == openAssignment);
+                Assert.Equal(JsonValueKind.Null, open.GetProperty("max_attempts").ValueKind);
+                Assert.Equal(0, open.GetProperty("attempts_used").GetInt32());
+            }
+
+            // ── No budget ⇒ unlimited: past where the capped one had already stopped ──
+            for (var i = 0; i < 3; i++)
+                Assert.Equal(HttpStatusCode.Created, (await SubmitTo(openQ)).StatusCode);
+        }
+        finally
+        {
+            foreach (var key in uploadedKeys)
+                await storage.DeleteAsync(key);
+            await using var ctx = CreateContext();
+            await ctx.Submissions.Where(s => s.StudentId == studentId).ExecuteDeleteAsync();
+            await ctx.Assignments.Where(a => a.StudentId == studentId).ExecuteDeleteAsync();
+            await ctx.Questions.Where(x => x.BlockId == blockId).ExecuteDeleteAsync();
+            await ctx.QuestionBlocks.Where(b => b.Id == blockId).ExecuteDeleteAsync();
+            await ctx.Users.Where(u => u.Id == studentId || u.Id == teacherId).ExecuteDeleteAsync();
+        }
+    }
+
     // ── helpers ──
 
     // Auth is phone-OTP now (no email/password login). These non-auth tests only need a bearer for a
@@ -241,6 +352,19 @@ public sealed class PracticeEndpointsTests : IClassFixture<PracticeEndpointsTest
         Visibility = visibility,
         IsPublished = true,
         SortOrder = 0,
+        CreatedAt = DateTime.UtcNow,
+        UpdatedAt = DateTime.UtcNow,
+    };
+
+    private static Assignment NewAssignment(
+        Guid id, Guid teacherId, Guid studentId, Guid questionId, int? maxAttempts) => new()
+    {
+        Id = id,
+        TeacherId = teacherId,
+        StudentId = studentId,
+        QuestionId = questionId,
+        DueAt = null,                        // open, so SubmitAsync attributes answers to it
+        MaxAttempts = maxAttempts,
         CreatedAt = DateTime.UtcNow,
         UpdatedAt = DateTime.UtcNow,
     };

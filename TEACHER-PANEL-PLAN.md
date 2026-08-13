@@ -396,9 +396,9 @@ backend is **one composed read over existing rows — no migration**.
   task, so the button would have nowhere honest to go. Same for the **"Hammasi"**
   link beside that heading: the endpoint returns the top 5 and there is no
   all-errors destination.
-- D3's **"Urinish · 3 ta"** (max attempts) — `assignments` has no attempts column
-  and nothing in the pipeline enforces a limit, so the control would promise a
-  rule the server does not keep.
+- ~~D3's **"Urinish · 3 ta"** (max attempts)~~ — **shipped since** (see the
+  follow-ups). `assignments.max_attempts` exists and submit refuses past it, so
+  the control now keeps the rule it shows.
 
 **Two bugs found while verifying (both only visible in a real browser):**
 1. The hero rendered the LEVEL LABEL at display size — "o'rta-yuqori" wrapped to
@@ -751,8 +751,33 @@ test grants reverted.
     instead of reporting a failed save and tempting a duplicate. Existing tasks get
     a per-row Media / Almashtirish / O'chirish control — there is no task-editor
     screen, so without it a wrong file would be unfixable.
-- [ ] Attempt limits on assignments (D3's omitted "Urinish"), if the product
-  wants them.
+- [x] Attempt limits on assignments (D3's omitted "Urinish") — **done**.
+  `assignments.max_attempts int NULL`, where **null = unlimited**, which is what
+  every row written before the column existed already meant. Nobody's assignment
+  changed.
+  - **Enforced at submit, before the upload** — the same place the freemium 402
+    lives, and deliberately BEFORE it: out of attempts, the answer cannot be
+    accepted at any price, so prompting an upgrade first would be a lie told by
+    ordering. 403 with the limit in the message, since the student cannot see the
+    assignment row.
+  - **The budget binds the answers ATTRIBUTED to the assignment** — the rule that
+    already decides `submissions.assignment_id`. So while it is open, every answer
+    to that task counts however the student navigated there, and answers from
+    before it was set (or after it closes) do not. Anything narrower would make
+    the budget depend on a route the student cannot see.
+  - **A FAILED attempt does not spend one.** Grading fell over on our side, and an
+    outage must not cost a student their last try. The projection counts by the
+    same rule, so the "2/3" a student reads can never disagree with the refusal.
+  - **1–10, or omitted.** A budget of 40 is not a budget, and an unbounded integer
+    invites the typo (30 for 3) that silently reads as no limit at all. The UI
+    offers Cheksiz · 1 · 2 · 3 · 5 as chips rather than a number field, so an
+    invalid budget is unexpressible.
+  - **Module assign carries it per task**, not as a shared pool across the module.
+  - Verified in a browser: D3 in 4 combinations (mobile+desktop × light+dark), a
+    real assign of a 4-task module to a 5-student group with "3 ta" → the server
+    reported 15 rows and the database held 15 with `max_attempts = 3`; the
+    student's Topshiriqlar rows then read "0/3 urinish", and rows without a budget
+    show nothing extra. The 15 test rows were deleted afterwards.
 - [x] The aged dev fixture — **done**, `./deploy/dev-refresh-fixture.sh`. The seed
   was already relative; what was missing was refreshing an EXISTING volume.
 - [x] Duplicate demo phone numbers — **done**; the sample teachers moved off the

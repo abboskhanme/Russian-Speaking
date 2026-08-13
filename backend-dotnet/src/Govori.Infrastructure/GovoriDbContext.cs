@@ -116,6 +116,8 @@ public partial class GovoriDbContext : DbContext
                 .HasColumnName("created_at");
             entity.Property(e => e.DueAt).HasColumnName("due_at");
             entity.Property(e => e.GroupId).HasColumnName("group_id");
+            // Nullable with NO default: null = unlimited, which is what every pre-existing row says.
+            entity.Property(e => e.MaxAttempts).HasColumnName("max_attempts");
             entity.Property(e => e.QuestionId).HasColumnName("question_id");
             entity.Property(e => e.StudentId).HasColumnName("student_id");
             entity.Property(e => e.TeacherId).HasColumnName("teacher_id");

@@ -49,6 +49,8 @@ function mapAssignment(a: AssignmentResponse): PracticeHubScreenProps["assignmen
     dueAt: a.due_at,
     completed: a.completed,
     band: a.overall_band,
+    maxAttempts: a.max_attempts,
+    attemptsUsed: a.attempts_used,
   };
 }
 

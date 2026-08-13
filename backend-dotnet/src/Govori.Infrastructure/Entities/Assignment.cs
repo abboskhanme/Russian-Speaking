@@ -15,6 +15,11 @@ public partial class Assignment
 
     public DateTime? DueAt { get; set; }
 
+    /// <summary>How many times the student may answer this assignment. <c>null</c> means UNLIMITED,
+    /// which is what every row written before this column existed means — so adding it changed
+    /// nobody's assignment.</summary>
+    public int? MaxAttempts { get; set; }
+
     public DateTime CreatedAt { get; set; }
 
     public DateTime UpdatedAt { get; set; }
