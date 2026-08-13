@@ -181,6 +181,49 @@ public sealed class AuthEndpointsTests : IClassFixture<AuthEndpointsTests.AuthAp
         }
     }
 
+    [Fact]
+    public async Task Concurrent_verify_of_the_same_new_phone_yields_exactly_one_account()
+    {
+        // Two verifies of the SAME unregistered number, in flight together — a double-tapped
+        // "Tasdiqlash" produces exactly this. Both read "no such user" before either inserts, so one
+        // of them meets ix_users_phone on the way in. The contract: BOTH callers get a session and
+        // the database holds ONE account, because the loser resolves to a login instead of a 500
+        // (AuthService.CompleteLoginAsync).
+        //
+        // Should the two happen to serialize, the second simply takes the ordinary login branch and
+        // both assertions still hold — the test cannot fail spuriously, it can only stop exercising
+        // the race it is aimed at.
+        var phone = "+99895" + Random.Shared.Next(0, 10_000_000).ToString("D7");
+
+        try
+        {
+            var client = _factory.CreateClient();
+            var reqResp = await client.PostAsJsonAsync("/api/auth/otp/request", new { phone });
+            Assert.Equal(HttpStatusCode.OK, reqResp.StatusCode);
+
+            var body = new { phone, code = DevCode, full_name = "Poyga Tester" };
+            var responses = await Task.WhenAll(
+                client.PostAsJsonAsync("/api/auth/otp/verify", body),
+                client.PostAsJsonAsync("/api/auth/otp/verify", body));
+
+            foreach (var response in responses)
+            {
+                Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+                using var doc = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+                Assert.False(string.IsNullOrEmpty(
+                    doc.RootElement.GetProperty("access_token").GetString()));
+            }
+
+            await using var ctx = CreateContext();
+            Assert.Equal(1, await ctx.Users.CountAsync(u => u.Phone == phone));
+        }
+        finally
+        {
+            await using var ctx = CreateContext();
+            await ctx.Users.Where(u => u.Phone == phone).ExecuteDeleteAsync();
+        }
+    }
+
     public void Dispose() => _dataSource.Dispose();
 
     /// <summary>

@@ -28,6 +28,11 @@ post-baseline objects removed so the migrations had to genuinely apply:
 | Full integration suite against the migrated copy | ✅ 51/51 |
 | `rollback-db.sh` | ✅ restored the pre-cutover dump: data intact, EF history gone, `alembic_version` back, new columns gone |
 
+**One migration is newer than that rehearsal.** `AddUsersPhoneUniqueIndex` was
+added afterwards and has been applied to the dev database only. It is also the
+first migration real data can REFUSE rather than merely take time over — see the
+duplicate-phone check in step 3.
+
 **The caveat that matters:** the starting schema was *assumed*, not read off the
 live server. If prod has drifted from what this repo believes, the first honest
 signal will be `ef-baseline.sh`'s own guard refusing to run. Do not force past it.
@@ -55,12 +60,28 @@ Restore the verified prod dump locally and re-run the table above against it. Th
 replaces the *assumed* starting schema with the real one — it is the step that
 turns the rehearsal from "probably" into "yes".
 
+**While that copy is up, run the duplicate-phone check** — it is the one migration
+that can fail on real data, and finding out during the window is the wrong time:
+
+```sql
+SELECT phone, count(*), array_agg(id ORDER BY created_at) AS ids
+FROM users WHERE phone IS NOT NULL
+GROUP BY phone HAVING count(*) > 1;
+```
+
+`AddUsersPhoneUniqueIndex` creates a UNIQUE index on `users.phone`, so any row this
+returns stops `database update` dead. Nothing enforced uniqueness before it, and
+login resolves the **oldest** match — so for each collision the newer rows are
+accounts nobody has been able to reach by phone. Decide per row (merge, clear the
+phone, or deactivate) and apply it to the LIVE database **before** the window, not
+during. Zero rows ⇒ nothing to do.
+
 ### 4 ⛔ Cutover (~30 min, low-traffic window)
 ```bash
 # a. stop the OLD stack's web+api (keep its DB up)
 # b. final pg_dump -Fc  ← this is the file rollback-db.sh will use
 # c. bash deploy/ef-baseline.sh --dry-run     # read it. then without --dry-run
-# d. dotnet ef database update                # applies the 4 migrations
+# d. dotnet ef database update                # applies the post-baseline migrations
 # e. bring up the .NET stack pointed at the same database
 # f. smoke: login, a student's home, a teacher's Obzor, one recording end to end
 ```

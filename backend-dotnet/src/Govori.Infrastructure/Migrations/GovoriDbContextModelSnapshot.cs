@@ -1145,6 +1145,11 @@ namespace Govori.Infrastructure.Migrations
                         .IsUnique()
                         .HasDatabaseName("ix_users_email");
 
+                    b.HasIndex(new[] { "Phone" }, "ix_users_phone")
+                        .IsUnique()
+                        .HasDatabaseName("ix_users_phone")
+                        .HasFilter("phone IS NOT NULL");
+
                     b.HasIndex(new[] { "GoogleSub" }, "uq_users_google_sub")
                         .IsUnique()
                         .HasDatabaseName("ix_users_google_sub");

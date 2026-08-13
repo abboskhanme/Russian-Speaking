@@ -30,6 +30,17 @@ public sealed class AuthService
     /// a surrogate pair is 2 here and 1 there, so this can only ever be stricter, never looser.</summary>
     private const int FullNameMaxLength = 255;
 
+    /// <summary>Database name of the partial unique index on <c>users.phone</c>. Both write paths
+    /// below check for a collision before writing; this is what they catch when a concurrent request
+    /// passed the same check first. The name is the DATABASE one — snake-case convention derives it,
+    /// so it is not read off the model.</summary>
+    private const string PhoneUniqueIndex = "ix_users_phone";
+
+    /// <summary>Database name of the unique index on <c>users.email</c>. It matters to the PHONE
+    /// paths because a phone account's email is derived from its number, so a duplicate phone is
+    /// always a duplicate email too — and Postgres reports whichever it happens to check first.</summary>
+    private const string EmailUniqueIndex = "ix_users_email";
+
     /// <summary>The three UI languages the app ships (docs/08 §4.7). Kept as an allow-list rather
     /// than a length check because <c>preferred_language</c> is only 8 characters wide, so an
     /// unrecognised locale would be silently TRUNCATED by Postgres into something meaningless
@@ -198,7 +209,38 @@ public sealed class AuthService
             UpdatedAt = DateTime.UtcNow,
         };
         _db.Users.Add(created);
-        await _db.SaveChangesAsync(ct);
+        try
+        {
+            await _db.SaveChangesAsync(ct);
+        }
+        catch (DbUpdateException ex) when (DbErrors.IsUniqueViolation(ex, PhoneUniqueIndex)
+                                       || DbErrors.IsUniqueViolation(ex, EmailUniqueIndex))
+        {
+            // Lost the race to a concurrent verify of the SAME phone — a double-tapped "Tasdiqlash"
+            // is enough, because both requests read "no such user" before either inserted. The
+            // winner created exactly the account this request was about to, so the right answer is
+            // that account rather than a 500.
+            //
+            // EITHER index can be the one that reports it: the placeholder email is DERIVED from the
+            // phone, so the twins collide on both, and which violation Postgres raises first is an
+            // implementation detail no caller should depend on. (Observed: it is usually the email.)
+            //
+            // Detach first — a tracked insert that failed would be retried by any later SaveChanges
+            // on this context.
+            _db.Entry(created).State = EntityState.Detached;
+            var winner = await _db.Users.FirstOrDefaultAsync(u => u.Phone == phone, ct);
+            if (winner is null)
+                // Not the race we assumed: the number is free but its derived email is not. That
+                // means an OLDER account still holds `{phone}@govori.uz` while having moved to a
+                // different number (a phone change keeps the original placeholder email, on
+                // purpose). Recycled numbers are the only way to reach this, and answering it needs
+                // a decision about email derivation rather than a guess here — so it stays loud.
+                throw;
+
+            return winner.IsActive
+                ? new OtpVerifyOutcome(OtpVerifyStatus.LoggedIn, MintPair(winner))
+                : new OtpVerifyOutcome(OtpVerifyStatus.Inactive, Role: winner.Role);
+        }
 
         return new OtpVerifyOutcome(OtpVerifyStatus.Registered, MintPair(created));
     }
@@ -563,9 +605,9 @@ public sealed class AuthService
     ///
     /// <para>The "not taken" check RUNS AGAIN here. The gap between request and confirm is a real
     /// window (an OTP TTL wide) in which another account can claim the number, and the check at
-    /// request time says nothing about the state at write time. (There is no unique index on
-    /// <c>users.phone</c>, so this re-read is the guard; it narrows the race to the moment between
-    /// the check and the write rather than closing it outright, which would need a schema change.)</para>
+    /// request time says nothing about the state at write time. The re-read narrows the race to the
+    /// moment between the check and the write; <c>ix_users_phone</c> closes what is left, and the
+    /// write below turns that violation back into the same "taken" this check returns.</para>
     ///
     /// <para>The session is NOT invalidated: the user's id does not change, so every issued token
     /// stays valid and the user is not logged out for editing their own profile. The placeholder
@@ -592,7 +634,19 @@ public sealed class AuthService
 
         user.Phone = phone;
         user.UpdatedAt = DateTime.UtcNow;
-        await _db.SaveChangesAsync(ct);
+        try
+        {
+            await _db.SaveChangesAsync(ct);
+        }
+        catch (DbUpdateException ex) when (DbErrors.IsUniqueViolation(ex, PhoneUniqueIndex))
+        {
+            // Someone claimed the number between the check above and this write. Answer exactly what
+            // that check would have, and RELOAD so the tracked row stops advertising a change that
+            // never reached the database. The pending binding is deliberately left in place, as on
+            // the checked path: the user may still want this number once the other account frees it.
+            await _db.Entry(user).ReloadAsync(ct);
+            return new PhoneChangeConfirmOutcome(PhoneChangeConfirmStatus.Taken);
+        }
 
         // Only after the write: a cleared binding with an unwritten change would strand the user.
         await _pendingPhoneChanges.ClearAsync(userId, ct);

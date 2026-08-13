@@ -149,5 +149,78 @@ public sealed class SchemaRoundTripTests : IDisposable
         }
     }
 
+    /// <summary>
+    /// The partial unique index on <c>users.phone</c> (<c>ix_users_phone</c>) does the two things it
+    /// exists to do: a second row on the same number is REFUSED, and the many accounts that have no
+    /// number at all (Google sign-ins, legacy email rows) are untouched by it — the index is filtered
+    /// <c>WHERE phone IS NOT NULL</c>, so a plain unique constraint's NULL semantics are not what is
+    /// being relied on here.
+    ///
+    /// <para>It also pins the name: <see cref="DbErrors.IsUniqueViolation"/> matches on the exact
+    /// constraint Postgres reports, and the auth paths turn ONLY that one back into a normal answer.
+    /// If a rename ever silently changed it, this assertion fails here rather than the auth code
+    /// quietly starting to 500 on a race it used to absorb.</para>
+    /// </summary>
+    [Fact]
+    public async Task Phone_unique_index_refuses_a_duplicate_and_ignores_nulls()
+    {
+        var phone = "+99893" + Random.Shared.Next(0, 10_000_000).ToString("D7");
+        var firstId = Guid.NewGuid();
+        var secondId = Guid.NewGuid();
+        var nullPhoneIds = new[] { Guid.NewGuid(), Guid.NewGuid() };
+
+        try
+        {
+            await using (var ctx = CreateContext())
+            {
+                ctx.Users.Add(NewUser(firstId, phone));
+                Assert.Equal(1, await ctx.SaveChangesAsync());
+            }
+
+            // Same number, different account → refused by the database, not by application code.
+            await using (var ctx = CreateContext())
+            {
+                ctx.Users.Add(NewUser(secondId, phone));
+                var ex = await Assert.ThrowsAsync<DbUpdateException>(() => ctx.SaveChangesAsync());
+
+                Assert.True(DbErrors.IsUniqueViolation(ex, "ix_users_phone"),
+                    $"expected a unique violation on ix_users_phone, got: {ex.InnerException?.Message}");
+                // A collision on some OTHER index must not be mistaken for this one.
+                Assert.False(DbErrors.IsUniqueViolation(ex, "ix_users_email"));
+            }
+
+            // Two accounts with NO number are both fine — the filter excludes them from the index.
+            await using (var ctx = CreateContext())
+            {
+                ctx.Users.Add(NewUser(nullPhoneIds[0], phone: null));
+                ctx.Users.Add(NewUser(nullPhoneIds[1], phone: null));
+                Assert.Equal(2, await ctx.SaveChangesAsync());
+            }
+        }
+        finally
+        {
+            await using var ctx = CreateContext();
+            await ctx.Users
+                .Where(u => u.Id == firstId || u.Id == secondId || nullPhoneIds.Contains(u.Id))
+                .ExecuteDeleteAsync();
+        }
+    }
+
+    /// <summary>A minimal valid <c>users</c> row: everything NOT NULL set, and a per-id placeholder
+    /// email so the <c>email</c> unique index can never be the thing that fails a phone test.</summary>
+    private static User NewUser(Guid id, string? phone) => new()
+    {
+        Id = id,
+        Email = $"phone-index-{id:N}@example.test",
+        FullName = "Phone Index Probe",
+        Role = UserRole.Student,
+        IsActive = true,
+        IsPremium = false,
+        PreferredLanguage = "uz",
+        Phone = phone,
+        CreatedAt = DateTime.UtcNow,
+        UpdatedAt = DateTime.UtcNow,
+    };
+
     public void Dispose() => _dataSource.Dispose();
 }

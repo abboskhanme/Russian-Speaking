@@ -735,6 +735,22 @@ public partial class GovoriDbContext : DbContext
 
             entity.HasIndex(e => e.GoogleSub, "uq_users_google_sub").IsUnique();
 
+            // PARTIAL unique index: `phone` is nullable and most legacy/Google accounts have none.
+            // Postgres already treats NULLs as distinct, so a plain unique index would work — the
+            // filter is what keeps the index small and states the intent in the schema itself.
+            // Every write path already checks for a collision in application code (OTP sign-up logs
+            // the existing account in rather than creating a second; the phone-change flow 409s), so
+            // this is the backstop those checks cannot be: two concurrent requests and any direct
+            // SQL (seeds, fixtures, psql) bypass them. Without it a collision is silent, and login —
+            // which resolves the FIRST match — quietly picks the older row forever.
+            // (The literal below is the MODEL name; `UseSnakeCaseNamingConvention` derives the
+            // database name, so the object Postgres actually gets is `ix_users_phone`. They are
+            // spelled the same here on purpose — `uq_users_google_sub` above is not, and its model
+            // and database names have silently disagreed ever since.)
+            entity.HasIndex(e => e.Phone, "ix_users_phone")
+                .IsUnique()
+                .HasFilter("phone IS NOT NULL");
+
             entity.Property(e => e.Id)
                 .ValueGeneratedNever()
                 .HasColumnName("id");
