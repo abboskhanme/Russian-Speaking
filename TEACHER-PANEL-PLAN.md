@@ -4,7 +4,7 @@
 > checkboxes as we finish each step. We work phase-by-phase, top to bottom.
 
 ## Source of truth
-- **Design:** `RussianDesign/Govori/Govorim - Teacher.dc.html` — the ONLY design
+- **Design:** `docs/design/mockups/Govorim - Teacher.dc.html` — the ONLY design
   reference for these screens, plus `docs/04-UX-FLOWS.md` (teacher flows).
 - **The teacher panel is its own product, not a re-skinned student panel.** Its
   design, its nav, its screens are all separate; only the underlying *data*
@@ -618,8 +618,9 @@ host config. Prod (`govorim.uz`) does **not** have the teacher panel yet.
 > making the richer sample teachers unreachable by phone. They now use
 > `+9989110021xx`, matching the student block the same file already owns.
 >
-> Still latent: **nothing enforces `users.phone` uniqueness**, so "oldest match
-> wins" remains the tie-break if two rows ever collide again.
+> ~~Still latent: **nothing enforces `users.phone` uniqueness**~~ — **closed**.
+> `ix_users_phone` (partial unique, `WHERE phone IS NOT NULL`) now makes a
+> collision a write error instead of a silent "oldest match wins" at login.
 
 ## When everything is done
 Every phase (1 · 2 · 2b · 3 · 4 · 5 · 6 · 6b · 7) is shipped. What is left is NOT
@@ -755,9 +756,28 @@ test grants reverted.
 - [x] The aged dev fixture — **done**, `./deploy/dev-refresh-fixture.sh`. The seed
   was already relative; what was missing was refreshing an EXISTING volume.
 - [x] Duplicate demo phone numbers — **done**; the sample teachers moved off the
-  demo dump's range. A uniqueness CONSTRAINT on `users.phone` is still absent.
-- [ ] Consider a unique index on `users.phone` (partial, `WHERE phone IS NOT
-  NULL`) so a collision is a write error rather than a silent "oldest wins" at
-  login. Needs a prod dedupe check first.
+  demo dump's range.
+- [x] Unique index on `users.phone` — **done**. `ix_users_phone`, partial
+  (`WHERE phone IS NOT NULL`), so the Google/legacy accounts that have no number
+  stay outside it entirely and the index stays small. Both write paths already
+  checked for a collision first; the index is the backstop those checks cannot
+  be, since two concurrent requests and any direct SQL walk straight past them.
+  - The concurrent OTP verify now resolves to a **login** instead of a 500: both
+    requests read "no such user", one inserts, and the loser re-reads the number
+    and returns the winner's account. The phone-change confirm turns the same
+    violation back into the "taken" its own pre-check would have returned.
+  - Either index can be the one that fires — a phone account's email is DERIVED
+    from its number, so duplicate twins collide on `ix_users_email` too, and
+    Postgres reports whichever it checks first. Found by the test, not by
+    reasoning: the first version caught only the phone index and still 500'd.
+  - **Left loud on purpose:** if the number is free but its derived email is not,
+    the insert still throws. That means an older account holds
+    `{phone}@govori.uz` while having moved to a different number — reachable only
+    by recycling a number, and answering it means deciding how placeholder emails
+    are derived, which is not a decision to make inside a catch block.
+  - **Prod is not verified.** The dev database has no duplicates (52 numbers, 52
+    distinct); the live one has never been checked, and this is the first
+    migration real data can REFUSE. The check is now step 3 of
+    `deploy/CUTOVER.md` and must run before the window, not during it.
 
 - [ ] Delete this file (`TEACHER-PANEL-PLAN.md`) and `dev-role.sh`.

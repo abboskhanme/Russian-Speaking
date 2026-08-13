@@ -2,7 +2,7 @@ import type { AssignTaskProps } from "./AssignTaskScreen";
 
 /**
  * Fixture for D3 «Topshiriq berish» — lets the screen render standalone. Copied
- * from the D3 panel in `RussianDesign/Govori/Govorim - Teacher.dc.html`; nothing
+ * from the D3 panel in `docs/design/mockups/Govorim - Teacher.dc.html`; nothing
  * the app fetches reads this.
  */
 export const mockAssignTask: AssignTaskProps = {

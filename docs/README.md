@@ -21,6 +21,8 @@ Bu papka — bitta manba (single source of truth). Eski `ARCHITECTURE.md`, `PROJ
 | 06 | [`06-CLAUDE-DESIGN-PROMPT.md`](./06-CLAUDE-DESIGN-PROMPT.md) | **Claude Design uchun tayyor prompt** (copy-paste). |
 | **07** | [`07-ARCHITECTURE-DOTNET.md`](./07-ARCHITECTURE-DOTNET.md) | 🔴 **Amaldagi arxitektura.** Backend = C#/.NET 9. `02` ning backend qismini almashtiradi. |
 | **08** | [`08-REWRITE-PLAN.md`](./08-REWRITE-PLAN.md) | 🔴 **Amaldagi reja.** Fazalar, cutover, tozalash. `05` ni almashtiradi. |
+| 09 | [`09-DOCKER.md`](./09-DOCKER.md) | Stack'ni ko'tarish: servislar, portlar, loglar, sxema egaligi. |
+| — | [`design/`](./design/README.md) | **Maketlar** (`mockups/*.dc.html`) — UI uchun manba; + tekshiruv skrinshotlari. Ilgari `RussianDesign/`. |
 
 ## ⚠️ 2026-07-17 — kurs o'zgarishi
 

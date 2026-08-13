@@ -1,7 +1,7 @@
 /* =============================================================================
  * Ovoz Design System — Self-hosted @font-face
  * -----------------------------------------------------------------------------
- * The mockups (RussianDesign/Govori/*.dc.html) load Onest + JetBrains Mono from
+ * The mockups (docs/design/mockups/*.dc.html) load Onest + JetBrains Mono from
  * fonts.googleapis.com. That CDN does NOT ship to production (docs/08 item 4.4:
  * "self-hosted; mockup CDN ishlatadi, prodda yaramaydi; LCP regress yo'q").
  *

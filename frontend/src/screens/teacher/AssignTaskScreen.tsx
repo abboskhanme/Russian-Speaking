@@ -66,7 +66,7 @@ export interface AssignTaskProps {
 
 /**
  * AssignTaskScreen — **D3 «Topshiriq berish» (bulk assign)**
- * (`RussianDesign/Govori/Govorim - Teacher.dc.html`).
+ * (`docs/design/mockups/Govorim - Teacher.dc.html`).
  *
  * Vazifa → Kimga → Muddat → one primary action that names the real number of
  * students. Reached from the A2 group cards and the A5 group detail, both of

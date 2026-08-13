@@ -29,9 +29,9 @@ backend-dotnet/   .NET 9 solution — Api · Worker · Contracts · Infrastructu
 frontend/         React + Vite SPA — src/{app,screens,widgets,shared,locales}
 deploy/           nginx conf · Postgres seeds · backup/restore/domain scripts
 docs/             00–09 — audit, product/architecture, design system, UX, roadmap,
-                  .NET architecture (07), rewrite plan (08), Docker (09)
+                  .NET architecture (07), rewrite plan (08), Docker (09);
+                  design/ — the mockups the UI is built from, + verification screenshots
 tests/            characterization fixtures — frozen goldens owned by the C# tests
-RussianDesign/    design mockups (source of truth for the UI)
 ```
 
 ## Docs

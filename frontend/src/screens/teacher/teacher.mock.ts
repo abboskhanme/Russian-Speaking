@@ -8,7 +8,7 @@ import type {
  * Fixture for the teacher Obzor — lets it render standalone (the screen's
  * default export uses this) and gives the architect a shape reference.
  * Presentational only; nothing here calls a backend. Copy is lifted from the
- * A1 screen in `RussianDesign/Govori/Govorim - Teacher.dc.html`, so the demo and
+ * A1 screen in `docs/design/mockups/Govorim - Teacher.dc.html`, so the demo and
  * the mockup read the same.
  */
 

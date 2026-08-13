@@ -1,7 +1,7 @@
 /**
  * screens/auth — the phone + Telegram-OTP login / register layout, rebuilt to
  * the mockup ("1 · KIRISH", frames A1 / A4 / A5 of
- * RussianDesign/Govori/Govorim - Student.dc.html). Every colour / radius /
+ * docs/design/mockups/Govorim - Student.dc.html). Every colour / radius /
  * shadow / type value is an Ovoz DS token — no raw hex/rgb.
  *
  * Structure: a full-bleed orange hero (wordmark + Govo + taglines) with a

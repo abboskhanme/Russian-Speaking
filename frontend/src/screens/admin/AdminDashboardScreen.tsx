@@ -32,7 +32,7 @@ export interface AdminDashboardProps {
 
 /**
  * AdminDashboardScreen — **Boshqaruv**, the admin landing page
- * (`RussianDesign/Govori/Govorim - Admin.dc.html`).
+ * (`docs/design/mockups/Govorim - Admin.dc.html`).
  *
  * **The admin panel is its own product**, like the teacher panel: its own four-item
  * nav (`Boshqaruv · O'qituvchilar · O'quvchilar · Sozlamalar`), no centre FAB, and

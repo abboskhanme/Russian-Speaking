@@ -2,7 +2,7 @@ import type { ContentModule, ContentTask } from "./ContentScreen";
 
 /**
  * Fixture for the Kontent board — lets C1 render standalone. Copy from the C1
- * screen in `RussianDesign/Govori/Govorim - Teacher.dc.html`.
+ * screen in `docs/design/mockups/Govorim - Teacher.dc.html`.
  */
 
 export const mockContentModules: ContentModule[] = [

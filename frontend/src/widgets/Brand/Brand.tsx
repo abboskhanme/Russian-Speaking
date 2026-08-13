@@ -9,7 +9,7 @@ export interface BrandProps extends HTMLAttributes<HTMLSpanElement> {
 
 /**
  * Brand — the govorim logo mark (speech squircle + level bars) and wordmark
- * (docs/03; mark from `RussianDesign/Govori/Govorim - Student.dc.html`).
+ * (docs/03; mark from `docs/design/mockups/Govorim - Student.dc.html`).
  * Tokens only — the bubble uses `--primary-on`, the bars `--primary`.
  *
  * The wordmark carries `data-gv-wordmark`; the AppShell sidebar hides it in the

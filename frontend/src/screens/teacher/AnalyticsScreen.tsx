@@ -115,7 +115,7 @@ export interface AnalyticsScreenProps {
 
 /**
  * AnalyticsScreen — **D1 «Insaytlar» + D2 «Jurnal»**
- * (`RussianDesign/Govori/Govorim - Teacher.dc.html`). One screen, the mockup's
+ * (`docs/design/mockups/Govorim - Teacher.dc.html`). One screen, the mockup's
  * `Insaytlar | Jurnal` segmented control on top.
  *
  * D1 order, from the mockup: inverted hero (class average + CEFR + delta chip +

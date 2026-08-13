@@ -330,7 +330,7 @@ Kontent nafas olishi uchun **ichki** grid ustunlari ishlatiladi (`.split`, `.g3`
 
 **Muhim tuzatish (2026-07-17 yangilandi):** hozirgi kod 7 elementli sidebar beradi. Bu hujjat
 avval **3** elementli nav taklif qilgan edi. Foydalanuvchining yangi mockuplari
-(`RussianDesign/Govori/Govorim - Student.dc.html`, sarlavhasida ochiq: *"5 menyu"*) esa **5** ta
+(`docs/design/mockups/Govorim - Student.dc.html`, sarlavhasida ochiq: *"5 menyu"*) esa **5** ta
 beradi:
 
 `Bosh · Mashq · AI Suhbat · Progress · Profil`

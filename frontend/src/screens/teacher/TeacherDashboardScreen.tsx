@@ -74,7 +74,7 @@ export interface TeacherDashboardProps {
 
 /**
  * TeacherDashboardScreen — the teacher's **A1 «Obzor · bugun kimga yordam
- * kerak»** (`RussianDesign/Govori/Govorim - Teacher.dc.html`). Presentational
+ * kerak»** (`docs/design/mockups/Govorim - Teacher.dc.html`). Presentational
  * and prop-driven: it fetches nothing and owns no state.
  *
  * This is a teacher screen, not a restyled student one — the teacher panel is

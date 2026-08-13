@@ -40,7 +40,7 @@ export interface GroupInviteProps {
 
 /**
  * GroupInviteScreen — **A7 «A'zo qo'shish · havola + kod»**
- * (`RussianDesign/Govori/Govorim - Teacher.dc.html`).
+ * (`docs/design/mockups/Govorim - Teacher.dc.html`).
  *
  * Invite link + join code, each with a copy button, then the students waiting on
  * THIS group with Tasdiqlash / Rad etish.

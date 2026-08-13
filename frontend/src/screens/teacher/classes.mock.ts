@@ -7,7 +7,7 @@ import type { TeacherStudentProfileProps } from "./TeacherStudentProfileScreen";
  * Fixture for the Klasslar screen — lets it render standalone (the screen's
  * default export uses this). Presentational only; nothing here calls a backend.
  * Copy is lifted from the A2 + A4 screens in
- * `RussianDesign/Govori/Govorim - Teacher.dc.html`.
+ * `docs/design/mockups/Govorim - Teacher.dc.html`.
  */
 
 export const mockClassGroups: ClassGroup[] = [

@@ -11,6 +11,31 @@
 
 ---
 
+## Holat — 2026-08-13
+
+> Quyidagi jadvallar **reja** (o'zgarmaydi); bu bo'lim esa **haqiqatda nima bajarilgani**.
+> Ziddiyat bo'lsa — shu bo'lim ustun. Belgilar: ✅ tugagan · 🟡 qisman · ⬜ boshlanmagan.
+
+| Faza | Holat | Nimasi qolgan |
+|---|:--:|---|
+| **0 · Ma'lumot xavfsizligi** | ⬜ | Skriptlar **yozilgan** (`backup-prod.sh`, `verify-backup.sh`, `rollback-db.sh`), lekin **prodda birortasi ham ishga tushirilmagan** — hammasi droplet'ga kirishni talab qiladi. 🔴 Hamon bloklovchi: real 50 foydalanuvchining zaxirasi yo'q. |
+| **1 · Xavfsizlik to'ri** | 🟡 | 1.1–1.3 ✅ — 10 fixture (`tests/characterization/fixtures/`), `Govori.Characterization` 35 test yashil, bcrypt korpusi. **1.4–1.6 ⬜ — grader golden set umuman yo'q**, demak CI'da AI regressiyasini ushlaydigan darvoza ham yo'q. |
+| **2 · .NET poydevor** | 🟡 | Solution, ArchTests (35), EF database-first, 5 migratsiya, auth porti, Serilog/health, Docker image ✅. **2.5 ⬜** Testcontainers yo'q — integration testlar umumiy dev Postgres'ga ulanadi (`GOVORI_TEST_DB`). **2.7 ⬜** real prod hash bilan login isbotlanmagan — prod dump'i yo'q, ya'ni **Faza 0 ga bog'liq**. |
+| **3 · Domen porti** | ✅ | 8 modul, 81 endpoint, Hangfire 4 ta recurring job, SignalR `AttemptsHub`. Faqat **3.10 o'lchovi ⬜** — TTFS p95 hech qachon o'lchanmagan (instrumentatsiya yo'q). |
+| **4 · Frontend** | 🟡 | Barcha ekranlar ✅ (o'quvchi · o'qituvchi 10 ekran · admin 4 ekran), i18n uz/ru/en, Ovoz DS tokenlari, self-hosted shriftlar. **4.2 ⬜** — API tiplari **qo'lda** yozilgan (`shared/api/types.ts`), OpenAPI generatsiyasi yo'q. **4.11 ⬜** — Vitest/Playwright/`axe` yo'q; CI faqat `tsc` + `vite build`. **4.1 bundle budjeti ⬜**. |
+| **5 · Cutover** | 🟡 | **Baza yarmi ✅ mashq qilingan** (55 user / 770 javob nusxasida; baseline → migratsiya → integrity → rollback). **Server yarmi ⬜** — `deploy/CUTOVER.md` dagi 1–6 qadamlar hech qachon bajarilmagan. |
+| **6 · Yangi funksiyalar** | ⬜ | Faqat **6.4 F4 Placement ✅** (mehmon uchun ham). **6.5 F1 Roleplay — faqat UI stub**: `ConversationPage` statik ssenariyni o'ynatadi, backend/LLM/STT ulanmagan. 6.1 SRS UI, 6.2, 6.3, 6.6 Payments, 6.7, 6.8 — yo'q. |
+| **7 · Tozalash** | 🟡 | 7.1–7.8 ✅ (7.8 — `RussianDesign/` → `docs/design/`). Qolgani: `TEACHER-PANEL-PLAN.md` + `dev-role.sh` — ular **C3/C6 mahsulot qaroriga** bog'liq. |
+
+**Rejadan tashqari, rejada yo'q edi va bajarildi:** o'qituvchi paneli to'liq (7 faza),
+admin paneli, telefon+Telegram OTP auth, guruhga qo'shilish so'rovlari, media yuklash,
+`preferred_language` akkaunt sozlamasi, dev fixture yangilash skripti.
+
+**Keyingi uchta ish, tartib bilan:** (1) Faza 0 — prod zaxirasi, chunki qolgan hamma narsa
+unga bog'liq; (2) Faza 1.4–1.6 golden set, chunki AI'ga tegishdan oldin; (3) cutover.
+
+---
+
 ## Faza 0 · Ma'lumot xavfsizligi — 🔴 **BLOKLOVCHI**
 
 > **Hech narsa yozilmasdan oldin.** Auditda topilgan: **prod backup mavjud emas.**
@@ -147,13 +172,14 @@ Zaxirasiz bu talabni bajarib bo'lmaydi — faqat umid qilish mumkin. Bu 1 soatli
 | # | Nima | Qachon |
 |---|---|---|
 | 7.1 | Eski backend'ning binary scheduler holati (git'da kuzatilgan edi) | ✅ Bajarildi |
-| 7.2 | `.env.prod` — **o'lik fayl**, hech qayerdan reference qilinmagan, chalg'ituvchi | **Hozir** |
-| 7.3 | `Project design/` — eski prototip (2823 q. JSX) | **Hozir** |
-| 7.4 | `DEPLOY.md` — **noto'g'ri serverni** tasvirlaydi (Azure+DuckDNS, prod esa DO+govorim.uz) | **Hozir** qayta yoziladi |
-| 7.5 | `ARCHITECTURE.md`, `PROJECT_OVERVIEW.md`, `UPGRADE_PLAN.md` → `docs/legacy/` | **Hozir** |
-| 7.6 | `frontend/src/components/{ui,govori}.tsx`, violet `@theme` | Faza 4 tugagach |
+| 7.2 | `.env.prod` — **o'lik fayl**, hech qayerdan reference qilinmagan, chalg'ituvchi | ✅ O'chirilgan |
+| 7.3 | `Project design/` — eski prototip (2823 q. JSX) | ✅ O'chirilgan |
+| 7.4 | `DEPLOY.md` — **noto'g'ri serverni** tasvirlaydi (Azure+DuckDNS, prod esa DO+govorim.uz) | ✅ O'chirilgan; o'rnini `deploy/CUTOVER.md` + `09-DOCKER.md` egalladi |
+| 7.5 | `ARCHITECTURE.md`, `PROJECT_OVERVIEW.md`, `UPGRADE_PLAN.md` → `docs/legacy/` | ✅ `aea6de8` da o'chirilgan (`docs/legacy/` yaratilmadi — tarixi git'da) |
+| 7.6 | `frontend/src/components/{ui,govori}.tsx`, violet `@theme` | ✅ Bajarildi — FSD skeleti bilan |
 | 7.7 | **Eski backend'ni repodan olib tashlash** (tarixi git'da qoladi) | ✅ Bajarildi — `backend-dotnet/` yagona backend |
-| 7.8 | `RussianDesign/` → `docs/design/` (tartibga solinadi) | Faza 4 tugagach |
+| 7.8 | `RussianDesign/` → `docs/design/` (tartibga solinadi) | ✅ Bajarildi — `mockups/` + `screenshots/`, barcha havolalar yangilandi |
+| 7.9 | `TEACHER-PANEL-PLAN.md` + `dev-role.sh` | ⬜ **C3/C6 qaroridan keyin** — fayl shu qaror uchun turibdi |
 
 > ⚠️ **Xotira:** *prod build not from repo* — jonli serverda repo git tarixida yo'q frontend
 > ishlayotgani qayd etilgan. **O'chirishdan oldin prodda nima ishlayotgani tekshiriladi.**

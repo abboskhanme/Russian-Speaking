@@ -355,7 +355,7 @@ frontend/src/
     └── styles/   tokens.css (@theme) · base.css
 ```
 
-**Dizayn manbasi:** `RussianDesign/Govori/*.dc.html` — tokenlar `03-DESIGN-SYSTEM.md` ga
+**Dizayn manbasi:** `docs/design/mockups/*.dc.html` — tokenlar `03-DESIGN-SYSTEM.md` ga
 **aynan mos** (tekshirildi: `--primary:oklch(0.665 0.185 40)`, Onest, JetBrains Mono).
 
 **⚠️ Tuzatish:** `03 §3.8` o'quvchi uchun **3** elementli nav va'da qiladi. Mockup **5** ta beradi:

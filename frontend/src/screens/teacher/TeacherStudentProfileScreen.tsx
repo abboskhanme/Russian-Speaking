@@ -66,7 +66,7 @@ export interface TeacherStudentProfileProps {
 
 /**
  * TeacherStudentProfileScreen — **A6 «O'quvchi profili»**
- * (`RussianDesign/Govori/Govorim - Teacher.dc.html`).
+ * (`docs/design/mockups/Govorim - Teacher.dc.html`).
  *
  * Mockup order: back + "O'QUVCHI" → avatar + name + meta line → "Topshiriq
  * berish" → "Ko'nikmalar" bars → "So'nggi urinishlar".

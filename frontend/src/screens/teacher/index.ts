@@ -1,6 +1,6 @@
 /**
  * screens/teacher — the teacher panel's screens, built from
- * `RussianDesign/Govori/Govorim - Teacher.dc.html`. Presentational +
+ * `docs/design/mockups/Govorim - Teacher.dc.html`. Presentational +
  * prop-driven; composed from `shared/ui` + `widgets` + tokens, at compact
  * density (docs/03 §3.5).
  *

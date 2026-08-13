@@ -61,7 +61,7 @@ export interface TeacherGroupDetailProps {
 
 /**
  * TeacherGroupDetailScreen — **A5 «Guruh detali»**
- * (`RussianDesign/Govori/Govorim - Teacher.dc.html`).
+ * (`docs/design/mockups/Govorim - Teacher.dc.html`).
  *
  * Mockup order: back + name + CEFR badge → stat tiles → "+ Topshiriq berish" →
  * "Faol topshiriqlar" progress rows → the roster.

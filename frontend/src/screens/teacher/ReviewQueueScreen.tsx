@@ -60,7 +60,7 @@ export interface ReviewQueueProps {
 
 /**
  * ReviewQueueScreen — **B1 «Tekshirish navbati»**
- * (`RussianDesign/Govori/Govorim - Teacher.dc.html`), the Navbat FAB's destination.
+ * (`docs/design/mockups/Govorim - Teacher.dc.html`), the Navbat FAB's destination.
  *
  * Cards carry the student, the task + level, the AI band, an audio cue, and the
  * two gestures the mockup gives them: confirm the AI's score outright, or open

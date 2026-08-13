@@ -1,6 +1,6 @@
 /**
  * screens/auth/icons — the small line icons the auth screens use, traced from
- * the mockup (RussianDesign/Govori "1 · KIRISH" frames A1/A4/A5). All stroke
+ * the mockup (docs/design/mockups "1 · KIRISH" frames A1/A4/A5). All stroke
  * with `currentColor` so the caller controls the colour via a token.
  */
 import type { SVGProps } from "react";

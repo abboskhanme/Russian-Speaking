@@ -4,7 +4,7 @@ import type { AttemptReviewProps } from "./AttemptReviewScreen";
 /**
  * Fixtures for the Navbat board (B1 · B2 · B3) — let the screens render
  * standalone via their default exports. Presentational only. Copy is lifted from
- * `RussianDesign/Govori/Govorim - Teacher.dc.html`.
+ * `docs/design/mockups/Govorim - Teacher.dc.html`.
  */
 
 export const mockReviewQueue: QueueItem[] = [

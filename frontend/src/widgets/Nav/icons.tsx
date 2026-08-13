@@ -3,7 +3,7 @@ import type { SVGProps } from "react";
 /**
  * Nav icons — Ovoz DS, 24×24 grid, drawn with `currentColor` so the active /
  * inactive colour flows from the item's CSS `color` (docs/03 §3.6 Foundations).
- * Extracted faithfully from `RussianDesign/Govori/Govorim - Student.dc.html`
+ * Extracted faithfully from `docs/design/mockups/Govorim - Student.dc.html`
  * (the bottom-nav SVGs). No icon-library dependency.
  */
 
