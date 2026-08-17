@@ -4,6 +4,15 @@ import tailwindcss from "@tailwindcss/vite";
 
 export default defineConfig({
   plugins: [react(), tailwindcss()],
+  build: {
+    // `scripts/check-budget.mjs` needs to tell the INITIAL entry graph apart from
+    // the lazy route chunks, and only the manifest records that distinction
+    // (`imports` = static, `dynamicImports` = split off). Summing every file in
+    // dist/assets would count all 30-odd lazy routes and make the code split look
+    // like a regression. nginx serves dist/ as-is; the extra .vite/manifest.json
+    // is never requested by the page.
+    manifest: true,
+  },
   server: {
     host: true,
     port: 5173,

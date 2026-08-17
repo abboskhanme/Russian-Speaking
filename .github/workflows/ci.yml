@@ -41,6 +41,61 @@ jobs:
         working-directory: backend-dotnet
         run: dotnet test tests/Govori.Characterization --no-build -c Release --verbosity normal
 
+  # The AI regression gate (docs/08 Faza 1.6). Its own job because it calls real
+  # vendors: it costs money, it takes ~a minute, and a vendor outage must read as
+  # "the gate could not run" rather than as "the backend is broken".
+  #
+  # Gated on the secret rather than skipped by hand. A fork PR has no secrets, so
+  # this would otherwise fail on every outside contribution — and the fix people
+  # reach for in that situation is `continue-on-error`, which turns the gate into
+  # decoration. Absent key ⇒ the job does not run at all and its absence is
+  # visible; present key ⇒ it runs and it blocks.
+  golden:
+    runs-on: ubuntu-latest
+    if: ${{ github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "9.0.x"
+
+      - name: Guard — a key must be present
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          # Fail loudly rather than passing on an unconfigured runner. A golden-set
+          # job that silently measured nothing is worse than no job: it reports a
+          # green tick for a grader nobody checked.
+          if [ -z "$GEMINI_API_KEY$OPENAI_API_KEY$ANTHROPIC_API_KEY" ]; then
+            echo "No grader key configured — the golden set cannot measure anything."
+            echo "Set at least one of GEMINI_API_KEY / OPENAI_API_KEY / ANTHROPIC_API_KEY."
+            exit 1
+          fi
+
+      - name: Build
+        working-directory: backend-dotnet
+        run: dotnet build tests/Govori.UnitTests -c Release
+
+      # Reads tests/golden/grader/cases.json from the REPO ROOT, hence no
+      # working-directory here. Fails the PR below 90% of assertions.
+      - name: Grader golden set
+        working-directory: backend-dotnet
+        env:
+          GOVORI_GOLDEN: "1"
+          GRADER_CHAIN: ${{ secrets.GRADER_CHAIN }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          ANTHROPIC_MODEL: ${{ secrets.ANTHROPIC_MODEL }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          GEMINI_MODEL: ${{ secrets.GEMINI_MODEL }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          OPENAI_GRADER_MODEL: ${{ secrets.OPENAI_GRADER_MODEL }}
+        run: |
+          dotnet vstest tests/Govori.UnitTests/bin/Release/net9.0/Govori.UnitTests.dll \
+            --TestCaseFilter:"FullyQualifiedName~GraderGoldenSet" \
+            --logger:"console;verbosity=detailed"
+
   frontend:
     runs-on: ubuntu-latest
     steps:
@@ -50,10 +105,99 @@ jobs:
           node-version: "22"
       - name: Install
         working-directory: frontend
+        # The browsers live in the Playwright image / the e2e job, not here.
+        env:
+          PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: "1"
         run: npm install
       - name: Typecheck
         working-directory: frontend
         run: npx tsc --noEmit
+
+      # Vitest (jsdom). `tsc` above proves the frontend COMPILES; this is the only
+      # step that says anything about whether it works.
+      - name: Test (Unit)
+        working-directory: frontend
+        run: npm test
+
       - name: Build
         working-directory: frontend
         run: npm run build
+
+      # Reads dist/.vite/manifest.json and fails when the INITIAL entry graph
+      # exceeds the docs/08 §4.1 budget. Must run after Build — it measures the
+      # artefact, not the source.
+      - name: Bundle budget
+        working-directory: frontend
+        run: npm run check:budget
+
+  # Playwright needs the whole stack (nginx + API + Postgres + Redis + MinIO), so
+  # it gets its own job rather than a step in `frontend` that would have to be
+  # skipped — a skipped step is a green tick that proves nothing.
+  e2e:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Stack up
+        run: |
+          cp .env.example .env
+          # The API refuses to boot without SECRET_KEY, and the e2e suite mints its
+          # own access token with the SAME key (auth is phone+OTP over Telegram —
+          # there is no credential a test can type). One value, one file, both read it.
+          sed -i "s|^SECRET_KEY=.*|SECRET_KEY=$(openssl rand -hex 32)|" .env
+          docker compose up -d --build
+
+      - name: Wait for the stack
+        run: |
+          for _ in $(seq 1 60); do
+            if curl -fsS http://localhost:8082/health >/dev/null \
+               && curl -fsS http://localhost:8081/ >/dev/null; then
+              echo "stack is up"; exit 0
+            fi
+            sleep 5
+          done
+          echo "stack did not become healthy"; docker compose ps; exit 1
+
+      - name: Resolve the seeded student
+        # `deploy/seed/20-dev-users.sql` inserts with gen_random_uuid(), so the id
+        # is per-database and cannot be hard-coded in the suite.
+        run: |
+          ID=$(docker compose exec -T db psql -U russpeak -d russpeak -tAc \
+            "select id from users where email = 'student@govori.uz'" | tr -d '[:space:]')
+          test -n "$ID" || { echo "dev student not seeded"; exit 1; }
+          echo "E2E_STUDENT_ID=$ID" >> "$GITHUB_ENV"
+
+      - name: Install
+        working-directory: frontend
+        # Skip the postinstall's download of all three engines; only Chromium is
+        # driven here, and it is fetched explicitly on the next step.
+        env:
+          PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: "1"
+        run: npm install
+
+      - name: Install Playwright browser
+        working-directory: frontend
+        run: npx playwright install --with-deps chromium
+
+      - name: Test (E2E + axe)
+        working-directory: frontend
+        env:
+          # The runner IS the host here, so the published port is correct. Inside a
+          # container it would have to be http://govori-web on govori-net.
+          E2E_BASE_URL: http://localhost:8081
+          GOVORI_ENV_FILE: ${{ github.workspace }}/.env
+        run: npm run test:e2e
+
+      - name: Failure diagnostics
+        if: failure()
+        run: docker compose logs --tail=200 api frontend
+
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-artifacts
+          path: frontend/e2e/.artifacts
+          retention-days: 7

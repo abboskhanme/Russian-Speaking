@@ -1,0 +1,2 @@
+# Playwright traces / failure screenshots (playwright.config.ts `outputDir`).
+.artifacts/

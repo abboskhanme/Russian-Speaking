@@ -8,7 +8,11 @@
     "build": "npm run check:tokens && tsc && vite build",
     "preview": "vite preview",
     "lint": "eslint .",
-    "check:tokens": "node scripts/check-tokens.mjs"
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:e2e": "playwright test",
+    "check:tokens": "node scripts/check-tokens.mjs",
+    "check:budget": "node scripts/check-budget.mjs"
   },
   "dependencies": {
     "@radix-ui/react-slot": "^1.1.2",
@@ -22,12 +26,20 @@
     "react-router-dom": "^6.28.0"
   },
   "devDependencies": {
+    "@axe-core/playwright": "^4.13.0",
+    "@playwright/test": "1.62.1",
     "@tailwindcss/vite": "^4.0.0",
+    "@testing-library/dom": "^10.4.0",
+    "@testing-library/jest-dom": "^6.6.3",
+    "@testing-library/react": "^16.3.0",
+    "@testing-library/user-event": "^14.5.2",
     "@types/react": "^18.3.12",
     "@types/react-dom": "^18.3.1",
     "@vitejs/plugin-react": "^4.3.4",
+    "jsdom": "^30.0.0",
     "tailwindcss": "^4.0.0",
     "typescript": "^5.7.2",
-    "vite": "^6.0.3"
+    "vite": "^6.0.3",
+    "vitest": "^4.1.10"
   }
 }

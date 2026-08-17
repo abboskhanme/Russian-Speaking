@@ -11,28 +11,43 @@
 
 ---
 
-## Holat — 2026-08-13
+## Holat — 2026-08-17
 
 > Quyidagi jadvallar **reja** (o'zgarmaydi); bu bo'lim esa **haqiqatda nima bajarilgani**.
 > Ziddiyat bo'lsa — shu bo'lim ustun. Belgilar: ✅ tugagan · 🟡 qisman · ⬜ boshlanmagan.
+> Qolgan ishning **ketma-ketligi** uchun → `10-YAKUNIY-ISH-REJASI.md`.
 
 | Faza | Holat | Nimasi qolgan |
 |---|:--:|---|
-| **0 · Ma'lumot xavfsizligi** | ⬜ | Skriptlar **yozilgan** (`backup-prod.sh`, `verify-backup.sh`, `rollback-db.sh`), lekin **prodda birortasi ham ishga tushirilmagan** — hammasi droplet'ga kirishni talab qiladi. 🔴 Hamon bloklovchi: real 50 foydalanuvchining zaxirasi yo'q. |
-| **1 · Xavfsizlik to'ri** | 🟡 | 1.1–1.3 ✅ — 10 fixture (`tests/characterization/fixtures/`), `Govori.Characterization` 35 test yashil, bcrypt korpusi. **1.4–1.6 ⬜ — grader golden set umuman yo'q**, demak CI'da AI regressiyasini ushlaydigan darvoza ham yo'q. |
-| **2 · .NET poydevor** | 🟡 | Solution, ArchTests (35), EF database-first, 6 migratsiya, auth porti, Serilog/health, Docker image ✅. **2.5 ⬜** Testcontainers yo'q — integration testlar umumiy dev Postgres'ga ulanadi (`GOVORI_TEST_DB`). **2.7 ⬜** real prod hash bilan login isbotlanmagan — prod dump'i yo'q, ya'ni **Faza 0 ga bog'liq**. |
-| **3 · Domen porti** | ✅ | 8 modul, 81 endpoint, Hangfire 4 ta recurring job, SignalR `AttemptsHub`. Faqat **3.10 o'lchovi ⬜** — TTFS p95 hech qachon o'lchanmagan (instrumentatsiya yo'q). |
-| **4 · Frontend** | 🟡 | Barcha ekranlar ✅ (o'quvchi · o'qituvchi 10 ekran · admin 4 ekran), i18n uz/ru/en, Ovoz DS tokenlari, self-hosted shriftlar. **4.2 ⬜** — API tiplari **qo'lda** yozilgan (`shared/api/types.ts`), OpenAPI generatsiyasi yo'q. **4.11 ⬜** — Vitest/Playwright/`axe` yo'q; CI faqat `tsc` + `vite build`. **4.1 bundle budjeti ⬜**. |
-| **5 · Cutover** | 🟡 | **Baza yarmi ✅ mashq qilingan** (55 user / 770 javob nusxasida; baseline → migratsiya → integrity → rollback). **Server yarmi ⬜** — `deploy/CUTOVER.md` dagi 1–6 qadamlar hech qachon bajarilmagan. |
-| **6 · Yangi funksiyalar** | ⬜ | Faqat **6.4 F4 Placement ✅** (mehmon uchun ham). **6.5 F1 Roleplay — faqat UI stub**: `ConversationPage` statik ssenariyni o'ynatadi, backend/LLM/STT ulanmagan. 6.1 SRS UI, 6.2, 6.3, 6.6 Payments, 6.7, 6.8 — yo'q. |
-| **7 · Tozalash** | 🟡 | 7.1–7.8 ✅ (7.8 — `RussianDesign/` → `docs/design/`). Qolgani: `TEACHER-PANEL-PLAN.md` + `dev-role.sh` — ular **C3/C6 mahsulot qaroriga** bog'liq. |
+| **0 · Ma'lumot xavfsizligi** | ⬜ | **0.5 ning kod qismi ✅** — `deploy/prod-backup-cron.sh` prod cron'ining o'rnini bosadi (`pipefail`, hajm + `pg_restore --list` tekshiruvi, real foydalanuvchi sanog'i, atomik `mv`, offsite, va **shartli** retention), `deploy/test-backup-cron.sh` buni 11 ta assertion bilan isbotlaydi. Qolgani — **droplet'ga kirishni talab qiladi**: 0.1–0.4, 0.6, 0.7 va skriptni prodga o'rnatish. 🔴 Hamon bloklovchi: real 50 foydalanuvchining zaxirasi yo'q. |
+| **1 · Xavfsizlik to'ri** | 🟡 | 1.1–1.3 ✅. **1.4 ✅** — `tests/golden/grader/` (18 keys + 8 tartib tekshiruvi). **1.5 ✅** — runner real zanjirga uriladi, ikki yugurishda 98% va 99%. **1.6 🟡** — 90% darvozasi kodda, CI job qo'shilishi kerak. ⬜ **STT yarmi**: 40 ta real klip — sun'iy audio bilan to'ldirilmadi, sababi `tests/golden/grader/README.md` da. |
+| **2 · .NET poydevor** | 🟡 | **2.5 ✅** — har yugurishda alohida `govori_it_*` bazasi (EF migratsiyalaridan quriladi, `FORCE` bilan o'chiriladi); Testcontainers **emas**, sababi kodda yozilgan (net9 SDK konteyneri → tasodifiy **host** porti, `localhost` unga yetmaydi). **2.7 ⬜** — prod dump'iga, ya'ni **Faza 0 ga** bog'liq. |
+| **3 · Domen porti** | ✅ | **3.4 ✅ — AI zanjiri ulandi**: Anthropic (rasmiy SDK) · Gemini · OpenAI/Azure OpenAI graderlar, Azure Speech (unscripted, `Lexical`) · Whisper STT, `app_settings` dan tartib + kalitlar, 19 birlik test + jonli smoke. **3.10 ✅** — TTFS o'lchanadi (`Submission.CreatedAt` dan), jonli o'lchov **~10.5s** (maqsad p95 < 20s). |
+| **4 · Frontend** | 🟡 | Admin **Sozlamalar** ekrani zanjir tahrirchisi + Claude bo'limini oldi ✅. **4.2 ⬜** — API tiplari hamon qo'lda. **4.11 / 4.1** — ish jarayonida. |
+| **5 · Cutover** | 🟡 | O'zgarishsiz. **Server yarmi ⬜** — jonli prodga tegadi, egasisiz bajarilmaydi. |
+| **6 · Yangi funksiyalar** | 🟡 | **6.4 ✅**. 6.1 va 6.5 — ish jarayonida. 6.2, 6.3, 6.6, 6.7, 6.8 — ⬜. |
+| **7 · Tozalash** | 🟡 | 7.1–7.8 ✅. 7.9 — **C3/C6 mahsulot qaroriga** bog'liq, texnik ish emas. |
 
 **Rejadan tashqari, rejada yo'q edi va bajarildi:** o'qituvchi paneli to'liq (7 faza),
 admin paneli, telefon+Telegram OTP auth, guruhga qo'shilish so'rovlari, media yuklash,
 `preferred_language` akkaunt sozlamasi, dev fixture yangilash skripti.
 
-**Keyingi uchta ish, tartib bilan:** (1) Faza 0 — prod zaxirasi, chunki qolgan hamma narsa
-unga bog'liq; (2) Faza 1.4–1.6 golden set, chunki AI'ga tegishdan oldin; (3) cutover.
+**2026-08-17 da topilgan va tuzatilgan ikkita jimgina xato** — ikkalasi ham faqat jonli
+ilovaga haqiqiy ruscha nutq yuborilgani uchun ko'rindi, kodni o'qib emas:
+
+1. `docker-compose.yml` AI kalitlarini konteynerlarga **umuman uzatmagan**. Provayderlar stub
+   bo'lgan davrda ahamiyati yo'q edi; zanjir haqiqiy bo'lgan zahoti — to'g'ri `.env` bilan ham
+   ilova hech narsani baholay olmaydi va bu **kod bug'iga o'xshab ko'rinadi**.
+2. Azure **unscripted** rejimda ballarni boshqa shaklda qaytaradi: `PronScore` o'rniga bitta
+   `AccuracyScore`, va u `NBest[0].PronunciationAssessment` ichida emas, **`NBest[0]` ning
+   o'zida** tekis yotadi. Backend faqat ichma-ich shaklni o'qigan, shuning uchun har bir real
+   javobda `transcripts.pronunciation` NULL bo'lgan va **C5 jimgina 5 mezon o'rniga 4 mezonga
+   tushgan**. Hech qanday xato chiqmagan. Smoke testi ham o'tgan — sukunatga baho baribir
+   kelmaydi. Tuzatilgandan keyin: matn 95, talaffuz 73, band **90.6** — ya'ni aynan
+   `(95×4 + 73)/5`, C5 formulasi nihoyat beshinchi mezonini oldi.
+
+**Keyingi uchta ish, tartib bilan:** (1) Faza 0 — prod zaxirasi **egasi bilan**, chunki qolgan
+hamma narsa unga bog'liq; (2) golden set uchun 40 ta real klip; (3) cutover.
 
 ---
 
