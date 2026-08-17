@@ -153,6 +153,40 @@ Bular unutilgani uchun emas, **ataylab** qilinmagan. Har biri sabab bilan:
 
 ---
 
+## 🎨 Ochiq topilma — kontrast (sizning qaroringiz kerak)
+
+`axe` **0 critical** beradi, ya'ni kelishilgan DoD bajarilgan. Lekin u **har bir
+ekranda** `serious/color-contrast` topadi — 4 tadan 23 tagacha element. Bu bitta
+yomon tugma emas, **tizimli**, va aybdorlarning aksariyati bitta token.
+
+O'lchangan (axe + kanvas orqali, taxmin emas):
+
+| Token | Hozir | Eng yomon nisbat | AA uchun kerak | Taklif |
+|---|---|:--:|:--:|---|
+| light `--muted` | `oklch(0.600 0.018 62)` → `#887e76` | **3.66** | 4.5 | `0.550` → `#7a6f67` (4.51) |
+| light `--faint` | `oklch(0.745 0.014 68)` → `#b2aba3` | **2.09** | 4.5 | `0.545` → `#766f68` (4.56) |
+| dark `--faint` | `oklch(0.520 0.012 64)` → `#6e6862` | **3.13** | 4.5 | `0.610` → `#88827c` (4.53) |
+| brend `#ed622a` matn sifatida oq fonda | — | **3.26** | 4.5 | matn uchun to'qroq variant |
+
+Yolg'iz `light --muted` ~54 buzilishning **32 tasini** yopadi va kulrang
+ierarxiyani buzmaydi (0.55 hamon `--faint` 0.745 dan to'q).
+
+**Nega o'zim o'zgartirmadim.** Ikkita sabab:
+
+1. `light --faint` ni AA ga chiqarish uni `0.545` ga tushiradi — ya'ni
+   `--muted` ning taklif qilingan `0.550` sidan **to'qroq**. Oq fonda uchta
+   ajralib turadigan kulrang daraja **va** AA — ikkisi birga bo'lmaydi. Bu
+   dizayn qaroriga olib keladi: darajani ikkiga tushirish, sirt rangini
+   quyuqlashtirish, yoki `faint` ni "hech qachon yagona ma'lumot tashimaydi"
+   deb qabul qilish.
+2. Brend to'q sarig'ini matn uchun o'zgartirish — brend qarori, texnik emas.
+
+`docs/03-DESIGN-SYSTEM.md` va `docs/design/mockups/` — dizayn tizimining haqiqat
+manbai. Sizsiz uni qayta bo'yash noto'g'ri bo'lardi. Qaror qabul qilinsa, o'zgarish
+`frontend/src/shared/styles/tokens.css` da to'rt qatorlik ish.
+
+---
+
 ## Har sprint uchun DoD
 
 - [ ] `dotnet build Govori.sln -c Release` — **0 warning, 0 error** (Docker'da)
