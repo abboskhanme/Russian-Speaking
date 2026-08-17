@@ -98,7 +98,10 @@ public sealed class AssessmentService
             .Include(s => s.Question)
             .FirstOrDefaultAsync(s => s.Id == submissionId, ct);
         if (sub is null)
+        {
+            GradingMetrics.RecordOutcome("not_found");
             return AssessmentOutcome.NotFound;
+        }
 
         var isShadowing = !string.IsNullOrWhiteSpace(sub.ReferenceText);
 
@@ -110,6 +113,10 @@ public sealed class AssessmentService
         {
             _logger.LogInformation(
                 "grading deferred — no STT/Grader provider configured (submission {SubmissionId})", submissionId);
+            // Counted, not just logged: a pipeline that defers everything has an excellent latency
+            // profile and grades nothing. Without this the TTFS histogram would look healthy on a
+            // completely non-functioning app (docs/08 Faza 3.10).
+            GradingMetrics.RecordOutcome("deferred");
             return AssessmentOutcome.Deferred;
         }
 
@@ -148,7 +155,9 @@ public sealed class AssessmentService
             else
             {
                 var bytes = await LoadAudioAsync();
+                var sttStarted = DateTime.UtcNow;
                 stt = await _stt.TranscribeAsync(bytes, filename, sub.ReferenceText, ct);
+                GradingMetrics.RecordStage("transcribe", (DateTime.UtcNow - sttStarted).TotalSeconds);
                 var nowT = DateTime.UtcNow;
                 transcript = new Transcript
                 {
@@ -178,7 +187,10 @@ public sealed class AssessmentService
                 await _db.SaveChangesAsync(ct);
                 // TODO(gamification, C8): award_practice (fixed PRACTICE_XP) when reference_match.on_topic.
                 await EmitAsync(submissionId, GradingState.Done, "done", null);
-                _logger.LogInformation("shadowing done (submission {SubmissionId})", submissionId);
+                var shadowTtfs = GradingMetrics.RecordTtfs(sub.CreatedAt, shadowing: true);
+                GradingMetrics.RecordOutcome("shadowing");
+                _logger.LogInformation(
+                    "shadowing done (submission {SubmissionId}) in {TtfsSeconds}s", submissionId, shadowTtfs);
                 return AssessmentOutcome.Shadowing;
             }
 
@@ -204,6 +216,7 @@ public sealed class AssessmentService
                 }
             }
 
+            var graderStarted = DateTime.UtcNow;
             var grade = await _grader.AnalyzeAsync(new GraderRequest
             {
                 // TODO(html_to_text): strip HTML from prompt/instruction before sending to the grader.
@@ -216,6 +229,7 @@ public sealed class AssessmentService
                 ImageBytes = imageBytes,
                 ImageMime = imageMime,
             }, ct);
+            GradingMetrics.RecordStage("grade", (DateTime.UtcNow - graderStarted).TotalSeconds);
 
             await EmitAsync(submissionId, GradingState.Scoring, "processing", null);
 
@@ -268,7 +282,14 @@ public sealed class AssessmentService
 
             // TODO(Stage 6): gamification (award_submission/schedule_review, C8 xp_for_band) +
             //   notifications — best-effort engagement side-effects, must never break the pipeline.
-            _logger.LogInformation("graded (submission {SubmissionId}) → level {Level}", submissionId, levelScore);
+            // TTFS (docs/08 Faza 3.10). Measured here, at the moment the score becomes visible to the
+            // student, and from Submission.CreatedAt — so the queue wait the student also waited
+            // through is inside the number, not excluded from it.
+            var ttfs = GradingMetrics.RecordTtfs(sub.CreatedAt, shadowing: false);
+            GradingMetrics.RecordOutcome("done");
+            _logger.LogInformation(
+                "graded (submission {SubmissionId}) → level {Level} in {TtfsSeconds}s (model {LlmModel})",
+                submissionId, levelScore, ttfs, grade.Model);
             return AssessmentOutcome.Done;
         }
         catch (Exception ex)
@@ -280,6 +301,7 @@ public sealed class AssessmentService
             // TODO: terminal-vs-transient split — SoftTimeLimit / CircuitOpen must NOT be retried
             //   (they would hit the same wall); only genuinely transient errors should retry.
             _logger.LogError(ex, "grading failed (submission {SubmissionId})", submissionId);
+            GradingMetrics.RecordOutcome("failed");
             await MarkFailedAsync(submissionId, ex.Message, ct);
             var message = ex.Message.Length > 1000 ? ex.Message[..1000] : ex.Message;
             await EmitAsync(submissionId, GradingState.Failed, "failed", message);

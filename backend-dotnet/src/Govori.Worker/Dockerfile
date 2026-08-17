@@ -29,12 +29,17 @@ RUN --mount=type=cache,target=/root/.nuget/packages \
 FROM mcr.microsoft.com/dotnet/aspnet:9.0 AS runtime
 
 # Azure Speech SDK native deps (docs/07 §2.9 — the Worker runs the grading pipeline)
-# + procps (pgrep) for the process-liveness healthcheck.
+# + ffmpeg + procps (pgrep) for the process-liveness healthcheck.
+#
+# ffmpeg is not optional: the browser records webm/opus and Azure's REST endpoint
+# only accepts 16 kHz mono PCM WAV, so without it every submission fails over to
+# Whisper and silently loses its pronunciation score.
 RUN apt-get update \
  && apt-get install -y --no-install-recommends \
         libasound2 \
         libssl3 \
         ca-certificates \
+        ffmpeg \
         procps \
  && rm -rf /var/lib/apt/lists/*
 

@@ -36,6 +36,14 @@ export const mockAdminSettings: AdminSettings = {
     { id: "gemini-2.0-flash", label: "Gemini 2.0 Flash", note: "tez" },
     { id: "gemini-2.5-pro", label: "Gemini 2.5 Pro", note: "aniqroq" },
   ],
+  anthropicModel: "claude-opus-5",
+  knownAnthropicModels: [
+    { id: "claude-opus-5", label: "Claude Opus 5", note: "eng kuchli" },
+    { id: "claude-sonnet-5", label: "Claude Sonnet 5", note: "arzonroq" },
+  ],
+  // Claude ships without a key: in the chain it renders as skipped, like any other
+  // unconfigured backend.
+  anthropicApiKey: { set: false, hint: "" },
   orthoepyEnabled: true,
   azureOpenaiEndpoint: "",
   azureOpenaiDeployment: "",
@@ -51,6 +59,12 @@ export const mockAdminSettings: AdminSettings = {
   openaiApiKey: { set: false, hint: "" },
   azureSpeechReady: true,
   sttActiveProvider: "azure",
+  graderChain: "anthropic,gemini,openai",
+  sttChain: "azure,whisper",
+  graderBackends: ["anthropic", "gemini", "openai"],
+  sttBackends: ["azure", "whisper"],
+  readyGraderBackends: [],
+  readySttBackends: ["azure"],
   tgSupportUrl: "https://t.me/govori_support",
   tgChannelUrl: "https://t.me/govori_channel",
 };

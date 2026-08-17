@@ -25,6 +25,10 @@
          database. The FROZEN parts (RollingAvg/BestBand) stay pinned by the C3 characterization
          fixture; only the newer statistics are covered here. -->
     <ProjectReference Include="..\..\src\Modules\Govori.Classroom\Govori.Classroom.csproj" />
+    <!-- The provider chain is pure routing over in-memory fakes — no vendor, no network — so the
+         four rules it encodes (skip-unconfigured, fall-back-on-throw, rethrow-on-cancel,
+         report-the-model-that-really-ran) are unit-testable and worth pinning here. -->
+    <ProjectReference Include="..\..\src\Govori.Platform\Govori.Platform.csproj" />
   </ItemGroup>
 
 </Project>

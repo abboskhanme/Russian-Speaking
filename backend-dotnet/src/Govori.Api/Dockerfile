@@ -31,13 +31,18 @@ RUN --mount=type=cache,target=/root/.nuget/packages \
 FROM mcr.microsoft.com/dotnet/aspnet:9.0 AS runtime
 
 # Azure Speech SDK native deps (docs/07 §2.9 — needed once the real Azure STT
-# provider lands) + curl for the container healthcheck. aspnet:9.0 is Debian 12
-# (bookworm) and ships none of these.
+# provider lands) + ffmpeg + curl for the container healthcheck. aspnet:9.0 is
+# Debian 12 (bookworm) and ships none of these.
+#
+# ffmpeg is not optional: the browser records webm/opus and Azure's REST endpoint
+# only accepts 16 kHz mono PCM WAV, so without it every submission fails over to
+# Whisper and silently loses its pronunciation score.
 RUN apt-get update \
  && apt-get install -y --no-install-recommends \
         libasound2 \
         libssl3 \
         ca-certificates \
+        ffmpeg \
         curl \
  && rm -rf /var/lib/apt/lists/*
 

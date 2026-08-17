@@ -58,6 +58,9 @@ export default function AdminSettingsPage() {
       llmProvider: ai.llm_provider,
       geminiModel: ai.gemini_model,
       knownGeminiModels: ai.known_gemini_models,
+      anthropicModel: ai.anthropic_model,
+      knownAnthropicModels: ai.known_anthropic_models,
+      anthropicApiKey: ai.anthropic_api_key,
       orthoepyEnabled: ai.orthoepy_enabled,
       azureOpenaiEndpoint: ai.azure_openai_endpoint,
       azureOpenaiDeployment: ai.azure_openai_deployment,
@@ -73,6 +76,12 @@ export default function AdminSettingsPage() {
       openaiApiKey: ai.openai_api_key,
       azureSpeechReady: ai.azure_speech_ready,
       sttActiveProvider: ai.stt_active_provider,
+      graderChain: ai.grader_chain,
+      sttChain: ai.stt_chain,
+      graderBackends: ai.grader_backends,
+      sttBackends: ai.stt_backends,
+      readyGraderBackends: ai.ready_grader_backends,
+      readySttBackends: ai.ready_stt_backends,
       tgSupportUrl: links.tg_support_url,
       tgChannelUrl: links.tg_channel_url,
     };
@@ -96,6 +105,10 @@ export default function AdminSettingsPage() {
         whisper_model: patch.whisperModel,
         azure_speech_key: patch.azureSpeechKey,
         openai_api_key: patch.openaiApiKey,
+        grader_chain: patch.graderChain,
+        stt_chain: patch.sttChain,
+        anthropic_api_key: patch.anthropicApiKey,
+        anthropic_model: patch.anthropicModel,
       });
       setAi(updated);
     },

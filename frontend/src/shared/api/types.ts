@@ -891,7 +891,7 @@ export interface SecretState {
   hint: string;
 }
 
-/** One entry in the curated Gemini-model dropdown. */
+/** One entry in a curated model dropdown (Gemini, Claude, …). */
 export interface KnownModel {
   id: string;
   label: string;
@@ -920,6 +920,23 @@ export interface AiSettingsResponse {
   openai_api_key: SecretState;
   azure_speech_ready: boolean;
   stt_active_provider: string;
+  /** The order the backends are tried in, comma-joined. The first one that is
+   * configured AND answers serves the request; an unconfigured backend is skipped
+   * silently and costs nothing. Always the EFFECTIVE order — a cleared setting
+   * comes back as the server's default chain, never as "". */
+  grader_chain: string;
+  stt_chain: string;
+  /** Every implemented backend, in the server's default order — the pool the chain
+   * is assembled from. */
+  grader_backends: string[];
+  stt_backends: string[];
+  /** The subset that actually holds a key. Everything else in the chain is dead
+   * weight, and the panel says so rather than implying it serves traffic. */
+  ready_grader_backends: string[];
+  ready_stt_backends: string[];
+  anthropic_api_key: SecretState;
+  anthropic_model: string;
+  known_anthropic_models: KnownModel[];
 }
 
 /** PATCH /api/admin/ai. Tri-state: omit a field to leave it unchanged, send ""
@@ -939,6 +956,12 @@ export interface AiSettingsUpdateArgs {
   whisper_model?: string;
   azure_speech_key?: string;
   openai_api_key?: string;
+  /** Comma-joined backend order. `""` clears it back to the server's default chain
+   * — which is why the editor is allowed to end up empty. */
+  grader_chain?: string;
+  stt_chain?: string;
+  anthropic_api_key?: string;
+  anthropic_model?: string;
 }
 
 /** GET /api/admin/reveal/{key} → the raw value of one secret. */

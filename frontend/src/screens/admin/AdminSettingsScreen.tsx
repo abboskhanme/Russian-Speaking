@@ -21,6 +21,9 @@ export interface AdminSettings {
   llmProvider: string;
   geminiModel: string;
   knownGeminiModels: Array<{ id: string; label: string; note: string }>;
+  anthropicModel: string;
+  knownAnthropicModels: Array<{ id: string; label: string; note: string }>;
+  anthropicApiKey: AdminSecret;
   orthoepyEnabled: boolean;
   azureOpenaiEndpoint: string;
   azureOpenaiDeployment: string;
@@ -37,6 +40,16 @@ export interface AdminSettings {
   openaiApiKey: AdminSecret;
   azureSpeechReady: boolean;
   sttActiveProvider: string;
+  /** The order backends are tried in, comma-joined ("anthropic,gemini,openai").
+   * First one that is configured AND answers wins; the rest are the fallback. */
+  graderChain: string;
+  sttChain: string;
+  /** Every implemented backend — the pool a chain is built from. */
+  graderBackends: string[];
+  sttBackends: string[];
+  /** The subset that holds a key. Anything else in the chain is skipped. */
+  readyGraderBackends: string[];
+  readySttBackends: string[];
   tgSupportUrl: string;
   tgChannelUrl: string;
 }
@@ -58,6 +71,12 @@ export interface AdminSettingsPatch {
   whisperModel?: string;
   azureSpeechKey?: string;
   openaiApiKey?: string;
+  /** Comma-joined order. `""` is a real, reachable value here: an emptied chain
+   * clears the override and the server falls back to its own default order. */
+  graderChain?: string;
+  sttChain?: string;
+  anthropicApiKey?: string;
+  anthropicModel?: string;
 }
 
 export interface AdminSettingsProps {
@@ -70,6 +89,17 @@ export interface AdminSettingsProps {
 
 const LLM_PROVIDERS = ["auto", "gemini", "azure"];
 const STT_PROVIDERS = ["auto", "azure", "whisper"];
+
+/** Splits a stored chain into backend names, dropping blanks and duplicates while
+ * keeping order — the same normalisation the server does, so an unedited chain
+ * compares equal to itself and never lands in the patch. */
+function parseChain(stored: string): string[] {
+  const names = stored
+    .split(",")
+    .map((s) => s.trim().toLowerCase())
+    .filter(Boolean);
+  return [...new Set(names)];
+}
 
 /* -------------------------------------------------------------------------- */
 /* Screen                                                                     */
@@ -98,6 +128,14 @@ const STT_PROVIDERS = ["auto", "azure", "whisper"];
  * Azure without a key and `auto` quietly stays on Gemini. Both are shown, because a
  * settings screen that only echoes your selection back cannot tell you it is being
  * ignored.
+ *
+ * ## The chain is the routing decision
+ *
+ * Grading and STT each run an ORDERED chain: the first backend that is configured
+ * *and* answers serves the request, and anything unconfigured is passed over
+ * silently at no cost. So the honest unit of status is per backend, not per screen —
+ * `ChainEditor` labels every row from `ready*Backends`, and a keyless backend is
+ * shown as skipped rather than as something that runs.
  */
 export function AdminSettingsScreen({
   settings,
@@ -110,10 +148,14 @@ export function AdminSettingsScreen({
 
   const [llm, setLlm] = useState(settings.llmProvider);
   const [model, setModel] = useState(settings.geminiModel);
+  const [claudeModel, setClaudeModel] = useState(settings.anthropicModel);
+  const [graderChain, setGraderChain] = useState(() => parseChain(settings.graderChain));
+  const [sttChain, setSttChain] = useState(() => parseChain(settings.sttChain));
   const [orthoepy, setOrthoepy] = useState(settings.orthoepyEnabled);
   const [stt, setStt] = useState(settings.sttProvider);
   const [region, setRegion] = useState(settings.azureSpeechRegion);
   const [geminiKey, setGeminiKey] = useState("");
+  const [claudeKey, setClaudeKey] = useState("");
   const [speechKey, setSpeechKey] = useState("");
   const [support, setSupport] = useState(settings.tgSupportUrl);
   const [channel, setChannel] = useState(settings.tgChannelUrl);
@@ -125,12 +167,16 @@ export function AdminSettingsScreen({
   useEffect(() => {
     setLlm(settings.llmProvider);
     setModel(settings.geminiModel);
+    setClaudeModel(settings.anthropicModel);
+    setGraderChain(parseChain(settings.graderChain));
+    setSttChain(parseChain(settings.sttChain));
     setOrthoepy(settings.orthoepyEnabled);
     setStt(settings.sttProvider);
     setRegion(settings.azureSpeechRegion);
     setSupport(settings.tgSupportUrl);
     setChannel(settings.tgChannelUrl);
     setGeminiKey("");
+    setClaudeKey("");
     setSpeechKey("");
   }, [settings]);
 
@@ -143,11 +189,20 @@ export function AdminSettingsScreen({
       const patch: AdminSettingsPatch = {};
       if (llm !== settings.llmProvider) patch.llmProvider = llm;
       if (model !== settings.geminiModel) patch.geminiModel = model;
+      if (claudeModel !== settings.anthropicModel) patch.anthropicModel = claudeModel;
+      // Compare against the PARSED server value: the wire form may carry spaces or a
+      // duplicate, and an untouched chain must not look edited.
+      const graderOrder = graderChain.join(",");
+      const sttOrder = sttChain.join(",");
+      if (graderOrder !== parseChain(settings.graderChain).join(","))
+        patch.graderChain = graderOrder;
+      if (sttOrder !== parseChain(settings.sttChain).join(",")) patch.sttChain = sttOrder;
       if (orthoepy !== settings.orthoepyEnabled) patch.orthoepyEnabled = String(orthoepy);
       if (stt !== settings.sttProvider) patch.sttProvider = stt;
       if (region !== settings.azureSpeechRegion) patch.azureSpeechRegion = region;
       // A blank key field means "unchanged", never "clear" — see the class doc.
       if (geminiKey.trim()) patch.geminiApiKey = geminiKey.trim();
+      if (claudeKey.trim()) patch.anthropicApiKey = claudeKey.trim();
       if (speechKey.trim()) patch.azureSpeechKey = speechKey.trim();
 
       if (Object.keys(patch).length === 0) {
@@ -207,6 +262,13 @@ export function AdminSettingsScreen({
           </div>
 
           <Card variant="outline" padding="md" className={styles.card}>
+            <ChainEditor
+              label={t("admin.graderChain")}
+              chain={graderChain}
+              backends={settings.graderBackends}
+              ready={settings.readyGraderBackends}
+              onChange={setGraderChain}
+            />
             <Choice
               label={t("admin.provider")}
               value={llm}
@@ -226,6 +288,20 @@ export function AdminSettingsScreen({
               state={settings.geminiApiKey}
               value={geminiKey}
               onChange={setGeminiKey}
+            />
+            <Choice
+              label={t("admin.anthropicModel")}
+              value={claudeModel}
+              options={settings.knownAnthropicModels.map((m) => m.id)}
+              labels={Object.fromEntries(settings.knownAnthropicModels.map((m) => [m.id, m.label]))}
+              variant="chips"
+              onChange={setClaudeModel}
+            />
+            <SecretField
+              label={t("admin.anthropicKey")}
+              state={settings.anthropicApiKey}
+              value={claudeKey}
+              onChange={setClaudeKey}
             />
             <div className={styles.switchRow}>
               <span className={styles.switchText}>
@@ -258,6 +334,13 @@ export function AdminSettingsScreen({
           </div>
 
           <Card variant="outline" padding="md" className={styles.card}>
+            <ChainEditor
+              label={t("admin.sttChain")}
+              chain={sttChain}
+              backends={settings.sttBackends}
+              ready={settings.readySttBackends}
+              onChange={setSttChain}
+            />
             <Choice
               label={t("admin.provider")}
               value={stt}
@@ -332,6 +415,138 @@ export function AdminSettingsScreen({
 /* -------------------------------------------------------------------------- */
 /* Parts                                                                      */
 /* -------------------------------------------------------------------------- */
+
+/**
+ * ChainEditor — the ordered fallback chain for one seam (grading, or STT).
+ *
+ * Position carries the entire meaning: the first backend that is configured *and*
+ * answers serves the request, so row 1 is what normally runs and the rows under it
+ * are insurance. Every row therefore says whether it holds a key at all — a chain
+ * that lists three backends with one key between them is a chain of one, and this
+ * screen must not let that read as three.
+ *
+ * "Not configured" is deliberately worded as skipped rather than broken. The runtime
+ * passes over a keyless backend silently and bills nothing for it, so an admin who
+ * leaves Claude in the chain without a key has made a plan, not a mistake.
+ *
+ * Emptying the list is a legal state, not a trap: it clears the override, and the
+ * server drops back to its own default order.
+ */
+function ChainEditor({
+  label,
+  chain,
+  backends,
+  ready,
+  onChange,
+}: {
+  label: string;
+  chain: string[];
+  backends: string[];
+  ready: string[];
+  onChange: (next: string[]) => void;
+}) {
+  const { t } = useTranslation();
+  const available = backends.filter((b) => !chain.includes(b));
+
+  const move = (from: number, to: number) => {
+    if (to < 0 || to >= chain.length) return;
+    const next = chain.filter((_, i) => i !== from);
+    next.splice(to, 0, chain[from]);
+    onChange(next);
+  };
+
+  return (
+    <div className={styles.field}>
+      <Text as="span" variant="body-s" weight="semibold">
+        {label}
+      </Text>
+      <Text as="span" variant="body-s" color="muted">
+        {t("admin.chainHint")}
+      </Text>
+
+      {chain.length === 0 ? (
+        <Text as="p" variant="body-s" color="warn">
+          {t("admin.chainEmpty")}
+        </Text>
+      ) : (
+        <ol className={styles.chain} aria-label={label}>
+          {chain.map((name, i) => {
+            const configured = ready.includes(name);
+            return (
+              <li key={name} className={styles.chainRow}>
+                <span className={styles.chainPos}>{i + 1}</span>
+                <span className={styles.chainMain}>
+                  <span className={styles.chainName}>
+                    <Text as="span" variant="body" weight="semibold">
+                      {name}
+                    </Text>
+                    <Badge variant={configured ? "success" : "neutral"} size="sm" dot>
+                      {configured ? t("admin.chainConfigured") : t("admin.chainNotConfigured")}
+                    </Badge>
+                  </span>
+                  <Text as="span" variant="body-s" color="muted">
+                    {configured
+                      ? t("admin.chainConfiguredHint")
+                      : t("admin.chainNotConfiguredHint")}
+                  </Text>
+                </span>
+                <span className={styles.chainBtns}>
+                  <button
+                    type="button"
+                    className={styles.chainBtn}
+                    disabled={i === 0}
+                    aria-label={t("admin.chainMoveUp", { backend: name })}
+                    onClick={() => move(i, i - 1)}
+                  >
+                    ↑
+                  </button>
+                  <button
+                    type="button"
+                    className={styles.chainBtn}
+                    disabled={i === chain.length - 1}
+                    aria-label={t("admin.chainMoveDown", { backend: name })}
+                    onClick={() => move(i, i + 1)}
+                  >
+                    ↓
+                  </button>
+                  <button
+                    type="button"
+                    className={styles.chainBtn}
+                    aria-label={t("admin.chainRemove", { backend: name })}
+                    onClick={() => onChange(chain.filter((b) => b !== name))}
+                  >
+                    ✕
+                  </button>
+                </span>
+              </li>
+            );
+          })}
+        </ol>
+      )}
+
+      {available.length > 0 && (
+        <div className={styles.chainAdd}>
+          <Text as="span" variant="body-s" color="muted">
+            {t("admin.chainAdd")}
+          </Text>
+          <div className={styles.chips}>
+            {available.map((name) => (
+              <button
+                key={name}
+                type="button"
+                className={styles.chip}
+                aria-label={t("admin.chainAddOne", { backend: name })}
+                onClick={() => onChange([...chain, name])}
+              >
+                + {name}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
 
 /**
  * A radiogroup rather than a `<select>` so every option is visible — which grader

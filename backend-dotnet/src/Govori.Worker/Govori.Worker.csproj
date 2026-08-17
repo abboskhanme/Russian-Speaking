@@ -25,6 +25,10 @@
     <!-- Host edge (not a domain→domain edge): the Worker composition root wires the Engagement
          IGradingRewarder impl so the grading job can award XP. -->
     <ProjectReference Include="..\Modules\Govori.Engagement\Govori.Engagement.csproj" />
+    <!-- Host edge, same shape: Administration owns IAiConfigSource, so the Worker's grading
+         pipeline can read the provider chain the admin configured. Without this the Worker would
+         grade on a different configuration from the API — the one bug this seam exists to prevent. -->
+    <ProjectReference Include="..\Modules\Govori.Administration\Govori.Administration.csproj" />
     <ProjectReference Include="..\Govori.Realtime\Govori.Realtime.csproj" />
   </ItemGroup>
 

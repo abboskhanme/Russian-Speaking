@@ -91,6 +91,102 @@
   box-shadow: var(--e-1);
 }
 
+/* ---- Chain editor ----
+   An ordered list, because the order IS the setting: position 1 is what runs and
+   the rest are the fallback. */
+.chain {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+/* Deliberately NO :active transform on the row. A press-scale on a wide row shifts
+   its right-edge buttons out from under the finger between pointerdown and click,
+   so the tap silently does nothing — this repo has already shipped that bug once.
+   The buttons carry their own press feedback instead. */
+.chainRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s-2) var(--s-3);
+  padding: var(--s-2) var(--s-3);
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  background: var(--surface-2);
+}
+.chainPos {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 24px;
+  height: 24px;
+  border-radius: var(--r-pill);
+  background: var(--surface-3);
+  color: var(--muted);
+  font-size: var(--t-body-s-size);
+  font-weight: var(--fw-bold);
+  font-variant-numeric: tabular-nums;
+}
+.chainMain {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  flex: 1 1 12ch;
+  min-width: 0;
+}
+.chainName {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--s-2);
+}
+.chainBtns {
+  display: flex;
+  gap: var(--s-1);
+  margin-inline-start: auto;
+}
+.chainBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  /* 40px keeps the touch target (§3.9) even though the glyph is tiny. */
+  min-width: 40px;
+  min-height: 40px;
+  padding: 0;
+  border: 1px solid var(--line-2);
+  border-radius: var(--r-xs);
+  background: var(--surface);
+  color: var(--ink-soft);
+  font-size: var(--t-body-size);
+  line-height: 1;
+  cursor: pointer;
+  transition: background var(--m-fast), border-color var(--m-fast), color var(--m-fast);
+}
+.chainBtn:hover:not(:disabled) {
+  border-color: var(--primary);
+  color: var(--primary);
+}
+.chainBtn:active:not(:disabled) {
+  background: var(--primary-tint);
+}
+.chainBtn:focus-visible {
+  outline: var(--focus-ring-width) solid var(--focus-ring);
+  outline-offset: var(--focus-ring-offset);
+}
+.chainBtn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.chainAdd {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+}
+
 .secretHead {
   display: flex;
   align-items: center;

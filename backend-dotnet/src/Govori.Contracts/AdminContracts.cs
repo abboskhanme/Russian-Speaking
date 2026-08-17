@@ -29,7 +29,14 @@ public sealed record KnownModel(string Id, string Label, string Note = "");
 /// <summary>
 /// The AI-grader + STT settings read model for the admin UI. Secrets appear only
 /// masked (<see cref="SecretState"/>) — the raw values are never included here; the
-/// derived <c>*_ready</c> / <c>*_active_*</c> fields are read-only status for the UI.
+/// derived <c>*_ready</c> / <c>*_active_*</c> / <c>ready_*_backends</c> fields are
+/// read-only status for the UI.
+///
+/// <para>The <c>ready_*_backends</c> lists are what let the panel show "selected ≠ active":
+/// a backend can sit in the configured chain and never run because nobody entered its key.
+/// They are a <b>display</b> of the runtime rule, not the rule itself — the chain skips
+/// backends by asking each one, so a discrepancy here is a reporting bug, never a routing
+/// one.</para>
 /// </summary>
 public sealed record AiSettingsResponse(
     string LlmProvider,
@@ -49,7 +56,20 @@ public sealed record AiSettingsResponse(
     SecretState AzureSpeechKey,
     SecretState OpenaiApiKey,
     bool AzureSpeechReady,
-    string SttActiveProvider);
+    string SttActiveProvider,
+    // ─── Ordered-chain routing (docs/07 §7.7). The fields above describe the older
+    // "one provider each" model and stay exactly as they were: the panel's chain editor
+    // and its single-provider pickers ship in that order, so both have to keep working
+    // against the same payload.
+    string GraderChain,                             // effective order, e.g. "anthropic,gemini,openai"
+    string SttChain,                                // effective order, e.g. "azure,whisper"
+    IReadOnlyList<string> GraderBackends,           // every implemented grader, in default order
+    IReadOnlyList<string> SttBackends,              // every implemented STT backend, in default order
+    IReadOnlyList<string> ReadyGraderBackends,      // the subset that actually holds a usable key
+    IReadOnlyList<string> ReadySttBackends,
+    SecretState AnthropicApiKey,
+    string AnthropicModel,
+    IReadOnlyList<KnownModel> KnownAnthropicModels);
 
 /// <summary>
 /// Partial update of the AI/STT settings. All fields optional. Per the tri-state
@@ -70,7 +90,11 @@ public sealed record AiSettingsUpdate(
     string? AzureSpeechRegion = null,
     string? WhisperModel = null,
     string? AzureSpeechKey = null,
-    string? OpenaiApiKey = null);
+    string? OpenaiApiKey = null,
+    string? GraderChain = null,
+    string? SttChain = null,
+    string? AnthropicApiKey = null,
+    string? AnthropicModel = null);
 
 /// <summary>The raw value of one secret setting — admin-only, on explicit request.</summary>
 public sealed record RevealResponse(string Key, string Value);

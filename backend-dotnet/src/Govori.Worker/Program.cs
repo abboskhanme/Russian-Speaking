@@ -1,5 +1,7 @@
+using Govori.Administration;
 using Govori.Assessment;
 using Govori.Infrastructure;
+using Govori.Platform.Ai;
 using Govori.Platform.Grader;
 using Govori.Platform.Storage;
 using Govori.Platform.Stt;
@@ -60,10 +62,21 @@ try
     builder.Services.AddSingleton<IObjectStorage>(sp =>
         new MinioObjectStorage(sp.GetRequiredService<StorageOptions>()));
 
-    // ── Grading pipeline (docs/07 §7.7) ─────────────────────────────────────
-    // Same real provider stubs as the API (IsConfigured=false → the pipeline DEFERS until keys land).
-    builder.Services.AddSingleton<ISttProvider, AzureSttProvider>();
-    builder.Services.AddSingleton<IGraderProvider, GeminiGraderProvider>();
+    // ── Runtime settings (docs/07 §3.7) ─────────────────────────────────────
+    // The Worker reads the same app_settings the admin panel writes — the provider chain, the keys,
+    // the models. It never writes them, but it must resolve them through the SAME service so the
+    // tri-state rules and the ~30s cache have one implementation rather than two that drift.
+    // The cache is a process-local singleton: a key pasted in the API's process is visible here
+    // once this process's entry expires, which is the ~30s the admin panel already promises.
+    builder.Services.AddSingleton<IAppSettingsCache>(new AppSettingsCache());
+    builder.Services.AddScoped<AppSettingsService>();
+
+    // ── Grading pipeline (docs/07 §7.7, Faza 3.4) ───────────────────────────
+    // The SAME registration the API uses, so the two hosts can never disagree about which provider
+    // graded an attempt. IAiConfigSource is supplied here rather than inside AddGovoriAi because
+    // its implementation lives in a domain module, which Platform must not reference.
+    builder.Services.AddGovoriAi();
+    builder.Services.AddScoped<IAiConfigSource, AiConfigSource>();
     builder.Services.AddScoped<AssessmentService>();
 
     // XP/streak award for a graded submission (Stage 6 gamification). GradingJob resolves

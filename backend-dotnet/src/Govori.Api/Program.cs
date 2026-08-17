@@ -15,6 +15,7 @@ using Govori.Identity.Providers;
 using Govori.Identity.Security;
 using Govori.Infrastructure;
 using Govori.Infrastructure.Telegram;
+using Govori.Platform.Ai;
 using Govori.Platform.Grader;
 using Govori.Platform.Storage;
 using Govori.Platform.Stt;
@@ -71,12 +72,14 @@ try
         .AddAspNetCoreInstrumentation()
         .AddHttpClientInstrumentation());
 
-    // Metrics: ASP.NET Core + HttpClient meters. Custom app meters
-    // (attempt_grade_duration_seconds, ai_cost_usd_total{provider}, ... §7.9)
-    // register here in Faza 2/3. Exposed via the /metrics scrape endpoint below.
+    // Metrics: ASP.NET Core + HttpClient meters, plus the grading pipeline's own
+    // (docs/08 Faza 3.10 — TTFS p95, per-stage duration, outcome mix). A meter that is not named
+    // here is recorded and silently never exported, which is indistinguishable from an app that
+    // is never used. Exposed via the /metrics scrape endpoint below.
     otel.WithMetrics(metrics => metrics
         .AddAspNetCoreInstrumentation()
         .AddHttpClientInstrumentation()
+        .AddMeter(Govori.Assessment.GradingMetrics.MeterName)
         .AddPrometheusExporter());
 
     // OTLP exporter is OPT-IN — only wired when a collector endpoint is configured,
@@ -177,13 +180,14 @@ try
     builder.Services.AddScoped<PracticeService>();
 
     // ── Assessment / grading pipeline (docs/07 §7.7, Faza 3.4) ──────────────
-    // STT + Grader behind interfaces. PROD registers the REAL Azure/Whisper/Gemini ports, which are
-    // TODO stubs reporting IsConfigured=false (no keys) — so the pipeline safely DEFERS (attempt stays
-    // pending) until real keys + Hangfire land. Fakes are NEVER registered here; integration tests
-    // swap them in via ConfigureTestServices. AssessmentService is scoped (scoped DbContext); the
-    // in-process queue is a singleton that opens a fresh scope per run.
-    builder.Services.AddSingleton<ISttProvider, AzureSttProvider>();        // TODO(Faza 3.4): Whisper fallback
-    builder.Services.AddSingleton<IGraderProvider, GeminiGraderProvider>(); // TODO(Faza 3.4): OpenAI/Azure fallback
+    // STT + Grader behind interfaces, served by an ordered chain of vendor backends whose order and
+    // keys come from app_settings. A backend with no key is skipped silently; if NO backend in the
+    // chain is configured the pipeline still DEFERS (attempt stays pending) rather than burning the
+    // student's attempt. Fakes are NEVER registered here; integration tests swap them in via
+    // ConfigureTestServices. AssessmentService is scoped (scoped DbContext); the in-process queue is
+    // a singleton that opens a fresh scope per run.
+    builder.Services.AddGovoriAi();
+    builder.Services.AddScoped<IAiConfigSource, AiConfigSource>();
     builder.Services.AddScoped<AssessmentService>();
     // The durable job unit — registered unconditionally so it resolves whether or not Hangfire is on
     // (AddGovoriHangfire TryAdds the same); the Hangfire client below enqueues it per submit.

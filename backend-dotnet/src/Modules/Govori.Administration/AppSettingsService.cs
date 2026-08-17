@@ -1,6 +1,7 @@
 using Govori.Contracts;
 using Govori.Infrastructure;
 using Govori.Infrastructure.Entities;
+using Govori.Platform.Ai;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 
@@ -68,6 +69,14 @@ public sealed class AppSettingsService
             ["openai_grader_model"] = ("OPENAI_GRADER_MODEL", false),
             ["tg_support_url"] = ("TG_SUPPORT_URL", false),
             ["tg_channel_url"] = ("TG_CHANNEL_URL", false),
+            // Ordered-chain routing + the Anthropic backend. These four MUST be listed here
+            // before anything can write them: SetManyAsync silently skips keys it does not
+            // find in this map, so a chain the admin edits would appear to save and then
+            // vanish on the next read.
+            ["grader_chain"] = ("GRADER_CHAIN", false),
+            ["stt_chain"] = ("STT_CHAIN", false),
+            ["anthropic_api_key"] = ("ANTHROPIC_API_KEY", true),
+            ["anthropic_model"] = ("ANTHROPIC_MODEL", false),
         };
 
     /// <summary>The secret keys. The reveal endpoint accepts ONLY these, so a non-secret setting
@@ -88,6 +97,19 @@ public sealed class AppSettingsService
             "Previous-gen flash; solid free-tier limits."),
         new("gemini-1.5-flash", "Gemini 1.5 Flash",
             "Legacy fallback; widely available."),
+    };
+
+    // Curated Anthropic (Claude) models for the admin dropdown. Ordered best-first, same as the
+    // Gemini list. These ids are complete as written — Anthropic model ids carry no date suffix,
+    // and appending one produces a 404 at request time rather than a validation error here.
+    private static readonly IReadOnlyList<KnownModel> KnownAnthropicModels = new List<KnownModel>
+    {
+        new("claude-opus-5", "Claude Opus 5 (tavsiya etiladi)",
+            "Eng kuchli baholash sifati; 1M token uchun $5/$25."),
+        new("claude-sonnet-5", "Claude Sonnet 5",
+            "Opusga yaqin sifat, arzonroq; $3/$15."),
+        new("claude-haiku-4-5", "Claude Haiku 4.5",
+            "Eng tez va arzon; $1/$5."),
     };
 
     // Accepted truthy spellings for boolean-ish settings; anything else counts as false.
@@ -187,6 +209,28 @@ public sealed class AppSettingsService
         => new(!string.IsNullOrEmpty(val),
                string.IsNullOrEmpty(val) ? string.Empty : (val.Length <= 4 ? val : val[^4..]));
 
+    // Which backends could serve a request RIGHT NOW, in the default chain order. One helper, so
+    // the "openai counts when either the public key or all three Azure fields are set" rule is
+    // written once instead of being re-derived at each of the three call sites that need it.
+    //
+    // This is the DISPLAY of a fact the runtime owns: AiConfigSource plus each backend's own
+    // IsConfigured decide what actually runs. Nothing routes on the lists below — they exist so the
+    // panel can tell an admin that a backend they selected will be skipped every time.
+    private static (IReadOnlyList<string> Grader, IReadOnlyList<string> Stt) ReadyBackends(
+        bool anthropicKey, bool geminiKey, bool openAiKey, bool azureOpenAiReady, bool azureSpeechReady)
+    {
+        var grader = new List<string>(3);
+        if (anthropicKey) grader.Add(AiProviders.Anthropic);
+        if (geminiKey) grader.Add(AiProviders.Gemini);
+        if (openAiKey || azureOpenAiReady) grader.Add(AiProviders.OpenAi);
+
+        var stt = new List<string>(2);
+        if (azureSpeechReady) stt.Add(AiProviders.AzureSpeech);
+        if (openAiKey) stt.Add(AiProviders.Whisper);   // Whisper is an OpenAI endpoint: same key
+
+        return (grader, stt);
+    }
+
     /// <summary>The admin AI/STT read model: resolved provider settings plus the derived
     /// "ready"/"active provider" flags. Every secret is masked to its last 4 characters.</summary>
     public async Task<AiSettingsResponse> GetAiSettingsAsync(CancellationToken ct = default)
@@ -213,6 +257,17 @@ public sealed class AppSettingsService
             : openaiKey.Set ? "whisper"
             : "none";
 
+        var anthropicKey = Secret(await GetAsync("anthropic_api_key", ct: ct));
+        var (readyGrader, readyStt) =
+            ReadyBackends(anthropicKey.Set, geminiKey.Set, openaiKey.Set, azureReady, azureSpeechReady);
+
+        // The chains are reported RESOLVED, not raw: an unset key means "the default order", and the
+        // panel must show the order that will actually run rather than an empty field.
+        var graderChain = AiProviders.ParseChain(
+            await GetAsync("grader_chain", ct: ct), AiProviders.DefaultGraderChain);
+        var sttChain = AiProviders.ParseChain(
+            await GetAsync("stt_chain", ct: ct), AiProviders.DefaultSttChain);
+
         return new AiSettingsResponse(
             LlmProvider: provider,
             GeminiModel: await GetAsync("gemini_model", ct: ct),
@@ -231,6 +286,15 @@ public sealed class AppSettingsService
             AzureSpeechKey: speechKey,
             OpenaiApiKey: openaiKey,
             AzureSpeechReady: azureSpeechReady,
-            SttActiveProvider: sttActive);
+            SttActiveProvider: sttActive,
+            GraderChain: string.Join(',', graderChain),
+            SttChain: string.Join(',', sttChain),
+            GraderBackends: AiProviders.DefaultGraderChain,
+            SttBackends: AiProviders.DefaultSttChain,
+            ReadyGraderBackends: readyGrader,
+            ReadySttBackends: readyStt,
+            AnthropicApiKey: anthropicKey,
+            AnthropicModel: await GetAsync("anthropic_model", AiProviders.DefaultAnthropicModel, ct),
+            KnownAnthropicModels: KnownAnthropicModels);
     }
 }

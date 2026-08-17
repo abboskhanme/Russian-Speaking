@@ -1,5 +1,6 @@
 using System.Security.Claims;
 using Govori.Contracts;
+using Govori.Platform.Ai;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
@@ -125,8 +126,36 @@ public static class AdministrationEndpoints
             Add(vals, "whisper_model", body.WhisperModel);
             Add(vals, "azure_speech_key", body.AzureSpeechKey);
             Add(vals, "openai_api_key", body.OpenaiApiKey);
+            // Provider chain + Claude (Faza 3.4). The chains are wire values an admin has edited,
+            // so they are stored verbatim after normalisation and validated below.
+            Add(vals, "grader_chain", body.GraderChain);
+            Add(vals, "stt_chain", body.SttChain);
+            Add(vals, "anthropic_api_key", body.AnthropicApiKey);
+            Add(vals, "anthropic_model", body.AnthropicModel);
 
             // Validate only the fields the client actually sent — an omitted field is not an error.
+            // A chain is normalised through the same parser the runtime uses, so what the admin
+            // sees stored is exactly the order that will run — no drift between the two.
+            foreach (var (key, known) in new[]
+                     {
+                         ("grader_chain", AiProviders.DefaultGraderChain),
+                         ("stt_chain", AiProviders.DefaultSttChain),
+                     })
+            {
+                if (!vals.TryGetValue(key, out var raw) || raw is null || raw.Length == 0)
+                    continue;   // "" clears the override back to the default chain — legal.
+
+                var parsed = AiProviders.ParseChain(raw, Array.Empty<string>());
+                var unknown = parsed.Where(n => !known.Contains(n)).ToArray();
+                if (unknown.Length > 0)
+                    return Detail(
+                        $"{key} names no such backend: {string.Join(", ", unknown)}. " +
+                        $"Known: {string.Join(", ", known)}",
+                        StatusCodes.Status400BadRequest);
+
+                vals[key] = string.Join(',', parsed);
+            }
+
             if (vals.TryGetValue("llm_provider", out var lp) && lp is not null && !Providers.Contains(lp))
                 return Detail($"llm_provider must be one of {string.Join(", ", Providers.Order())}", StatusCodes.Status400BadRequest);
             if (vals.TryGetValue("stt_provider", out var sp) && sp is not null && !SttProviders.Contains(sp))
