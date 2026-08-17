@@ -28,11 +28,11 @@ Uchta cheklov tartibni belgilaydi, va ular muzokaraga ochiq emas:
 
 | # | Sprint | Nimani yopadi (08 bo'yicha) | Holat |
 |---|---|---|:--:|
-| **S1** | **AI provayder zanjiri** | Faza **3.4** — pipeline'ning yagona ishlamayotgan qismi | 🔵 |
-| **S2** | **Grader golden set + CI darvozasi** | Faza **1.4 · 1.5 · 1.6** | ⬜ |
-| **S3** | **Test va infratuzilma qarzi** | **2.5 · 3.10 · 4.1 · 4.2 · 4.11** | ⬜ |
-| **S4** | **Yangi funksiyalar (flag ortida)** | Faza **6.1 · 6.2 · 6.3 · 6.5 · 6.7 · 6.8** | ⬜ |
-| **S5** | **Zaxira skriptlari, tozalash, hujjatlar, yakuniy QA** | **0.5 (kod qismi) · 7.x** | ⬜ |
+| **S1** | **AI provayder zanjiri** | Faza **3.4** — pipeline'ning yagona ishlamayotgan qismi | ✅ |
+| **S2** | **Grader golden set + CI darvozasi** | Faza **1.4 · 1.5 · 1.6** | ✅ |
+| **S3** | **Test va infratuzilma qarzi** | **2.5 · 3.10 · 4.1 · 4.11** ✅ · **4.2** ⬜ | 🟡 |
+| **S4** | **Yangi funksiyalar (flag ortida)** | **6.1 · 6.5** ish jarayonida; 6.2 · 6.3 · 6.6 · 6.7 · 6.8 ⬜ | 🟡 |
+| **S5** | **Zaxira skriptlari, tozalash, hujjatlar, yakuniy QA** | **0.5 (kod qismi)** ✅ · 7.x | 🟡 |
 
 ---
 
