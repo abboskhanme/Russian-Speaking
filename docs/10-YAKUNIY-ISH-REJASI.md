@@ -92,7 +92,7 @@ degan gap — hozircha **da'vo**; golden set uni **o'lchovga** aylantiradi.
 
 > ⚠️ **Ochiq cheklov:** 08 §1.4 "40 klip" talab qiladi. **Real o'quvchi audiosi
 > mening ixtiyorimda yo'q** va uni o'ylab topib bo'lmaydi — soxta klip soxta
-> ishonch beradi. Shuning uchun bu sprint **jgoldenning butun mashinasini**
+> ishonch beradi. Shuning uchun bu sprint **golden set'ning butun mashinasini**
 > quradi (format, yuklovchi, ballash, chegara, CI darvozasi) va uni bor
 > materialdan to'ldiradi; 40 ta real klip — foydalanuvchi bilan to'ldiriladigan
 > bo'shliq, va u shunday deb yoziladi.
