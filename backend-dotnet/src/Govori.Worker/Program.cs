@@ -66,8 +66,9 @@ try
     // The Worker reads the same app_settings the admin panel writes — the provider chain, the keys,
     // the models. It never writes them, but it must resolve them through the SAME service so the
     // tri-state rules and the ~30s cache have one implementation rather than two that drift.
-    // The cache is a process-local singleton: a key pasted in the API's process is visible here
-    // once this process's entry expires, which is the ~30s the admin panel already promises.
+    // The cache is a process-local singleton, so a key pasted in the API's process would normally
+    // not be visible here until this process's own TTL lapsed. The invalidation listener
+    // registered further down closes that window to a network hop.
     builder.Services.AddSingleton<IAppSettingsCache>(new AppSettingsCache());
     builder.Services.AddScoped<AppSettingsService>();
 
@@ -110,15 +111,27 @@ try
     // stub + fixed code 000000 cover local testing). Long-polls getUpdates; on "/start <token>" it
     // resolves the deep-link token in Redis (shared with the API sender) and DMs the code.
     var telegramBotToken = builder.Configuration["TELEGRAM_BOT_TOKEN"];
+    // Redis is registered UNCONDITIONALLY, not inside the Telegram branch it used to live in.
+    // Two things need it now, and only one of them is about Telegram: the settings-invalidation
+    // listener below has to run whether or not a bot token exists, or the Worker goes back to
+    // grading on configuration that is up to 30s out of date.
+    // AbortOnConnectFail=false so a transient blip does not latch the connection dead.
+    var redisConfiguration = builder.Configuration["GOVORI_REDIS"] ?? "govori-redis:6379";
+    builder.Services.AddSingleton<IConnectionMultiplexer>(_ =>
+    {
+        var options = ConfigurationOptions.Parse(redisConfiguration);
+        options.AbortOnConnectFail = false;
+        return ConnectionMultiplexer.Connect(options);
+    });
+
+    // The Worker never writes settings — it only needs to hear that someone else did. The
+    // broadcast is registered anyway so the service graph matches the API's exactly; a host that
+    // resolves a different object for the same interface is how the two drift apart.
+    builder.Services.AddSingleton<IAppSettingsBroadcast, RedisAppSettingsBroadcast>();
+    builder.Services.AddHostedService<AppSettingsInvalidationListener>();
+
     if (!string.IsNullOrWhiteSpace(telegramBotToken))
     {
-        var redisConfiguration = builder.Configuration["GOVORI_REDIS"] ?? "govori-redis:6379";
-        builder.Services.AddSingleton<IConnectionMultiplexer>(_ =>
-        {
-            var options = ConfigurationOptions.Parse(redisConfiguration);
-            options.AbortOnConnectFail = false;
-            return ConnectionMultiplexer.Connect(options);
-        });
         builder.Services.AddSingleton<ITelegramOtpLinkStore, RedisTelegramOtpLinkStore>();
         // Proven Telegram↔phone pairs (docs/08). Singleton is safe: EfTelegramBindingStore opens its
         // own scope per call, so no DbContext is captured by the singleton poller.

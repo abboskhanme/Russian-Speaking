@@ -53,6 +53,9 @@ public sealed record AiSettingsResponse(
     string SttProvider,
     string AzureSpeechRegion,
     string WhisperModel,
+    // The OpenAI grader's own model. It was the one provider setting with no field at all —
+    // stored, read by the backend, and unreachable from the panel.
+    string OpenaiGraderModel,
     SecretState AzureSpeechKey,
     SecretState OpenaiApiKey,
     bool AzureSpeechReady,
@@ -69,7 +72,13 @@ public sealed record AiSettingsResponse(
     IReadOnlyList<string> ReadySttBackends,
     SecretState AnthropicApiKey,
     string AnthropicModel,
-    IReadOnlyList<KnownModel> KnownAnthropicModels);
+    IReadOnlyList<KnownModel> KnownAnthropicModels,
+    // `Openai`, NOT `OpenAi`: JsonNamingPolicy.SnakeCaseLower splits on every case transition,
+    // so `KnownOpenAiModels` would reach the wire as `known_open_ai_models` and the panel would
+    // silently render an empty suggestion list. The whole file spells it this way for exactly
+    // this reason — see OpenaiApiKey and AzureOpenaiEndpoint above.
+    IReadOnlyList<KnownModel> KnownOpenaiModels,
+    IReadOnlyList<KnownModel> KnownWhisperModels);
 
 /// <summary>
 /// Partial update of the AI/STT settings. All fields optional. Per the tri-state
@@ -89,6 +98,7 @@ public sealed record AiSettingsUpdate(
     string? SttProvider = null,
     string? AzureSpeechRegion = null,
     string? WhisperModel = null,
+    string? OpenaiGraderModel = null,
     string? AzureSpeechKey = null,
     string? OpenaiApiKey = null,
     string? GraderChain = null,

@@ -290,6 +290,14 @@ try
         return ConnectionMultiplexer.Connect(options);
     });
 
+    // Settings changes reach every process at once (docs/07 §3.7). The panel writes through THIS
+    // host while grading runs in the Worker, so a purely process-local invalidation left the
+    // pipeline on the previous configuration for up to the full 30s TTL. Redis carries only the
+    // invalidation signal — the snapshot itself stays local, because it is read on every submission
+    // and a network hop per grade would be a bad trade for a rare staleness window.
+    builder.Services.AddSingleton<IAppSettingsBroadcast, RedisAppSettingsBroadcast>();
+    builder.Services.AddHostedService<AppSettingsInvalidationListener>();
+
     // External providers behind interfaces — real impls here; integration tests swap fakes
     // via ConfigureTestServices so they never hit real Redis/Google/Telegram.
     builder.Services.AddSingleton<IOtpStore, RedisOtpStore>();      // Redis-backed, FAIL-CLOSED

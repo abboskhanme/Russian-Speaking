@@ -124,6 +124,7 @@ public static class AdministrationEndpoints
             Add(vals, "stt_provider", body.SttProvider);
             Add(vals, "azure_speech_region", body.AzureSpeechRegion);
             Add(vals, "whisper_model", body.WhisperModel);
+            Add(vals, "openai_grader_model", body.OpenaiGraderModel);
             Add(vals, "azure_speech_key", body.AzureSpeechKey);
             Add(vals, "openai_api_key", body.OpenaiApiKey);
             // Provider chain + Claude (Faza 3.4). The chains are wire values an admin has edited,

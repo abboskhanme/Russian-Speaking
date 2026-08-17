@@ -39,12 +39,21 @@ public sealed class AppSettingsService
     private readonly GovoriDbContext _db;
     private readonly IAppSettingsCache _cache;
     private readonly IConfiguration _config;
+    private readonly IAppSettingsBroadcast? _broadcast;
 
-    public AppSettingsService(GovoriDbContext db, IAppSettingsCache cache, IConfiguration config)
+    public AppSettingsService(
+        GovoriDbContext db,
+        IAppSettingsCache cache,
+        IConfiguration config,
+        // Optional so an older composition root — and every existing test that news this up
+        // directly — keeps working; without it a write still invalidates locally, which is the
+        // behaviour that was there before.
+        IAppSettingsBroadcast? broadcast = null)
     {
         _db = db;
         _cache = cache;
         _config = config;
+        _broadcast = broadcast;
     }
 
     // key → (env-var name used as the default, is_secret). The env-var names are the uppercase
@@ -118,6 +127,29 @@ public sealed class AppSettingsService
             "Opusga yaqin sifat, arzonroq; $3/$15."),
         new("claude-haiku-4-5", "Claude Haiku 4.5",
             "Eng tez va arzon; $1/$5."),
+    };
+
+    // Curated OpenAI grader models. Same role as the two lists above: SUGGESTIONS, not a
+    // whitelist. The admin panel lets any model id be typed, because a model released next month
+    // must be usable without waiting for a deploy — a hard-coded dropdown is exactly how a
+    // settings screen goes stale.
+    private static readonly IReadOnlyList<KnownModel> KnownOpenaiModels = new List<KnownModel>
+    {
+        new("gpt-4o-mini", "GPT-4o mini (tavsiya etiladi)",
+            "Arzon va tez; baholash uchun yetarli."),
+        new("gpt-4o", "GPT-4o",
+            "Kuchliroq, lekin sezilarli qimmatroq."),
+        new("gpt-4.1-mini", "GPT-4.1 mini",
+            "Yangiroq mini avlod."),
+    };
+
+    // Curated Whisper (STT) models — same rule: taklif, cheklov emas.
+    private static readonly IReadOnlyList<KnownModel> KnownWhisperModels = new List<KnownModel>
+    {
+        new("whisper-1", "Whisper v1",
+            "Standart transkripsiya modeli."),
+        new("gpt-4o-mini-transcribe", "GPT-4o mini transcribe",
+            "Yangiroq; so'z vaqtlarini qaytarmaydi."),
     };
 
     // Accepted truthy spellings for boolean-ish settings; anything else counts as false.
@@ -197,7 +229,16 @@ public sealed class AppSettingsService
             }
         }
         await _db.SaveChangesAsync(ct);
-        _cache.Invalidate();                                 // required: the cache is process-local
+
+        // Tell every process, not just this one. The admin panel writes through the API while
+        // grading runs in the Worker, so a purely local invalidation left the pipeline running on
+        // the previous configuration for up to the full TTL — the admin saves a key, tests it
+        // immediately, gets the old behaviour, and concludes the panel does not work.
+        // The broadcast invalidates locally first, so the fallback path is never worse than before.
+        if (_broadcast is not null)
+            await _broadcast.PublishAsync(ct);
+        else
+            _cache.Invalidate();
     }
 
     // ─── Derived read models ────────────────────────────────────────────────
@@ -291,6 +332,7 @@ public sealed class AppSettingsService
             SttProvider: sttProvider,
             AzureSpeechRegion: azureSpeechRegion,
             WhisperModel: await GetAsync("whisper_model", ct: ct),
+            OpenaiGraderModel: await GetAsync("openai_grader_model", ct: ct),
             AzureSpeechKey: speechKey,
             OpenaiApiKey: openaiKey,
             AzureSpeechReady: azureSpeechReady,
@@ -303,7 +345,9 @@ public sealed class AppSettingsService
             ReadySttBackends: readyStt,
             AnthropicApiKey: anthropicKey,
             AnthropicModel: await GetAsync("anthropic_model", AiProviders.DefaultAnthropicModel, ct),
-            KnownAnthropicModels: KnownAnthropicModels);
+            KnownAnthropicModels: KnownAnthropicModels,
+            KnownOpenaiModels: KnownOpenaiModels,
+            KnownWhisperModels: KnownWhisperModels);
     }
 
     /// <summary>
