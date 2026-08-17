@@ -173,6 +173,16 @@ public static class AdministrationEndpoints
             return Results.Ok(await svc.GetAiSettingsAsync(ct));
         }).RequireAuthorization();
 
+        // POST /api/admin/settings/ai/test — probe every backend with one real call each.
+        //
+        // POST, not GET: it has side effects at the vendor (a billed request) and must never be
+        // fired by a link preview, a retry, or a browser prefetch.
+        settings.MapPost("/ai/test", async (ClaimsPrincipal p, AdministrationService admin, AiProbeService probe, CancellationToken ct) =>
+        {
+            var (uid, deny) = await AdminGate(p, admin, ct);
+            return deny ?? Results.Ok(await probe.RunAsync(ct));
+        }).RequireAuthorization();
+
         // GET /api/admin/settings/features — the Faza 6 switches (docs/08 Faza 6).
         settings.MapGet("/features", async (ClaimsPrincipal p, AdministrationService admin, AppSettingsService svc, CancellationToken ct) =>
         {

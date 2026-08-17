@@ -116,6 +116,30 @@ public sealed record LinksResponse(string TgSupportUrl, string TgChannelUrl);
 /// <see cref="AiSettingsUpdate"/>).</summary>
 public sealed record LinksUpdate(string? TgSupportUrl = null, string? TgChannelUrl = null);
 
+// ─── "Does this key actually work?" ─────────────────────────────────────────
+
+/// <summary>
+/// One backend's answer to the probe.
+///
+/// <para><c>Configured=false</c> means SKIPPED, not failed — the same distinction the provider
+/// chain draws. A backend with no key is a deliberate state (Claude ships that way), and painting
+/// it red would train the admin to ignore the colour that matters.</para>
+/// </summary>
+/// <param name="Kind"><c>grader</c> or <c>stt</c>.</param>
+/// <param name="Model">What the vendor said it served — the answer to "is my model id valid".</param>
+/// <param name="Error">The vendor's own message, trimmed. This is the field the admin acts on.</param>
+public sealed record ProviderProbe(
+    string Name,
+    string Kind,
+    bool Configured,
+    bool Ok,
+    string? Model,
+    string? Error,
+    int ElapsedMs);
+
+/// <summary>Probe results, in the chain's own order so the list reads as the routing does.</summary>
+public sealed record AiProbeResponse(IReadOnlyList<ProviderProbe> Results);
+
 // ─── Faza 6 feature flags ────────────────────────────────────────────────────
 
 /// <summary>

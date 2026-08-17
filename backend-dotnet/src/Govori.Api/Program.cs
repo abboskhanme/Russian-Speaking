@@ -248,6 +248,10 @@ try
     builder.Services.AddSingleton<IAppSettingsCache>(new AppSettingsCache());
     builder.Services.AddScoped<AppSettingsService>();
     builder.Services.AddScoped<AdministrationService>();
+    // The "test these keys" probe. Scoped because it resolves IAiConfigSource, which reads
+    // through the scoped DbContext; the backends it calls are the same singletons the
+    // pipeline uses, so a green probe is evidence about the real path and not a parallel one.
+    builder.Services.AddScoped<AiProbeService>();
 
     // ── Guest / auth-less demo (docs/07 §3.8, Faza 3.8) ─────────────────────
     // GuestService owns the public "try one phrase" demo (phrase pick + the SAME Azure
