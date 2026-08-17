@@ -144,6 +144,22 @@ public sealed class AzureSpeechSttBackend : ISttBackend
         var aggregate = best.PronunciationAssessment;
         var match = ComputeReferenceMatch(text, referenceText);
 
+        // UNSCRIPTED ASSESSMENT RETURNS A DIFFERENT SHAPE, and this cost us a live bug.
+        //
+        // With a reference text, Azure nests the scores under `NBest[0].PronunciationAssessment`
+        // and includes PronScore / Fluency / Completeness / Prosody. With the EMPTY reference text
+        // this backend deliberately sends (see the type-level note on why recognition stays
+        // unscripted), it returns a single `AccuracyScore` **flattened onto `NBest[0]` itself** and
+        // no wrapper object at all — the other three cannot be computed without something to
+        // compare against.
+        //
+        // Reading only the nested shape therefore yielded null on every real submission: word
+        // timings arrived, `transcripts.pronunciation` was NULL, and the C5 blend silently degraded
+        // every graded answer to text-only. It passed the smoke test because silence returns no
+        // scores either way — only a round-trip with real speech exposes it.
+        var accuracy = aggregate?.AccuracyScore ?? best.AccuracyScore;
+        var hasAnyScore = aggregate is not null || accuracy is not null;
+
         return new SttResult
         {
             Text = text,
@@ -153,15 +169,18 @@ public sealed class AzureSpeechSttBackend : ISttBackend
             // Built whenever there is anything to carry. The reference match rides inside this object,
             // so returning null because Azure omitted the aggregate would also throw away the
             // shadowing on-topic gate that decides whether the attempt earns XP.
-            Pronunciation = aggregate is null && match is null
+            Pronunciation = !hasAnyScore && match is null
                 ? null
                 : new SttPronunciation
                 {
-                    Accuracy = aggregate?.AccuracyScore,
+                    Accuracy = accuracy,
                     Fluency = aggregate?.FluencyScore,
                     Completeness = aggregate?.CompletenessScore,
                     Prosody = aggregate?.ProsodyScore,
-                    Pronunciation = aggregate?.PronScore,
+                    // PronScore first, accuracy as the fallback — see the note above `accuracy`.
+                    // This is the ONE field the frozen C5 blend reads, so leaving it null when Azure
+                    // did report a score silently drops pronunciation from a fifth of the grade.
+                    Pronunciation = aggregate?.PronScore ?? accuracy,
                     ReferenceMatch = match,
                 },
             Model = $"azure-speech:{Language}",
@@ -405,7 +424,17 @@ public sealed class AzureSpeechSttBackend : ISttBackend
     private sealed record AzureNBest
     {
         public string? Lexical { get; init; }
+
+        /// <summary>Present only for SCRIPTED assessment (non-empty reference text). Unscripted
+        /// recognition omits it entirely and flattens the one score it can compute onto
+        /// <see cref="AccuracyScore"/> below.</summary>
         public AzureAggregate? PronunciationAssessment { get; init; }
+
+        /// <summary>The flattened unscripted accuracy score. Deliberately NOT folded into
+        /// <see cref="AzureAggregate"/>: it sits at a different level of the response, and pretending
+        /// otherwise is what made the nested-only mapping look correct while returning null.</summary>
+        public double? AccuracyScore { get; init; }
+
         public IReadOnlyList<AzureWord>? Words { get; init; }
     }
 

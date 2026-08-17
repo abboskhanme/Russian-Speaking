@@ -51,6 +51,34 @@ x-backend-env: &backend-env
   # delivery (code logged + fixed 000000 accepted). Create the bot via @BotFather.
   TELEGRAM_BOT_TOKEN: "${TELEGRAM_BOT_TOKEN:-}"
   TELEGRAM_BOT_USERNAME: "${TELEGRAM_BOT_USERNAME:-}"
+  # ── AI providers (docs/08 Faza 3.4) ─────────────────────────────────────────
+  # These are DEFAULTS, not the last word: every key here resolves as
+  # `app_settings override → this env var → built-in default`, so an admin can paste a key or
+  # reorder the chain in the panel without a redeploy, and clearing it in the panel falls back to
+  # whatever is set here.
+  #
+  # They have to be forwarded explicitly. Until the provider chain landed, every backend was a stub
+  # that reported "not configured" no matter what, so nothing in the container ever read them —
+  # which meant a stack with a perfectly good `.env` full of keys could still grade nothing, and
+  # look like a code bug rather than a compose omission.
+  #
+  # An unset key is a supported state: that backend is skipped silently and the chain moves on.
+  # Claude ships this way on purpose — no ANTHROPIC_API_KEY, so it is passed over until one lands.
+  GRADER_CHAIN: "${GRADER_CHAIN:-}"
+  STT_CHAIN: "${STT_CHAIN:-}"
+  ANTHROPIC_API_KEY: "${ANTHROPIC_API_KEY:-}"
+  ANTHROPIC_MODEL: "${ANTHROPIC_MODEL:-}"
+  GEMINI_API_KEY: "${GEMINI_API_KEY:-}"
+  GEMINI_MODEL: "${GEMINI_MODEL:-}"
+  OPENAI_API_KEY: "${OPENAI_API_KEY:-}"
+  OPENAI_GRADER_MODEL: "${OPENAI_GRADER_MODEL:-}"
+  WHISPER_MODEL: "${WHISPER_MODEL:-}"
+  AZURE_SPEECH_KEY: "${AZURE_SPEECH_KEY:-}"
+  AZURE_SPEECH_REGION: "${AZURE_SPEECH_REGION:-}"
+  AZURE_OPENAI_ENDPOINT: "${AZURE_OPENAI_ENDPOINT:-}"
+  AZURE_OPENAI_API_KEY: "${AZURE_OPENAI_API_KEY:-}"
+  AZURE_OPENAI_DEPLOYMENT: "${AZURE_OPENAI_DEPLOYMENT:-}"
+  AZURE_OPENAI_API_VERSION: "${AZURE_OPENAI_API_VERSION:-}"
   # Realtime / rate limiting.
   GOVORI_SIGNALR_BACKPLANE: "true"
   GOVORI_RATELIMIT_BACKEND: "${GOVORI_RATELIMIT_BACKEND:-redis}"
