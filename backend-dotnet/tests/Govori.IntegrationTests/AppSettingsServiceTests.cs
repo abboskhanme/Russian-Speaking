@@ -14,8 +14,12 @@ namespace Govori.IntegrationTests;
 /// <para>Driven at the SERVICE level against the real prod-shaped Postgres, with a fresh DbContext per
 /// operation (the scoped-service shape) all sharing ONE <see cref="AppSettingsCache"/> (the singleton
 /// shape). That cache is PROCESS-LOCAL, which these tests pin down: a direct DB write made behind the
-/// service's back is NOT observed until the cache is invalidated — so a settings change written by a
-/// different process is likewise invisible here until the entry expires.</para>
+/// service's back is NOT observed until the cache is invalidated.</para>
+///
+/// <para>A write made through the service is a different matter: since the invalidation broadcast
+/// landed it reaches every process at once, and
+/// <see cref="Write_through_the_broadcast_is_visible_to_another_process_immediately"/> is what holds
+/// that to account.</para>
 ///
 /// <para>The two keys used are cleaned before and after, and no other setting key is touched, so the
 /// run is idempotent even when re-run against a database that already has settings in it.</para>
@@ -98,6 +102,80 @@ public sealed class AppSettingsServiceTests : IDisposable
             // A write ALSO invalidates (SetManyAsync calls Invalidate) — the new value is seen at once.
             await NewService(cache).SetManyAsync(new Dictionary<string, string?> { [LinkKey] = "https://t.me/C" });
             Assert.Equal("https://t.me/C", await NewService(cache).GetAsync(LinkKey));
+        }
+        finally
+        {
+            await CleanAsync();
+        }
+    }
+
+    /// <summary>
+    /// Two caches stand in for two PROCESSES — the API that writes and the Worker that grades.
+    ///
+    /// <para>This is the regression test for a bug that was invisible from inside either process:
+    /// the admin pastes a key, the API invalidates its own snapshot, and the Worker keeps grading
+    /// against the previous configuration until its own TTL lapses. Nothing errors. The admin
+    /// submits a recording to check the new key, gets the old behaviour, and concludes the panel
+    /// does not work.</para>
+    ///
+    /// <para>The fan-out below is what Redis pub/sub does in production. No Redis here on purpose:
+    /// the contract being pinned is that <c>SetManyAsync</c> goes through the broadcast at all,
+    /// rather than reaching only for its own cache — which is exactly what it used to do.</para>
+    /// </summary>
+    private sealed class FanOutBroadcast : IAppSettingsBroadcast
+    {
+        private readonly IAppSettingsCache[] _caches;
+        public FanOutBroadcast(params IAppSettingsCache[] caches) => _caches = caches;
+
+        public Task PublishAsync(CancellationToken ct = default)
+        {
+            foreach (var c in _caches) c.Invalidate();
+            return Task.CompletedTask;
+        }
+    }
+
+    [Fact]
+    public async Task Write_through_the_broadcast_is_visible_to_another_process_immediately()
+    {
+        var writerCache = new AppSettingsCache();   // "the API"
+        var readerCache = new AppSettingsCache();   // "the Worker"
+        var broadcast = new FanOutBroadcast(writerCache, readerCache);
+
+        await CleanAsync();
+        try
+        {
+            // Warm the reader so it holds a real pre-write snapshot. Without this the test would
+            // pass on an empty cache and prove nothing.
+            Assert.Equal(string.Empty, await NewService(readerCache).GetAsync(LinkKey));
+
+            await new AppSettingsService(NewContext(), writerCache, _config, broadcast)
+                .SetManyAsync(new Dictionary<string, string?> { [LinkKey] = "https://t.me/after" });
+
+            // No sleep, no TTL: the reader must see it now. With the pre-broadcast code this line
+            // returned "" for up to thirty seconds.
+            Assert.Equal("https://t.me/after", await NewService(readerCache).GetAsync(LinkKey));
+        }
+        finally
+        {
+            await CleanAsync();
+        }
+    }
+
+    [Fact]
+    public async Task Without_a_broadcast_the_writer_still_invalidates_itself()
+    {
+        // The degraded path — no Redis registered, or an older composition root. It must be no
+        // worse than the behaviour that existed before, never worse than it.
+        var cache = new AppSettingsCache();
+        await CleanAsync();
+        try
+        {
+            Assert.Equal(string.Empty, await NewService(cache).GetAsync(LinkKey));
+
+            await NewService(cache).SetManyAsync(
+                new Dictionary<string, string?> { [LinkKey] = "https://t.me/local" });
+
+            Assert.Equal("https://t.me/local", await NewService(cache).GetAsync(LinkKey));
         }
         finally
         {
