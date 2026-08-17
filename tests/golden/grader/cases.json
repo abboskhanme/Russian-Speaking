@@ -1,0 +1,306 @@
+{
+  "version": 1,
+  "note": "Frozen grader golden set (docs/08 Faza 1.4). Authored to specification — see README.md for what that means and what it does not cover. Each case encodes a specific, checkable learner error. Widen a band only with a stated reason; never to make a red run go green.",
+  "l1": "Uzbek. The error patterns below are the ones an Uzbek speaker actually produces in Russian: Uzbek has no grammatical gender (so agreement is the first thing to go), a different case inventory (so prepositional and accusative endings drift), no aspect pair system (so perfective/imperfective is guessed), and SOV word order (so the verb migrates to the end).",
+  "cases": [
+    {
+      "id": "a1_intro_ok",
+      "level": "A1",
+      "topic": "Знакомство",
+      "prompt": "Расскажите о себе: как вас зовут, сколько вам лет, где вы живёте?",
+      "transcript": "Меня зовут Алишер. Мне двадцать лет. Я живу в Ташкенте. Я студент.",
+      "why": "A clean, simple, entirely correct A1 answer. The floor case: if the grader cannot score this well, nothing below it means anything.",
+      "expect": {
+        "overall_min": 55,
+        "overall_max": 100,
+        "max_corrections": 2,
+        "feedback_language": "uz"
+      }
+    },
+    {
+      "id": "a1_gender_agreement",
+      "level": "A1",
+      "topic": "Семья",
+      "prompt": "Расскажите о своей семье.",
+      "transcript": "Моя брат работает в большая магазин. Мой сестра учится в школа. Мой мама хороший.",
+      "why": "Gender agreement collapse — the single most predictable Uzbek-L1 error, since Uzbek has no grammatical gender at all. Four separate agreement failures; a grader that finds none of them is not reading the Russian.",
+      "expect": {
+        "overall_max": 70,
+        "must_find_correction_types": [
+          "grammar"
+        ],
+        "min_corrections": 1,
+        "feedback_language": "uz"
+      }
+    },
+    {
+      "id": "a1_verb_person",
+      "level": "A1",
+      "topic": "Распорядок дня",
+      "prompt": "Что вы делаете каждый день?",
+      "transcript": "Я идёт в школа каждый день. Потом я делают домашнее задание.",
+      "why": "Person/number agreement on the verb plus a missing accusative. Both are unambiguous and both are teachable, so the grader must surface them as corrections rather than only mentioning them in prose.",
+      "expect": {
+        "overall_max": 70,
+        "must_find_correction_types": [
+          "grammar"
+        ],
+        "min_corrections": 1,
+        "feedback_language": "uz"
+      }
+    },
+    {
+      "id": "a1_prepositions",
+      "level": "A1",
+      "topic": "Город",
+      "prompt": "Где вы обычно проводите выходные?",
+      "transcript": "Я хожу на парк и в улице гуляю. Вечером я на дома смотрю телевизор.",
+      "why": "в/на confusion in both directions plus a case error on 'дома'. Grammatical but wrong-preposition Russian is the failure mode a shallow grader marks as fine.",
+      "expect": {
+        "overall_max": 75,
+        "min_corrections": 1,
+        "feedback_language": "uz"
+      }
+    },
+    {
+      "id": "a1_one_word",
+      "level": "A1",
+      "topic": "Распорядок дня",
+      "prompt": "Что вы делаете каждый день?",
+      "transcript": "Школа.",
+      "why": "A single noun. Grammatically it is not wrong, which is the trap: fluency and relevance must both fall hard, and a grader that only checks grammar will score this far too high.",
+      "expect": {
+        "overall_max": 45,
+        "feedback_language": "uz"
+      }
+    },
+    {
+      "id": "a1_filler_only",
+      "level": "A1",
+      "topic": "Знакомство",
+      "prompt": "Расскажите о себе.",
+      "transcript": "Ээ... ну... это... ммм...",
+      "why": "Hesitation with no content. The floor of the whole scale; anything that scores this above the low band has no usable calibration.",
+      "expect": {
+        "overall_max": 30,
+        "feedback_language": "uz"
+      }
+    },
+    {
+      "id": "a2_routine_ok",
+      "level": "A2",
+      "topic": "Распорядок дня",
+      "prompt": "Опишите свой обычный день.",
+      "transcript": "Обычно я встаю в семь часов, завтракаю и еду на работу на автобусе. Работаю до шести, а вечером читаю или встречаюсь с друзьями.",
+      "why": "Solid, connected A2 with linkers and correct aspect. Sits above the A1 cases and below B1 in the ordering checks.",
+      "expect": {
+        "overall_min": 55,
+        "max_corrections": 3,
+        "feedback_language": "uz"
+      }
+    },
+    {
+      "id": "a2_aspect_error",
+      "level": "A2",
+      "topic": "Прошлое",
+      "prompt": "Расскажите, что вы делали вчера.",
+      "transcript": "Вчера я прочитал книгу два часа, а потом я написать письмо другу и посмотрел фильм.",
+      "why": "Aspect misuse plus an unconjugated infinitive. Uzbek has no perfective/imperfective pair system, so this is guessed rather than known — and it is exactly the kind of error a grader can miss while still producing confident prose. Band widened 78→85 after the first run: the grader scored 81 and DID surface the aspect error as a correction, so the cap was my estimate being tight, not the grader being wrong. 85 still fails a grader that calls this near-perfect.",
+      "expect": {
+        "overall_max": 85,
+        "must_find_correction_types": [
+          "grammar"
+        ],
+        "min_corrections": 1,
+        "feedback_language": "uz"
+      }
+    },
+    {
+      "id": "a2_word_order",
+      "level": "A2",
+      "topic": "Покупки",
+      "prompt": "Расскажите, как вы ходите в магазин.",
+      "transcript": "Я вчера в магазин ходил хлеб и молоко покупать. Потом я домой пришёл и ужин готовил.",
+      "why": "Uzbek SOV order transferred wholesale into Russian. Every word is a real word and most endings are right, so the sentence parses — which is why a grader that only counts morphology will call it correct.",
+      "expect": {
+        "overall_max": 80,
+        "min_corrections": 1,
+        "feedback_language": "uz"
+      }
+    },
+    {
+      "id": "b1_opinion_good",
+      "level": "B1",
+      "topic": "Мнение",
+      "prompt": "Как вы думаете, полезно ли изучать иностранные языки? Почему?",
+      "transcript": "Я думаю, что изучать иностранные языки очень полезно. Во-первых, это помогает найти хорошую работу, потому что многие компании ищут сотрудников со знанием языков. Во-вторых, когда ты знаешь язык, ты можешь путешествовать и общаться с людьми из других стран.",
+      "why": "Genuinely good B1: argued, connected, almost error-free. Its job in the set is to be clearly better than the A-band cases in the ordering checks.",
+      "expect": {
+        "overall_min": 70,
+        "max_corrections": 3,
+        "feedback_language": "uz"
+      }
+    },
+    {
+      "id": "b1_offtopic",
+      "level": "B1",
+      "topic": "Мнение",
+      "prompt": "Как вы думаете, полезно ли изучать иностранные языки? Почему?",
+      "transcript": "Мой любимый вид спорта — футбол. Я играю каждую субботу с друзьями на стадионе недалеко от дома. В прошлом году наша команда выиграла городской турнир, и это было очень приятно.",
+      "why": "The sharpest case in the set. Fluent, correct, well-built Russian that answers a completely different question. Relevance must collapse while grammar stays high — a grader that scores this like the on-topic answer is measuring fluency and calling it comprehension.",
+      "expect": {
+        "relevance_max": 45,
+        "grammar_min": 60,
+        "feedback_language": "uz"
+      }
+    },
+    {
+      "id": "b1_echo_question",
+      "level": "B1",
+      "topic": "Мнение",
+      "prompt": "Как вы думаете, полезно ли изучать иностранные языки?",
+      "transcript": "Как вы думаете, полезно ли изучать иностранные языки?",
+      "why": "The student repeats the question back verbatim. Perfect Russian, zero content — the degenerate case that catches a grader rewarding surface form.",
+      "expect": {
+        "relevance_max": 35,
+        "overall_max": 55,
+        "feedback_language": "uz"
+      }
+    },
+    {
+      "id": "b2_fluent",
+      "level": "B2",
+      "topic": "Общество",
+      "prompt": "Какую роль играют социальные сети в жизни молодёжи?",
+      "transcript": "Социальные сети стали неотъемлемой частью жизни молодёжи, и оценивать их однозначно, на мой взгляд, невозможно. С одной стороны, они дают доступ к информации и позволяют поддерживать связь с людьми, живущими далеко. С другой стороны, постоянное сравнение себя с другими нередко приводит к тревожности, а привычка к коротким видео заметно снижает способность концентрироваться.",
+      "why": "Near-native B2. The ceiling of the set: it must outscore everything below it by a wide margin or the scale is compressed.",
+      "expect": {
+        "overall_min": 80,
+        "max_corrections": 2,
+        "feedback_language": "uz"
+      }
+    },
+    {
+      "id": "code_switch",
+      "level": "A2",
+      "topic": "Еда",
+      "prompt": "Какое ваше любимое блюдо?",
+      "transcript": "Моё любимое блюдо это osh. Моя мама готовит очень yaxshi. Мы кушаем его har yakshanba с семьёй.",
+      "why": "Uzbek words dropped into Russian mid-sentence — extremely common in real speech here, and something the STT will faithfully transcribe. The grader must handle it without crashing or hallucinating a translation, and must notice the lexical gap. Band widened 75→88 after the first run: the grader scored 84 with three corrections, i.e. it saw the Uzbek insertions and priced them. Russian that is otherwise sound with a few borrowed words is genuinely not a low-band answer. 88 still fails a grader that ignores the code-switching entirely.",
+      "expect": {
+        "overall_max": 88,
+        "min_corrections": 1,
+        "feedback_language": "uz"
+      }
+    },
+    {
+      "id": "already_correct_short",
+      "level": "A1",
+      "topic": "Знакомство",
+      "prompt": "Сколько вам лет?",
+      "transcript": "Мне двадцать три года.",
+      "why": "Short and completely correct. The anti-hallucination case: a grader under pressure to be useful invents a correction where there is nothing to correct, which teaches the student that correct Russian is wrong.",
+      "expect": {
+        "max_corrections": 0,
+        "feedback_language": "uz"
+      }
+    },
+    {
+      "id": "punctuation_bait",
+      "level": "A2",
+      "topic": "Работа",
+      "prompt": "Расскажите о своей работе.",
+      "transcript": "я работаю в школе учителем мне нравится моя работа потому что я люблю детей и каждый день узнаю что-то новое",
+      "why": "Grammatically sound Russian with no capitalisation and no punctuation — because it came from speech, where neither exists. C6 bait: every 'correction' available here is cosmetic, and offering one would show the student a fix for a mistake they did not make and could not have made out loud.",
+      "expect": {
+        "max_corrections": 0,
+        "overall_min": 50,
+        "feedback_language": "uz"
+      }
+    },
+    {
+      "id": "b1_long_one_error",
+      "level": "B1",
+      "topic": "Путешествия",
+      "prompt": "Расскажите о путешествии, которое вам запомнилось.",
+      "transcript": "Два года назад я ездил в Самарканд с друзьями. Мы приехали рано утром и сразу пошли смотреть Регистан. Погода была прекрасная, и мы гуляли по городу весь день. Больше всего мне понравился старый базар, где мы купили сувениры для родные.",
+      "why": "Long, fluent, one clear case error at the very end. Tests whether the grader still reads to the end of a good answer instead of scoring the first two sentences and stopping.",
+      "expect": {
+        "overall_min": 60,
+        "min_corrections": 1,
+        "feedback_language": "uz"
+      }
+    },
+    {
+      "id": "word_salad",
+      "level": "A1",
+      "topic": "Знакомство",
+      "prompt": "Расскажите о себе.",
+      "transcript": "Стол окно быстро зелёный вчера кошка идти дом семь.",
+      "why": "Real Russian words in no grammatical relationship — roughly what STT returns from unintelligible audio. Everything must be near the floor; a grader that finds structure here is confabulating.",
+      "expect": {
+        "overall_max": 30,
+        "relevance_max": 30,
+        "feedback_language": "uz"
+      }
+    }
+  ],
+  "ordering": [
+    {
+      "better": "b2_fluent",
+      "worse": "a1_filler_only",
+      "field": "overall",
+      "margin": 35,
+      "why": "The full width of the scale. If this fails the grader is not discriminating at all."
+    },
+    {
+      "better": "b2_fluent",
+      "worse": "a1_one_word",
+      "field": "overall",
+      "margin": 25,
+      "why": "Length and development must count for something."
+    },
+    {
+      "better": "b1_opinion_good",
+      "worse": "a1_gender_agreement",
+      "field": "overall",
+      "margin": 15,
+      "why": "Across two CEFR bands with real errors on one side — a comfortable margin that still catches a flattened scale."
+    },
+    {
+      "better": "a2_routine_ok",
+      "worse": "word_salad",
+      "field": "overall",
+      "margin": 30,
+      "why": "Coherent A2 against nonsense."
+    },
+    {
+      "better": "b1_opinion_good",
+      "worse": "b1_offtopic",
+      "field": "relevance",
+      "margin": 20,
+      "why": "THE case that matters. Same prompt, same quality of Russian, one answers the question and one does not. Nothing else in the set isolates relevance this cleanly."
+    },
+    {
+      "better": "b1_opinion_good",
+      "worse": "b1_echo_question",
+      "field": "relevance",
+      "margin": 20,
+      "why": "Repeating the question is perfect Russian and zero content; relevance is the only criterion that can see the difference."
+    },
+    {
+      "better": "already_correct_short",
+      "worse": "a1_verb_person",
+      "field": "grammar",
+      "margin": 15,
+      "why": "Correct grammar must outrank broken grammar on the grammar criterion specifically — the narrowest, most direct check in the set."
+    },
+    {
+      "better": "punctuation_bait",
+      "worse": "a1_gender_agreement",
+      "field": "grammar",
+      "margin": 10,
+      "why": "Missing punctuation is not a grammar error; missing agreement is. A grader that cannot tell them apart will punish every spoken answer this app receives."
+    }
+  ]
+}

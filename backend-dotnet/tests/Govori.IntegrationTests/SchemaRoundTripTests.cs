@@ -11,21 +11,20 @@ namespace Govori.IntegrationTests;
 /// real prod-shaped schema DB: native PG enums, TIMESTAMPTZ (Kind=Utc), client-generated
 /// UUID v4 PKs, and JSONB — all without the schema changing.
 ///
-/// Connects to the already-running govori-net schema DB via the GOVORI_TEST_DB env var
-/// (default = the govori-net connection string).
-///
-/// TODO(§7.3): migrate to Testcontainers.PostgreSql once docker-in-docker is available in
-/// CI so the test spins up its own throwaway Postgres instead of the shared schema DB.
+/// Runs against the per-run throwaway database built by <see cref="TestDatabase"/> from the EF Core
+/// migrations — which is what makes the mapping assertions below mean something: the schema they
+/// round-trip against is the schema the migrations produce, not whatever the dev database has
+/// drifted into. The baseline user population the first test asserts a floor on is seeded there.
 /// </summary>
+[Collection(PerRunDatabaseFixture.CollectionName)]
 public sealed class SchemaRoundTripTests : IDisposable
 {
     private readonly NpgsqlDataSource _dataSource;
 
     public SchemaRoundTripTests()
     {
-        var connectionString =
-            Environment.GetEnvironmentVariable("GOVORI_TEST_DB")
-            ?? GovoriDataSourceFactory.DefaultConnectionString;
+        // The per-run throwaway database (see TestDatabase) — never the shared dev one.
+        var connectionString = TestDatabase.ConnectionString;
 
         _dataSource = GovoriDataSourceFactory.Build(connectionString);
     }
@@ -44,8 +43,9 @@ public sealed class SchemaRoundTripTests : IDisposable
         await using (var ctx = CreateContext())
         {
             var userCount = await ctx.Users.CountAsync();
-            // Floor, not an exact count: the demo dump has 34, and dev/sample seeds only
-            // ADD users, so the shared dev DB grows. Assert the baseline is present.
+            // Floor, not an exact count: the demo dump's baseline (34 users) is seeded into the
+            // per-run database by TestDatabase.SeedBaseline, and other tests in the run only ADD
+            // users. Assert the baseline is present.
             Assert.True(userCount >= 34, $"expected >= 34 seeded users, got {userCount}");
 
             // The enum read path against real prod-shaped rows must not throw and must

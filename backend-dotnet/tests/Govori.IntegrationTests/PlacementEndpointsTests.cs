@@ -23,6 +23,7 @@ namespace Govori.IntegrationTests;
 /// grading path runs with known numbers: FakeStt PronScore 70 + FakeGrader Overall 80 →
 /// C5 blend (80*4 + 70)/5 = 78 per answer → averaged 78 → B2.
 /// </summary>
+[Collection(PerRunDatabaseFixture.CollectionName)]
 public sealed class PlacementEndpointsTests : IClassFixture<PlacementEndpointsTests.PlacementApiFactory>
 {
     private readonly PlacementApiFactory _factory;
@@ -114,9 +115,8 @@ public sealed class PlacementEndpointsTests : IClassFixture<PlacementEndpointsTe
     /// touches no DB, but GOVORI_DB is set for parity with the other host-booting fixtures.</summary>
     public sealed class PlacementApiFactory : WebApplicationFactory<Program>
     {
-        public string ConnectionString { get; } =
-            Environment.GetEnvironmentVariable("GOVORI_TEST_DB")
-            ?? GovoriDataSourceFactory.DefaultConnectionString;
+        // The per-run throwaway database (see TestDatabase) — never the shared dev one.
+        public string ConnectionString { get; } = TestDatabase.ConnectionString;
 
         internal const string TestSecretKey =
             "placement-domain-integration-test-secret-key-do-not-use-in-prod";

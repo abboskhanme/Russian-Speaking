@@ -28,6 +28,7 @@ namespace Govori.IntegrationTests;
 /// STT, and scores from the STORED pronunciation. Every seeded row + MinIO object is removed in a
 /// finally so the run is idempotent.</para>
 /// </summary>
+[Collection(PerRunDatabaseFixture.CollectionName)]
 public sealed class AssessmentPipelineTests
     : IClassFixture<AssessmentPipelineTests.AssessmentApiFactory>, IDisposable
 {
@@ -286,9 +287,8 @@ public sealed class AssessmentPipelineTests
     /// PracticeEndpointsTests). MinIO config reaches Program.cs via the GOVORI_S3_ENDPOINT env var.</summary>
     public sealed class AssessmentApiFactory : WebApplicationFactory<Program>
     {
-        public string ConnectionString { get; } =
-            Environment.GetEnvironmentVariable("GOVORI_TEST_DB")
-            ?? GovoriDataSourceFactory.DefaultConnectionString;
+        // The per-run throwaway database (see TestDatabase) — never the shared dev one.
+        public string ConnectionString { get; } = TestDatabase.ConnectionString;
 
         private const string TestSecretKey =
             "assessment-domain-integration-test-secret-key-do-not-use-in-prod";

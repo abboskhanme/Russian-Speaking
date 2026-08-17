@@ -25,6 +25,7 @@ namespace Govori.IntegrationTests;
 /// fakes via ConfigureTestServices so tests never touch Azure/Redis/Google. Nothing is persisted by
 /// the guest surface; the OTP-request burst creates no rows — runs are idempotent.
 /// </summary>
+[Collection(PerRunDatabaseFixture.CollectionName)]
 public sealed class GuestEndpointsTests : IClassFixture<GuestEndpointsTests.GuestApiFactory>
 {
     private readonly GuestApiFactory _factory;
@@ -144,9 +145,8 @@ public sealed class GuestEndpointsTests : IClassFixture<GuestEndpointsTests.Gues
     /// </summary>
     public sealed class GuestApiFactory : WebApplicationFactory<Program>
     {
-        public string ConnectionString { get; } =
-            Environment.GetEnvironmentVariable("GOVORI_TEST_DB")
-            ?? GovoriDataSourceFactory.DefaultConnectionString;
+        // The per-run throwaway database (see TestDatabase) — never the shared dev one.
+        public string ConnectionString { get; } = TestDatabase.ConnectionString;
 
         // Same value the other host-booting fixtures use — SECRET_KEY is process-global and the
         // collections are serialized (TestParallelization.cs), so a shared value avoids races.

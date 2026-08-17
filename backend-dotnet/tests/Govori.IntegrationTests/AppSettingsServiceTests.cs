@@ -17,9 +17,10 @@ namespace Govori.IntegrationTests;
 /// service's back is NOT observed until the cache is invalidated — so a settings change written by a
 /// different process is likewise invisible here until the entry expires.</para>
 ///
-/// <para>The two keys used are cleaned before and after, and the pre-existing <c>stt_provider</c> row
-/// is never touched, so the run is idempotent.</para>
+/// <para>The two keys used are cleaned before and after, and no other setting key is touched, so the
+/// run is idempotent even when re-run against a database that already has settings in it.</para>
 /// </summary>
+[Collection(PerRunDatabaseFixture.CollectionName)]
 public sealed class AppSettingsServiceTests : IDisposable
 {
     private const string LlmKey = "llm_provider";      // has an env default in this test's config
@@ -30,8 +31,8 @@ public sealed class AppSettingsServiceTests : IDisposable
 
     public AppSettingsServiceTests()
     {
-        var cs = Environment.GetEnvironmentVariable("GOVORI_TEST_DB")
-                 ?? GovoriDataSourceFactory.DefaultConnectionString;
+        // The per-run throwaway database (see TestDatabase) — never the shared dev one.
+        var cs = TestDatabase.ConnectionString;
         _dataSource = GovoriDataSourceFactory.Build(cs);
         // Env default for llm_provider: with no DB row, the service falls back to LLM_PROVIDER.
         _config = new ConfigurationBuilder()

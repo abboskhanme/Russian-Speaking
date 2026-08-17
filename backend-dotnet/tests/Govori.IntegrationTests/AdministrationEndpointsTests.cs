@@ -24,9 +24,10 @@ namespace Govori.IntegrationTests;
 ///   <item><b>settings tri-state over HTTP</b>: on the links, omit=keep vs ""=clear vs value=store;</item>
 ///   <item><b>secret masking + reveal + validation</b> on the AI settings.</item>
 /// </list>
-/// Every seeded row / touched setting key is cleaned in a finally so the run is idempotent. The
-/// pre-existing <c>stt_provider</c> row is never touched.
+/// Every seeded row / touched setting key is cleaned in a finally so the run is idempotent. No
+/// setting key outside the ones under test is touched.
 /// </summary>
+[Collection(PerRunDatabaseFixture.CollectionName)]
 public sealed class AdministrationEndpointsTests
     : IClassFixture<AdministrationEndpointsTests.AdminApiFactory>, IDisposable
 {
@@ -288,9 +289,8 @@ public sealed class AdministrationEndpointsTests
     /// the other endpoint suites).</summary>
     public sealed class AdminApiFactory : WebApplicationFactory<Program>
     {
-        public string ConnectionString { get; } =
-            Environment.GetEnvironmentVariable("GOVORI_TEST_DB")
-            ?? GovoriDataSourceFactory.DefaultConnectionString;
+        // The per-run throwaway database (see TestDatabase) — never the shared dev one.
+        public string ConnectionString { get; } = TestDatabase.ConnectionString;
 
         internal const string TestSecretKey =
             "administration-domain-integration-test-secret-key-do-not-use-in-prod";

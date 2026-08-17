@@ -22,6 +22,7 @@ namespace Govori.IntegrationTests;
 /// Rows are transcribed inline (not read from the fixture file) so the test is self-contained in
 /// the SDK container, which mounts only backend-dotnet. Every seeded row is deleted in a finally.
 /// </summary>
+[Collection(PerRunDatabaseFixture.CollectionName)]
 public sealed class CatalogAccessSqlParityTests : IDisposable
 {
     // Fixed UTC epoch; fixture "created_at" integer ticks map to milliseconds off this instant.
@@ -32,9 +33,8 @@ public sealed class CatalogAccessSqlParityTests : IDisposable
 
     public CatalogAccessSqlParityTests()
     {
-        var connectionString =
-            Environment.GetEnvironmentVariable("GOVORI_TEST_DB")
-            ?? GovoriDataSourceFactory.DefaultConnectionString;
+        // The per-run throwaway database (see TestDatabase) — never the shared dev one.
+        var connectionString = TestDatabase.ConnectionString;
         _dataSource = GovoriDataSourceFactory.Build(connectionString);
     }
 

@@ -46,6 +46,7 @@ namespace Govori.IntegrationTests;
 /// </list>
 /// Every seeded row + MinIO object is removed in a finally so the run is idempotent.
 /// </summary>
+[Collection(PerRunDatabaseFixture.CollectionName)]
 public sealed class AttemptEventsTests
     : IClassFixture<AttemptEventsTests.AttemptEventsFactory>, IDisposable
 {
@@ -383,9 +384,8 @@ public sealed class AttemptEventsTests
     /// </summary>
     public sealed class AttemptEventsFactory : WebApplicationFactory<Program>
     {
-        public string ConnectionString { get; } =
-            Environment.GetEnvironmentVariable("GOVORI_TEST_DB")
-            ?? GovoriDataSourceFactory.DefaultConnectionString;
+        // The per-run throwaway database (see TestDatabase) — never the shared dev one.
+        public string ConnectionString { get; } = TestDatabase.ConnectionString;
 
         public FakeSttProvider Stt { get; } = new(text: "привет как дела", pronScore: 70.0);
         public FakeGraderProvider Grader { get; } = new();

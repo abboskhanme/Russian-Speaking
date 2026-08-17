@@ -17,11 +17,13 @@
     <PackageReference Include="Microsoft.AspNetCore.SignalR.Client" Version="9.0.4" />
     <PackageReference Include="Microsoft.EntityFrameworkCore" Version="9.0.4" />
     <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="9.0.4" />
-    <!-- TODO(§7.3): migrate to Testcontainers.PostgreSql (spins its own DB) once
-         docker-in-docker is available in CI. For now the tests connect to the
-         already-running govori-net schema DB via GOVORI_TEST_DB. Package kept for
-         that future migration. -->
-    <PackageReference Include="Testcontainers.PostgreSql" Version="4.13.0" />
+    <!-- NO Testcontainers here, deliberately. Every project targets net9.0 while the host SDK is
+         8.0, so the suite can only run inside mcr.microsoft.com/dotnet/sdk:9.0 — where a
+         Testcontainers Postgres would need the Docker socket mounted and would then publish on a
+         HOST port that `localhost` inside the test container does not resolve to. Isolation is
+         provided instead by TestDatabase: a uniquely-named database created per run on the Postgres
+         we already reach, migrated with this solution's own EF Core migrations and dropped on
+         teardown. Full reasoning in TestDatabase.cs. -->
     <PackageReference Include="xunit" Version="2.9.2" />
     <PackageReference Include="xunit.runner.visualstudio" Version="2.8.2" />
   </ItemGroup>

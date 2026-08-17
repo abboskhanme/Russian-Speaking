@@ -25,6 +25,7 @@ namespace Govori.IntegrationTests;
 /// ConfigureTestServices so tests never touch Redis/Google/Telegram. The dev delivery fake accepts
 /// the fixed code 000000. Every created/seeded row is deleted in a finally so runs are idempotent.
 /// </summary>
+[Collection(PerRunDatabaseFixture.CollectionName)]
 public sealed class IdentityEndpointsTests : IClassFixture<IdentityEndpointsTests.IdentityApiFactory>, IDisposable
 {
     private const string DevCode = "000000";
@@ -716,9 +717,8 @@ public sealed class IdentityEndpointsTests : IClassFixture<IdentityEndpointsTest
     /// </summary>
     public sealed class IdentityApiFactory : WebApplicationFactory<Program>
     {
-        public string ConnectionString { get; } =
-            Environment.GetEnvironmentVariable("GOVORI_TEST_DB")
-            ?? GovoriDataSourceFactory.DefaultConnectionString;
+        // The per-run throwaway database (see TestDatabase) — never the shared dev one.
+        public string ConnectionString { get; } = TestDatabase.ConnectionString;
 
         private const string TestSecretKey =
             "identity-domain-integration-test-secret-key-do-not-use-in-prod";

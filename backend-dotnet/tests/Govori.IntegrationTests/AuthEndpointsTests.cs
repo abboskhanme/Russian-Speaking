@@ -16,12 +16,14 @@ namespace Govori.IntegrationTests;
 /// the real prod-shaped Postgres → JWT and back.
 ///
 /// Boots the real <c>Govori.Api</c> host via <see cref="WebApplicationFactory{T}"/> with the
-/// DbContext pointed at the govori-net schema DB (GOVORI_TEST_DB) and a fixed test SECRET_KEY, and
+/// DbContext pointed at the per-run throwaway database (see <see cref="TestDatabase"/>) and a fixed
+/// test SECRET_KEY, and
 /// (unlike IdentityEndpointsTests) swaps NO providers — so this exercises the real RedisOtpStore
 /// and the real DevOtpDeliverySender (no Telegram token in the test env ⇒ dev delivery, which
 /// accepts the fixed code 000000). Seeds one phone user through the DbContext and deletes it in a
 /// finally so the run is idempotent.
 /// </summary>
+[Collection(PerRunDatabaseFixture.CollectionName)]
 public sealed class AuthEndpointsTests : IClassFixture<AuthEndpointsTests.AuthApiFactory>, IDisposable
 {
     private const string DevCode = "000000";
@@ -237,9 +239,8 @@ public sealed class AuthEndpointsTests : IClassFixture<AuthEndpointsTests.AuthAp
     /// </summary>
     public sealed class AuthApiFactory : WebApplicationFactory<Program>
     {
-        public string ConnectionString { get; } =
-            Environment.GetEnvironmentVariable("GOVORI_TEST_DB")
-            ?? GovoriDataSourceFactory.DefaultConnectionString;
+        // The per-run throwaway database (see TestDatabase) — never the shared dev one.
+        public string ConnectionString { get; } = TestDatabase.ConnectionString;
 
         private const string TestSecretKey =
             "tracer-bullet-integration-test-secret-key-do-not-use-in-prod";

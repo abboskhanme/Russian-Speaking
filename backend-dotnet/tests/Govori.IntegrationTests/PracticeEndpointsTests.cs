@@ -33,6 +33,7 @@ namespace Govori.IntegrationTests;
 /// </list>
 /// Every seeded row + uploaded object is removed in a finally so the run is idempotent.
 /// </summary>
+[Collection(PerRunDatabaseFixture.CollectionName)]
 public sealed class PracticeEndpointsTests : IClassFixture<PracticeEndpointsTests.PracticeApiFactory>, IDisposable
 {
     private readonly PracticeApiFactory _factory;
@@ -394,9 +395,8 @@ public sealed class PracticeEndpointsTests : IClassFixture<PracticeEndpointsTest
     /// GOVORI_S3_ENDPOINT process env var supplied by the test runner.</summary>
     public sealed class PracticeApiFactory : WebApplicationFactory<Program>
     {
-        public string ConnectionString { get; } =
-            Environment.GetEnvironmentVariable("GOVORI_TEST_DB")
-            ?? GovoriDataSourceFactory.DefaultConnectionString;
+        // The per-run throwaway database (see TestDatabase) — never the shared dev one.
+        public string ConnectionString { get; } = TestDatabase.ConnectionString;
 
         internal const string TestSecretKey =
             "practice-domain-integration-test-secret-key-do-not-use-in-prod";

@@ -22,6 +22,7 @@ namespace Govori.IntegrationTests;
 /// are the deterministic fakes so the band is the known C5 blend (Overall 80 × 4 + Pron 70) / 5 = 78 → B2.
 /// The test also asserts the authed <c>/api/placement/questions</c> STILL requires a token (401 without one).
 /// </summary>
+[Collection(PerRunDatabaseFixture.CollectionName)]
 public sealed class GuestPlacementEndpointsTests : IClassFixture<GuestPlacementEndpointsTests.GuestPlacementApiFactory>
 {
     private readonly GuestPlacementApiFactory _factory;
@@ -102,9 +103,8 @@ public sealed class GuestPlacementEndpointsTests : IClassFixture<GuestPlacementE
     /// GOVORI_DB is set for parity with the other host-booting fixtures.</summary>
     public sealed class GuestPlacementApiFactory : WebApplicationFactory<Program>
     {
-        public string ConnectionString { get; } =
-            Environment.GetEnvironmentVariable("GOVORI_TEST_DB")
-            ?? GovoriDataSourceFactory.DefaultConnectionString;
+        // The per-run throwaway database (see TestDatabase) — never the shared dev one.
+        public string ConnectionString { get; } = TestDatabase.ConnectionString;
 
         private const string TestSecretKey =
             "guest-placement-domain-integration-test-secret-key-do-not-use-in-prod";

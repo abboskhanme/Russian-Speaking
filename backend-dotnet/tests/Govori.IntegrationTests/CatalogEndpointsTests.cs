@@ -26,6 +26,7 @@ namespace Govori.IntegrationTests;
 /// </list>
 /// Every seeded row is deleted in a finally so the run is idempotent.
 /// </summary>
+[Collection(PerRunDatabaseFixture.CollectionName)]
 public sealed class CatalogEndpointsTests : IClassFixture<CatalogEndpointsTests.CatalogApiFactory>, IDisposable
 {
     private readonly CatalogApiFactory _factory;
@@ -567,9 +568,8 @@ public sealed class CatalogEndpointsTests : IClassFixture<CatalogEndpointsTests.
     /// WebApplication.CreateBuilder, before any test-server config override runs.</summary>
     public sealed class CatalogApiFactory : WebApplicationFactory<Program>
     {
-        public string ConnectionString { get; } =
-            Environment.GetEnvironmentVariable("GOVORI_TEST_DB")
-            ?? GovoriDataSourceFactory.DefaultConnectionString;
+        // The per-run throwaway database (see TestDatabase) — never the shared dev one.
+        public string ConnectionString { get; } = TestDatabase.ConnectionString;
 
         internal const string TestSecretKey =
             "catalog-domain-integration-test-secret-key-do-not-use-in-prod";

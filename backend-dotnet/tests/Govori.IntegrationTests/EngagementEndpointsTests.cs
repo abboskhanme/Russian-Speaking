@@ -38,6 +38,7 @@ namespace Govori.IntegrationTests;
 ///
 /// Every seeded row is removed in a finally so the run is idempotent.
 /// </summary>
+[Collection(PerRunDatabaseFixture.CollectionName)]
 public sealed class EngagementEndpointsTests : IClassFixture<EngagementEndpointsTests.EngagementApiFactory>, IDisposable
 {
     private readonly EngagementApiFactory _factory;
@@ -946,9 +947,8 @@ public sealed class EngagementEndpointsTests : IClassFixture<EngagementEndpoints
     /// the other endpoint suites).</summary>
     public sealed class EngagementApiFactory : WebApplicationFactory<Program>
     {
-        public string ConnectionString { get; } =
-            Environment.GetEnvironmentVariable("GOVORI_TEST_DB")
-            ?? GovoriDataSourceFactory.DefaultConnectionString;
+        // The per-run throwaway database (see TestDatabase) — never the shared dev one.
+        public string ConnectionString { get; } = TestDatabase.ConnectionString;
 
         internal const string TestSecretKey =
             "engagement-domain-integration-test-secret-key-do-not-use-in-prod";
