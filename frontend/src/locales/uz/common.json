@@ -899,6 +899,50 @@
       "failed": "Baholab bo'lmadi."
     }
   },
+  "review": {
+    "title": "Xatolar ustida",
+    "progress": "{{n}} / {{total}}",
+    "progressLabel": "Mashq jarayoni",
+    "dueCount_one": "{{count}} ta savol kutmoqda",
+    "dueCount_other": "{{count}} ta savol kutmoqda",
+    "round": "TAKROR {{round}}/{{total}}",
+    "dims": {
+      "fluency": "Ravonlik",
+      "pronunciation": "Talaffuz",
+      "lexical": "So'z boyligi",
+      "grammar": "Grammatika",
+      "relevance": "Mavzuga moslik",
+      "teacher": "O'qituvchidan"
+    },
+    "speakTitle": "Javobni qaytadan ayt",
+    "speakHint": "Yozib ol, o'zingni eshit — keyin namuna bilan solishtirasan.",
+    "revealCta": "Namunani ko'rsat",
+    "modelLabel": "NAMUNA JAVOB",
+    "noModel": "Bu savolga namuna javob yozilmagan. O'zingni eshit va halol baho ber.",
+    "verdictQuestion": "Bu safar qanday chiqdi?",
+    "good": "Yaxshi aytdim",
+    "again": "Yana takrorlayman",
+    "answerError": "Saqlab bo'lmadi. Yana urinib ko'r.",
+    "done": {
+      "title": "Bugungi takror tugadi",
+      "body_one": "{{count}} ta xato ustida ishlading.",
+      "body_other": "{{count}} ta xato ustida ishlading.",
+      "remaining_one": "Yana {{count}} ta savol kutmoqda.",
+      "remaining_other": "Yana {{count}} ta savol kutmoqda.",
+      "cta": "Mashqqa qaytish"
+    },
+    "empty": {
+      "title": "Takrorlaydigan xato yo'q",
+      "body": "Qiynalgan savollaring shu yerda to'planadi. Yangi mashq bajarsang, ular o'zi paydo bo'ladi.",
+      "cta": "Mashqqa o'tish"
+    },
+    "entry": {
+      "kicker": "XATOLARING",
+      "body_one": "{{count}} ta savol qaytadan aytishni kutmoqda.",
+      "body_other": "{{count}} ta savol qaytadan aytishni kutmoqda.",
+      "cta": "Boshlash"
+    }
+  },
   "groupBoard": {
     "meta": "{{teacher}} · {{count}} o'quvchi",
     "classmates": "GURUHDOSHLAR",
@@ -934,7 +978,15 @@
     "phrasesLabel": "{{count}} ta foydali ibora",
     "phrasesLabelShort": "FOYDALI IBORA",
     "retry": "Yana urinish",
-    "stubNote": "AI javoblari namunaviy (kalit ulanmagan)."
+    "turnsLeft_one": "{{count}} ta navbat qoldi",
+    "turnsLeft_other": "{{count}} ta navbat qoldi",
+    "heardNothing": "Hech narsa eshitilmadi",
+    "coachLabel": "Tuzatishlar",
+    "fixesLabel": "NIMANI TUZATISH KERAK",
+    "turnFailed": "Javobni yuborib bo'lmadi. Yana bir bor gapirib ko'ring.",
+    "stateDisabled": "AI suhbat hozircha yoqilmagan. Tez orada ochamiz.",
+    "stateUnconfigured": "AI hali ulanmagan — hozircha gapira olmaysan. Urinishing sarflanmadi.",
+    "stateBudget": "Bugungi suhbat limiting tugadi. Ertaga yana davom etamiz."
   },
   "time": {
     "justNow": "hozir",
@@ -1053,6 +1105,7 @@
     "answerCount_one": "{{count}} javob",
     "answerCount_other": "{{count}} javob",
     "choiceUnset": "Tanlanmagan — server o‘z standartini ishlatadi.",
-    "choiceUnknown": "Hozirgi qiymat: {{value}} (ro‘yxatda yo‘q)."
+    "choiceUnknown": "Hozirgi qiymat: {{value}} (ro‘yxatda yo‘q).",
+    "noneReady": "hech biri tayyor emas"
   }
 }

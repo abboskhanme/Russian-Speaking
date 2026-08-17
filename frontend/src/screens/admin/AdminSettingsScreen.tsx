@@ -87,8 +87,6 @@ export interface AdminSettingsProps {
   onSaveLinks?: (patch: { tgSupportUrl?: string; tgChannelUrl?: string }) => Promise<void>;
 }
 
-const LLM_PROVIDERS = ["auto", "gemini", "azure"];
-const STT_PROVIDERS = ["auto", "azure", "whisper"];
 
 /** Splits a stored chain into backend names, dropping blanks and duplicates while
  * keeping order — the same normalisation the server does, so an unedited chain
@@ -146,13 +144,11 @@ export function AdminSettingsScreen({
 }: AdminSettingsProps) {
   const { t } = useTranslation();
 
-  const [llm, setLlm] = useState(settings.llmProvider);
   const [model, setModel] = useState(settings.geminiModel);
   const [claudeModel, setClaudeModel] = useState(settings.anthropicModel);
   const [graderChain, setGraderChain] = useState(() => parseChain(settings.graderChain));
   const [sttChain, setSttChain] = useState(() => parseChain(settings.sttChain));
   const [orthoepy, setOrthoepy] = useState(settings.orthoepyEnabled);
-  const [stt, setStt] = useState(settings.sttProvider);
   const [region, setRegion] = useState(settings.azureSpeechRegion);
   const [geminiKey, setGeminiKey] = useState("");
   const [claudeKey, setClaudeKey] = useState("");
@@ -163,15 +159,25 @@ export function AdminSettingsScreen({
   const [note, setNote] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
+  // Which backend will actually serve the next request: the first one in the SAVED order that has
+  // a key. This is the same walk the server does at runtime, deliberately mirrored rather than read
+  // from `active_provider` — that field is computed from the retired single-provider setting and no
+  // longer describes anything the pipeline does.
+  //
+  // Derived from `settings`, not from the local draft, so reordering the chain does not claim a
+  // change has taken effect before it is saved.
+  const firstReady = (chain: string, ready: readonly string[]) =>
+    parseChain(chain).find((name) => ready.includes(name)) ?? null;
+  const graderServing = firstReady(settings.graderChain, settings.readyGraderBackends);
+  const sttServing = firstReady(settings.sttChain, settings.readySttBackends);
+
   // Re-seed from a fresh fetch (after any save).
   useEffect(() => {
-    setLlm(settings.llmProvider);
     setModel(settings.geminiModel);
     setClaudeModel(settings.anthropicModel);
     setGraderChain(parseChain(settings.graderChain));
     setSttChain(parseChain(settings.sttChain));
     setOrthoepy(settings.orthoepyEnabled);
-    setStt(settings.sttProvider);
     setRegion(settings.azureSpeechRegion);
     setSupport(settings.tgSupportUrl);
     setChannel(settings.tgChannelUrl);
@@ -187,7 +193,6 @@ export function AdminSettingsScreen({
     setError(null);
     try {
       const patch: AdminSettingsPatch = {};
-      if (llm !== settings.llmProvider) patch.llmProvider = llm;
       if (model !== settings.geminiModel) patch.geminiModel = model;
       if (claudeModel !== settings.anthropicModel) patch.anthropicModel = claudeModel;
       // Compare against the PARSED server value: the wire form may carry spaces or a
@@ -198,7 +203,6 @@ export function AdminSettingsScreen({
         patch.graderChain = graderOrder;
       if (sttOrder !== parseChain(settings.sttChain).join(",")) patch.sttChain = sttOrder;
       if (orthoepy !== settings.orthoepyEnabled) patch.orthoepyEnabled = String(orthoepy);
-      if (stt !== settings.sttProvider) patch.sttProvider = stt;
       if (region !== settings.azureSpeechRegion) patch.azureSpeechRegion = region;
       // A blank key field means "unchanged", never "clear" — see the class doc.
       if (geminiKey.trim()) patch.geminiApiKey = geminiKey.trim();
@@ -256,8 +260,8 @@ export function AdminSettingsScreen({
             <Text as="h2" variant="label" color="faint" className={styles.legend}>
               {t("admin.aiGrader")}
             </Text>
-            <Badge variant={settings.activeProvider === "none" ? "danger" : "success"} size="sm">
-              {t("admin.activeNow", { provider: settings.activeProvider })}
+            <Badge variant={graderServing ? "success" : "danger"} size="sm">
+              {t("admin.activeNow", { provider: graderServing ?? t("admin.noneReady") })}
             </Badge>
           </div>
 
@@ -268,12 +272,6 @@ export function AdminSettingsScreen({
               backends={settings.graderBackends}
               ready={settings.readyGraderBackends}
               onChange={setGraderChain}
-            />
-            <Choice
-              label={t("admin.provider")}
-              value={llm}
-              options={LLM_PROVIDERS}
-              onChange={setLlm}
             />
             <Choice
               label={t("admin.geminiModel")}
@@ -328,8 +326,8 @@ export function AdminSettingsScreen({
             <Text as="h2" variant="label" color="faint" className={styles.legend}>
               {t("admin.stt")}
             </Text>
-            <Badge variant={settings.sttActiveProvider === "none" ? "danger" : "success"} size="sm">
-              {t("admin.activeNow", { provider: settings.sttActiveProvider })}
+            <Badge variant={sttServing ? "success" : "danger"} size="sm">
+              {t("admin.activeNow", { provider: sttServing ?? t("admin.noneReady") })}
             </Badge>
           </div>
 
@@ -340,12 +338,6 @@ export function AdminSettingsScreen({
               backends={settings.sttBackends}
               ready={settings.readySttBackends}
               onChange={setSttChain}
-            />
-            <Choice
-              label={t("admin.provider")}
-              value={stt}
-              options={STT_PROVIDERS}
-              onChange={setStt}
             />
             <Input
               label={t("admin.azureRegion")}

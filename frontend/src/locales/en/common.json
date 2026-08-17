@@ -899,6 +899,50 @@
       "failed": "Grading failed."
     }
   },
+  "review": {
+    "title": "Mistake drill",
+    "progress": "{{n}} / {{total}}",
+    "progressLabel": "Session progress",
+    "dueCount_one": "{{count}} question waiting",
+    "dueCount_other": "{{count}} questions waiting",
+    "round": "ROUND {{round}}/{{total}}",
+    "dims": {
+      "fluency": "Fluency",
+      "pronunciation": "Pronunciation",
+      "lexical": "Vocabulary",
+      "grammar": "Grammar",
+      "relevance": "Relevance",
+      "teacher": "From your teacher"
+    },
+    "speakTitle": "Say the answer again",
+    "speakHint": "Record yourself and listen back — then compare with the model answer.",
+    "revealCta": "Show the model answer",
+    "modelLabel": "MODEL ANSWER",
+    "noModel": "No model answer was written for this question. Listen to yourself and judge honestly.",
+    "verdictQuestion": "How did it go this time?",
+    "good": "Said it well",
+    "again": "Needs another go",
+    "answerError": "Could not save that. Please try again.",
+    "done": {
+      "title": "Today's review is done",
+      "body_one": "You worked through {{count}} mistake.",
+      "body_other": "You worked through {{count}} mistakes.",
+      "remaining_one": "{{count}} more question is waiting.",
+      "remaining_other": "{{count}} more questions are waiting.",
+      "cta": "Back to practice"
+    },
+    "empty": {
+      "title": "Nothing to review",
+      "body": "Questions you struggle with collect here. Keep practising and they will show up on their own.",
+      "cta": "Go to practice"
+    },
+    "entry": {
+      "kicker": "YOUR MISTAKES",
+      "body_one": "{{count}} question is waiting for another go.",
+      "body_other": "{{count}} questions are waiting for another go.",
+      "cta": "Start"
+    }
+  },
   "groupBoard": {
     "meta": "{{teacher}} · {{count}} students",
     "classmates": "CLASSMATES",
@@ -934,7 +978,15 @@
     "phrasesLabel": "{{count}} useful phrases",
     "phrasesLabelShort": "USEFUL PHRASES",
     "retry": "Try again",
-    "stubNote": "AI replies are sample (no key connected)."
+    "turnsLeft_one": "{{count}} turn left",
+    "turnsLeft_other": "{{count}} turns left",
+    "heardNothing": "Nothing was heard",
+    "coachLabel": "Corrections",
+    "fixesLabel": "WHAT TO FIX",
+    "turnFailed": "Couldn't send your answer. Try speaking again.",
+    "stateDisabled": "AI chat isn't switched on yet. Coming soon.",
+    "stateUnconfigured": "The AI isn't connected yet — you can't speak just now. No attempt was used.",
+    "stateBudget": "You've used today's conversation limit. Let's continue tomorrow."
   },
   "time": {
     "justNow": "just now",
@@ -1053,6 +1105,7 @@
     "answerCount_one": "{{count}} answer",
     "answerCount_other": "{{count}} answers",
     "choiceUnset": "Not set — the server uses its own default.",
-    "choiceUnknown": "Current value: {{value}} (not in the list)."
+    "choiceUnknown": "Current value: {{value}} (not in the list).",
+    "noneReady": "none ready"
   }
 }
