@@ -10,16 +10,19 @@ namespace Govori.Platform.Stt;
 /// live behind this seam; the grading pipeline (<c>Govori.Assessment</c>) depends only on the
 /// interface, and integration tests swap in <see cref="FakeSttProvider"/>.</para>
 ///
-/// <para><see cref="IsConfigured"/> is the guard: a real provider with no key reports
+/// <para><see cref="IsConfiguredAsync"/> is the guard: a provider with no key reports
 /// <c>false</c>, so the pipeline can DEFER (leave the attempt pending for a durable worker) instead
 /// of failing it. Never transcribe on an unconfigured provider — a missing key must not burn the
 /// student's attempt.</para>
 /// </summary>
 public interface ISttProvider
 {
-    /// <summary>True when this provider can actually transcribe (a key/endpoint is wired). A real
-    /// TODO-stub provider reports <c>false</c> until keys land; the fake reports <c>true</c>.</summary>
-    bool IsConfigured { get; }
+    /// <summary>True when this provider can actually transcribe (a key/endpoint is wired).
+    ///
+    /// <para>Asynchronous because configuration lives in <c>app_settings</c>, not only in the
+    /// environment: an admin pastes a key and the very next submission must see it. A synchronous
+    /// property could only ever report what was true at start-up.</para></summary>
+    ValueTask<bool> IsConfiguredAsync(CancellationToken ct = default);
 
     /// <summary>
     /// Transcribe Russian audio → <see cref="SttResult"/> (text, language, word timings, optional

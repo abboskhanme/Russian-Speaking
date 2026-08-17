@@ -33,7 +33,7 @@ public sealed class FakeSttProvider : ISttProvider
     /// <summary>How many times <see cref="TranscribeAsync"/> ran (0 ⇒ STT was skipped/resumed).</summary>
     public int TranscribeCalls => Volatile.Read(ref _calls);
 
-    public bool IsConfigured => true;
+    public ValueTask<bool> IsConfiguredAsync(CancellationToken ct = default) => ValueTask.FromResult(true);
 
     public Task<SttResult> TranscribeAsync(
         byte[] audio, string filename, string? referenceText, CancellationToken ct = default)

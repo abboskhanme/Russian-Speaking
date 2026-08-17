@@ -13,7 +13,7 @@ namespace Govori.Platform.Stt;
 /// </summary>
 public sealed class AzureSttProvider : ISttProvider
 {
-    public bool IsConfigured => false;
+    public ValueTask<bool> IsConfiguredAsync(CancellationToken ct = default) => ValueTask.FromResult(false);
 
     public Task<SttResult> TranscribeAsync(
         byte[] audio, string filename, string? referenceText, CancellationToken ct = default)
@@ -30,7 +30,7 @@ public sealed class AzureSttProvider : ISttProvider
 /// </summary>
 public sealed class WhisperSttProvider : ISttProvider
 {
-    public bool IsConfigured => false;
+    public ValueTask<bool> IsConfiguredAsync(CancellationToken ct = default) => ValueTask.FromResult(false);
 
     public Task<SttResult> TranscribeAsync(
         byte[] audio, string filename, string? referenceText, CancellationToken ct = default)

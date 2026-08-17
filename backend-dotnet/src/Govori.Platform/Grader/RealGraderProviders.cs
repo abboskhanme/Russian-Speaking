@@ -13,7 +13,7 @@ namespace Govori.Platform.Grader;
 /// </summary>
 public sealed class GeminiGraderProvider : IGraderProvider
 {
-    public bool IsConfigured => false;
+    public ValueTask<bool> IsConfiguredAsync(CancellationToken ct = default) => ValueTask.FromResult(false);
 
     public Task<GraderResult> AnalyzeAsync(GraderRequest request, CancellationToken ct = default)
         => throw new NotImplementedException(
@@ -28,7 +28,7 @@ public sealed class GeminiGraderProvider : IGraderProvider
 /// </summary>
 public sealed class OpenAiGraderProvider : IGraderProvider
 {
-    public bool IsConfigured => false;
+    public ValueTask<bool> IsConfiguredAsync(CancellationToken ct = default) => ValueTask.FromResult(false);
 
     public Task<GraderResult> AnalyzeAsync(GraderRequest request, CancellationToken ct = default)
         => throw new NotImplementedException(

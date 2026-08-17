@@ -8,13 +8,15 @@ namespace Govori.Platform.Grader;
 ///
 /// <para>PURE INFRASTRUCTURE — no domain types. Real backends (Gemini, then OpenAI/Azure OpenAI
 /// fallback) live behind this seam; <c>Govori.Assessment</c> depends only on the interface, and
-/// integration tests swap in <see cref="FakeGraderProvider"/>. <see cref="IsConfigured"/> is the
-/// deferral guard, exactly as on <c>Govori.Platform.Stt.ISttProvider</c>.</para>
+/// integration tests swap in <see cref="FakeGraderProvider"/>. <see cref="IsConfiguredAsync"/> is
+/// the deferral guard, exactly as on <c>Govori.Platform.Stt.ISttProvider</c>.</para>
 /// </summary>
 public interface IGraderProvider
 {
-    /// <summary>True when a real grader key/endpoint is wired. Real TODO-stub reports <c>false</c>.</summary>
-    bool IsConfigured { get; }
+    /// <summary>True when a grader key/endpoint is wired. Asynchronous because the answer comes from
+    /// <c>app_settings</c> (DB override → env default), so a key pasted into the admin panel takes
+    /// effect on the next submission without a restart.</summary>
+    ValueTask<bool> IsConfiguredAsync(CancellationToken ct = default);
 
     /// <summary>Grade one transcript → <see cref="GraderResult"/>.</summary>
     Task<GraderResult> AnalyzeAsync(GraderRequest request, CancellationToken ct = default);

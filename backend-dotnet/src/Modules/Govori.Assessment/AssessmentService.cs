@@ -102,11 +102,11 @@ public sealed class AssessmentService
 
         var isShadowing = !string.IsNullOrWhiteSpace(sub.ReferenceText);
 
-        // GUARD (Faza 3.4/3.9): the prod Azure/Whisper/Gemini/OpenAI providers are TODO stubs with
-        // no keys (IsConfigured=false). When nothing real is wired, DEFER — leave the attempt
-        // pending for the durable worker (Hangfire) to pick up once providers land, rather than
-        // failing it. Fakes (tests) report IsConfigured=true, so the full pipeline runs.
-        if (!_stt.IsConfigured || (!isShadowing && !_grader.IsConfigured))
+        // GUARD (Faza 3.4/3.9): the provider chain reports false when NO backend in the admin's
+        // configured order has a key. When nothing real is wired, DEFER — leave the attempt pending
+        // for the durable worker (Hangfire) to pick up once a key lands, rather than failing it.
+        // Fakes (tests) report true, so the full pipeline runs.
+        if (!await _stt.IsConfiguredAsync(ct) || (!isShadowing && !await _grader.IsConfiguredAsync(ct)))
         {
             _logger.LogInformation(
                 "grading deferred — no STT/Grader provider configured (submission {SubmissionId})", submissionId);

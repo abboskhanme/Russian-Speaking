@@ -57,7 +57,7 @@ public sealed class PlacementService
     public async Task<double> GradeAnswerAsync(int index, byte[] audio, CancellationToken ct)
     {
         // Unscripted open questions → no reference text (memory: transcript stays faithful).
-        if (_stt.IsConfigured && _grader.IsConfigured)
+        if (await _stt.IsConfiguredAsync(ct) && await _grader.IsConfiguredAsync(ct))
         {
             try
             {

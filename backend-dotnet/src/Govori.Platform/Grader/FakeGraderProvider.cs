@@ -24,7 +24,7 @@ public sealed class FakeGraderProvider : IGraderProvider
     /// <summary>How many times the grader ran (0 ⇒ grading was skipped — e.g. shadowing).</summary>
     public int AnalyzeCalls => Volatile.Read(ref _calls);
 
-    public bool IsConfigured => true;
+    public ValueTask<bool> IsConfiguredAsync(CancellationToken ct = default) => ValueTask.FromResult(true);
 
     public Task<GraderResult> AnalyzeAsync(GraderRequest request, CancellationToken ct = default)
     {
