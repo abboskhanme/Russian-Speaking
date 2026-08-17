@@ -46,6 +46,40 @@ ilovaga haqiqiy ruscha nutq yuborilgani uchun ko'rindi, kodni o'qib emas:
    kelmaydi. Tuzatilgandan keyin: matn 95, talaffuz 73, band **90.6** — ya'ni aynan
    `(95×4 + 73)/5`, C5 formulasi nihoyat beshinchi mezonini oldi.
 
+**Admin panel AI sozlamalari — 2026-08-17 kengaytmasi.** Egasining talabi: *"ai turi,
+modeli, va api keyni joylashtirish boshqarish mumkin bo'lsin, eng oxirgi holat bilan
+ishlasin"*. Uchta alohida bo'shliq bor edi:
+
+1. **Ikkita grader va bitta STT backend panelda umuman yo'q edi.** OpenAI kaliti va
+   modeli, Azure OpenAI endpoint/deployment/api-version/kaliti, Whisper modeli — hammasi
+   `Spec` da, hammasi backend tomonidan o'qiladi, va hech biri ekranda yo'q. Yagona yo'l —
+   env o'zgaruvchisi va qayta deploy. `openai_grader_model` esa kontraktda **butunlay**
+   yo'q edi.
+2. **Model ro'yxatlari qattiq edi.** Ertaga chiqadigan modelni tanlab bo'lmasdi. Endi
+   ro'yxatlar — **taklif**, cheklov emas: maydonga istalgan model id yoziladi.
+3. 🔴 **Saqlangan qiymat 30 soniyagacha kuchga kirmasdi.** `AppSettingsCache` — jarayonga
+   xos snapshot, va u faqat **yozgan** jarayonda tozalanardi. Panel API orqali yozadi,
+   baholash esa **Worker** da ishlaydi. Ya'ni kalit qo'yilib saqlangandan keyin ham
+   pipeline yarim daqiqagacha eski konfiguratsiyada ishlardi — va **o'chirilgan** kalit
+   ham o'sha vaqt davomida ishlashda davom etardi. Hech qanday xato chiqmasdi: admin
+   saqlaydi, tekshirish uchun topshiriq yuboradi, eski natijani ko'radi va panelni buzuq
+   deb o'ylaydi.
+
+Endi invalidatsiya Redis pub/sub orqali barcha jarayonlarga tarqaladi. **Faqat signal**
+uzatiladi — snapshot jarayonda qoladi, chunki u har bir topshiriqda o'qiladi va har
+baholash uchun tarmoq so'rovi yomon savdo bo'lardi. Redis yo'qligi xato emas: eski
+TTL xatti-harakatiga tushadi, u ham to'g'ri edi — shunchaki sekinroq.
+
+Isbot: zanjir panel API orqali `openai` ga o'zgartirildi va darhol topshiriq yuborildi →
+Worker `gpt-4o-mini-2024-07-18` bilan baholadi. Zanjir tozalandi, yana darhol →
+`gemini-3.1-flash-lite`. Ilgari ikkalasi ham Gemini bo'lardi. Regressiya testi ham bor:
+tuzatish olib tashlansa — qizil.
+
+Bundan tashqari `POST /api/admin/settings/ai/test` — har bir backendga bitta haqiqiy
+minimal so'rov. Ilgari noto'g'ri kalit **jimgina va kech** yiqilardi: zanjir uni shunchaki
+o'tkazib yuborardi, birinchi alomat esa o'quvchining topshirig'i boshqa vendor tomonidan
+baholanishi edi.
+
 **Keyingi uchta ish, tartib bilan:** (1) Faza 0 — prod zaxirasi **egasi bilan**, chunki qolgan
 hamma narsa unga bog'liq; (2) golden set uchun 40 ta real klip; (3) cutover.
 
