@@ -18,6 +18,13 @@ export interface AdminSecret {
 }
 
 export interface AdminSettings {
+  /** Faza 6 switches. They live on the same read model because the screen shows them,
+   *  but they travel over their own endpoint — they decide whether a surface exists,
+   *  not how the AI behaves. */
+  reviewDrillEnabled: boolean;
+  roleplayEnabled: boolean;
+  roleplayMaxTurns: number;
+  roleplayDailyTurns: number;
   llmProvider: string;
   geminiModel: string;
   knownGeminiModels: Array<{ id: string; label: string; note: string }>;
@@ -85,6 +92,12 @@ export interface AdminSettingsProps {
   onNavigate?: (key: string, item: NavItem) => void;
   onSaveAi?: (patch: AdminSettingsPatch) => Promise<void>;
   onSaveLinks?: (patch: { tgSupportUrl?: string; tgChannelUrl?: string }) => Promise<void>;
+  onSaveFeatures?: (patch: {
+    reviewDrillEnabled: string;
+    roleplayEnabled: string;
+    roleplayMaxTurns: string;
+    roleplayDailyTurns: string;
+  }) => Promise<void>;
 }
 
 
@@ -141,6 +154,7 @@ export function AdminSettingsScreen({
   onNavigate,
   onSaveAi,
   onSaveLinks,
+  onSaveFeatures,
 }: AdminSettingsProps) {
   const { t } = useTranslation();
 
@@ -155,6 +169,10 @@ export function AdminSettingsScreen({
   const [speechKey, setSpeechKey] = useState("");
   const [support, setSupport] = useState(settings.tgSupportUrl);
   const [channel, setChannel] = useState(settings.tgChannelUrl);
+  const [drill, setDrill] = useState(settings.reviewDrillEnabled);
+  const [roleplay, setRoleplay] = useState(settings.roleplayEnabled);
+  const [maxTurns, setMaxTurns] = useState(String(settings.roleplayMaxTurns));
+  const [dailyTurns, setDailyTurns] = useState(String(settings.roleplayDailyTurns));
   const [busy, setBusy] = useState(false);
   const [note, setNote] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -178,6 +196,10 @@ export function AdminSettingsScreen({
     setGraderChain(parseChain(settings.graderChain));
     setSttChain(parseChain(settings.sttChain));
     setOrthoepy(settings.orthoepyEnabled);
+    setDrill(settings.reviewDrillEnabled);
+    setRoleplay(settings.roleplayEnabled);
+    setMaxTurns(String(settings.roleplayMaxTurns));
+    setDailyTurns(String(settings.roleplayDailyTurns));
     setRegion(settings.azureSpeechRegion);
     setSupport(settings.tgSupportUrl);
     setChannel(settings.tgChannelUrl);
@@ -214,6 +236,29 @@ export function AdminSettingsScreen({
         return;
       }
       await onSaveAi?.(patch);
+      setNote(t("admin.saved"));
+    } catch {
+      setError(t("admin.saveFailed"));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const saveFeatures = async () => {
+    if (busy) return;
+    setBusy(true);
+    setNote(null);
+    setError(null);
+    try {
+      // Booleans go over as strings because the server's tri-state needs three states and a
+      // `boolean` carries two; the numbers are sent verbatim so the server can reject an
+      // out-of-range value with a message instead of silently clamping it.
+      await onSaveFeatures?.({
+        reviewDrillEnabled: String(drill),
+        roleplayEnabled: String(roleplay),
+        roleplayMaxTurns: maxTurns.trim(),
+        roleplayDailyTurns: dailyTurns.trim(),
+      });
       setNote(t("admin.saved"));
     } catch {
       setError(t("admin.saveFailed"));
@@ -361,6 +406,65 @@ export function AdminSettingsScreen({
               {t("admin.saveAi")}
             </Button>
           </div>
+        </section>
+
+        {/* ---- Faza 6 feature switches ---- */}
+        {/* Their own section, not a row inside the AI card: these decide whether a SURFACE
+            exists at all, and a switch of that weight buried under "AI sozlamalari" is a
+            switch nobody finds. Both ship OFF — docs/08 is explicit that cutover must not
+            wait on Faza 6. */}
+        <section className={styles.section} aria-label={t("admin.features")}>
+          <Text as="h2" variant="label" color="faint" className={styles.legend}>
+            {t("admin.features")}
+          </Text>
+          <Card variant="outline" padding="md" className={styles.card}>
+            <div className={styles.switchRow}>
+              <span className={styles.switchText}>
+                <Text as="span" variant="body" weight="semibold">
+                  {t("admin.reviewDrill")}
+                </Text>
+                <Text as="span" variant="body-s" color="muted">
+                  {t("admin.reviewDrillHint")}
+                </Text>
+              </span>
+              <Switch checked={drill} onChange={setDrill} aria-label={t("admin.reviewDrill")} />
+            </div>
+            <div className={styles.switchRow}>
+              <span className={styles.switchText}>
+                <Text as="span" variant="body" weight="semibold">
+                  {t("admin.roleplay")}
+                </Text>
+                <Text as="span" variant="body-s" color="muted">
+                  {t("admin.roleplayHint")}
+                </Text>
+              </span>
+              <Switch checked={roleplay} onChange={setRoleplay} aria-label={t("admin.roleplay")} />
+            </div>
+            <Input
+              label={t("admin.roleplayMaxTurns")}
+              type="number"
+              min={1}
+              max={20}
+              value={maxTurns}
+              onChange={(e) => setMaxTurns(e.currentTarget.value)}
+            />
+            <Input
+              label={t("admin.roleplayDailyTurns")}
+              type="number"
+              min={1}
+              max={500}
+              value={dailyTurns}
+              onChange={(e) => setDailyTurns(e.currentTarget.value)}
+            />
+            <Text as="p" variant="body-s" color="muted">
+              {t("admin.roleplayCostHint")}
+            </Text>
+            <div className={styles.actions}>
+              <Button variant="secondary" size="sm" disabled={busy} onClick={() => void saveFeatures()}>
+                {t("admin.saveFeatures")}
+              </Button>
+            </div>
+          </Card>
         </section>
 
         {/* ---- Outbound links ---- */}

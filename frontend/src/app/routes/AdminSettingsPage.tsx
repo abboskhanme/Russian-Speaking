@@ -13,7 +13,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { AdminSettingsScreen } from "../../screens/admin";
 import type { AdminSettings, AdminSettingsPatch } from "../../screens/admin";
 import { endpoints } from "../../shared/api";
-import type { AiSettingsResponse, LinksResponse } from "../../shared/api";
+import type { AiSettingsResponse, FeatureFlagsResponse, LinksResponse } from "../../shared/api";
 import { PageError, PageLoading } from "../PageState";
 import { useAdminNavHandler } from "../nav";
 
@@ -22,6 +22,7 @@ export default function AdminSettingsPage() {
 
   const [ai, setAi] = useState<AiSettingsResponse | null>(null);
   const [links, setLinks] = useState<LinksResponse | null>(null);
+  const [flags, setFlags] = useState<FeatureFlagsResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [failed, setFailed] = useState(false);
   const [reloadKey, setReloadKey] = useState(0);
@@ -33,8 +34,8 @@ export default function AdminSettingsPage() {
     setLoading(true);
     setFailed(false);
 
-    Promise.allSettled([endpoints.adminAiSettings(), endpoints.adminLinks()])
-      .then(([a, l]) => {
+    Promise.allSettled([endpoints.adminAiSettings(), endpoints.adminLinks(), endpoints.adminFeatureFlags()])
+      .then(([a, l, f]) => {
         if (!alive) return;
         // The AI settings are load-bearing; the links are not, so a failing links
         // read costs that card its values, not the page.
@@ -44,6 +45,19 @@ export default function AdminSettingsPage() {
         }
         setAi(a.value);
         setLinks(l.status === "fulfilled" ? l.value : { tg_support_url: "", tg_channel_url: "" });
+        // Like the links: a failing flags read costs that card its values, not the page.
+        // The fallback mirrors the server defaults, so a reader is never told a feature is
+        // on when the server could not say.
+        setFlags(
+          f.status === "fulfilled"
+            ? f.value
+            : {
+                review_drill_enabled: false,
+                roleplay_enabled: false,
+                roleplay_max_turns: 8,
+                roleplay_daily_turns: 24,
+              },
+        );
       })
       .finally(() => alive && setLoading(false));
 
@@ -53,8 +67,12 @@ export default function AdminSettingsPage() {
   }, [reloadKey]);
 
   const settings = useMemo<AdminSettings | null>(() => {
-    if (!ai || !links) return null;
+    if (!ai || !links || !flags) return null;
     return {
+      reviewDrillEnabled: flags.review_drill_enabled,
+      roleplayEnabled: flags.roleplay_enabled,
+      roleplayMaxTurns: flags.roleplay_max_turns,
+      roleplayDailyTurns: flags.roleplay_daily_turns,
       llmProvider: ai.llm_provider,
       geminiModel: ai.gemini_model,
       knownGeminiModels: ai.known_gemini_models,
@@ -127,6 +145,25 @@ export default function AdminSettingsPage() {
     [],
   );
 
+  const saveFeatures = useCallback(
+    async (patch: {
+      reviewDrillEnabled: string;
+      roleplayEnabled: string;
+      roleplayMaxTurns: string;
+      roleplayDailyTurns: string;
+    }) => {
+      setFlags(
+        await endpoints.adminUpdateFeatureFlags({
+          review_drill_enabled: patch.reviewDrillEnabled,
+          roleplay_enabled: patch.roleplayEnabled,
+          roleplay_max_turns: patch.roleplayMaxTurns,
+          roleplay_daily_turns: patch.roleplayDailyTurns,
+        }),
+      );
+    },
+    [],
+  );
+
   if (loading) return <PageLoading />;
   if (failed || !settings) return <PageError onRetry={refetch} />;
 
@@ -137,6 +174,7 @@ export default function AdminSettingsPage() {
       onNavigate={onNavigate}
       onSaveAi={saveAi}
       onSaveLinks={saveLinks}
+      onSaveFeatures={saveFeatures}
     />
   );
 }

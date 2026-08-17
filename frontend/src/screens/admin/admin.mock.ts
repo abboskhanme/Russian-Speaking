@@ -30,6 +30,11 @@ export const mockAdminStudents: AdminPerson[] = [
 ];
 
 export const mockAdminSettings: AdminSettings = {
+  // Faza 6 switches — mirrored OFF, which is how they actually ship.
+  reviewDrillEnabled: false,
+  roleplayEnabled: false,
+  roleplayMaxTurns: 8,
+  roleplayDailyTurns: 24,
   llmProvider: "auto",
   geminiModel: "gemini-2.0-flash",
   knownGeminiModels: [

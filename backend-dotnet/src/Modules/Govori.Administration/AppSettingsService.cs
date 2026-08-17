@@ -67,6 +67,14 @@ public sealed class AppSettingsService
             ["openai_api_key"] = ("OPENAI_API_KEY", true),
             ["whisper_model"] = ("WHISPER_MODEL", false),
             ["openai_grader_model"] = ("OPENAI_GRADER_MODEL", false),
+            // Faza 6 feature switches. They are read at runtime by the modules that own them
+            // (Engagement, Practice) straight off app_settings — but a key absent from Spec is
+            // silently DROPPED on write, so without these four rows the admin panel could display
+            // a toggle that saves nothing.
+            ["review_drill_enabled"] = ("REVIEW_DRILL_ENABLED", false),
+            ["roleplay_enabled"] = ("ROLEPLAY_ENABLED", false),
+            ["roleplay_max_turns"] = ("ROLEPLAY_MAX_TURNS", false),
+            ["roleplay_daily_turns"] = ("ROLEPLAY_DAILY_TURNS", false),
             ["tg_support_url"] = ("TG_SUPPORT_URL", false),
             ["tg_channel_url"] = ("TG_CHANNEL_URL", false),
             // Ordered-chain routing + the Anthropic backend. These four MUST be listed here
@@ -297,4 +305,25 @@ public sealed class AppSettingsService
             AnthropicModel: await GetAsync("anthropic_model", AiProviders.DefaultAnthropicModel, ct),
             KnownAnthropicModels: KnownAnthropicModels);
     }
+
+    /// <summary>
+    /// The Faza 6 feature switches as the admin panel should see them.
+    ///
+    /// <para>Defaults mirror the owning modules exactly — <b>both features OFF</b>, turn ceiling 8,
+    /// daily budget 24. They are repeated here rather than imported because Administration must not
+    /// reference Engagement or Practice (ArchTests rule 4); the cost of that boundary is this
+    /// duplication, and the mitigation is that a drift shows up as a wrong number on screen rather
+    /// than as wrong behaviour — the modules never read these values back.</para>
+    /// </summary>
+    public async Task<FeatureFlagsResponse> GetFeatureFlagsAsync(CancellationToken ct = default)
+        => new(
+            ReviewDrillEnabled: TrueWords.Contains((await GetAsync("review_drill_enabled", "false", ct)).Trim().ToLowerInvariant()),
+            RoleplayEnabled: TrueWords.Contains((await GetAsync("roleplay_enabled", "false", ct)).Trim().ToLowerInvariant()),
+            RoleplayMaxTurns: Clamp(await GetAsync("roleplay_max_turns", "", ct), 8, 1, 20),
+            RoleplayDailyTurns: Clamp(await GetAsync("roleplay_daily_turns", "", ct), 24, 1, 500));
+
+    // A malformed or out-of-range stored value falls back to the default rather than throwing: the
+    // settings row is admin-editable text, and one bad character must not take the panel down.
+    private static int Clamp(string raw, int fallback, int min, int max)
+        => int.TryParse(raw, out var n) ? Math.Clamp(n, min, max) : fallback;
 }

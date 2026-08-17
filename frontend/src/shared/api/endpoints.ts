@@ -37,6 +37,8 @@ import type {
   JoinGroupResponse,
   LeaderboardEntryResponse,
   LinksResponse,
+  FeatureFlagsResponse,
+  FeatureFlagsUpdateArgs,
   LinksUpdateArgs,
   RevealResponse,
   MeResponse,
@@ -743,6 +745,18 @@ export function adminUpdateAiSettings(args: AiSettingsUpdateArgs): Promise<AiSet
  * default, and this is only called when an admin asks to see the value. */
 export function adminRevealSecret(key: string): Promise<RevealResponse> {
   return apiClient.get<RevealResponse>(`/admin/settings/reveal/${encodeURIComponent(key)}`);
+}
+
+/** GET /api/admin/settings/features → the Faza 6 feature switches. */
+export function adminFeatureFlags(): Promise<FeatureFlagsResponse> {
+  return apiClient.get<FeatureFlagsResponse>("/admin/settings/features");
+}
+
+/** PATCH /api/admin/settings/features → tri-state update of the feature switches. */
+export function adminUpdateFeatureFlags(
+  args: FeatureFlagsUpdateArgs,
+): Promise<FeatureFlagsResponse> {
+  return apiClient.patch<FeatureFlagsResponse>("/admin/settings/features", args);
 }
 
 /** GET /api/admin/settings/links → the outbound Telegram links (admin view). */

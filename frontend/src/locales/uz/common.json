@@ -1106,6 +1106,15 @@
     "answerCount_other": "{{count}} javob",
     "choiceUnset": "Tanlanmagan — server o‘z standartini ishlatadi.",
     "choiceUnknown": "Hozirgi qiymat: {{value}} (ro‘yxatda yo‘q).",
-    "noneReady": "hech biri tayyor emas"
+    "noneReady": "hech biri tayyor emas",
+    "features": "Funksiyalar",
+    "reviewDrill": "Xatolar ustida ishlash",
+    "reviewDrillHint": "O'quvchi qiynalgan savolni qayta ishlaydi va interval bo'yicha qaytadi.",
+    "roleplay": "AI Suhbat",
+    "roleplayHint": "Ssenariy bo'yicha jonli suhbat. Har bir gapirish turi AI'ga pul turadi.",
+    "roleplayMaxTurns": "Bitta suhbatdagi eng ko'p tur",
+    "roleplayDailyTurns": "Bir o'quvchiga kunlik tur",
+    "roleplayCostHint": "Ikkala chegara ham xarajatni ushlab turadi. Kunlik hisob UTC yarim tunda yangilanadi.",
+    "saveFeatures": "Funksiyalarni saqlash"
   }
 }

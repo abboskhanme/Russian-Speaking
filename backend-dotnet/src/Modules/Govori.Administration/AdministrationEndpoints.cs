@@ -172,6 +172,55 @@ public static class AdministrationEndpoints
             return Results.Ok(await svc.GetAiSettingsAsync(ct));
         }).RequireAuthorization();
 
+        // GET /api/admin/settings/features — the Faza 6 switches (docs/08 Faza 6).
+        settings.MapGet("/features", async (ClaimsPrincipal p, AdministrationService admin, AppSettingsService svc, CancellationToken ct) =>
+        {
+            var (uid, deny) = await AdminGate(p, admin, ct);
+            return deny ?? Results.Ok(await svc.GetFeatureFlagsAsync(ct));
+        }).RequireAuthorization();
+
+        // PATCH /api/admin/settings/features — same tri-state upsert as the AI settings.
+        //
+        // A separate route rather than more fields on /ai: these decide whether a SURFACE exists,
+        // not how the AI behaves, and a feature switch buried in a screen called "AI sozlamalari"
+        // is a switch nobody finds.
+        settings.MapPatch("/features", async (FeatureFlagsUpdate body, ClaimsPrincipal p, AdministrationService admin, AppSettingsService svc, CancellationToken ct) =>
+        {
+            var (uid, deny) = await AdminGate(p, admin, ct);
+            if (deny is not null) return deny;
+
+            var vals = new Dictionary<string, string?>();
+            Add(vals, "review_drill_enabled", body.ReviewDrillEnabled);
+            Add(vals, "roleplay_enabled", body.RoleplayEnabled);
+            Add(vals, "roleplay_max_turns", body.RoleplayMaxTurns);
+            Add(vals, "roleplay_daily_turns", body.RoleplayDailyTurns);
+
+            foreach (var key in new[] { "review_drill_enabled", "roleplay_enabled" })
+            {
+                if (!vals.TryGetValue(key, out var v) || v is null || v.Length == 0)
+                    continue;                       // "" clears the override — legal, not a value
+                var norm = v.Trim().ToLowerInvariant();
+                if (!TrueWords.Contains(norm) && !FalseWords.Contains(norm))
+                    return Detail($"{key} must be 'true' or 'false'", StatusCodes.Status400BadRequest);
+                vals[key] = TrueWords.Contains(norm) ? "true" : "false";
+            }
+
+            // Bounds are validated HERE as well as clamped on read. Clamping alone would accept
+            // `roleplay_daily_turns = 100000`, store it, and then silently show 500 back — an admin
+            // would reasonably conclude the field is broken rather than that they exceeded a limit.
+            foreach (var (key, min, max) in new[] { ("roleplay_max_turns", 1, 20), ("roleplay_daily_turns", 1, 500) })
+            {
+                if (!vals.TryGetValue(key, out var v) || v is null || v.Length == 0)
+                    continue;
+                if (!int.TryParse(v.Trim(), out var n) || n < min || n > max)
+                    return Detail($"{key} must be a whole number between {min} and {max}", StatusCodes.Status400BadRequest);
+                vals[key] = n.ToString();
+            }
+
+            await svc.SetManyAsync(vals, ct);
+            return Results.Ok(await svc.GetFeatureFlagsAsync(ct));
+        }).RequireAuthorization();
+
         // GET /api/admin/settings/reveal/{key} — the raw secret value, for the admin's "show" button.
         // Restricted to the known secret keys so this can't be used to dump arbitrary settings.
         settings.MapGet("/reveal/{key}", async (string key, ClaimsPrincipal p, AdministrationService admin, AppSettingsService svc, CancellationToken ct) =>

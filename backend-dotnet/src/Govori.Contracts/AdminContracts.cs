@@ -106,6 +106,42 @@ public sealed record LinksResponse(string TgSupportUrl, string TgChannelUrl);
 /// <see cref="AiSettingsUpdate"/>).</summary>
 public sealed record LinksUpdate(string? TgSupportUrl = null, string? TgChannelUrl = null);
 
+// ─── Faza 6 feature flags ────────────────────────────────────────────────────
+
+/// <summary>
+/// The Faza 6 feature switches, read model for the admin UI.
+///
+/// <para>These live in their own contract rather than inside <see cref="AiSettingsResponse"/>
+/// because they are not AI configuration: they decide whether a SURFACE exists at all. Folding a
+/// feature switch into a screen named "AI sozlamalari" is how a setting ends up somewhere nobody
+/// thinks to look for it.</para>
+///
+/// <para>Without this the flags were reachable only by hand-writing an <c>app_settings</c> row or
+/// restarting with an env var — which means a feature that shipped behind a flag did not, in
+/// practice, ship at all for the person who owns the product.</para>
+/// </summary>
+public sealed record FeatureFlagsResponse(
+    bool ReviewDrillEnabled,
+    bool RoleplayEnabled,
+    int RoleplayMaxTurns,
+    int RoleplayDailyTurns);
+
+/// <summary>
+/// Partial update of the feature flags. Same tri-state contract as every other settings write:
+/// omit a field to leave it alone, send <c>""</c> to clear the override back to the environment
+/// default, or a value to store it.
+///
+/// <para>Every field is a STRING, including the two booleans — the same choice
+/// <c>orthoepy_enabled</c> already makes. A <c>bool?</c> can only express two of the three states
+/// the tri-state needs, so "turn this off" and "leave it as it is" would collapse into the same
+/// request and an admin toggling one flag would silently clear the other.</para>
+/// </summary>
+public sealed record FeatureFlagsUpdate(
+    string? ReviewDrillEnabled = null,
+    string? RoleplayEnabled = null,
+    string? RoleplayMaxTurns = null,
+    string? RoleplayDailyTurns = null);
+
 // ─── Admin user management ───────────────────────────────────────────────────
 
 /// <summary>Dashboard counters for the admin landing page.</summary>

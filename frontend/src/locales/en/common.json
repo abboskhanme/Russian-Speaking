@@ -1106,6 +1106,15 @@
     "answerCount_other": "{{count}} answers",
     "choiceUnset": "Not set — the server uses its own default.",
     "choiceUnknown": "Current value: {{value}} (not in the list).",
-    "noneReady": "none ready"
+    "noneReady": "none ready",
+    "features": "Features",
+    "reviewDrill": "Mistake drill",
+    "reviewDrillHint": "The student redoes a question they struggled with; it returns on a spaced schedule.",
+    "roleplay": "AI conversation",
+    "roleplayHint": "A scripted-scenario conversation. Every spoken turn costs an AI call.",
+    "roleplayMaxTurns": "Max turns per conversation",
+    "roleplayDailyTurns": "Turns per student per day",
+    "roleplayCostHint": "Both limits contain the spend. The daily count resets at UTC midnight.",
+    "saveFeatures": "Save features"
   }
 }

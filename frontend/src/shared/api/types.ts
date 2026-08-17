@@ -685,6 +685,25 @@ export interface AssignmentResponse {
 
 /** GET /api/settings/links → the deployment's Telegram destinations, powering
  * the "Yordam markazi" modal. Both are absolute `https://t.me/…` URLs. */
+/** GET /api/admin/settings/features — the Faza 6 switches. Separate from the AI
+ *  settings because they decide whether a surface EXISTS, not how the AI behaves. */
+export interface FeatureFlagsResponse {
+  review_drill_enabled: boolean;
+  roleplay_enabled: boolean;
+  roleplay_max_turns: number;
+  roleplay_daily_turns: number;
+}
+
+/** PATCH body. Everything is a string, booleans included — the tri-state needs
+ *  three states (omit = keep, "" = clear to the env default, value = store) and a
+ *  `boolean | undefined` can only express two. */
+export interface FeatureFlagsUpdateArgs {
+  review_drill_enabled?: string;
+  roleplay_enabled?: string;
+  roleplay_max_turns?: string;
+  roleplay_daily_turns?: string;
+}
+
 export interface LinksResponse {
   tg_support_url: string;
   tg_channel_url: string;
