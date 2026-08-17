@@ -8,7 +8,8 @@ namespace Govori.Engagement;
 
 /// <summary>
 /// The Engagement domain's HTTP surface (docs/07 §3.6, Faza 3.6) — the leaderboard, the spaced-
-/// repetition review queue and in-app notifications. Follows the MODULAR-ENDPOINT PATTERN established
+/// repetition review queue (plus its flagged F5 replay drill) and in-app notifications. Follows the
+/// MODULAR-ENDPOINT PATTERN established
 /// by <c>MapIdentityEndpoints</c>/<c>MapCatalogEndpoints</c>/<c>MapPracticeEndpoints</c>/
 /// <c>MapClassroomEndpoints</c>: a single <c>Map*Endpoints</c> extension the composition root calls.
 ///
@@ -86,6 +87,27 @@ public static class EngagementEndpoints
             if (!TryGetUserId(principal, out var userId)) return Results.Unauthorized();
             var r = await svc.CreateReviewsAsync(userId, body, ct);
             return Map(r, StatusCodes.Status201Created, notFound: "No matching questions", forbidden: "Teacher role required");
+        }).RequireAuthorization();
+
+        // GET /api/review/drill — one xato-replay session (docs/08 Faza 6.1). 404 while the
+        // `review_drill_enabled` flag is off: the two write/read routes below are the whole feature,
+        // and a flagged-off feature has no surface rather than an empty one. The client reads that
+        // 404 as "not shipped here" and hides its entry point.
+        review.MapGet("/drill", async (ClaimsPrincipal principal, EngagementService svc, CancellationToken ct) =>
+        {
+            if (!TryGetUserId(principal, out var userId)) return Results.Unauthorized();
+            var r = await svc.DrillAsync(userId, ct);
+            return Map(r, StatusCodes.Status200OK, notFound: "Review drill is not enabled");
+        }).RequireAuthorization();
+
+        // POST /api/review/{id}/answer — the student's verdict on one replay ("good" | "again"),
+        // which moves the item along the SRS ladder → 200 with its new state.
+        review.MapPost("/{id:guid}/answer", async (
+            Guid id, ReviewAnswerRequest body, ClaimsPrincipal principal, EngagementService svc, CancellationToken ct) =>
+        {
+            if (!TryGetUserId(principal, out var userId)) return Results.Unauthorized();
+            var r = await svc.AnswerReviewAsync(userId, id, body, ct);
+            return Map(r, StatusCodes.Status200OK, notFound: "Review item not found");
         }).RequireAuthorization();
     }
 

@@ -1,0 +1,184 @@
+/* ReviewDrillScreen — "Xatolar ustida", the F5 xato-replay drill (docs/08 Faza
+ * 6.1). Composed from shared/ui + widgets; every colour / space / radius /
+ * shadow / motion value is a token, so light and dark both come from
+ * tokens.css. Full-width per docs/04 §4.10 — the page root spans its column
+ * with no max-width + auto-margin centring. */
+
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-5);
+  width: 100%;
+}
+
+/* ---- Session progress ---- */
+
+.progress {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+  width: 100%;
+}
+.progressHead {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--s-3);
+}
+.track {
+  height: 6px;
+  border-radius: var(--r-pill);
+  background: var(--line);
+  overflow: hidden;
+}
+.fill {
+  height: 100%;
+  border-radius: var(--r-pill);
+  background: var(--primary);
+  transition: width var(--m-base);
+}
+
+/* ---- The drill card ---- */
+
+/* Two columns from md up: the prompt on the left, the speaking/verdict work on
+ * the right. Below that they stack in reading order. The card itself always
+ * fills the width — the columns are how the desktop space gets used, not a
+ * centred measure. */
+.card {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--s-5);
+  width: 100%;
+}
+@media (min-width: 900px) {
+  .card {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: var(--s-8);
+    align-items: start;
+  }
+}
+
+.col {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-3);
+  min-width: 0;
+}
+
+.tags {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s-2);
+}
+
+.title {
+  font-weight: var(--fw-black);
+  letter-spacing: -0.01em;
+}
+
+/* The words to say again — the loudest thing on the card, because it is the
+ * whole point of opening it. */
+.prompt {
+  margin: 0;
+  padding: var(--s-4);
+  border-radius: var(--r-lg);
+  background: var(--surface-2);
+  border-inline-start: 3px solid var(--primary);
+  font-size: var(--t-title-s-size);
+  font-weight: var(--fw-semibold);
+  line-height: 1.45;
+  color: var(--ink);
+}
+
+.instruction {
+  margin: 0;
+  padding: var(--s-3) var(--s-4);
+  border-radius: var(--r-md);
+  background: var(--primary-tint);
+  color: var(--ink-soft);
+}
+
+/* ---- Speak step ---- */
+
+.speak {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-3);
+}
+.speakHead {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-1);
+}
+.reveal {
+  align-self: flex-start;
+}
+
+/* ---- Verdict step ---- */
+
+.model {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+  padding: var(--s-4);
+  border-radius: var(--r-lg);
+  background: var(--success-tint);
+}
+.modelLabel {
+  letter-spacing: var(--t-label-tracking);
+  color: var(--success);
+}
+.modelText {
+  margin: 0;
+  line-height: 1.5;
+  color: var(--ink);
+}
+
+.verdict {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-3);
+}
+/* Side by side once there is room; stacked on a phone so neither verdict is a
+ * thumb-stretch away. The two are deliberately different weights — "again" is
+ * not a failure state, so it is secondary rather than danger. */
+.verdictActions {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--s-3);
+}
+@media (min-width: 480px) {
+  .verdictActions {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.error {
+  color: var(--danger);
+}
+
+/* ---- Empty + done states ---- */
+
+.state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--s-3);
+  padding-block: var(--s-8);
+  text-align: center;
+  width: 100%;
+}
+.stateText {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-1);
+  max-inline-size: 46ch;
+}
+.stateActions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--s-3);
+  margin-top: var(--s-2);
+}

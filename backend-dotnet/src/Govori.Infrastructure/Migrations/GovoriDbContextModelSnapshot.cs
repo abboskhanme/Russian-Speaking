@@ -698,6 +698,201 @@ namespace Govori.Infrastructure.Migrations
                     b.ToTable("review_items", (string)null);
                 });
 
+            modelBuilder.Entity("Govori.Infrastructure.Entities.RoleplayTurn", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<double?>("AudioDurationSec")
+                        .HasColumnType("double precision")
+                        .HasColumnName("audio_duration_sec");
+
+                    b.Property<int>("BeatIndex")
+                        .HasColumnType("integer")
+                        .HasColumnName("beat_index");
+
+                    b.Property<Guid>("ConversationId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("conversation_id");
+
+                    b.Property<string>("Corrections")
+                        .HasColumnType("jsonb")
+                        .HasColumnName("corrections");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at")
+                        .HasDefaultValueSql("now()");
+
+                    b.Property<bool>("IsFinal")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false)
+                        .HasColumnName("is_final");
+
+                    b.Property<string>("LlmModel")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("llm_model");
+
+                    b.Property<double?>("Overall")
+                        .HasColumnType("double precision")
+                        .HasColumnName("overall");
+
+                    b.Property<string>("PartnerText")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("partner_text");
+
+                    b.Property<double?>("Relevance")
+                        .HasColumnType("double precision")
+                        .HasColumnName("relevance");
+
+                    b.Property<Guid>("ScenarioId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("scenario_id");
+
+                    b.Property<string>("SttModel")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("stt_model");
+
+                    b.Property<Guid>("StudentId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("student_id");
+
+                    b.Property<string>("StudentText")
+                        .HasColumnType("text")
+                        .HasColumnName("student_text");
+
+                    b.Property<int>("TurnIndex")
+                        .HasColumnType("integer")
+                        .HasColumnName("turn_index");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at")
+                        .HasDefaultValueSql("now()");
+
+                    b.HasKey("Id")
+                        .HasName("roleplay_turns_pkey");
+
+                    b.HasIndex("ScenarioId")
+                        .HasDatabaseName("ix_roleplay_turns_scenario_id");
+
+                    b.HasIndex("ConversationId", "TurnIndex")
+                        .IsUnique()
+                        .HasDatabaseName("uq_roleplay_turn_position");
+
+                    b.HasIndex("StudentId", "CreatedAt")
+                        .HasDatabaseName("ix_roleplay_turns_student_created");
+
+                    b.ToTable("roleplay_turns", (string)null);
+                });
+
+            modelBuilder.Entity("Govori.Infrastructure.Entities.Scenario", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<string>("Beats")
+                        .IsRequired()
+                        .HasColumnType("jsonb")
+                        .HasColumnName("beats");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at")
+                        .HasDefaultValueSql("now()");
+
+                    b.Property<string>("GoalUz")
+                        .IsRequired()
+                        .HasMaxLength(240)
+                        .HasColumnType("character varying(240)")
+                        .HasColumnName("goal_uz");
+
+                    b.Property<string>("Icon")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)")
+                        .HasColumnName("icon");
+
+                    b.Property<bool>("IsActive")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(true)
+                        .HasColumnName("is_active");
+
+                    b.Property<string>("Level")
+                        .IsRequired()
+                        .HasMaxLength(8)
+                        .HasColumnType("character varying(8)")
+                        .HasColumnName("level");
+
+                    b.Property<int>("Minutes")
+                        .HasColumnType("integer")
+                        .HasColumnName("minutes");
+
+                    b.Property<string>("OpeningRu")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("opening_ru");
+
+                    b.Property<string>("PersonaRu")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("persona_ru");
+
+                    b.Property<string>("Phrases")
+                        .IsRequired()
+                        .HasColumnType("jsonb")
+                        .HasColumnName("phrases");
+
+                    b.Property<string>("Slug")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("slug");
+
+                    b.Property<int>("SortOrder")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(0)
+                        .HasColumnName("sort_order");
+
+                    b.Property<string>("TitleRu")
+                        .IsRequired()
+                        .HasMaxLength(160)
+                        .HasColumnType("character varying(160)")
+                        .HasColumnName("title_ru");
+
+                    b.Property<string>("Tone")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)")
+                        .HasColumnName("tone");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at")
+                        .HasDefaultValueSql("now()");
+
+                    b.HasKey("Id")
+                        .HasName("scenarios_pkey");
+
+                    b.HasIndex("Slug")
+                        .IsUnique()
+                        .HasDatabaseName("uq_scenarios_slug");
+
+                    b.ToTable("scenarios", (string)null);
+                });
+
             modelBuilder.Entity("Govori.Infrastructure.Entities.ShadowingPhrase", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1376,6 +1571,27 @@ namespace Govori.Infrastructure.Migrations
                         .HasConstraintName("review_items_student_id_fkey");
 
                     b.Navigation("Question");
+
+                    b.Navigation("Student");
+                });
+
+            modelBuilder.Entity("Govori.Infrastructure.Entities.RoleplayTurn", b =>
+                {
+                    b.HasOne("Govori.Infrastructure.Entities.Scenario", "Scenario")
+                        .WithMany()
+                        .HasForeignKey("ScenarioId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("roleplay_turns_scenario_id_fkey");
+
+                    b.HasOne("Govori.Infrastructure.Entities.User", "Student")
+                        .WithMany()
+                        .HasForeignKey("StudentId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("roleplay_turns_student_id_fkey");
+
+                    b.Navigation("Scenario");
 
                     b.Navigation("Student");
                 });

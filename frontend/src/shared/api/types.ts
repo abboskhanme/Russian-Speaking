@@ -690,6 +690,67 @@ export interface LinksResponse {
   tg_channel_url: string;
 }
 
+/* ── Xato-replay drill (EngagementContracts.cs — docs/08 Faza 6.1) ────────── */
+
+/** GET /api/review/drill → one card of a drill session: a question the student
+ * got wrong, with the full text they have to say again (the queue's list shape
+ * carries only a title — a drill card needs the words).
+ *
+ * `weakness_dim` is WHY it is here: one of fluency · lexical · grammar ·
+ * relevance, or "teacher" when a teacher queued it by hand. Treat it as an open
+ * string — an unknown dimension must still render, so the screen falls back to
+ * the raw value rather than dropping the card.
+ *
+ * `round` / `total_rounds` are 1-based ("2 / 5"): the position on the spaced
+ * repetition ladder, counted the way a person counts their own revisions. */
+export interface ReviewDrillItemResponse {
+  id: string;
+  question_id: string;
+  question_title: string;
+  prompt_text: string;
+  instruction_text: string | null;
+  model_answer_text: string | null;
+  question_topic: string | null;
+  question_level: string | null;
+  weakness_dim: string;
+  round: number;
+  total_rounds: number;
+  due_at: string;
+}
+
+/** GET /api/review/drill → the session. `due_count` is everything due right now
+ * while `items` is only the slice this session serves, so a student with forty
+ * overdue items is handed a finishable set — the screen shows both numbers
+ * rather than implying the shorter one is the whole backlog.
+ *
+ * A **404** from this route means the `review_drill_enabled` flag is off in this
+ * deployment. That is the documented "not shipped here" signal (docs/08 Faza 6 —
+ * deploy ≠ release), not an error to surface: callers hide the entry point. */
+export interface ReviewDrillResponse {
+  due_count: number;
+  total_rounds: number;
+  items: ReviewDrillItemResponse[];
+}
+
+/** POST /api/review/{id}/answer — the student's verdict on their own replay.
+ * "good" climbs a rung of the ladder, "again" drops it back to the first
+ * interval. Nothing else is accepted (400), because a guessed default would
+ * quietly corrupt a schedule the student cannot see. */
+export type ReviewAnswerOutcome = "good" | "again";
+
+/** POST /api/review/{id}/answer → the ladder after the answer. `next_due_at` is
+ * null exactly when `graduated` is true — the item survived every interval and
+ * will not come back. `remaining_due` is the server's recount AFTER this answer,
+ * so the session advances on a fact rather than on its own optimism. */
+export interface ReviewAnswerResponse {
+  id: string;
+  round: number;
+  total_rounds: number;
+  graduated: boolean;
+  next_due_at: string | null;
+  remaining_due: number;
+}
+
 /* ── Notifications (NotificationContracts.cs) — the header bell ──────────── */
 
 /** GET /api/notifications → one row of the notifications centre, newest first.

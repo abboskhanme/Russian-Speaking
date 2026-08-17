@@ -1,6 +1,7 @@
 import { useTranslation } from "react-i18next";
 import { Badge, Button, Card, Mascot, StatTile, Text } from "../../shared/ui";
 import type { Scenario } from "./scenarios";
+import type { RoleplayCorrection } from "./roleplayApi";
 import styles from "./ConversationSummary.module.css";
 
 /* -------------------------------------------------------------------------- */
@@ -10,14 +11,21 @@ import styles from "./ConversationSummary.module.css";
 export interface ConversationSummaryProps {
   /** The scenario just played (title for context). */
   scenario: Scenario;
-  /** Did the student complete enough turns to count the goal as reached? */
+  /** Did the partner get through every beat of the scenario? */
   goalReached: boolean;
   /** Number of student turns taken in this run. */
   turns: number;
-  /** Stubbed fluency estimate, 0..100 (derived from the run by the page). */
-  fluency: number;
-  /** Three useful phrases from the scenario script (RU, literal). */
+  /**
+   * Mean of the per-turn AI grades, 0..100 — or `null` when nothing was graded
+   * (the student said nothing, or the grader was unreachable the whole run). Null
+   * shows a dash: a run with no judgement behind it must not display a number the
+   * student could mistake for one they earned.
+   */
+  fluency: number | null;
+  /** Three useful phrases from the scenario (RU, literal). */
   phrases: string[];
+  /** The run's merged corrections, deduplicated by the API. */
+  corrections?: RoleplayCorrection[];
   /** "Yana urinish →" — restart the same scenario. */
   onRetry: () => void;
   /** Optional "back to practice" — the header/secondary exit. */
@@ -43,6 +51,7 @@ export function ConversationSummary({
   turns,
   fluency,
   phrases,
+  corrections,
   onRetry,
   onBack,
 }: ConversationSummaryProps) {
@@ -73,11 +82,38 @@ export function ConversationSummary({
           />
           <StatTile
             variant="outline"
-            value={Math.round(fluency)}
-            unit="%"
+            value={fluency === null ? "—" : Math.round(fluency)}
+            unit={fluency === null ? undefined : "%"}
             label={t("suhbat.fluency")}
           />
         </div>
+
+        {/* ---- What to fix — the run's merged coaching ---- */}
+        {corrections && corrections.length > 0 && (
+          <section className={styles.fixesSection} aria-label={t("suhbat.fixesLabel")}>
+            <Text as="h2" variant="label" color="faint" className={styles.phrasesLabel}>
+              {t("suhbat.fixesLabel")}
+            </Text>
+            <Card variant="outline" padding="none" className={styles.phrasesCard}>
+              <ul className={styles.phraseList}>
+                {corrections.map((c, i) => (
+                  <li key={i} className={styles.fixRow}>
+                    <Text as="span" variant="body" className={styles.fixLine}>
+                      <s className={styles.fixWas}>{c.original}</s>
+                      <span aria-hidden> → </span>
+                      <b>{c.corrected}</b>
+                    </Text>
+                    {c.explanation && (
+                      <Text as="span" variant="body-s" color="muted">
+                        {c.explanation}
+                      </Text>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            </Card>
+          </section>
+        )}
 
         {/* ---- Useful phrases ---- */}
         <section className={styles.phrasesSection} aria-label={t("suhbat.phrasesLabelShort")}>

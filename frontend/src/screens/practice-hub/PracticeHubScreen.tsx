@@ -1,6 +1,6 @@
 import { useCallback, useId, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Tabs, Text } from "../../shared/ui";
+import { Button, Card, Tabs, Text } from "../../shared/ui";
 import { AppShell, Brand, NotificationsBell, studentNavItems } from "../../widgets";
 import type { NavItem } from "../../widgets";
 import { ModulesTab } from "./tabs/ModulesTab";
@@ -18,6 +18,16 @@ import styles from "./PracticeHubScreen.module.css";
  * own destination behind the centre FAB, not a Mashq tab.) */
 export type PracticeHubTabKey = "modules" | "assignments";
 
+/** The «Xatolar ustida» entry — how the F5 replay drill is reached (docs/04 §4.1
+ * puts the SRS drill inside Mashq, as a way to practise rather than a sixth
+ * destination, which is why it is a card here and not a nav item). */
+export interface PracticeHubReviewDrill {
+  /** Reviews due right now. The entry hides itself at 0 — an entry point to an
+   * empty drill is an invitation to a dead end. */
+  dueCount: number;
+  onStart: () => void;
+}
+
 export interface PracticeHubScreenProps {
   /** Modullar tab — the student's modules (D1/E1). */
   modules: PracticeModule[];
@@ -28,6 +38,10 @@ export interface PracticeHubScreenProps {
   assignments: AssignmentsTabProps["assignments"];
   /** Start an assignment on the task recording screen. */
   onStartTask: AssignmentsTabProps["onStart"];
+
+  /** Xatolar ustida — omitted or null when the deployment has the drill flag off
+   * (or nothing is due), and the hub then shows no trace of it. */
+  reviewDrill?: PracticeHubReviewDrill | null;
 
   /**
    * Controlled tab selection. Omit both this and `onChangeTab` to let the screen
@@ -63,6 +77,7 @@ export function PracticeHubScreen({
   onOpenModule,
   assignments,
   onStartTask,
+  reviewDrill,
   activeTab,
   onChangeTab,
   activeNavKey = "practice",
@@ -106,6 +121,28 @@ export function PracticeHubScreen({
       headerEnd={<NotificationsBell />}
     >
       <div className={styles.page}>
+        {/* The drill's entry point. The card is deliberately NOT `interactive`:
+            a press-scale on a wide row that carries its own edge button shifts
+            the button out from under the cursor, and the tap silently misses. */}
+        {reviewDrill && reviewDrill.dueCount > 0 && (
+          <Card variant="tint" padding="md" className={styles.drillEntry}>
+            <div className={styles.drillText}>
+              <Text variant="label" color="primary">
+                {t("review.entry.kicker")}
+              </Text>
+              <Text variant="title-s" weight="black">
+                {t("review.title")}
+              </Text>
+              <Text variant="body-s" color="ink-soft">
+                {t("review.entry.body", { count: reviewDrill.dueCount })}
+              </Text>
+            </div>
+            <Button variant="primary" onClick={reviewDrill.onStart}>
+              {t("review.entry.cta")}
+            </Button>
+          </Card>
+        )}
+
         <Tabs
           items={items}
           activeKey={current}

@@ -8,7 +8,11 @@
  *   PracticeHubScreenDemo  — a self-wired default export, renderable standalone.
  */
 export { PracticeHubScreen, default as PracticeHubScreenDemo } from "./PracticeHubScreen";
-export type { PracticeHubScreenProps, PracticeHubTabKey } from "./PracticeHubScreen";
+export type {
+  PracticeHubScreenProps,
+  PracticeHubTabKey,
+  PracticeHubReviewDrill,
+} from "./PracticeHubScreen";
 
 export { ModulesTab } from "./tabs/ModulesTab";
 export type {

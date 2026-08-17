@@ -21,6 +21,25 @@
 .panel:focus {
   outline: none;
 }
+/* «Xatolar ustida» entry — the F5 drill's way in (docs/04 §4.1 keeps the SRS
+ * drill inside Mashq). A row with its own edge button, so it carries no press
+ * transform of its own: scaling the row would slide the button out from under
+ * the finger that is already on its way down. */
+.drillEntry {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-4);
+  width: 100%;
+}
+.drillText {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-1);
+  min-width: 0;
+}
+
 .panel:focus-visible {
   outline: var(--focus-ring-width) solid var(--focus-ring);
   outline-offset: var(--focus-ring-offset);

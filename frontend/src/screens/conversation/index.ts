@@ -1,7 +1,8 @@
 /**
- * screens/conversation — the Suhbat (AI conversation) flow: the E3 chat surface
- * and the E4 summary, driven by a static, scripted turn engine (the live AI is
- * stubbed). Presentational + prop-driven; composed from `shared/ui` + tokens.
+ * screens/conversation — the Suhbat (AI conversation) flow: the E2 hub, the E3
+ * chat surface and the E4 summary, plus the typed `/api/roleplay` client they run
+ * on (docs/08 Faza 6.5). The screens stay presentational and prop-driven; the
+ * route pages own the conversation.
  */
 export {
   ConversationHubScreen,
@@ -22,7 +23,25 @@ export {
   SCENARIOS,
   getScenario,
   scenarioIcon,
+  toScenario,
 } from "./scenarios";
 export type { Scenario, ScenarioScript, ScriptedTurn } from "./scenarios";
+
+export {
+  endRoleplay,
+  fetchRoleplayCatalog,
+  roleplayNoteKey,
+  sendRoleplayTurn,
+  startRoleplay,
+} from "./roleplayApi";
+export type {
+  RoleplayCatalog,
+  RoleplayCorrection,
+  RoleplayScenario,
+  RoleplayStart,
+  RoleplayState,
+  RoleplaySummary,
+  RoleplayTurn,
+} from "./roleplayApi";
 
 export { mockScenario, mockMessages, mockSummary } from "./conversation.mock";

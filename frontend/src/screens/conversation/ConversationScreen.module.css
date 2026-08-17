@@ -67,7 +67,18 @@
   min-width: 0;
 }
 .headerGoal {
+  display: flex;
+  align-items: baseline;
+  gap: var(--s-2);
   min-width: 0;
+}
+.goalText {
+  min-width: 0;
+}
+/* Never truncated: this is the live number the student is spending. */
+.turnsLeft {
+  flex: none;
+  white-space: nowrap;
 }
 .finish {
   flex: none;
@@ -130,11 +141,63 @@
   min-width: 0;
 }
 
+/* A student turn stacks: the bubble, then the coach rows underneath it. */
+.msgUserCol {
+  flex-direction: column;
+  align-items: flex-end;
+  gap: var(--s-2);
+}
+
 /* ---- Student voice bubble (the only user input is audio) ---- */
 .voice {
+  display: flex;
   flex-direction: row;
   align-items: center;
   gap: var(--s-3);
+}
+
+/* What speech-to-text actually heard — verbatim, mistakes included. Set apart
+ * from the voice row by a hairline so it reads as a quotation of the student
+ * rather than as part of the player chrome. */
+.heard {
+  display: block;
+  margin-top: var(--s-2);
+  padding-top: var(--s-2);
+  border-top: 1px solid color-mix(in srgb, var(--primary-on) 28%, transparent);
+}
+.heardText {
+  min-width: 0;
+  opacity: 0.95;
+}
+
+/* ---- Coach rows — the corrections for one turn ---- */
+.coach {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+  max-width: min(78%, 520px);
+  width: 100%;
+}
+.coachRow {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: var(--s-2) var(--s-3);
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  background: var(--surface-2);
+}
+.coachFix {
+  min-width: 0;
+}
+.coachWas {
+  opacity: 0.7;
+}
+.coachWhy {
+  min-width: 0;
 }
 .voicePlay {
   flex: none;
@@ -230,9 +293,8 @@
   border-top: 1px solid var(--line);
 }
 
-.stubNote {
+.note {
   margin: 0;
-  text-align: center;
 }
 
 /* Idle: the mic record button (label + icon). */

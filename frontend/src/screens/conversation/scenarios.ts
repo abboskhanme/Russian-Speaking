@@ -1,17 +1,25 @@
 /**
- * screens/conversation/scenarios — the Suhbat (AI conversation) scenario DATA.
+ * screens/conversation/scenarios — the Suhbat scenario PRESENTATION FALLBACK.
  *
- * The live AI is STUBBED (no LLM backend); the owner approved a "full UI +
- * scripted conversation". So each scenario carries both its E2-grid presentation
- * (title / level / goal / tint) AND a deterministic script the stub turn engine
- * replays: an opening AI line, an ordered list of user→AI turns, and three
- * "useful phrases" surfaced on the summary (E4).
+ * This module used to BE the feature: a deterministic script the browser replayed
+ * turn by turn, because there was no backend. Since docs/08 Faza 6.5 the
+ * scenarios, the turns and the scores come from `/api/roleplay` (see
+ * `roleplayApi.ts`), and the partner's replies are chosen by the AI's judgement
+ * of what the student actually said.
  *
- * The Russian conversation content is LITERAL data (never i18n) — the student is
- * practising Russian, so the AI's lines must be real Russian, level-appropriate
- * for each scenario's CEFR band. Only the UI chrome around it goes through i18n
- * (`suhbat.*`). No backend, no fetch — a pure static module.
+ * What is left here is a fallback, and it earns its place twice: the hub grid
+ * renders instantly instead of flashing empty while the catalogue loads, and a
+ * chat opened while the feature is switched OFF still shows a real title and goal
+ * in its header — the API returns no scenario for a feature it will not run, and
+ * a header reading "undefined" would make a deliberate state look like a crash.
+ * The `turns`/`opening` script is no longer played by anything.
+ *
+ * The Russian is LITERAL data (never i18n) — the student is practising Russian,
+ * so the partner's lines must be real Russian, level-appropriate for each
+ * scenario's CEFR band. Only the UI chrome around it goes through i18n
+ * (`suhbat.*`).
  */
+import type { RoleplayScenario } from "./roleplayApi";
 
 /* -------------------------------------------------------------------------- */
 /* Public contract — the SHAPE the AI Suhbat hub grid consumes.               */
@@ -23,6 +31,7 @@
  * never depends on the (much larger) script payload.
  */
 export interface Scenario {
+  /** The `slug` of the `scenarios` row — also the `/chat/:id` route param. */
   id: string;
   /** Russian title shown on the tile (literal content, e.g. "В аптеке"). */
   titleRu: string;
@@ -34,6 +43,31 @@ export interface Scenario {
   minutes: number;
   /** Tile tint, mapped to a token by the tile (peach/blue/green/amber). */
   tone: "peach" | "blue" | "green" | "amber";
+  /** Decorative emoji from the server, for a scenario the bundle has never seen. */
+  icon?: string;
+}
+
+/** The tints the tile knows how to paint; anything else falls back to peach. */
+const TONES: ReadonlyArray<Scenario["tone"]> = ["peach", "blue", "green", "amber"];
+
+/**
+ * One API scenario → the shape the grid and the chat header render.
+ *
+ * The tone is validated rather than cast: it selects a CSS class, and a value
+ * invented by whoever last edited the row would silently render an untinted tile
+ * instead of failing anywhere anyone would notice.
+ */
+export function toScenario(api: RoleplayScenario): Scenario {
+  const tone = TONES.find((v) => v === api.tone) ?? "peach";
+  return {
+    id: api.slug,
+    titleRu: api.title_ru,
+    goalUz: api.goal_uz,
+    level: api.level,
+    minutes: api.minutes,
+    tone,
+    icon: api.icon,
+  };
 }
 
 /** One scripted exchange: the student's line, then the AI's reply (both RU). */
@@ -253,11 +287,13 @@ const TONE_ICON: Record<Scenario["tone"], string> = {
 };
 
 /**
- * Decorative emoji for a scenario id — used by the tile and the chat header
- * without widening the exported {@link Scenario} shape. Falls back to a generic
- * speech glyph for any id not in {@link SCENARIOS}.
+ * Decorative emoji for a scenario — the server's own glyph when it sent one, else
+ * the bundled scenario's, else a generic speech mark. The server wins because a
+ * scenario an admin added after this bundle shipped has no entry here at all, and
+ * a new tile with no icon reads as a broken one.
  */
-export function scenarioIcon(id: string, tone?: Scenario["tone"]): string {
+export function scenarioIcon(id: string, tone?: Scenario["tone"], icon?: string): string {
+  if (icon) return icon;
   const found = SCENARIOS.find((s) => s.id === id);
   if (found) return found.icon;
   return tone ? TONE_ICON[tone] : "💬";

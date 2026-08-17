@@ -5,9 +5,12 @@
  *
  * Modullar comes from `GET /api/blocks/student` (the student's modules with
  * per-module progress); Topshiriqlar from `GET /api/assignments/mine` (one-off
- * teacher assignments). The two fetches are fault-tolerant like ProfilePage: a
- * failure in one section degrades it to an empty state rather than blanking the
- * page; only a total outage (both requests rejected) is a hard error.
+ * teacher assignments). A third, non-load-bearing call to `GET /api/review/drill`
+ * decides whether the «Xatolar ustida» entry appears — it 404s while the drill
+ * flag is off, and that rejection is the whole flag check on this screen. The
+ * fetches are fault-tolerant like ProfilePage: a failure in one section degrades
+ * it to an empty state rather than blanking the page; only a total outage of the
+ * two real sections is a hard error.
  *
  * The active tab is URL-driven (`?tab=`) so a deep-link and an in-page switch
  * share one source of truth and the choice survives a data refetch.
@@ -60,6 +63,7 @@ export default function PracticeHubPage() {
 
   const [modules, setModules] = useState<PracticeModule[]>([]);
   const [assignments, setAssignments] = useState<PracticeHubScreenProps["assignments"]>([]);
+  const [reviewDue, setReviewDue] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
   const [reloadKey, setReloadKey] = useState(0);
@@ -84,12 +88,20 @@ export default function PracticeHubPage() {
     setLoading(true);
     setError(false);
 
-    // `allSettled`, not `all`: one dead section must not blank the page.
-    Promise.allSettled([endpoints.studentBlocks(), endpoints.assignmentsMine()])
-      .then(([b, a]) => {
+    // `allSettled`, not `all`: one dead section must not blank the page. The
+    // drill probe rides along on the same rule and rejects with a 404 whenever
+    // `review_drill_enabled` is off — which is precisely how a flagged-off
+    // feature should read here: its entry simply never appears.
+    Promise.allSettled([
+      endpoints.studentBlocks(),
+      endpoints.assignmentsMine(),
+      endpoints.reviewDrill(),
+    ])
+      .then(([b, a, r]) => {
         if (!alive) return;
 
-        // Only a total outage is a hard error; any partial success renders.
+        // Only a total outage of the two REAL sections is a hard error; any
+        // partial success renders. The drill is never load-bearing here.
         if (b.status === "rejected" && a.status === "rejected") {
           setError(true);
           return;
@@ -97,6 +109,7 @@ export default function PracticeHubPage() {
 
         setModules(b.status === "fulfilled" ? b.value.map(mapModule) : []);
         setAssignments(a.status === "fulfilled" ? a.value.map(mapAssignment) : []);
+        setReviewDue(r.status === "fulfilled" ? r.value.due_count : 0);
       })
       .finally(() => alive && setLoading(false));
 
@@ -114,6 +127,7 @@ export default function PracticeHubPage() {
       onOpenModule={(id) => navigate(`/practice/module/${id}`)}
       assignments={assignments}
       onStartTask={(taskId) => navigate(`/task?task=${taskId}`)}
+      reviewDrill={{ dueCount: reviewDue, onStart: () => navigate("/review") }}
       activeTab={activeTab}
       onChangeTab={setActiveTab}
       activeNavKey="practice"

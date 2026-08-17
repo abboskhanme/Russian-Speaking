@@ -9,6 +9,7 @@ import { useTranslation } from "react-i18next";
 import { Button, FlowingWaveform, Text, cx } from "../../shared/ui";
 import { scenarioIcon } from "./scenarios";
 import type { Scenario } from "./scenarios";
+import type { RoleplayCorrection } from "./roleplayApi";
 import styles from "./ConversationScreen.module.css";
 
 /* -------------------------------------------------------------------------- */
@@ -16,19 +17,30 @@ import styles from "./ConversationScreen.module.css";
 /* -------------------------------------------------------------------------- */
 
 /**
- * One rendered chat bubble. The AI speaks in TEXT (`text`, literal Russian); the
- * student answers only by VOICE, so a user message carries an `audioUrl` +
+ * One rendered chat bubble. The partner speaks in TEXT (`text`, literal Russian);
+ * the student answers only by VOICE, so a user message carries an `audioUrl` +
  * `durationMs` and renders as a playable voice bubble instead of text.
+ *
+ * A student bubble also carries what speech-to-text actually HEARD (`transcript`)
+ * and any coaching on it (`corrections`). Both are shown, side by side and
+ * clearly distinguished: the transcript is the student's own words, mistakes
+ * included, and the corrections are labelled as corrections. Quietly showing the
+ * fixed version in place of the transcript would teach the student that they said
+ * it correctly.
  */
 export interface ConversationMessage {
   id: string;
   role: "ai" | "user";
-  /** AI reply text (RU). Absent on a student voice message. */
+  /** Partner reply text (RU). Absent on a student voice message. */
   text?: string;
   /** Student voice take — object URL for in-place playback. */
   audioUrl?: string;
   /** Length of the student's recording, ms (drives the bubble's duration). */
   durationMs?: number;
+  /** VERBATIM speech-to-text of this take. Never the corrected form. */
+  transcript?: string;
+  /** Targeted fixes for this turn, rendered under the bubble. */
+  corrections?: RoleplayCorrection[];
 }
 
 export interface ConversationScreenProps {
@@ -36,11 +48,21 @@ export interface ConversationScreenProps {
   scenario: Scenario;
   /** The full transcript so far, oldest → newest. */
   messages: ConversationMessage[];
-  /** AI is "typing" its next reply — shows the animated indicator. */
+  /** The partner is composing its next reply — shows the animated indicator. */
   typing: boolean;
-  /** No scripted turns remain — the composer becomes a single "Tugatish". */
+  /** The conversation is over — the composer becomes a single "Tugatish". */
   exhausted: boolean;
-  /** Student finished a voice answer → append it and advance the AI reply. */
+  /**
+   * The feature cannot run right now (flag off, no AI key, budget spent). The mic
+   * is replaced by a way out, because a record button that cannot lead anywhere is
+   * worse than no button at all.
+   */
+  blocked?: boolean;
+  /** One honest line above the composer — already localized by the page. */
+  note?: string;
+  /** Turns left in this conversation, shown next to the goal. */
+  turnsLeft?: number;
+  /** Student finished a voice answer → send it for a real turn. */
   onSend: (blob: Blob, durationMs: number) => void;
   /** "Tugatish" — end the conversation and show the summary. */
   onFinish: () => void;
@@ -56,20 +78,22 @@ export interface ConversationScreenProps {
  * ConversationScreen (E3) — the Suhbat chat surface.
  *
  * A full-screen focal flow (the same family as Placement): a fixed header (back ·
- * RU scenario title · goal · "Tugatish"), a scrollable transcript of AI text
+ * RU scenario title · goal · "Tugatish"), a scrollable transcript of partner text
  * bubbles (left) and student VOICE bubbles (right, `--primary`), and a composer
  * pinned to the bottom. The student answers by voice only — the composer is a
- * record→send mic (no "Yordam", no typed input); the AI replies in text only.
- * Purely presentational for the transcript: the PAGE owns the turn state and
- * hands down `messages` / `typing` / `exhausted` plus the callbacks. Because the
- * AI is stubbed, a subtle honesty note (`suhbat.stubNote`) sits above the
- * composer. Every colour / space / radius is a token.
+ * record→send mic (no "Yordam", no typed input); the partner replies in text only.
+ * Purely presentational: the PAGE owns the conversation and hands down `messages`
+ * / `typing` / `exhausted` / `blocked` / `note` plus the callbacks. Every colour /
+ * space / radius is a token.
  */
 export function ConversationScreen({
   scenario,
   messages,
   typing,
   exhausted,
+  blocked = false,
+  note,
+  turnsLeft,
   onSend,
   onFinish,
   onBack,
@@ -98,15 +122,26 @@ export function ConversationScreen({
         <div className={styles.headerBody}>
           <div className={styles.titleRow}>
             <span className={styles.headerIcon} aria-hidden>
-              {scenarioIcon(scenario.id, scenario.tone)}
+              {scenarioIcon(scenario.id, scenario.tone, scenario.icon)}
             </span>
             <Text as="h1" variant="title-s" truncate className={styles.headerTitle}>
               {scenario.titleRu}
             </Text>
           </div>
-          <Text as="p" variant="body-s" color="muted" truncate className={styles.headerGoal}>
-            {t("suhbat.goalLabel", { goal: scenario.goalUz })}
-          </Text>
+          {/* The goal is fixed for the whole conversation and the turn counter changes
+              every send, so the counter never truncates and the goal gives way to it —
+              at 375px a single truncating line would eat exactly the number that is
+              still moving. */}
+          <div className={styles.headerGoal}>
+            <Text as="span" variant="body-s" color="muted" truncate className={styles.goalText}>
+              {t("suhbat.goalLabel", { goal: scenario.goalUz })}
+            </Text>
+            {typeof turnsLeft === "number" && (
+              <Text as="span" variant="body-s" color="faint" className={styles.turnsLeft}>
+                {t("suhbat.turnsLeft", { count: turnsLeft })}
+              </Text>
+            )}
+          </div>
         </div>
 
         <Button variant="ghost" size="sm" onClick={onFinish} className={styles.finish}>
@@ -121,7 +156,13 @@ export function ConversationScreen({
             m.role === "ai" ? (
               <AiBubble key={m.id} text={m.text ?? ""} />
             ) : (
-              <VoiceBubble key={m.id} audioUrl={m.audioUrl} durationMs={m.durationMs ?? 0} />
+              <VoiceBubble
+                key={m.id}
+                audioUrl={m.audioUrl}
+                durationMs={m.durationMs ?? 0}
+                transcript={m.transcript}
+                corrections={m.corrections}
+              />
             ),
           )}
         </ul>
@@ -133,11 +174,17 @@ export function ConversationScreen({
 
       {/* ---- Composer ---- */}
       <div className={styles.composer}>
-        <Text as="p" variant="body-s" color="faint" className={styles.stubNote}>
-          {t("suhbat.stubNote")}
-        </Text>
+        {note && (
+          <Text as="p" variant="body-s" color="faint" align="center" className={styles.note}>
+            {note}
+          </Text>
+        )}
 
-        {exhausted ? (
+        {blocked ? (
+          <Button variant="secondary" size="lg" fullWidth onClick={onBack}>
+            {t("common.back")}
+          </Button>
+        ) : exhausted ? (
           <Button variant="primary" size="lg" fullWidth onClick={onFinish}>
             {t("suhbat.finish")}
           </Button>
@@ -453,8 +500,27 @@ function AiBubble({ text }: { text: string }) {
   );
 }
 
-/** The student's voice answer — a playable bubble (play/pause · label · length). */
-function VoiceBubble({ audioUrl, durationMs }: { audioUrl?: string; durationMs: number }) {
+/**
+ * The student's voice answer — a playable bubble (play/pause · label · length),
+ * with what speech-to-text HEARD underneath it and any coaching below that.
+ *
+ * The transcript is printed exactly as it came back. It is the record of what the
+ * student said, so a wrong case ending stays wrong here and is fixed, visibly and
+ * separately, in the coach row: «shunday dedingiz → shunday to'g'ri». Rewriting
+ * the transcript into the corrected sentence would erase the only evidence the
+ * student has that anything needed correcting.
+ */
+function VoiceBubble({
+  audioUrl,
+  durationMs,
+  transcript,
+  corrections,
+}: {
+  audioUrl?: string;
+  durationMs: number;
+  transcript?: string;
+  corrections?: RoleplayCorrection[];
+}) {
   const { t } = useTranslation();
   const [playing, setPlaying] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -467,26 +533,36 @@ function VoiceBubble({ audioUrl, durationMs }: { audioUrl?: string; durationMs: 
   }, []);
 
   return (
-    <li className={cx(styles.msg, styles.msgUser)}>
-      <span className={cx(styles.bubble, styles.bubbleUser, styles.voice)}>
-        <button
-          type="button"
-          className={styles.voicePlay}
-          onClick={toggle}
-          disabled={!audioUrl}
-          aria-label={playing ? t("suhbat.pause") : t("suhbat.listen")}
-        >
-          {playing ? <PauseIcon /> : <PlayIcon />}
-        </button>
+    <li className={cx(styles.msg, styles.msgUser, styles.msgUserCol)}>
+      <span className={cx(styles.bubble, styles.bubbleUser)}>
+        <span className={styles.voice}>
+          <button
+            type="button"
+            className={styles.voicePlay}
+            onClick={toggle}
+            disabled={!audioUrl}
+            aria-label={playing ? t("suhbat.pause") : t("suhbat.listen")}
+          >
+            {playing ? <PauseIcon /> : <PlayIcon />}
+          </button>
 
-        <span className={styles.voiceInfo}>
-          <Text as="span" variant="body-s" weight="bold" className={styles.voiceLabel}>
-            {t("suhbat.voiceMessage")}
-          </Text>
-          <span className={styles.voiceDur} aria-hidden>
-            {formatTime(durationMs)}
+          <span className={styles.voiceInfo}>
+            <Text as="span" variant="body-s" weight="bold" className={styles.voiceLabel}>
+              {t("suhbat.voiceMessage")}
+            </Text>
+            <span className={styles.voiceDur} aria-hidden>
+              {formatTime(durationMs)}
+            </span>
           </span>
         </span>
+
+        {transcript !== undefined && (
+          <span className={styles.heard}>
+            <Text as="span" variant="body-s" className={styles.heardText}>
+              {transcript.trim().length > 0 ? transcript : t("suhbat.heardNothing")}
+            </Text>
+          </span>
+        )}
 
         {audioUrl && (
           <audio
@@ -499,6 +575,25 @@ function VoiceBubble({ audioUrl, durationMs }: { audioUrl?: string; durationMs: 
           />
         )}
       </span>
+
+      {corrections && corrections.length > 0 && (
+        <ul className={styles.coach} aria-label={t("suhbat.coachLabel")}>
+          {corrections.map((c, i) => (
+            <li key={i} className={styles.coachRow}>
+              <Text as="span" variant="body-s" className={styles.coachFix}>
+                <s className={styles.coachWas}>{c.original}</s>
+                <span aria-hidden> → </span>
+                <b>{c.corrected}</b>
+              </Text>
+              {c.explanation && (
+                <Text as="span" variant="body-s" color="muted" className={styles.coachWhy}>
+                  {c.explanation}
+                </Text>
+              )}
+            </li>
+          ))}
+        </ul>
+      )}
     </li>
   );
 }

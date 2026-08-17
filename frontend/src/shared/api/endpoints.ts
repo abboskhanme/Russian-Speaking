@@ -52,6 +52,9 @@ import type {
   ProfileStatsResponse,
   ProgressLeaderboardResponse,
   ProgressSkillsResponse,
+  ReviewAnswerOutcome,
+  ReviewAnswerResponse,
+  ReviewDrillResponse,
   StudentModuleResponse,
   SubmissionResponse,
   TokenResponse,
@@ -448,6 +451,33 @@ export function teacherInsights(groupId?: string): Promise<InsightsResponse> {
  * the "Yordam markazi" modal. Auth required (it rides the normal session). */
 export function settingsLinks(): Promise<LinksResponse> {
   return apiClient.get<LinksResponse>("/settings/links");
+}
+
+/* ── Xato-replay drill (docs/08 Faza 6.1, behind `review_drill_enabled`) ───── */
+
+/** GET /api/review/drill → one drill session (due cards, capped server-side).
+ * Auth required; the owner comes from the bearer token.
+ *
+ * Throws a 404 {@link ApiError} when the deployment has the drill flag OFF. That
+ * is the feature's "not here" answer, not a failure — callers catch it and hide
+ * the entry point rather than showing an error state for a feature that was
+ * never turned on. */
+export function reviewDrill(signal?: AbortSignal): Promise<ReviewDrillResponse> {
+  return apiClient.get<ReviewDrillResponse>("/review/drill", { signal });
+}
+
+/** POST /api/review/{id}/answer → the item's new place on the SRS ladder.
+ * `outcome` is the student's verdict on their own replay ("good" | "again").
+ * Caller-scoped server-side, so another student's id is a 404 rather than a
+ * cross-user write. */
+export function answerReview(
+  id: string,
+  outcome: ReviewAnswerOutcome,
+): Promise<ReviewAnswerResponse> {
+  return apiClient.post<ReviewAnswerResponse>(
+    `/review/${encodeURIComponent(id)}/answer`,
+    { outcome },
+  );
 }
 
 /* ── Notifications — the header bell + its centre ─────────────────────────── */

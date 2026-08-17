@@ -19,8 +19,15 @@ const TONE_CLASS: Record<Scenario["tone"], string> = {
 };
 
 export interface ConversationHubScreenProps {
-  /** The scenario tiles (defaults to the static `SCENARIOS`). */
+  /** The scenario tiles (defaults to the bundled `SCENARIOS` fallback). */
   scenarios?: Scenario[];
+  /**
+   * One honest line under the intro when the feature cannot run — the flag is
+   * off, no AI key is wired, or the day's budget is spent. Already localized by
+   * the page. Said HERE, on the grid, so a student learns it before recording
+   * themselves rather than after.
+   */
+  note?: string;
   /** Open a scenario's chat (`/chat/:id`). */
   onOpenScenario: (scenarioId: string) => void;
   /** Open the open-ended "Erkin mavzu" conversation (`/chat/free`). */
@@ -45,6 +52,7 @@ export interface ConversationHubScreenProps {
  */
 export function ConversationHubScreen({
   scenarios = SCENARIOS,
+  note,
   onOpenScenario,
   onOpenFree,
   activeNavKey = "chat",
@@ -73,13 +81,21 @@ export function ConversationHubScreen({
           {t("suhbat.intro")}
         </Text>
 
+        {note && (
+          <Card variant="outline" padding="md" className={styles.note} role="status">
+            <Text as="p" variant="body-s" color="muted">
+              {note}
+            </Text>
+          </Card>
+        )}
+
         <ul className={styles.grid}>
           {scenarios.map((s) => (
             <li key={s.id} className={styles.cell}>
               <Card variant="panel" padding="md" interactive asChild className={styles.tile}>
                 <button type="button" onClick={() => onOpenScenario(s.id)}>
                   <span className={cx(styles.icon, TONE_CLASS[s.tone])} aria-hidden>
-                    {scenarioIcon(s.id, s.tone)}
+                    {scenarioIcon(s.id, s.tone, s.icon)}
                   </span>
 
                   <Text as="span" variant="title-s" className={styles.title}>

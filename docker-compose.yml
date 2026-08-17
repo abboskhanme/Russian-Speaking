@@ -79,6 +79,13 @@ x-backend-env: &backend-env
   AZURE_OPENAI_API_KEY: "${AZURE_OPENAI_API_KEY:-}"
   AZURE_OPENAI_DEPLOYMENT: "${AZURE_OPENAI_DEPLOYMENT:-}"
   AZURE_OPENAI_API_VERSION: "${AZURE_OPENAI_API_VERSION:-}"
+  # ── Faza 6 feature flags ────────────────────────────────────────────────────
+  # Both default OFF, per docs/08: Faza 6 features ship behind a flag and cutover
+  # does not wait for them. Same resolution as the AI keys — `app_settings` row wins,
+  # this is the environment default — so a flag can be flipped from the database
+  # without a redeploy, and these lines only decide what a fresh stack starts as.
+  REVIEW_DRILL_ENABLED: "${REVIEW_DRILL_ENABLED:-}"
+  ROLEPLAY_ENABLED: "${ROLEPLAY_ENABLED:-}"
   # Realtime / rate limiting.
   GOVORI_SIGNALR_BACKPLANE: "true"
   GOVORI_RATELIMIT_BACKEND: "${GOVORI_RATELIMIT_BACKEND:-redis}"

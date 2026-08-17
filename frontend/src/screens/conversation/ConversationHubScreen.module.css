@@ -13,6 +13,12 @@
   margin: 0;
 }
 
+/* The honest "why you cannot speak right now" line — a calm outline card, not an
+ * alert: nothing has gone wrong, the feature is simply not switched on yet. */
+.note {
+  width: 100%;
+}
+
 /* ---- Scenario grid ---- */
 .grid {
   list-style: none;

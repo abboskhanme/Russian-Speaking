@@ -16,6 +16,7 @@
  *   /practice/module/:id     → module detail (D2) + complete (D3)
  *   /task?task=:id           → the task recording screen
  *   /chat/:scenarioId        → AI conversation (E3 chat + E4 summary, stubbed)
+ *   /review                  → Xatolar ustida — the xato-replay drill (flagged)
  *   /progress                → Progress
  *   /profile                 → Profile
  *   /teacher                 → teacher A1 Obzor (its own nav: Bosh · Klasslar ·
@@ -46,6 +47,7 @@ const ModuleDetailPage = lazy(() => import("./app/routes/ModuleDetailPage"));
 const PracticePage = lazy(() => import("./app/routes/PracticePage"));
 const ConversationHubPage = lazy(() => import("./app/routes/ConversationHubPage"));
 const ConversationPage = lazy(() => import("./app/routes/ConversationPage"));
+const ReviewDrillPage = lazy(() => import("./app/routes/ReviewDrillPage"));
 const ProgressPage = lazy(() => import("./app/routes/ProgressPage"));
 const GroupPage = lazy(() => import("./app/routes/GroupPage"));
 const AllResultsPage = lazy(() => import("./app/routes/AllResultsPage"));
@@ -145,6 +147,10 @@ export default function App() {
                 then each scenario's chat. */}
             <Route path="/chat" element={<ConversationHubPage />} />
             <Route path="/chat/:scenarioId" element={<ConversationPage />} />
+            {/* Xatolar ustida — the F5 replay drill (flagged; the route 404s
+                itself back to /practice when the deployment has it off). This is
+                the path `review_added` notifications have always linked to. */}
+            <Route path="/review" element={<ReviewDrillPage />} />
             <Route path="/progress" element={<ProgressPage />} />
             {/* Group view (classmates + group leaderboard), reached from Home. */}
             <Route path="/group" element={<GroupPage />} />

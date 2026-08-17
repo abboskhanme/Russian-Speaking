@@ -178,6 +178,7 @@ try
     // enqueue grading). The 402 freemium gate reuses Catalog's frozen CatalogService.NeedsPremiumAsync
     // (task decision 3a — single C4-characterized source of truth, no divergence).
     builder.Services.AddScoped<PracticeService>();
+    builder.Services.AddScoped<RoleplayService>();   // F1 · AI Suhbat (docs/08 Faza 6.5), flag-gated
 
     // ── Assessment / grading pipeline (docs/07 §7.7, Faza 3.4) ──────────────
     // STT + Grader behind interfaces, served by an ordered chain of vendor backends whose order and

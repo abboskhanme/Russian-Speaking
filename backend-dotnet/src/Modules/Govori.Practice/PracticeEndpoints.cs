@@ -146,6 +146,11 @@ public static class PracticeEndpoints
             };
         }).RequireAuthorization();
 
+        // F1 · Roleplay / AI Suhbat (docs/08 Faza 6.5) mounts here rather than from the composition
+        // root: it is this module's own surface, and where a module's routes live is the module's
+        // business, not Program.cs's.
+        app.MapRoleplayEndpoints();
+
         return app;
     }
 

@@ -3,6 +3,7 @@ using Govori.Contracts;
 using Govori.Infrastructure;
 using Govori.Infrastructure.Entities;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 
 namespace Govori.Engagement;
@@ -18,6 +19,9 @@ namespace Govori.Engagement;
 ///   <item>the leaderboard and the review queue's read/create paths
 ///     (<see cref="LeaderboardAsync"/>, <see cref="MyReviewsAsync"/>,
 ///     <see cref="CreateReviewsAsync"/>);</item>
+///   <item>the F5 xato-replay DRILL (<see cref="DrillAsync"/>, <see cref="AnswerReviewAsync"/>) —
+///     the surface that finally lets a student redo the mistake, behind the
+///     <see cref="ReviewDrillFlagKey"/> feature flag;</item>
 ///   <item>in-app notifications — listing, unread count, mark-read, delete/clear, plus the internal
 ///     <c>Notify</c> helper the write paths use to raise one.</item>
 /// </list>
@@ -47,15 +51,19 @@ public sealed class EngagementService
 {
     private readonly GovoriDbContext _db;
     private readonly ILogger<EngagementService>? _logger;
+    private readonly IConfiguration? _config;
 
-    // The logger is OPTIONAL (nullable, default null) so the worker-side award paths and the tests
-    // that construct this service directly (new EngagementService(ctx)) keep compiling; DI supplies a
-    // real ILogger in both hosts. It is only used to record the best-effort rank_delta choice on the
-    // progress leaderboard (never to fabricate a number).
-    public EngagementService(GovoriDbContext db, ILogger<EngagementService>? logger = null)
+    // The logger and the configuration are OPTIONAL (nullable, default null) so the worker-side award
+    // paths and the tests that construct this service directly (new EngagementService(ctx)) keep
+    // compiling; DI supplies both in both hosts. The logger only records the best-effort rank_delta
+    // choice on the progress leaderboard (never to fabricate a number); the configuration supplies the
+    // env-var half of the review-drill feature flag (see ReviewDrillEnabledAsync).
+    public EngagementService(
+        GovoriDbContext db, ILogger<EngagementService>? logger = null, IConfiguration? config = null)
     {
         _db = db;
         _logger = logger;
+        _config = config;
     }
 
     // ─── Frozen constants ─────────────────────────────────────────────────────
@@ -663,11 +671,7 @@ public sealed class EngagementService
         var user = await ActiveUserAsync(userId, ct);
         if (user is null) return null;
 
-        var now = DateTime.UtcNow;
-        var items = await _db.ReviewItems
-            .Where(r => r.StudentId == user.Id && !r.Completed && r.DueAt <= now)
-            .OrderBy(r => r.DueAt)
-            .ToListAsync(ct);
+        var items = await DueReviewsAsync(user.Id, ct);
 
         var qmap = items.Count == 0
             ? new Dictionary<Guid, Question>()
@@ -675,11 +679,9 @@ public sealed class EngagementService
                 .Where(q => items.Select(i => i.QuestionId).Contains(q.Id))
                 .ToDictionaryAsync(q => q.Id, ct);
 
-        var seen = new HashSet<Guid>();
-        var outList = new List<ReviewItemResponse>();
+        var outList = new List<ReviewItemResponse>(items.Count);
         foreach (var it in items)
         {
-            if (!seen.Add(it.QuestionId)) continue;                 // one row per question
             qmap.TryGetValue(it.QuestionId, out var q);
             outList.Add(new ReviewItemResponse(
                 Id: it.Id,
@@ -691,6 +693,27 @@ public sealed class EngagementService
                 DueAt: it.DueAt));
         }
         return outList;
+    }
+
+    // The student's DUE, still-open reviews: earliest first, one row per question (the earliest due
+    // wins). Two open rows for one question is a REAL state — a teacher can queue a question the
+    // grader has already flagged — and the same prompt appearing twice in one queue (or twice in one
+    // drill session) reads as a bug. Both the list and the drill resolve "what is due" here so the
+    // two surfaces can never disagree about it.
+    private async Task<List<ReviewItem>> DueReviewsAsync(Guid studentId, CancellationToken ct)
+    {
+        var now = DateTime.UtcNow;
+        var rows = await _db.ReviewItems
+            .Where(r => r.StudentId == studentId && !r.Completed && r.DueAt <= now)
+            .OrderBy(r => r.DueAt)
+            .ToListAsync(ct);
+
+        var seen = new HashSet<Guid>();
+        var deduped = new List<ReviewItem>(rows.Count);
+        foreach (var r in rows)
+            if (seen.Add(r.QuestionId))
+                deduped.Add(r);
+        return deduped;
     }
 
     /// <summary>
@@ -778,6 +801,202 @@ public sealed class EngagementService
         }).ToList();
         return EngagementResult<IReadOnlyList<ReviewItemResponse>>.Ok(outList);
     }
+
+    // ─── F5 · Xato-replay drill (docs/08 Faza 6.1, behind a flag) ─────────────
+
+    /// <summary>
+    /// <c>app_settings</c> key that gates the drill. Faza 6 features ship behind a flag and cutover
+    /// does not wait for them (docs/08 "Deploy ≠ release"), so this defaults to <b>off</b>: the drill
+    /// routes 404 until someone stores a truthy value (or sets <c>REVIEW_DRILL_ENABLED</c>).
+    /// </summary>
+    public const string ReviewDrillFlagKey = "review_drill_enabled";
+
+    // Env-var default for the flag — the uppercase form of the key, the convention every other
+    // app_settings key follows.
+    private const string ReviewDrillFlagEnvVar = "REVIEW_DRILL_ENABLED";
+
+    /// <summary>How many cards one drill session serves. A student returning from a fortnight away can
+    /// have forty items due; handing them all forty is how a queue becomes a chore nobody opens.</summary>
+    public const int DrillSessionSize = 10;
+
+    // The truthy spellings app_settings uses for boolean-ish keys. Kept identical to the admin
+    // module's set on purpose: two toggles in one table that disagree about what "on" spells is a bug
+    // waiting to be filed against whichever one the admin typed "yes" into.
+    private static readonly HashSet<string> TrueWords = new(StringComparer.Ordinal) { "true", "1", "yes", "on" };
+
+    /// <summary>
+    /// Whether the xato-replay drill is switched on. Same resolution order as every other setting —
+    /// <c>app_settings</c> override → env default → <c>false</c> — but resolved against the table
+    /// DIRECTLY rather than through <c>AppSettingsService</c>: that service lives in
+    /// <c>Govori.Administration</c>, and a module→module reference is exactly what the §7.2 boundary
+    /// guardrail (and <c>BoundaryRuleTests</c>) forbids. The read is one indexed lookup on a route a
+    /// student opens a handful of times a day, so it is not worth a second cache either.
+    /// </summary>
+    public async Task<bool> ReviewDrillEnabledAsync(CancellationToken ct = default)
+    {
+        var raw = await _db.AppSettings
+            .AsNoTracking()
+            .Where(s => s.Key == ReviewDrillFlagKey)
+            .Select(s => s.Value)
+            .FirstOrDefaultAsync(ct);
+
+        // A stored NULL or "" is not an override — it falls through to the env default, matching
+        // AppSettingsService.GetAsync, so clearing the row really does revert the flag.
+        if (string.IsNullOrEmpty(raw)) raw = _config?[ReviewDrillFlagEnvVar];
+
+        return raw is not null && TrueWords.Contains(raw.Trim().ToLowerInvariant());
+    }
+
+    /// <summary>
+    /// <c>GET /api/review/drill</c> — one drill session: the student's due reviews, capped at
+    /// <see cref="DrillSessionSize"/>, each carrying the question's full text so the card can ask them
+    /// to say it again. Flag off ⇒ NotFound (the feature does not exist yet, and 404 is what "does not
+    /// exist" means); missing/inactive user ⇒ Unauthorized.
+    ///
+    /// <para>An item whose question has been deleted is dropped rather than shown: the queue's list
+    /// view can survive a missing title, but a drill card with nothing to say cannot. Those items stay
+    /// in the table — this read hides them, it does not clean up after the content owner.</para>
+    /// </summary>
+    public async Task<EngagementResult<ReviewDrillResponse>> DrillAsync(Guid userId, CancellationToken ct = default)
+    {
+        if (!await ReviewDrillEnabledAsync(ct))
+            return EngagementResult<ReviewDrillResponse>.NotFound();
+
+        var user = await ActiveUserAsync(userId, ct);
+        if (user is null) return EngagementResult<ReviewDrillResponse>.Unauthorized();
+
+        var (due, questions) = await DrillableAsync(user.Id, ct);
+
+        var items = due
+            .Take(DrillSessionSize)
+            .Select(it =>
+            {
+                var q = questions[it.QuestionId];
+                return new ReviewDrillItemResponse(
+                    Id: it.Id,
+                    QuestionId: it.QuestionId,
+                    QuestionTitle: q.Title,
+                    PromptText: q.PromptText,
+                    InstructionText: q.InstructionText,
+                    ModelAnswerText: q.ModelAnswerText,
+                    QuestionTopic: q.Topic,
+                    QuestionLevel: q.Level,
+                    WeaknessDim: it.WeaknessDim,
+                    Round: Round(it.IntervalIndex),
+                    TotalRounds: ReviewIntervalsDays.Length,
+                    DueAt: it.DueAt);
+            })
+            .ToList();
+
+        return EngagementResult<ReviewDrillResponse>.Ok(
+            new ReviewDrillResponse(due.Count, ReviewIntervalsDays.Length, items));
+    }
+
+    /// <summary>
+    /// <c>POST /api/review/{id}/answer</c> — the student's verdict on one replay, which is what finally
+    /// moves an item along <see cref="ReviewIntervalsDays"/>. Flag off ⇒ NotFound; a missing, foreign or
+    /// already-completed item ⇒ NotFound (never distinguishing the three, so the route cannot be used to
+    /// probe another student's queue); an unrecognised outcome ⇒ BadRequest.
+    ///
+    /// <para><b>The ladder.</b> <c>"good"</c> climbs one rung: <c>interval_index</c> goes up by one and
+    /// <c>due_at</c> becomes <c>now + ReviewIntervalsDays[index]</c> (1 → 3 → 7 → 16 → 35 days). Past the
+    /// last rung the item <c>completed</c>s — it has survived every interval and is done. <c>"again"</c>
+    /// is a lapse: back to index 0, due tomorrow. Either way the item leaves TODAY's queue, which is what
+    /// lets a session actually finish.</para>
+    ///
+    /// <para><b>Why the student's own verdict, and not a grade.</b> Routing the replay through the
+    /// grading pipeline would hand the schedule straight back to <see cref="ScheduleReviewAsync"/>, which
+    /// supersedes every open review for that (student, question) on each graded attempt — the ladder
+    /// could then never climb past its first rung, and <see cref="ReviewIntervalsDays"/> would stay the
+    /// dead constant it has been. So the two own different questions: the drill owns "how long until I
+    /// see this again", the grader keeps owning "is this still a weakness" and re-enqueues at index 0
+    /// when the student answers it for real in Mashq and is still below
+    /// <see cref="ReviewThreshold"/>.</para>
+    /// </summary>
+    public async Task<EngagementResult<ReviewAnswerResponse>> AnswerReviewAsync(
+        Guid userId, Guid reviewId, ReviewAnswerRequest? payload, CancellationToken ct = default)
+    {
+        if (!await ReviewDrillEnabledAsync(ct))
+            return EngagementResult<ReviewAnswerResponse>.NotFound();
+
+        var user = await ActiveUserAsync(userId, ct);
+        if (user is null) return EngagementResult<ReviewAnswerResponse>.Unauthorized();
+
+        var outcome = payload?.Outcome?.Trim().ToLowerInvariant();
+        if (outcome is not ("good" or "again"))
+            return EngagementResult<ReviewAnswerResponse>.BadRequest("outcome must be 'good' or 'again'");
+
+        var item = await _db.ReviewItems.FirstOrDefaultAsync(r => r.Id == reviewId, ct);
+        if (item is null || item.StudentId != user.Id || item.Completed)
+            return EngagementResult<ReviewAnswerResponse>.NotFound();
+
+        var now = DateTime.UtcNow;
+        var lastRung = ReviewIntervalsDays.Length - 1;
+        // Clamp before stepping: a stored index outside the ladder (older data, a hand-edited row)
+        // must not index the array out of bounds on a route a student can call.
+        var current = Math.Clamp(item.IntervalIndex, 0, lastRung);
+        var graduated = false;
+        DateTime? nextDueAt;
+
+        if (outcome == "again")
+        {
+            item.IntervalIndex = 0;
+            item.DueAt = now.AddDays(ReviewIntervalsDays[0]);
+            nextDueAt = item.DueAt;
+        }
+        else if (current >= lastRung)
+        {
+            // Every rung survived. `completed` is the graduation marker; `due_at` is deliberately left
+            // where it was, because writing a future date for a review that will never happen would be
+            // a lie the table then keeps.
+            item.IntervalIndex = lastRung;
+            item.Completed = true;
+            graduated = true;
+            nextDueAt = null;
+        }
+        else
+        {
+            item.IntervalIndex = current + 1;
+            item.DueAt = now.AddDays(ReviewIntervalsDays[item.IntervalIndex]);
+            nextDueAt = item.DueAt;
+        }
+
+        item.UpdatedAt = now;
+        await _db.SaveChangesAsync(ct);
+
+        // Recounted AFTER the commit so the screen advances on a server fact rather than on its own
+        // optimism — and so a second device drilling the same queue is reflected immediately.
+        var (remaining, _) = await DrillableAsync(user.Id, ct);
+
+        return EngagementResult<ReviewAnswerResponse>.Ok(new ReviewAnswerResponse(
+            Id: item.Id,
+            Round: Round(item.IntervalIndex),
+            TotalRounds: ReviewIntervalsDays.Length,
+            Graduated: graduated,
+            NextDueAt: nextDueAt,
+            RemainingDue: remaining.Count));
+    }
+
+    // The due queue narrowed to what is actually drillable — items whose question still exists — plus
+    // the questions themselves, since every caller needs both and neither is worth two round trips.
+    private async Task<(List<ReviewItem> Items, Dictionary<Guid, Question> Questions)> DrillableAsync(
+        Guid studentId, CancellationToken ct)
+    {
+        var due = await DueReviewsAsync(studentId, ct);
+        if (due.Count == 0) return ([], []);
+
+        var ids = due.Select(d => d.QuestionId).ToList();
+        var questions = await _db.Questions
+            .Where(q => ids.Contains(q.Id) && !q.IsDeleted)
+            .ToDictionaryAsync(q => q.Id, ct);
+
+        return (due.Where(d => questions.ContainsKey(d.QuestionId)).ToList(), questions);
+    }
+
+    // 0-based interval_index → the 1-based round a student is shown ("2 / 5"). Nobody counts their
+    // own revision from zero.
+    private static int Round(int intervalIndex)
+        => Math.Clamp(intervalIndex, 0, ReviewIntervalsDays.Length - 1) + 1;
 
     // ─── Notifications ────────────────────────────────────────────────────────
 
