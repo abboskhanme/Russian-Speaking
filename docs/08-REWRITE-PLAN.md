@@ -23,9 +23,9 @@
 | **1 · Xavfsizlik to'ri** | 🟡 | 1.1–1.3 ✅. **1.4 ✅** — `tests/golden/grader/` (18 keys + 8 tartib tekshiruvi). **1.5 ✅** — runner real zanjirga uriladi, ikki yugurishda 98% va 99%. **1.6 🟡** — 90% darvozasi kodda, CI job qo'shilishi kerak. ⬜ **STT yarmi**: 40 ta real klip — sun'iy audio bilan to'ldirilmadi, sababi `tests/golden/grader/README.md` da. |
 | **2 · .NET poydevor** | 🟡 | **2.5 ✅** — har yugurishda alohida `govori_it_*` bazasi (EF migratsiyalaridan quriladi, `FORCE` bilan o'chiriladi); Testcontainers **emas**, sababi kodda yozilgan (net9 SDK konteyneri → tasodifiy **host** porti, `localhost` unga yetmaydi). **2.7 ⬜** — prod dump'iga, ya'ni **Faza 0 ga** bog'liq. |
 | **3 · Domen porti** | ✅ | **3.4 ✅ — AI zanjiri ulandi**: Anthropic (rasmiy SDK) · Gemini · OpenAI/Azure OpenAI graderlar, Azure Speech (unscripted, `Lexical`) · Whisper STT, `app_settings` dan tartib + kalitlar, 19 birlik test + jonli smoke. **3.10 ✅** — TTFS o'lchanadi (`Submission.CreatedAt` dan), jonli o'lchov **~10.5s** (maqsad p95 < 20s). |
-| **4 · Frontend** | 🟡 | Admin **Sozlamalar** ekrani zanjir tahrirchisi + Claude bo'limini oldi ✅. **4.2 ⬜** — API tiplari hamon qo'lda. **4.11 / 4.1** — ish jarayonida. |
+| **4 · Frontend** | 🟡 | Admin **Sozlamalar** ekrani zanjir tahrirchisi, Claude bo'limi va **Funksiyalar** bo'limini oldi ✅. **4.11 ✅** — 120 Vitest + Playwright golden path + `axe` (0 critical). **4.1 ✅** — bundle budjeti CI'da: 114.3 / 180 KB gz. **4.2 ⬜** — API tiplari hamon qo'lda, OpenAPI hujjati umuman yo'q. |
 | **5 · Cutover** | 🟡 | O'zgarishsiz. **Server yarmi ⬜** — jonli prodga tegadi, egasisiz bajarilmaydi. |
-| **6 · Yangi funksiyalar** | 🟡 | **6.4 ✅**. 6.1 va 6.5 — ish jarayonida. 6.2, 6.3, 6.6, 6.7, 6.8 — ⬜. |
+| **6 · Yangi funksiyalar** | 🟡 | **6.4 ✅** · **6.1 ✅** Xato-replay drill (`/review`, SRS zinapoyasi endi haqiqatan ko'tariladi) · **6.5 ✅** AI Suhbat (`/chat`) — haqiqiy STT + grader zanjiri, ssenariy beat'lari orasida relevantlik bo'yicha yo'naltirish. Ikkalasi ham **flag ortida, sukut bo'yicha o'chiq**, admin panelda **Funksiyalar** bo'limidan boshqariladi. 6.2, 6.3, 6.6, 6.7, 6.8 — ⬜. |
 | **7 · Tozalash** | 🟡 | 7.1–7.8 ✅. 7.9 — **C3/C6 mahsulot qaroriga** bog'liq, texnik ish emas. |
 
 **Rejadan tashqari, rejada yo'q edi va bajarildi:** o'qituvchi paneli to'liq (7 faza),
