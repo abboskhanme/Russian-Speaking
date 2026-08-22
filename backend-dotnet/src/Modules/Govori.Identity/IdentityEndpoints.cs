@@ -136,18 +136,36 @@ public static class IdentityEndpoints
             };
         }).RequireRateLimiting(RateLimitPolicyNames.Login); // shares the "login" scope: same abuse surface
 
-        // POST /api/auth/refresh → 200 TokenPair, or 401 if the token isn't a refresh token.
-        auth.MapPost("/refresh", (RefreshRequest req, AuthService svc) =>
+        // POST /api/auth/refresh → 200 TokenPair, or 401 when the token is not a refresh token, has
+        // been revoked by logout, or belongs to an account that is now blocked or deleted. All four
+        // refusals answer the SAME 401 with the same body: which one it was is not the caller's
+        // business, and telling them apart would turn this into an account-status oracle.
+        auth.MapPost("/refresh", async (RefreshRequest req, AuthService svc, CancellationToken ct) =>
         {
-            var tokens = svc.Refresh(req.RefreshToken);
+            var tokens = await svc.RefreshAsync(req.RefreshToken, ct);
             return tokens is null
                 ? Detail("Invalid refresh token", StatusCodes.Status401Unauthorized)
                 : Results.Ok(tokens);
         });
 
-        // POST /api/auth/logout → 204. JWTs are stateless and never server-revoked; the client
-        // simply discards its tokens. This no-op exists only to give the client a symmetric endpoint.
-        auth.MapPost("/logout", () => Results.NoContent());
+        // POST /api/auth/logout → 204, ALWAYS.
+        //
+        // The body is OPTIONAL and backward-compatible: the shipped frontend posts no body, which
+        // still answers 204 exactly as before. Send { "refresh_token": "..." } and that token is
+        // revoked, so the session on THIS device can never be refreshed again — the access token
+        // still runs out its ≤30 minutes, but the seven-day refresh behind it is dead.
+        //
+        // ⚠ Until the client sends the token, this endpoint has nothing to revoke. The mechanism is
+        // in place and tested; the one-line client change is what makes it bite.
+        //
+        // Not .RequireAuthorization(): the refresh token IS the credential being surrendered, and
+        // requiring a live access token would mean a user whose access token has already expired —
+        // the exact case where they most want out — cannot log out.
+        auth.MapPost("/logout", async (LogoutRequest? req, AuthService svc, CancellationToken ct) =>
+        {
+            await svc.LogoutAsync(req?.RefreshToken, ct);
+            return Results.NoContent();
+        });
 
         // GET /api/auth/me → the authenticated user. role/is_active come from the DB, never the
         // token (§7.5). Requires a valid *access* token — a refresh token is rejected here, as it

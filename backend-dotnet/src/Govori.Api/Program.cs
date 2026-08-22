@@ -315,6 +315,13 @@ try
     // via ConfigureTestServices so they never hit real Redis/Google/Telegram.
     builder.Services.AddSingleton<IOtpStore, RedisOtpStore>();      // Redis-backed, FAIL-CLOSED
 
+    // The refresh-token deny-list that makes POST /api/auth/logout mean something. Until it existed,
+    // logout answered 204 and revoked nothing, so a refresh token kept working for its full seven
+    // days after the user pressed "Chiqish". Keyed by a HASH of the token (never the token), TTL =
+    // the token's own remaining life, and FAIL-CLOSED on read — same lazy Redis wrapper shape, and
+    // the same fail-closed stance, as IOtpStore above.
+    builder.Services.AddSingleton<IRefreshTokenRevocationStore, RedisRefreshTokenRevocationStore>();
+
     // "User X is changing their number to Y", keyed by USER ID, TTL = the OTP's own. Backs
     // POST /api/auth/phone/change/request → /confirm. Not a second OTP system: the code is still
     // minted, delivered and verified by the seams above — this only records WHICH user asked for

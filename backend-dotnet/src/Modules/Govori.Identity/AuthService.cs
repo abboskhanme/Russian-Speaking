@@ -72,6 +72,7 @@ public sealed class AuthService
     private readonly OtpOptions _otpOptions;
     private readonly IPendingPhoneChangeStore _pendingPhoneChanges;
     private readonly IObjectStorage _storage;
+    private readonly IRefreshTokenRevocationStore _revocations;
 
     public AuthService(
         GovoriDbContext db,
@@ -81,7 +82,8 @@ public sealed class AuthService
         IGoogleTokenVerifier googleVerifier,
         OtpOptions otpOptions,
         IPendingPhoneChangeStore pendingPhoneChanges,
-        IObjectStorage storage)
+        IObjectStorage storage,
+        IRefreshTokenRevocationStore revocations)
     {
         _db = db;
         _tokenService = tokenService;
@@ -91,6 +93,7 @@ public sealed class AuthService
         _otpOptions = otpOptions;
         _pendingPhoneChanges = pendingPhoneChanges;
         _storage = storage;
+        _revocations = revocations;
     }
 
     /// <summary>
@@ -268,14 +271,31 @@ public sealed class AuthService
     }
 
     /// <summary>
-    /// Exchange a refresh token for a fresh access + refresh pair. The token <c>type</c> MUST be
-    /// <c>refresh</c>, so an access token cannot be used to extend a session.
+    /// Exchange a refresh token for a fresh access + refresh pair. Four things have to hold, and each
+    /// one closes a different hole:
+    /// <list type="number">
+    ///   <item>the signature validates and the token <c>type</c> is <c>refresh</c> — so an access
+    ///   token cannot be used to extend a session;</item>
+    ///   <item>the token has not been revoked by <see cref="LogoutAsync"/> — so pressing "Chiqish"
+    ///   actually ends the session rather than returning 204 and changing nothing;</item>
+    ///   <item>the subject still exists and is ACTIVE — previously this method re-minted purely from
+    ///   the token subject, so an admin who blocked or deleted an account watched it keep issuing
+    ///   itself fresh tokens for up to the full seven-day refresh lifetime;</item>
+    ///   <item>only then are new tokens minted.</item>
+    /// </list>
     ///
-    /// <para>CAVEAT: this does NOT re-read the user or re-check <c>is_active</c> — it re-mints
-    /// purely from the token subject, so a blocked user can keep refreshing until their refresh
-    /// token expires. The per-request user lookup is what actually stops them.</para>
+    /// <para><b>FAIL-CLOSED on the deny-list.</b> If the revocation store cannot answer, the refresh
+    /// is REFUSED. A deny-list that fails open is not a deny-list — someone holding a revoked token
+    /// would only have to wait for a Redis blip. The availability cost is bounded and consistent:
+    /// OTP verification is already fail-closed, so a Redis outage means nobody can log in either way,
+    /// and authentication becomes uniformly unavailable rather than selectively wrong.</para>
+    ///
+    /// <para>Deliberately NOT rotating: the presented token stays valid until it expires. Rotation
+    /// (revoke-on-exchange) is the stronger position, but it breaks two browser tabs refreshing at
+    /// the same moment, which is a live-user regression rather than a hardening — it needs a product
+    /// decision and a client that retries, not a quiet change here.</para>
     /// </summary>
-    public TokenResponse? Refresh(string refreshToken)
+    public async Task<TokenResponse?> RefreshAsync(string refreshToken, CancellationToken ct = default)
     {
         var data = _tokenService.Decode(refreshToken);
         if (data is null
@@ -284,9 +304,83 @@ public sealed class AuthService
         {
             return null;
         }
+
+        if (await IsRevokedAsync(refreshToken, ct))
+            return null;
+
+        // role is still never read from the token; existence + is_active come from the DB.
+        if (!Guid.TryParse(sub, out var userId))
+            return null;
+        var stillValid = await _db.Users.AsNoTracking().AnyAsync(u => u.Id == userId && u.IsActive, ct);
+        if (!stillValid)
+            return null;
+
         return new TokenResponse(
             _tokenService.CreateAccessToken(sub),
             _tokenService.CreateRefreshToken(sub));
+    }
+
+    /// <summary>
+    /// End ONE session: revoke the presented refresh token so it can never be exchanged again.
+    ///
+    /// <para><b>Per-token, not per-user.</b> Logging out on a borrowed phone ends the session on that
+    /// phone and leaves the user's own tablet signed in — which is what the button means to the person
+    /// pressing it. A per-user "everything before now is invalid" stamp would be simpler and would
+    /// sign them out everywhere, which is a different feature (and one that needs a schema change on
+    /// a database carrying live rows).</para>
+    ///
+    /// <para><b>Always succeeds, whatever it is handed.</b> No body, a malformed token, an expired
+    /// one, or an ACCESS token instead of a refresh token all end as a quiet no-op: the client is
+    /// discarding its tokens regardless, and a logout that can fail is a logout users learn to
+    /// distrust. It also means the endpoint tells a caller nothing about which tokens are real.
+    /// A revocation-store outage is swallowed for the same reason — the refresh path is fail-closed,
+    /// so an unrecorded revocation costs at most one refresh interval, and failing the logout would
+    /// leave the user staring at a button that does not work.</para>
+    /// </summary>
+    public async Task LogoutAsync(string? refreshToken, CancellationToken ct = default)
+    {
+        if (string.IsNullOrWhiteSpace(refreshToken))
+            return;
+
+        var data = _tokenService.Decode(refreshToken);
+        if (data is null
+            || !data.TryGetValue("type", out var type) || type != "refresh"
+            || !data.TryGetValue("exp", out var exp)
+            || !long.TryParse(exp, out var expiresAtUnix))
+        {
+            return;
+        }
+
+        try
+        {
+            await _revocations.RevokeAsync(
+                refreshToken, DateTimeOffset.FromUnixTimeSeconds(expiresAtUnix), ct);
+        }
+        catch (OperationCanceledException)
+        {
+            throw;                  // genuine cancellation is not a logout outcome
+        }
+        catch
+        {
+            // Best-effort: see the note above.
+        }
+    }
+
+    /// <summary>Deny-list read that turns a store outage into "treat as revoked" (fail-closed).</summary>
+    private async Task<bool> IsRevokedAsync(string refreshToken, CancellationToken ct)
+    {
+        try
+        {
+            return await _revocations.IsRevokedAsync(refreshToken, ct);
+        }
+        catch (OperationCanceledException)
+        {
+            throw;                  // genuine cancellation is not a revocation decision
+        }
+        catch
+        {
+            return true;            // cannot prove it is still valid ⇒ refuse
+        }
     }
 
     /// <summary>

@@ -112,6 +112,16 @@ public sealed record PhoneChangeConfirmRequest(string Code);
 public sealed record RefreshRequest(string RefreshToken);
 
 /// <summary>
+/// Logout body. JSON: <c>{ "refresh_token": ... }</c> — and the token is OPTIONAL on purpose.
+///
+/// <para>The shipped frontend posts no body at all, so the field is nullable and its absence is a
+/// valid request that still answers 204. Supplying the token is what lets the server revoke it, so
+/// the session on that device can never be refreshed again; omitting it leaves logout the
+/// client-side-only gesture it used to be.</para>
+/// </summary>
+public sealed record LogoutRequest(string? RefreshToken = null);
+
+/// <summary>
 /// Google Identity Services sign-in body. <c>Credential</c>
 /// is the Google ID token (JWT); <c>GroupCode</c> is an optional referral code. Google sign-in
 /// is retained alongside phone-OTP. JSON: <c>{ "credential": ..., "group_code": ... }</c>.
