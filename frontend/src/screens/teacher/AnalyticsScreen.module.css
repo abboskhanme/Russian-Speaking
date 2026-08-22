@@ -52,7 +52,13 @@
   --hero-bg: var(--ink);
   --hero-ink: var(--bg);
   --hero-soft: oklch(0.78 0.015 78);
-  --hero-faint: oklch(0.62 0.015 78);
+  /* 0.640, not 0.620: this card is a DARK surface inside the LIGHT theme, so it is
+     the one place on the page where the global greys say nothing useful — they are
+     tuned against --bg and --primary-tint. Measured on this card's own ground
+     (--ink, #30231b): 0.620 gives 4.17:1 and 0.640 gives 4.51:1, so this is the
+     lightest value that clears AA rather than a round number. It carries the CEFR
+     band line and the three month labels under the chart — words, not decoration. */
+  --hero-faint: oklch(0.640 0.015 78);
   --hero-line: var(--primary);
 
   display: flex;
