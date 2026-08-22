@@ -193,7 +193,7 @@ export function AssignTaskScreen({
           <>
             {/* ---- Vazifa ---- */}
             <section className={styles.section}>
-              <Text as="h2" variant="label" color="faint" className={styles.legend}>
+              <Text as="h2" variant="label" color="muted" className={styles.legend}>
                 {t("teacher.assignTask.what")}
               </Text>
               <button
@@ -225,7 +225,7 @@ export function AssignTaskScreen({
 
             {/* ---- Kimga ---- */}
             <section className={styles.section}>
-              <Text as="h2" variant="label" color="faint" className={styles.legend}>
+              <Text as="h2" variant="label" color="muted" className={styles.legend}>
                 {t("teacher.assignTask.who")}
               </Text>
               {/* Radio semantics, not checkboxes: the endpoint takes ONE group_id,
@@ -261,7 +261,7 @@ export function AssignTaskScreen({
 
             {/* ---- Muddat ---- */}
             <section className={styles.section}>
-              <Text as="h2" variant="label" color="faint" className={styles.legend}>
+              <Text as="h2" variant="label" color="muted" className={styles.legend}>
                 {t("teacher.assignTask.due")}
               </Text>
               {/* A native datetime input: it renders in the OS locale and needs no
@@ -280,7 +280,7 @@ export function AssignTaskScreen({
 
             {/* ---- Urinish ---- */}
             <section className={styles.section}>
-              <Text as="h2" variant="label" color="faint" className={styles.legend}>
+              <Text as="h2" variant="label" color="muted" className={styles.legend}>
                 {t("teacher.assignTask.attempts")}
               </Text>
               <div className={styles.chips} role="group" aria-label={t("teacher.assignTask.attempts")}>
@@ -454,7 +454,7 @@ function PickerGroup({
 }) {
   return (
     <section className={styles.pickerSection}>
-      <Text as="h3" variant="label" color="faint" className={styles.legend}>
+      <Text as="h3" variant="label" color="muted" className={styles.legend}>
         {label}
       </Text>
       <ul className={styles.pickerList}>

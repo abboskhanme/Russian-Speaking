@@ -91,7 +91,7 @@ export function GroupScreen({
           </Text>
         </header>
 
-        <Text as="h2" variant="label" color="faint" className={styles.sectionLabel}>
+        <Text as="h2" variant="label" color="muted" className={styles.sectionLabel}>
           {t("groupBoard.classmates")}
         </Text>
 
@@ -122,7 +122,7 @@ export function GroupScreen({
                       </Text>
                       {c.isMe && <span className={styles.youBadge}>{t("groupBoard.you")}</span>}
                     </span>
-                    <Text as="span" variant="body-s" color="faint">
+                    <Text as="span" variant="body-s" color="muted">
                       {t("groupBoard.streak", { count: c.currentStreak })}
                     </Text>
                   </span>
@@ -131,7 +131,7 @@ export function GroupScreen({
                     <Text as="span" variant="title-s" numeric>
                       {c.xp}
                     </Text>
-                    <Text as="span" variant="body-s" color="faint">
+                    <Text as="span" variant="body-s" color="muted">
                       {t("groupBoard.xp")}
                     </Text>
                   </span>

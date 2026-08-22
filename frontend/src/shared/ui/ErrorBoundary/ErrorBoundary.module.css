@@ -1,0 +1,72 @@
+/* ErrorBoundary — the crash fallback surface.
+ * Tokens only, so the screen a person meets on the worst day still matches the
+ * product in both themes (docs/03 §3.1). Mirrors app/PageState's full-screen shell
+ * on purpose: a crash and a failed fetch should not look like two different apps. */
+
+.shell {
+  min-height: 100dvh;
+  display: grid;
+  place-items: center;
+  background: var(--bg);
+  padding: var(--s-6);
+}
+
+.card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--s-3);
+  text-align: center;
+  /* Bounded so the sentence keeps a readable measure on a desktop, full-width on
+   * a 390px phone — where this is most likely to be read. */
+  max-width: 460px;
+  width: 100%;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--s-3);
+  margin-top: var(--s-2);
+}
+
+/* ---- Dev-only technical detail ---- */
+
+.details {
+  width: 100%;
+  margin-top: var(--s-2);
+  text-align: start;
+}
+
+.summary {
+  cursor: pointer;
+  color: var(--muted);
+  font-family: var(--font-sans);
+  font-size: var(--t-body-s-size);
+  line-height: var(--t-body-s-line);
+  border-radius: var(--r-sm);
+}
+
+.summary:focus-visible {
+  outline: var(--focus-ring-width) solid var(--focus-ring);
+  outline-offset: var(--focus-ring-offset);
+}
+
+.stack {
+  margin: var(--s-2) 0 0;
+  padding: var(--s-3);
+  /* Scrolls inside itself: a component stack is tall and wide, and letting it push
+   * the two recovery buttons off the viewport defeats the whole screen. */
+  max-height: 240px;
+  overflow: auto;
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  color: var(--ink-soft);
+  font-family: var(--font-mono);
+  font-size: var(--t-mono-size);
+  line-height: var(--t-mono-line);
+  white-space: pre-wrap;
+  word-break: break-word;
+}

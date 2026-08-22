@@ -64,7 +64,7 @@ export function SkillsTab({
           </Text>
         ) : (
           <>
-            <Text as="p" variant="label" color="faint">
+            <Text as="p" variant="label" color="muted">
               {t("progress.skills.currentLevel")}
             </Text>
 
@@ -92,7 +92,7 @@ export function SkillsTab({
 
       {/* ---- The four sub-skills ---- */}
       <section className={styles.skillsSection} aria-label={t("progress.skills.sectionLabel")}>
-        <Text as="h2" variant="label" color="faint" className={styles.skillsLabel}>
+        <Text as="h2" variant="label" color="muted" className={styles.skillsLabel}>
           {t("progress.skills.sectionLabel")}
         </Text>
 

@@ -135,5 +135,5 @@
   text-decoration: line-through;
 }
 .corrRight {
-  color: var(--success);
+  color: var(--success-ink);
 }

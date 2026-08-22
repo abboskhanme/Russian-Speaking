@@ -225,7 +225,7 @@ export function InfoTab({
           <Text
             as="h2"
             variant="label"
-            color="faint"
+            color="muted"
             className={styles.sectionLabel}
           >
             {t("profile.group.sectionLabel")}
@@ -289,7 +289,7 @@ function InfoRow({ label, value, empty = false, action }: InfoRowProps) {
         <Text
           as="span"
           variant="body"
-          color={empty ? "faint" : "ink"}
+          color={empty ? "muted" : "ink"}
           weight="semibold"
         >
           {value}

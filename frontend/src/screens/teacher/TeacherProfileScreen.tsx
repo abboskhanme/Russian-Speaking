@@ -229,7 +229,7 @@ function GroupsBlock({
 
   return (
     <section className={styles.section} aria-label={t("teacher.profile.groups")}>
-      <Text as="h2" variant="label" color="faint" className={styles.legend}>
+      <Text as="h2" variant="label" color="muted" className={styles.legend}>
         {t("teacher.profile.groups")}
       </Text>
 
@@ -263,7 +263,7 @@ function GroupsBlock({
           {/* Double-counts a student who is in two of this teacher's groups —
               GroupResponse carries only a count, and deduping would mean fetching
               every roster from a screen that does not otherwise need them. */}
-          <Text as="p" variant="body-s" color="faint">
+          <Text as="p" variant="body-s" color="muted">
             {t("teacher.profile.reach", { count: students })}
           </Text>
         </>

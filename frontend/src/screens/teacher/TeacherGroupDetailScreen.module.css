@@ -159,7 +159,7 @@
   margin-inline-start: var(--s-2);
 }
 .score-success {
-  color: var(--success);
+  color: var(--success-ink);
 }
 .score-warn {
   color: var(--warn-ink);

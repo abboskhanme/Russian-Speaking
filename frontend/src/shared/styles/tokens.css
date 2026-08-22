@@ -36,7 +36,7 @@
   --primary-tint:   oklch(0.945 0.038 48);   /* selected nav / chip bg */
   --primary-tint-2: oklch(0.905 0.068 46);   /* border over tint */
   --primary-on:     oklch(0.995 0.004 60);   /* text on primary */
-  --accent:         oklch(0.545 0.155 272);  /* progress / premium / data viz */
+  --accent:         oklch(0.530 0.155 272);  /* progress / premium / data viz */
   --accent-tint:    oklch(0.945 0.035 272);
 
   /* ---- Surfaces & ink --------------------------------------------------- */
@@ -46,7 +46,22 @@
   --surface-3: oklch(0.958 0.013 74);
   --ink:       oklch(0.270 0.024 55);
   --ink-soft:  oklch(0.450 0.020 58);
-  --muted:     oklch(0.600 0.018 62);
+  /* THE GREY TEXT RAMP STOPS HERE. Three levels, not four — that is a
+   * measurement, not a preference. On this palette the lightest grey that still
+   * clears WCAG AA (4.5:1) against every surface text actually lands on is
+   * L 0.526; the binding background is --primary-tint (#ffe6d7), not --bg, which
+   * is why an earlier audit against --bg alone concluded 0.550 was enough.
+   * --ink-soft is L 0.450, so the whole legal band below it is 0.076 wide — room
+   * for ONE more step. A fourth AA-legal grey text level does not exist here.
+   *
+   * 0.520 → #71675f: 5.09:1 on --bg, 4.88 on --surface-3, 4.61 on --primary-tint. */
+  --muted:     oklch(0.520 0.018 62);
+  /* NEVER CARRIES TEXT. --faint is 2.09:1 on --bg — it is a decoration token:
+   * aria-hidden glyphs, lock/chevron/arrow marks, disabled controls (WCAG 1.4.3
+   * exempts inactive components). Anything a sighted user reads takes --muted.
+   * Raising this to AA is not an option: it would land on top of --muted (see
+   * the note above), which is why the fix was to re-scope the token, not retint
+   * it. If you are reaching for this to colour a word, you want --muted. */
   --faint:     oklch(0.745 0.014 68);
   --line:      oklch(0.910 0.011 72);
   --line-2:    oklch(0.862 0.016 70);
@@ -54,8 +69,8 @@
   /* ---- Semantic --------------------------------------------------------- */
   --success:      oklch(0.640 0.140 155);
   --warn:         oklch(0.760 0.135 82);
-  --danger:       oklch(0.605 0.170 20);
-  --info:         oklch(0.600 0.115 245);
+  --danger:       oklch(0.540 0.170 20);
+  --info:         oklch(0.520 0.115 245);
 
   /* Tints (mockup uses these exact values; light = L~0.95, low chroma) */
   --success-tint: oklch(0.945 0.038 155);
@@ -63,7 +78,13 @@
   --danger-tint:  oklch(0.952 0.040 20);
   --info-tint:    oklch(0.945 0.029 245);
   /* Amber reads poorly as text on light tint — dedicated ink (from mockup). */
-  --warn-ink:     oklch(0.550 0.110 82);
+  --warn-ink:     oklch(0.530 0.110 82);
+  /* Green has the same problem, worse: --success as text is 2.74:1 on its own
+   * tint. Splitting it rather than darkening --success is deliberate — the token
+   * is mostly a FILL (progress bars, the success button, the "good" pronunciation
+   * mark), and dropping it to L 0.505 to satisfy text would turn every one of
+   * those forest-dark. Fills keep --success; words take --success-ink. */
+  --success-ink:  oklch(0.505 0.140 155);
   /* Ink on a filled --danger surface (the Navbat FAB count badge). */
   --danger-on:    oklch(0.995 0.004 20);
 
@@ -202,7 +223,7 @@
   --primary-tint:   oklch(0.945 0.038 48);
   --primary-tint-2: oklch(0.905 0.068 46);
   --primary-on:     oklch(0.995 0.004 60);
-  --accent:         oklch(0.545 0.155 272);
+  --accent:         oklch(0.530 0.155 272);
   --accent-tint:    oklch(0.945 0.035 272);
 
   --bg:        oklch(0.973 0.010 72);
@@ -211,20 +232,21 @@
   --surface-3: oklch(0.958 0.013 74);
   --ink:       oklch(0.270 0.024 55);
   --ink-soft:  oklch(0.450 0.020 58);
-  --muted:     oklch(0.600 0.018 62);
-  --faint:     oklch(0.745 0.014 68);
+  --muted:     oklch(0.520 0.018 62);  /* AA — see the ramp note in block 1 */
+  --faint:     oklch(0.745 0.014 68);  /* decoration only — never carries text */
   --line:      oklch(0.910 0.011 72);
   --line-2:    oklch(0.862 0.016 70);
 
   --success:      oklch(0.640 0.140 155);
   --warn:         oklch(0.760 0.135 82);
-  --danger:       oklch(0.605 0.170 20);
-  --info:         oklch(0.600 0.115 245);
+  --danger:       oklch(0.540 0.170 20);
+  --info:         oklch(0.520 0.115 245);
   --success-tint: oklch(0.945 0.038 155);
   --warn-tint:    oklch(0.955 0.036 82);
   --danger-tint:  oklch(0.952 0.040 20);
   --info-tint:    oklch(0.945 0.029 245);
-  --warn-ink:     oklch(0.550 0.110 82);
+  --warn-ink:     oklch(0.530 0.110 82);
+  --success-ink:  oklch(0.505 0.140 155);
   /* Ink on a filled --danger surface (the Navbat FAB count badge). */
   --danger-on:    oklch(0.995 0.004 20);
 
@@ -246,7 +268,7 @@
   --primary-tint:   oklch(0.300 0.055 42);
   --primary-tint-2: oklch(0.360 0.070 42);
   --primary-on:     oklch(0.180 0.020 45);
-  --accent:         oklch(0.680 0.140 272);
+  --accent:         oklch(0.695 0.140 272);
   --accent-tint:    oklch(0.300 0.055 272);
 
   --bg:        oklch(0.190 0.012 60);
@@ -255,14 +277,16 @@
   --surface-3: oklch(0.315 0.018 60);
   --ink:       oklch(0.965 0.008 75);
   --ink-soft:  oklch(0.830 0.012 72);
-  --muted:     oklch(0.680 0.014 68);
-  --faint:     oklch(0.520 0.012 64);
+  /* 0.680 measured 4.47:1 on --surface-3 — a hair under AA, and invisible to the
+   * earlier audit because it only tested --bg (6.39 there). 0.700 → 4.81. */
+  --muted:     oklch(0.700 0.014 68);
+  --faint:     oklch(0.520 0.012 64);  /* decoration only — never carries text */
   --line:      oklch(0.320 0.014 60);
   --line-2:    oklch(0.400 0.016 60);
 
   --success:      oklch(0.720 0.130 155);
   --warn:         oklch(0.800 0.125 82);
-  --danger:       oklch(0.680 0.160 20);
+  --danger:       oklch(0.705 0.160 20);
   --info:         oklch(0.700 0.105 245);
   /* Dark tints: L 0.300, chroma ÷2.5 (docs/03 §3.3). */
   --success-tint: oklch(0.300 0.056 155);
@@ -270,6 +294,9 @@
   --danger-tint:  oklch(0.300 0.068 20);
   --info-tint:    oklch(0.300 0.046 245);
   --warn-ink:     oklch(0.800 0.125 82);  /* derived: light warn-ink is too dark on a dark tint */
+  /* Dark needs no split: --success is already 5.47:1 on the darkest surface, so
+   * the ink tracks the fill and the two themes stay one token apart, not two. */
+  --success-ink:  oklch(0.720 0.130 155);
   /* Ink on a filled --danger surface (the Navbat FAB count badge). */
   --danger-on:    oklch(0.995 0.004 20);
 
@@ -293,7 +320,7 @@
     --primary-tint:   oklch(0.300 0.055 42);
     --primary-tint-2: oklch(0.360 0.070 42);
     --primary-on:     oklch(0.180 0.020 45);
-    --accent:         oklch(0.680 0.140 272);
+    --accent:         oklch(0.695 0.140 272);
     --accent-tint:    oklch(0.300 0.055 272);
 
     --bg:        oklch(0.190 0.012 60);
@@ -302,20 +329,21 @@
     --surface-3: oklch(0.315 0.018 60);
     --ink:       oklch(0.965 0.008 75);
     --ink-soft:  oklch(0.830 0.012 72);
-    --muted:     oklch(0.680 0.014 68);
-    --faint:     oklch(0.520 0.012 64);
+    --muted:     oklch(0.700 0.014 68);  /* AA on --surface-3; see block 3 */
+    --faint:     oklch(0.520 0.012 64);  /* decoration only — never carries text */
     --line:      oklch(0.320 0.014 60);
     --line-2:    oklch(0.400 0.016 60);
 
     --success:      oklch(0.720 0.130 155);
     --warn:         oklch(0.800 0.125 82);
-    --danger:       oklch(0.680 0.160 20);
+    --danger:       oklch(0.705 0.160 20);
     --info:         oklch(0.700 0.105 245);
     --success-tint: oklch(0.300 0.056 155);
     --warn-tint:    oklch(0.300 0.054 82);
     --danger-tint:  oklch(0.300 0.068 20);
     --info-tint:    oklch(0.300 0.046 245);
     --warn-ink:     oklch(0.800 0.125 82);
+    --success-ink:  oklch(0.720 0.130 155);
     /* Ink on a filled --danger surface (the Navbat FAB count badge). */
     --danger-on:    oklch(0.995 0.004 20);
 

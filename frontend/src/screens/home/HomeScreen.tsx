@@ -141,7 +141,7 @@ export function HomeScreen({
         )}
 
         <section className={styles.section} aria-label={t("home.summary")}>
-          <Text as="h2" variant="label" color="faint" className={styles.sectionLabel}>
+          <Text as="h2" variant="label" color="muted" className={styles.sectionLabel}>
             {t("home.summary")}
           </Text>
           <div className={styles.statGrid}>
@@ -255,7 +255,7 @@ function TeacherSection({
 
   return (
     <section className={styles.section} aria-label={t("home.teacherSection")}>
-      <Text as="h2" variant="label" color="faint" className={styles.sectionLabel}>
+      <Text as="h2" variant="label" color="muted" className={styles.sectionLabel}>
         {t("home.teacherSection")}
       </Text>
 

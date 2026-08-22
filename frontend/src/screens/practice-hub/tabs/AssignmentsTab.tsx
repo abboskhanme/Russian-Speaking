@@ -111,7 +111,7 @@ function AssignmentRow({
               {due.text}
             </Text>
           </span>
-          <Text as="span" variant="body-s" color="faint" className={styles.from}>
+          <Text as="span" variant="body-s" color="muted" className={styles.from}>
             {t("mashq.assignments.from")}
           </Text>
           {spent && (

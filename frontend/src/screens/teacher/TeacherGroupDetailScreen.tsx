@@ -151,7 +151,7 @@ export function TeacherGroupDetailScreen({
         </div>
 
         <section className={styles.section} aria-label={t("teacher.activeAssignments")}>
-          <Text as="h2" variant="label" color="faint">
+          <Text as="h2" variant="label" color="muted">
             {t("teacher.activeAssignments")}
           </Text>
           {assignments.length === 0 ? (
@@ -172,7 +172,7 @@ export function TeacherGroupDetailScreen({
         </section>
 
         <section className={styles.section} aria-label={t("teacher.tabStudents")}>
-          <Text as="h2" variant="label" color="faint">
+          <Text as="h2" variant="label" color="muted">
             {t("teacher.tabStudents")}
           </Text>
           {roster.length === 0 ? (
@@ -297,7 +297,7 @@ function RosterRow({
           {student.score}
         </Text>
       ) : (
-        <Text as="span" variant="body-s" color="faint" className={styles.score}>
+        <Text as="span" variant="body-s" color="muted" className={styles.score}>
           {t("teacher.notScored")}
         </Text>
       )}

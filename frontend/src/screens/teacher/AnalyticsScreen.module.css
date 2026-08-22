@@ -129,7 +129,7 @@
    signal (docs/03 §3.3). */
 .delta-up {
   background: var(--success-tint);
-  color: var(--success);
+  color: var(--success-ink);
 }
 .delta-down {
   background: var(--danger-tint);
@@ -245,7 +245,7 @@
 
 /* Shared numeric tones (skill scores + Jurnal sub-scores). */
 .score-success {
-  color: var(--success);
+  color: var(--success-ink);
 }
 .score-warn {
   color: var(--warn-ink);
@@ -486,7 +486,7 @@
 }
 .band-success {
   background: var(--success-tint);
-  color: var(--success);
+  color: var(--success-ink);
 }
 .band-warn {
   background: var(--warn-tint);

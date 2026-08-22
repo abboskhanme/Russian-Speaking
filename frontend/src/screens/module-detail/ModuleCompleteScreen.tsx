@@ -147,7 +147,7 @@ export function ModuleCompleteScreen({
         {/* ---- Next module ---- */}
         {next ? (
           <section className={styles.nextSection} aria-label={t("mashq.complete.nextLabel")}>
-            <Text as="h2" variant="label" color="faint" className={styles.nextLabel}>
+            <Text as="h2" variant="label" color="muted" className={styles.nextLabel}>
               {t("mashq.complete.nextLabel")}
             </Text>
 

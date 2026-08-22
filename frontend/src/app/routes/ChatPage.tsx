@@ -67,7 +67,7 @@ export default function ChatPage() {
           <Text as="p" variant="body-l" color="ink-soft">
             {t("chat.body")}
           </Text>
-          <Text as="p" variant="body-s" color="faint" numeric>
+          <Text as="p" variant="body-s" color="muted" numeric>
             {t("units.points", { count: 2 })}
           </Text>
           <Button variant="primary" size="lg" onClick={() => onNavigate("home")}>

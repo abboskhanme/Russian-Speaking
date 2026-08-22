@@ -166,7 +166,7 @@ function AchievementTile({ achievement }: { achievement: ProgressAchievement }) 
             <Text
               as="p"
               variant="body-s"
-              color="faint"
+              color="muted"
               numeric
               className={styles.count}
             >

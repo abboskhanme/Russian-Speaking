@@ -93,7 +93,7 @@
   height: 28px;
   border-radius: var(--r-pill);
   background: var(--success-tint);
-  color: var(--success);
+  color: var(--success-ink);
 }
 .score {
   white-space: nowrap;

@@ -155,7 +155,7 @@
 }
 .circle-success {
   background: var(--success-tint);
-  color: var(--success);
+  color: var(--success-ink);
 }
 .circle-warn {
   background: var(--warn-tint);
@@ -165,10 +165,11 @@
   background: var(--danger-tint);
   color: var(--danger);
 }
-/* Still being graded — neutral, so it doesn't read as a bad score. */
+/* Still being graded — neutral, so it doesn't read as a bad score. The em dash
+ * inside is the only visual "no score yet" cue, so it sits on the text ramp. */
 .circleNone {
   background: var(--surface-3);
-  color: var(--faint);
+  color: var(--muted);
 }
 
 .rowBody {

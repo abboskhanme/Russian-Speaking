@@ -106,7 +106,7 @@
 }
 .chip_done {
   background: var(--success-tint);
-  color: var(--success);
+  color: var(--success-ink);
 }
 .chip_current {
   background: var(--warn-tint);

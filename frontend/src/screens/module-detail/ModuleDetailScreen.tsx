@@ -87,7 +87,7 @@ export function ModuleDetailScreen({
       <div className={styles.page}>
         {/* ---- Hero: label · ring · name · count ---- */}
         <header className={styles.hero}>
-          <Text as="p" variant="label" color="faint" className={styles.moduleLabel}>
+          <Text as="p" variant="label" color="muted" className={styles.moduleLabel}>
             {t("mashq.detail.label")}
           </Text>
 
@@ -103,7 +103,7 @@ export function ModuleDetailScreen({
 
         {/* ---- Tasks ---- */}
         <section className={styles.tasksSection} aria-label={t("mashq.detail.tasksLabel")}>
-          <Text as="h2" variant="label" color="faint" className={styles.tasksLabel}>
+          <Text as="h2" variant="label" color="muted" className={styles.tasksLabel}>
             {t("mashq.detail.tasksLabel")}
           </Text>
 
@@ -143,7 +143,7 @@ function TaskRow({
           as="span"
           variant="body-s"
           weight="semibold"
-          color={state === "current" ? "warn" : "faint"}
+          color={state === "current" ? "warn" : "muted"}
           className={styles.taskMeta}
         >
           {state === "current"
@@ -167,7 +167,7 @@ function TaskRow({
           </Button>
         )}
         {state === "locked" && (
-          <Text as="span" variant="body-s" color="faint">
+          <Text as="span" variant="body-s" color="muted">
             {t("mashq.detail.locked")}
           </Text>
         )}

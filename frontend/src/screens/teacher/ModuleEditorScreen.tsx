@@ -326,7 +326,7 @@ export function ModuleEditorScreen({
 
         <section className={styles.section} aria-label={t("teacher.tabTasks")}>
           <div className={styles.sectionHead}>
-            <Text as="h3" variant="label" color="faint">
+            <Text as="h3" variant="label" color="muted">
               {t("teacher.tabTasks")}
             </Text>
             <Text as="span" variant="body-s" color="muted" numeric>
@@ -492,7 +492,7 @@ function LibrarySheet({
         />
 
         {searching ? (
-          <Text as="p" variant="body-s" color="faint">
+          <Text as="p" variant="body-s" color="muted">
             {t("common.loading")}
           </Text>
         ) : library.length === 0 ? (
@@ -641,7 +641,7 @@ function NewTaskSheet({
             onChange={(e) => setMedia(e.currentTarget.files?.[0] ?? null)}
             aria-label={t("teacher.media")}
           />
-          <Text as="p" variant="body-s" color="faint">
+          <Text as="p" variant="body-s" color="muted">
             {media ? media.name : t("teacher.mediaHint")}
           </Text>
         </div>

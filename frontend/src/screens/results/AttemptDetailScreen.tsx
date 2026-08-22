@@ -255,7 +255,7 @@ export function AttemptDetailScreen({
 function Section({ title, children }: { title: string; children: ReactNode }) {
   return (
     <section className={styles.section}>
-      <Text as="h2" variant="label" color="faint" className={styles.sectionLabel}>
+      <Text as="h2" variant="label" color="muted" className={styles.sectionLabel}>
         {title}
       </Text>
       {children}

@@ -487,7 +487,7 @@ function SkillsSection({ skills }: { skills: AnalyticsSkill[] }) {
 
   return (
     <section className={styles.section} aria-label={t("teacher.analytics.skillsTitle")}>
-      <Text as="h3" variant="label" color="faint">
+      <Text as="h3" variant="label" color="muted">
         {t("teacher.analytics.skillsTitle")}
       </Text>
       {!anyScored ? (
@@ -547,7 +547,7 @@ function SkillBar({ skill }: { skill: AnalyticsSkill }) {
           {Math.round(skill.score!)}
         </Text>
       ) : (
-        <Text as="span" variant="body-s" color="faint" className={styles.skillScoreNone}>
+        <Text as="span" variant="body-s" color="muted" className={styles.skillScoreNone}>
           {t("teacher.notScored")}
         </Text>
       )}
@@ -566,7 +566,7 @@ function WeekSection({ week }: { week: AnalyticsWeekDay[] }) {
 
   return (
     <section className={styles.section} aria-label={t("teacher.analytics.weekTitle")}>
-      <Text as="h3" variant="label" color="faint">
+      <Text as="h3" variant="label" color="muted">
         {t("teacher.analytics.weekTitle")}
       </Text>
       <Card variant="outline" padding="md" className={styles.weekCard}>
@@ -617,7 +617,7 @@ function ErrorsSection({ errors }: { errors: AnalyticsErrorRow[] }) {
 
   return (
     <section className={styles.section} aria-label={t("teacher.analytics.errorsTitle")}>
-      <Text as="h3" variant="label" color="faint">
+      <Text as="h3" variant="label" color="muted">
         {t("teacher.analytics.errorsTitle")}
       </Text>
       {errors.length === 0 ? (
@@ -742,7 +742,7 @@ function GradesTab({ rows }: { rows: GradebookStudent[] }) {
                   ) : (
                     // Phase 2's rule, and it holds here: no graded attempt reads
                     // "baholanmagan", never 0.
-                    <Text as="span" variant="body-s" color="faint">
+                    <Text as="span" variant="body-s" color="muted">
                       {t("teacher.notScored")}
                     </Text>
                   )}
@@ -761,7 +761,7 @@ function GradesTab({ rows }: { rows: GradebookStudent[] }) {
 function SubScore({ value }: { value?: number }) {
   if (value == null) {
     return (
-      <Text as="span" variant="body-s" color="faint" numeric>
+      <Text as="span" variant="body-s" color="muted" numeric>
         —
       </Text>
     );

@@ -183,7 +183,7 @@
   flex: none;
   border-radius: var(--r-pill);
   background: var(--success-tint);
-  color: var(--success);
+  color: var(--success-ink);
 }
 /* Pinned to the trailing edge, vertically centred against the whole card so it
  * stays put whether or not the phone line is present. */

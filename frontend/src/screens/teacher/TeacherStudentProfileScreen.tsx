@@ -151,7 +151,7 @@ export function TeacherStudentProfileScreen({
 
         {skills.length > 0 && (
           <Card variant="outline" padding="md" className={styles.skills}>
-            <Text as="h3" variant="label" color="faint">
+            <Text as="h3" variant="label" color="muted">
               {t("teacher.skills")}
             </Text>
             {skills.map((s) => (
@@ -161,7 +161,7 @@ export function TeacherStudentProfileScreen({
         )}
 
         <section className={styles.section} aria-label={t("teacher.recentAttempts")}>
-          <Text as="h3" variant="label" color="faint">
+          <Text as="h3" variant="label" color="muted">
             {t("teacher.recentAttempts")}
           </Text>
           {attempts.length === 0 ? (

@@ -502,7 +502,7 @@ function StudentRow({
       ) : (
         // No graded attempt yet — say so rather than showing a 0 that reads as a
         // bad score. The gradebook simply has no row for this student.
-        <Text as="span" variant="body-s" color="faint" className={styles.score}>
+        <Text as="span" variant="body-s" color="muted" className={styles.score}>
           {t("teacher.notScored")}
         </Text>
       )}

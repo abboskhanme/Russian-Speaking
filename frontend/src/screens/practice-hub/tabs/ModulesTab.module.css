@@ -108,7 +108,7 @@
 }
 .chipSuccess {
   background: var(--success-tint);
-  color: var(--success);
+  color: var(--success-ink);
 }
 .chipNeutral {
   background: var(--surface-2);

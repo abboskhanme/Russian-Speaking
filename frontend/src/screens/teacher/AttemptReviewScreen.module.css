@@ -58,7 +58,7 @@
 }
 .box-success {
   background: var(--success-tint);
-  color: var(--success);
+  color: var(--success-ink);
 }
 .box-warn {
   background: var(--warn-tint);
@@ -68,9 +68,10 @@
   background: var(--danger-tint);
   color: var(--danger);
 }
+/* The em dash here is the "not graded yet" signal, so it is read as text. */
 .boxNone {
   background: var(--surface-3);
-  color: var(--faint);
+  color: var(--muted);
 }
 
 .reviewedNote {
@@ -227,7 +228,7 @@
   margin-bottom: var(--s-2);
 }
 .band-success {
-  color: var(--success);
+  color: var(--success-ink);
 }
 .band-warn {
   color: var(--warn-ink);
@@ -317,7 +318,7 @@
   color: var(--faint);
 }
 .right {
-  color: var(--success);
+  color: var(--success-ink);
 }
 
 .fbList {
@@ -333,7 +334,7 @@
   gap: 2px;
 }
 .bullets-success::marker {
-  color: var(--success);
+  color: var(--success-ink);
 }
 .bullets-warn::marker {
   color: var(--warn-ink);

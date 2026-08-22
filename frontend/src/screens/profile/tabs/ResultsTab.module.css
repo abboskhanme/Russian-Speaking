@@ -158,7 +158,7 @@
   font-weight: var(--fw-bold);
 }
 .trendUp {
-  color: var(--success);
+  color: var(--success-ink);
 }
 .trendDown {
   color: var(--danger);

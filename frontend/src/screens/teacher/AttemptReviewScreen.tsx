@@ -187,7 +187,7 @@ export function AttemptReviewScreen({
 
         {criteria.length > 0 && (
           <Card variant="outline" padding="md" className={styles.criteria}>
-            <Text as="h3" variant="label" color="faint">
+            <Text as="h3" variant="label" color="muted">
               {t("teacher.aiScores")}
             </Text>
             {criteria.map((c) => (
@@ -211,7 +211,7 @@ export function AttemptReviewScreen({
 
         {corrections.length > 0 && (
           <Card variant="outline" padding="md" className={styles.aiCard}>
-            <Text as="h3" variant="label" color="faint">
+            <Text as="h3" variant="label" color="muted">
               {t("teacher.aiFound")}
             </Text>
             {corrections.map((c, i) => (
@@ -233,7 +233,7 @@ export function AttemptReviewScreen({
 
         {feedback && (
           <Card variant="outline" padding="md" className={styles.aiCard}>
-            <Text as="h3" variant="label" color="faint">
+            <Text as="h3" variant="label" color="muted">
               {t("teacher.aiFeedback")}
             </Text>
             {feedback.summary && (
@@ -249,7 +249,7 @@ export function AttemptReviewScreen({
             )}
             {feedback.vocabulary.length > 0 && (
               <div className={styles.vocabWrap}>
-                <Text as="h4" variant="label" color="faint">
+                <Text as="h4" variant="label" color="muted">
                   {t("teacher.vocabulary")}
                 </Text>
                 <div className={styles.vocabRow}>
@@ -268,7 +268,7 @@ export function AttemptReviewScreen({
 
         {teacherComment && (
           <Card variant="outline" padding="md" className={styles.aiCard}>
-            <Text as="h3" variant="label" color="faint">
+            <Text as="h3" variant="label" color="muted">
               {t("teacher.yourComment")}
             </Text>
             <Text as="p" variant="body-s">
@@ -487,7 +487,7 @@ function ManualGradeSheet({
 
         {criteria.length > 0 && (
           <div className={styles.aiRef}>
-            <Text as="h3" variant="label" color="faint">
+            <Text as="h3" variant="label" color="muted">
               {t("teacher.aiScores")}
             </Text>
             <div className={styles.aiRefRow}>
@@ -504,14 +504,14 @@ function ManualGradeSheet({
             </div>
             {/* Say plainly that these are the AI's numbers and not editable —
                 otherwise they read like controls that silently do nothing. */}
-            <Text as="p" variant="body-s" color="faint">
+            <Text as="p" variant="body-s" color="muted">
               {t("teacher.aiScoresReadonly")}
             </Text>
           </div>
         )}
 
         <div className={styles.commentBlock}>
-          <Text as="h3" variant="label" color="faint">
+          <Text as="h3" variant="label" color="muted">
             {t("teacher.commentLabel")}
           </Text>
           <textarea
@@ -554,7 +554,7 @@ function FeedbackList({
 }) {
   return (
     <div className={styles.fbList}>
-      <Text as="h4" variant="label" color="faint">
+      <Text as="h4" variant="label" color="muted">
         {label}
       </Text>
       <ul className={cx(styles.bullets, styles[`bullets-${tone}` as const])}>

@@ -64,7 +64,7 @@
 }
 .box-success {
   background: var(--success-tint);
-  color: var(--success);
+  color: var(--success-ink);
 }
 .box-warn {
   background: var(--warn-tint);
@@ -74,10 +74,12 @@
   background: var(--danger-tint);
   color: var(--danger);
 }
-/* No score at all — neutral, so it doesn't read as a failing grade. */
+/* No score at all — neutral, so it doesn't read as a failing grade. The box
+ * still prints an em dash, and that dash is what tells a teacher the attempt is
+ * ungraded, so it is text on the --muted ramp rather than --faint decoration. */
 .boxNone {
   background: var(--surface-3);
-  color: var(--faint);
+  color: var(--muted);
 }
 
 .meta {

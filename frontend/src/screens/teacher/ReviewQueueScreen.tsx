@@ -211,7 +211,7 @@ function QueueCard({
             {t("teacher.qLow")}
           </Badge>
         )}
-        <Text as="span" variant="body-s" color="faint">
+        <Text as="span" variant="body-s" color="muted">
           {item.when}
         </Text>
         {item.hasAudio && (

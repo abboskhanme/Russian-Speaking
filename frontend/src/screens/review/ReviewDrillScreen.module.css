@@ -127,7 +127,7 @@
 }
 .modelLabel {
   letter-spacing: var(--t-label-tracking);
-  color: var(--success);
+  color: var(--success-ink);
 }
 .modelText {
   margin: 0;

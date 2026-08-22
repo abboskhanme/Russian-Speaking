@@ -159,7 +159,7 @@ export function ResultsTab({ stats, results, achievements, onOpenResult, onSeeAl
         <Text
           as="h2"
           variant="label"
-          color="faint"
+          color="muted"
           className={styles.sectionLabel}
         >
           {t("profile.sections.recentResults")}
@@ -203,7 +203,7 @@ export function ResultsTab({ stats, results, achievements, onOpenResult, onSeeAl
         aria-label={t("profile.sections.achievements")}
       >
         <div className={styles.achHeader}>
-          <Text as="h2" variant="label" color="faint">
+          <Text as="h2" variant="label" color="muted">
             {t("profile.sections.achievements")}
           </Text>
           <Text
@@ -377,7 +377,7 @@ function AchievementTile({
 
         {/* In-progress tiles show the raw count; numerals need no translation. */}
         {!unlocked && (
-          <Text as="p" variant="body-s" color="faint" numeric className={styles.achCount}>
+          <Text as="p" variant="body-s" color="muted" numeric className={styles.achCount}>
             {progress} / {target}
           </Text>
         )}

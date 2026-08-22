@@ -196,7 +196,7 @@
   line-height: 1;
 }
 .trend-up {
-  color: var(--success);
+  color: var(--success-ink);
 }
 .trend-down {
   color: var(--danger);
@@ -205,7 +205,7 @@
   color: var(--muted);
 }
 .score-success {
-  color: var(--success);
+  color: var(--success-ink);
 }
 .score-warn {
   color: var(--warn-ink);

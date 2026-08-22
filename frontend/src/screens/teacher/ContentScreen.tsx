@@ -198,7 +198,7 @@ export function ContentScreen({
                           {x.prompt}
                         </Text>
                         {x.moduleName && (
-                          <Text as="span" variant="body-s" color="faint" truncate>
+                          <Text as="span" variant="body-s" color="muted" truncate>
                             {x.moduleName}
                           </Text>
                         )}

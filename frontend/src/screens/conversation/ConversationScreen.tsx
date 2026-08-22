@@ -137,7 +137,7 @@ export function ConversationScreen({
               {t("suhbat.goalLabel", { goal: scenario.goalUz })}
             </Text>
             {typeof turnsLeft === "number" && (
-              <Text as="span" variant="body-s" color="faint" className={styles.turnsLeft}>
+              <Text as="span" variant="body-s" color="muted" className={styles.turnsLeft}>
                 {t("suhbat.turnsLeft", { count: turnsLeft })}
               </Text>
             )}
@@ -175,7 +175,7 @@ export function ConversationScreen({
       {/* ---- Composer ---- */}
       <div className={styles.composer}>
         {note && (
-          <Text as="p" variant="body-s" color="faint" align="center" className={styles.note}>
+          <Text as="p" variant="body-s" color="muted" align="center" className={styles.note}>
             {note}
           </Text>
         )}

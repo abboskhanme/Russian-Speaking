@@ -150,7 +150,7 @@ function AppWideCard({
   return (
     <Card variant="outline" padding="lg" className={styles.card}>
       <div className={styles.cardHead}>
-        <Text as="h3" variant="label" color="faint">
+        <Text as="h3" variant="label" color="muted">
           {t("progress.lb.appWide")}
         </Text>
         <LeagueBadge league={league} t={t} />
@@ -330,7 +330,7 @@ function NeighborsList({
       <Text
         as="h3"
         variant="label"
-        color="faint"
+        color="muted"
         className={styles.nearbyLabel}
       >
         {t("progress.lb.nearby")}

@@ -178,7 +178,7 @@ function AttentionSection({
 
   return (
     <section className={styles.section} aria-label={t("teacher.attentionAria")}>
-      <Text as="h2" variant="label" color="faint">
+      <Text as="h2" variant="label" color="muted">
         {t("teacher.attention")}
       </Text>
 

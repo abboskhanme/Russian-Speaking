@@ -91,7 +91,7 @@ export function ConversationSummary({
         {/* ---- What to fix — the run's merged coaching ---- */}
         {corrections && corrections.length > 0 && (
           <section className={styles.fixesSection} aria-label={t("suhbat.fixesLabel")}>
-            <Text as="h2" variant="label" color="faint" className={styles.phrasesLabel}>
+            <Text as="h2" variant="label" color="muted" className={styles.phrasesLabel}>
               {t("suhbat.fixesLabel")}
             </Text>
             <Card variant="outline" padding="none" className={styles.phrasesCard}>
@@ -117,7 +117,7 @@ export function ConversationSummary({
 
         {/* ---- Useful phrases ---- */}
         <section className={styles.phrasesSection} aria-label={t("suhbat.phrasesLabelShort")}>
-          <Text as="h2" variant="label" color="faint" className={styles.phrasesLabel}>
+          <Text as="h2" variant="label" color="muted" className={styles.phrasesLabel}>
             {t("suhbat.phrasesLabelShort")}
           </Text>
           <Card variant="outline" padding="none" className={styles.phrasesCard}>

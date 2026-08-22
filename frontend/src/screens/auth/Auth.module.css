@@ -229,8 +229,9 @@
   font-weight: var(--fw-medium);
   padding: 14px 0;
 }
+/* Placeholder copy is read, so it is text: --muted, not --faint (2.09:1). */
 .fieldInput::placeholder {
-  color: var(--faint);
+  color: var(--muted);
 }
 .fieldInput.mono {
   font-family: var(--font-mono);
@@ -268,9 +269,10 @@
   padding: 14px 0;
   cursor: pointer;
 }
-/* Empty (placeholder) state — dim like an input placeholder. */
+/* Empty (placeholder) state — dim like an input placeholder. Still the label a
+ * user reads to know what the field wants, so it stays on the text ramp. */
 .selectInput[data-empty] {
-  color: var(--faint);
+  color: var(--muted);
 }
 .selectInput:disabled {
   cursor: not-allowed;
@@ -332,7 +334,7 @@
   color: var(--muted);
 }
 .stepLabel[data-state="done"] {
-  color: var(--success);
+  color: var(--success-ink);
 }
 .stepLabel[data-state="active"] {
   color: var(--primary);
@@ -387,6 +389,8 @@
  * can no longer succeed, so the boxes read as inert. */
 .otpBox:disabled {
   background: var(--surface-2);
+  /* --faint is legitimate here: WCAG 1.4.3 exempts inactive UI components, and
+   * reading these digits back is exactly what must not look available. */
   color: var(--faint);
   opacity: 0.6;
   cursor: not-allowed;
@@ -434,7 +438,7 @@
   background: var(--success-tint);
 }
 .note-success .noteIcon {
-  color: var(--success);
+  color: var(--success-ink);
 }
 .note-success .noteText {
   color: var(--ink-soft);
