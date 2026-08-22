@@ -155,7 +155,7 @@ Bular unutilgani uchun emas, **ataylab** qilinmagan. Har biri sabab bilan:
 
 ## 🎨 Kontrast — YOPILDI (qolgani: brend to'ldirishi, egasining qarori)
 
-Holat: `axe` **680 → 40** `serious/color-contrast` node. `critical` = **0**.
+Holat: `axe` **680 → 16** `serious/color-contrast` node. `critical` = **0**.
 O'lchov: 22 ekran × light/dark × mobil(390)/desktop(1440) = **88 skan**, har
 biri `wcag2a+wcag2aa+wcag21a+wcag21aa`. `color-contrast` dan boshqa hech qanday
 qoida buzilmaydi.
@@ -163,9 +163,11 @@ qoida buzilmaydi.
 | Bosqich | Node | Nima qilindi |
 |---|:--:|---|
 | Boshlanish | **680** | — |
-| `--muted` + `--faint` qayta ta'riflandi | **177** | 503 node yopildi |
-| Semantik siyohlar (`--warn-ink`/`--success-ink`/`--accent`/`--danger`/`--info`) | **161** | 16 node |
-| `--primary-ink` | **40** | 121 node |
+| `--muted` AA ga + `--faint` matn tokeni bo'lishdan to'xtadi | **177** | −503 |
+| Semantik siyohlar + `--primary-ink` (ekranlar, `widgets/Nav`, admin dashboard) | **40** | −137 |
+| `--primary-ink` (`shared/ui` Tabs + Badge) | **16** | −24 |
+
+Har uch raqam **haqiqatan yugurtirilgan skanning** natijasi, oraliq baholash emas.
 
 ### Oldingi tahlildagi ikki xato — o'lchash bilan tuzatildi
 
@@ -212,32 +214,41 @@ identiteti bir piksel ham o'zgarmadi.
 ushlolmaydi, ko'k kanal 0 ga qadaladi va e'lon qilingan qiymat renderlanган
 qiymatdan farq qila boshlaydi.
 
-### Qolgan 40 node — aniq ikki guruh
+### Qolgan 16 node — hammasi BITTA narsa, va u egasining qarori
 
-**A. 24 node — `shared/ui` da ikki qator** (o'sha paytda boshqa agent egallagan):
-- `shared/ui/Tabs/Tabs.module.css` `.active` — `--primary` → `--primary-ink` (**16 node**)
-- `shared/ui/Badge/Badge.module.css` `.primary` — `--primary-press` → `--primary-ink` (**8 node**)
+O'lchov aniq: 88 skanning qolgan **16** nodesi **istisnosiz** bitta holat —
+**brend rangi FON bo'lgan, ustida ochiq matn turgan** joylar. Kulrang yo'q,
+`--faint` yo'q, semantik token yo'q, **dark mavzuda esa umuman yo'q**.
 
-Ikkalasi ham matn, ikkalasi ham yuqoridagi naqshning aynan o'zi.
-Shuningdek `screens/admin/AdminSettingsScreen.tsx` da **7 ta `color="faint"`**
-qoldi (o'sha fayl boshqa agentda edi) — `color="muted"` ga almashtirilsa yopiladi.
+| Element | Matn | Fon | Nisbat | Kerak | Node |
+|---|---|---|:--:|:--:|:--:|
+| Asosiy tugma ("Boshlash", "+ Yaratish") | `--primary-on` #fffdfb | `--primary` #ed622a | **3.24** | 4.5 | 8 |
+| Faol filtr tabletkasi ("Hammasi") | `--primary-on` #fffdfb | `--primary` #ed622a | **3.24** | 4.5 | 4 |
+| Login/register sarlavha osti | `.heroSub` #fdede6 | `--primary` #ed622a | **2.88** | 4.5 | 4 |
 
-**B. 16 node — EGASINING QARORI, va `--primary-ink` bu yerda yordam bermaydi.**
-Bular brend rangi **fon** bo'lgan holatlar; muammo matnda emas, to'ldirishda:
+**`--primary-ink` bu yerda yordam bermaydi** — muammo matnda emas, to'ldirishda.
+AA uchun **fonning o'zi** to'qlashishi kerak:
 
-| Joy | Nisbat | Kerak |
-|---|:--:|:--:|
-| `--primary-on` (#fffdfb) `--primary` (#ed622a) ustida — asosiy tugma, faol filtr | **3.24** | 4.5 |
-| `.heroSub` (#fdede6) brend bloki ustida — login/register | **2.88** | 4.5 |
+> `--primary`: `oklch(0.665 0.185 40)` #ed622a → **`oklch(0.580 0.181 40)`** #cf4500
+> — oq yorliq **3.24 → 4.59:1**.
 
-AA uchun **fonning o'zi** to'qlashishi kerak: `--primary` L `0.665` → **`0.580`**
-(#cf4500) oq yorliqni **4.59:1** ga chiqaradi. Bu brend identitetini o'zgartiradi
-(tugma yuzi, logotip ohangi), shuning uchun **tegilmadi**. Egasi "ha" desa —
-`tokens.css` da bir qatorlik ish, va shunda `--primary-ink` ham keraksiz bo'lishi
-mumkin.
+Bu tugma yuzini va logotip ohangini o'zgartiradi, ya'ni **brend qarori**, texnik
+emas. Shuning uchun tegilmadi. Egasi "ha" desa — `tokens.css` da bir qatorlik
+ish; shunda `--primary-ink` ham keraksiz bo'lishi mumkin.
 
-Dark mavzuda bu muammo **yo'q**: dark `--primary-on` qora siyoh (#190f0a) va u
-yorqin apelsin ustida **7.12:1**.
+**Savol tor:** bu faqat **light mavzudagi to'ldirish**. Dark mavzuda muammo yo'q —
+u yerda `--primary-on` qora siyoh (#190f0a) va yorqin apelsin ustida **7.12:1**.
+
+### O'lchov qanday olingan (qayta yugurtiladigan)
+
+88 skan = 22 ekran × {light, dark} × {390×844, 1440×900}, har biri
+`axe-core` `wcag2a + wcag2aa + wcag21a + wcag21aa`. Skript sessiya
+scratchpad'ida (`a11y/scan.mjs`) — `e2e/` ga tegilmadi. Autentifikatsiya
+`e2e/auth.ts` bilan bir xil: `.env` konteynerga read-only ulanadi va HS256
+token o'sha yerda mint qilinadi; sir tashqariga chiqmaydi.
+
+Skrinshotlar (oldin/keyin, 5 ekran × light/dark) sessiya scratchpad'ida
+`shots-a11y/`.
 
 ---
 
