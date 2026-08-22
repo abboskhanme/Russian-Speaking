@@ -92,9 +92,17 @@ fi
 
 echo "==> [5/5] Audio archive"
 if [ -f "$DIR/minio.tgz" ]; then
-  N=$(tar tzf "$DIR/minio.tgz" 2>/dev/null | grep -cE '\.(webm|ogg|mp3|mp4|wav)$' || echo 0)
-  echo "    audio objects in archive: ${N}"
-  [ "$N" -gt 0 ] || echo "    WARN: no audio files found — check the bucket path"
+  # Counted by xl.meta, NOT by filename extension. MinIO's erasure backend stores
+  # an object as a DIRECTORY named after the key, containing `xl.meta` and the
+  # data parts — there is no file called `answer.webm` anywhere on the volume. The
+  # previous extension match therefore returned 0 on a perfectly intact archive and
+  # printed "no audio files found" on every single healthy backup. A check that
+  # cries wolf every time is a check nobody reads, and this is the one that says
+  # whether the students' recordings survived.
+  # `.minio.sys` holds MinIO's own config objects in the same layout; exclude it.
+  N=$(tar tzf "$DIR/minio.tgz" 2>/dev/null | grep -v '\.minio\.sys/' | grep -c '/xl\.meta$' || true)
+  echo "    stored objects in archive (audio + avatars): ${N:-0}"
+  [ "${N:-0}" -gt 0 ] || echo "    WARN: no objects found — is this the right volume?"
 fi
 
 echo
