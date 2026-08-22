@@ -117,8 +117,39 @@ export function refresh(refresh_token: string): Promise<TokenResponse> {
   );
 }
 
-export function logout(): Promise<void> {
-  return apiClient.post<void>("/auth/logout");
+/**
+ * End the session on the server as well as on this device.
+ *
+ * The refresh token is the whole payload and the whole point. An access token
+ * expires on its own within thirty minutes; the refresh token behind it lives for
+ * seven sliding days, so a logout that sends nothing leaves the session alive on
+ * the server and "Chiqish" is a local gesture the backend never hears about.
+ * `POST /auth/logout` takes an optional `{ refresh_token }` and revokes exactly
+ * that one (Redis deny-list), which is what makes signing out on a shared phone
+ * mean something.
+ *
+ * `keepalive` because this is the last call of a session: the caller signs out
+ * locally and navigates immediately (waiting on the network to log out is a worse
+ * product), and without it the browser is free to cancel the request as the page
+ * changes — the token then survives precisely when the user most wanted it gone.
+ * `fetch` + `keepalive` rather than `navigator.sendBeacon` because a beacon cannot
+ * carry an `Authorization` header, cannot report a failure, and would be a second,
+ * divergent way of talking to this API; the endpoint is unauthenticated today, but
+ * a client that quietly stops working if it is ever tightened is not worth the
+ * saving.
+ *
+ * The token is passed IN rather than read from the store here, because the caller
+ * clears the store first — deliberately, so signing out is instant.
+ */
+export function logout(refreshToken?: string | null): Promise<void> {
+  return apiClient.post<void>(
+    "/auth/logout",
+    // No token (already cleared, or never stored) still posts: the endpoint
+    // answers 204 to a bodiless call, and a request with nothing to revoke is
+    // better than a client that throws on the way out.
+    refreshToken ? { refresh_token: refreshToken } : undefined,
+    { keepalive: true, skipAuthRedirect: true },
+  );
 }
 
 /** Boot-time hydration + post-login user fetch. `skipRedirect` when hydrating. */

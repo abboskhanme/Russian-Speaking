@@ -66,7 +66,9 @@ export interface AuthContextValue {
    * `isAuthenticated`). Used to complete a deferred-hydration register once the
    * profile PATCH has returned the fresh user. */
   hydrateUser: (me: MeResponse) => void;
-  /** Clears tokens + user (best-effort server logout). */
+  /** Sign out. Returns immediately: this device forgets the session synchronously,
+   * and the server-side revocation is posted behind it in a request that survives
+   * the navigation. Never waits on the network. */
   logout: () => void;
   /** Re-fetch `/me` into `user`. */
   loadMe: () => Promise<MeResponse>;
@@ -164,11 +166,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const clearJustRegistered = useCallback(() => setJustRegistered(false), []);
 
   const logout = useCallback(() => {
-    // Fire-and-forget: the .NET logout is a no-op (stateless JWT); ignore errors.
-    endpoints.logout().catch(() => undefined);
+    // Read the refresh token BEFORE clearing: it is what the server revokes, and
+    // once the store is empty there is nothing left to name.
+    const refreshToken = tokenStore.refresh;
+
+    // Sign out locally first and synchronously. Logging out must never wait on a
+    // network round trip — on a slow phone that is seconds of a screen that looks
+    // like it ignored the tap, and the one thing the user asked for (this device
+    // forgets me) does not depend on the server answering.
     tokenStore.clear();
     setUser(null);
     setStatus("ready");
+
+    // ...then tell the server, in a request built to survive the navigation this
+    // triggers (`keepalive`, see endpoints.logout). Errors are swallowed because
+    // the local sign-out already happened and there is no second thing to try;
+    // what is NOT acceptable is the request never leaving, which is what the old
+    // plain fire-and-forget call risked every time.
+    void endpoints.logout(refreshToken).catch(() => undefined);
   }, []);
 
   const value = useMemo<AuthContextValue>(

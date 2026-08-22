@@ -57,6 +57,17 @@ export interface RequestOptions {
   skipAuthRedirect?: boolean;
   /** AbortSignal for cancellable polls. */
   signal?: AbortSignal;
+  /**
+   * Let the request outlive the page that started it. The browser normally kills
+   * in-flight requests when the document unloads or the SPA tears the caller down,
+   * which is how a fire-and-forget call made on the way out (logout) reaches the
+   * server only sometimes. `keepalive` hands it to the browser to finish
+   * regardless — bounded to a 64KB body, which is why it is opt-in per call.
+   *
+   * Ignored by browsers that don't implement it (an unknown `RequestInit` key is
+   * dropped), so the request still goes out — just cancellably, as before.
+   */
+  keepalive?: boolean;
   /** @internal Marks the single automatic replay after a silent token refresh,
    * so a second 401 doesn't loop. Callers never set this. */
   retried?: boolean;
@@ -119,6 +130,7 @@ export async function request<T>(
     auth = true,
     skipAuthRedirect = false,
     signal,
+    keepalive = false,
     retried = false,
   } = opts;
 
@@ -147,6 +159,7 @@ export async function request<T>(
       headers: finalHeaders,
       body: payload,
       signal,
+      keepalive,
     });
   } catch (e) {
     // Network failure / abort — no HTTP status.
