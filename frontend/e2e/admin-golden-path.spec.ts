@@ -20,7 +20,6 @@
 import { adminId, studentId } from "./auth";
 import {
   clickNav,
-  escapeRe,
   expect,
   expectNoCriticalA11y,
   expectNoRawJson,

@@ -15,6 +15,7 @@
  * `pageerror` — an uncaught exception is never expected, least of all here,
  * because "the token was bad AND the app threw" is precisely the white screen.
  */
+import type { Page } from "@playwright/test";
 import { mintAccessToken, mintForgedToken, mintRefreshToken, studentId } from "./auth";
 import {
   expect,
@@ -34,7 +35,7 @@ test.afterAll(() => reportA11yTally("auth edges"));
 const EXPECTED_401 = /Failed to load resource.*401|401 \(Unauthorized\)/;
 
 /** The login screen, not merely "not the app". */
-async function expectUsableLoginScreen(page: import("@playwright/test").Page): Promise<void> {
+async function expectUsableLoginScreen(page: Page): Promise<void> {
   await expectPath(page, /^\/login$/);
   // A blank page also satisfies "we are at /login". The form has to be there.
   await expect(page.getByRole("button", { name: /Kodni olish/i })).toBeVisible();
@@ -42,7 +43,7 @@ async function expectUsableLoginScreen(page: import("@playwright/test").Page): P
 }
 
 /** Whatever the app has in localStorage right now. */
-async function storedTokens(page: import("@playwright/test").Page) {
+async function storedTokens(page: Page) {
   return page.evaluate(() => ({
     access: localStorage.getItem("govori_access"),
     refresh: localStorage.getItem("govori_refresh"),
