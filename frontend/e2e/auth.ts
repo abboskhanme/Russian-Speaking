@@ -36,32 +36,66 @@ function secretKey(): string {
 }
 
 /**
- * The user the golden path signs in as.
+ * The users the journeys sign in as.
  *
  * Deliberately NOT hard-coded: `deploy/seed/20-dev-users.sql` inserts with
- * `gen_random_uuid()`, so the id differs per database. Resolve it with
+ * `gen_random_uuid()`, so the ids differ per database. Resolve them with
  *   docker compose exec -T db psql -U russpeak -d russpeak -tAc \
- *     "select id from users where email = 'student@govori.uz'"
+ *     "select role, email, id from users where email in
+ *        ('student@govori.uz','admin@govori.uz') order by role"
+ *
+ * There is no `E2E_TEACHER_ID` in that list on purpose: which teacher can drive
+ * the Navbat journey depends on who actually has a queue, and that changes as
+ * the demo data is graded. `people.ts` picks one through the admin API instead
+ * of asking the operator to keep a fourth variable correct.
  */
-export function studentId(): string {
-  const id = process.env.E2E_STUDENT_ID;
+function requireEnvId(name: string): string {
+  const id = process.env[name];
   if (!id) {
-    throw new Error(
-      "E2E_STUDENT_ID is not set — see e2e/auth.ts for the psql one-liner that resolves it.",
-    );
+    throw new Error(`${name} is not set — see e2e/auth.ts for the psql one-liner that resolves it.`);
   }
   return id;
 }
 
+export const studentId = () => requireEnvId("E2E_STUDENT_ID");
+export const adminId = () => requireEnvId("E2E_ADMIN_ID");
+
+/** An explicit teacher override; `null` means "let people.ts choose one". */
+export function teacherIdOverride(): string | null {
+  return process.env.E2E_TEACHER_ID ?? null;
+}
+
 const b64 = (value: object) => Buffer.from(JSON.stringify(value)).toString("base64url");
 
-/** An access token the API will accept for `sub`, valid for one hour. */
-export function mintAccessToken(sub: string): string {
+export interface MintOptions {
+  /** `access` for API calls, `refresh` for `/auth/refresh` — the API checks the
+   * claim and rejects an access token offered as a refresh one. */
+  type?: "access" | "refresh";
+  /** Seconds from now until `exp`. NEGATIVE mints an already-expired token,
+   * which is how the auth-edge journey reaches the refresh path on purpose. */
+  ttlSeconds?: number;
+}
+
+/** A token the API will accept for `sub`. Defaults to a one-hour access token. */
+export function mintAccessToken(sub: string, options: MintOptions = {}): string {
+  const { type = "access", ttlSeconds = 3600 } = options;
   const now = Math.floor(Date.now() / 1000);
   const header = b64({ alg: "HS256", typ: "JWT" });
-  const payload = b64({ sub, type: "access", iat: now, exp: now + 3600 });
+  const payload = b64({ sub, type, iat: now, exp: now + ttlSeconds });
   const signature = createHmac("sha256", secretKey())
     .update(`${header}.${payload}`)
     .digest("base64url");
   return `${header}.${payload}.${signature}`;
+}
+
+/** The 7-day counterpart the client stores alongside the access token. Without a
+ * `type: "refresh"` claim `/auth/refresh` returns 401, so the silent-refresh
+ * journey would test the logout path instead of the one it names. */
+export function mintRefreshToken(sub: string, options: MintOptions = {}): string {
+  return mintAccessToken(sub, { ttlSeconds: 7 * 24 * 3600, ...options, type: "refresh" });
+}
+
+/** A structurally valid token whose signature does not match `SECRET_KEY`. */
+export function mintForgedToken(sub: string): string {
+  return `${mintAccessToken(sub).slice(0, -6)}AAAAAA`;
 }

@@ -16,17 +16,21 @@
  */
 import { mintAccessToken, studentId } from "./auth";
 import {
+  clickNav,
   expect,
   expectNoCriticalA11y,
   expectNoRawJson,
   expectPath,
   expectVisibleText,
   goTo,
+  reportA11yTally,
   signIn,
   test,
 } from "./fixtures";
 
 const UUID = "[0-9a-f-]{36}";
+
+test.afterAll(() => reportA11yTally("student golden path"));
 
 test("a student lands, signs in, opens a task and reads a graded result", async ({
   page,
@@ -60,13 +64,10 @@ test("a student lands, signs in, opens a task and reads a graded result", async 
   expect(target, "the seeded student has no module with an actionable next task").toBeTruthy();
 
   await test.step("the nav reaches the Mashq hub", async () => {
-    await page
-      .getByRole("navigation")
-      .getByRole("button", { name: "Mashq", exact: true })
-      .click();
-    // Without this the next step would run on Home and report "the module card is
-    // missing" rather than "the nav button goes nowhere".
-    await expectPath(page, /^\/practice$/);
+    // `clickNav` asserts the destination itself. Without that, the next step
+    // would run on Home and report "the module card is missing" rather than
+    // "the nav button goes nowhere".
+    await clickNav(page, "Mashq", /^\/practice$/);
     await expectNoCriticalA11y(page, "/practice");
   });
 
