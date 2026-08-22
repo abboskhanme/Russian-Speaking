@@ -165,6 +165,45 @@ public sealed class FakeTelegramMessenger : ITelegramMessenger
     }
 }
 
+/// <summary>
+/// In-memory <see cref="IRefreshTokenRevocationStore"/> — no Redis. Mirrors the real store's
+/// observable contract, including that an entry expires with the token: a revocation whose deadline
+/// has passed reports NOT revoked, because past its <c>exp</c> the token is refused by signature
+/// validation anyway.
+/// </summary>
+public sealed class FakeRefreshTokenRevocationStore : IRefreshTokenRevocationStore
+{
+    private readonly ConcurrentDictionary<string, DateTimeOffset> _revoked = new(StringComparer.Ordinal);
+
+    /// <summary>Keyed by the same hash the real store uses, so a test cannot accidentally pass by
+    /// matching on something the production path would not.</summary>
+    public Task RevokeAsync(string refreshToken, DateTimeOffset expiresAt, CancellationToken ct = default)
+    {
+        if (expiresAt > DateTimeOffset.UtcNow)
+            _revoked[RefreshTokenKeys.Revoked(refreshToken)] = expiresAt;
+        return Task.CompletedTask;
+    }
+
+    public Task<bool> IsRevokedAsync(string refreshToken, CancellationToken ct = default)
+        => Task.FromResult(
+            _revoked.TryGetValue(RefreshTokenKeys.Revoked(refreshToken), out var until)
+            && until > DateTimeOffset.UtcNow);
+}
+
+/// <summary>
+/// <see cref="IRefreshTokenRevocationStore"/> that always throws — simulates a Redis outage so a
+/// test can prove the refresh path is FAIL-CLOSED. A deny-list that fails open is not a deny-list:
+/// someone holding a revoked token would only have to wait for a blip.
+/// </summary>
+public sealed class ThrowingRefreshTokenRevocationStore : IRefreshTokenRevocationStore
+{
+    public Task RevokeAsync(string refreshToken, DateTimeOffset expiresAt, CancellationToken ct = default)
+        => throw new InvalidOperationException("simulated revocation store outage");
+
+    public Task<bool> IsRevokedAsync(string refreshToken, CancellationToken ct = default)
+        => throw new InvalidOperationException("simulated revocation store outage");
+}
+
 /// <summary>Test <see cref="IGoogleTokenVerifier"/> — returns a preset result without calling
 /// Google.</summary>
 public sealed class FakeGoogleTokenVerifier : IGoogleTokenVerifier

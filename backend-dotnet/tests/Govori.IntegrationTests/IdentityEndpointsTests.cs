@@ -222,6 +222,187 @@ public sealed class IdentityEndpointsTests : IClassFixture<IdentityEndpointsTest
         }
     }
 
+    // ── 6b. Logout revokes THAT refresh token; refresh re-reads the account ──
+
+    /// <summary>
+    /// The whole point of the deny-list: after logout, the refresh token the user was holding can
+    /// never be exchanged again. Before this existed, logout answered 204 and the token kept working
+    /// for its full seven days — someone logging out on a borrowed phone left a live session on it.
+    /// </summary>
+    [Fact]
+    public async Task Logout_revokes_the_refresh_token_and_a_later_refresh_is_401()
+    {
+        var client = _factory.CreateClientWith(new FakeOtpStore(), new FakeOtpDeliverySender(), AnyGoogle());
+        var phone = NewPhone();
+        var email = $"logout-{Guid.NewGuid():N}@example.test";
+        await SeedUser(email, phone, UserRole.Student, isActive: true);
+
+        try
+        {
+            var refreshToken = await LoginForRefreshToken(client, phone);
+
+            // Baseline: the token works before logout, or the assertion after it proves nothing.
+            var before = await client.PostAsJsonAsync("/api/auth/refresh", new { refresh_token = refreshToken });
+            Assert.Equal(HttpStatusCode.OK, before.StatusCode);
+
+            var logout = await client.PostAsJsonAsync("/api/auth/logout", new { refresh_token = refreshToken });
+            Assert.Equal(HttpStatusCode.NoContent, logout.StatusCode);
+
+            var after = await client.PostAsJsonAsync("/api/auth/refresh", new { refresh_token = refreshToken });
+            Assert.Equal(HttpStatusCode.Unauthorized, after.StatusCode);
+            using var doc = JsonDocument.Parse(await after.Content.ReadAsStringAsync());
+            Assert.Equal("Invalid refresh token", doc.RootElement.GetProperty("detail").GetString());
+        }
+        finally
+        {
+            await DeleteByPhone(phone);
+        }
+    }
+
+    /// <summary>Revocation is per-TOKEN, not per-user: logging out on one device must not sign the
+    /// same account out on another. This is the property that makes the deny-list the right shape
+    /// rather than a per-user "everything before now is invalid" stamp.</summary>
+    [Fact]
+    public async Task Logging_out_one_device_leaves_the_other_device_signed_in()
+    {
+        var client = _factory.CreateClientWith(new FakeOtpStore(), new FakeOtpDeliverySender(), AnyGoogle());
+        var phone = NewPhone();
+        var email = $"logout-two-{Guid.NewGuid():N}@example.test";
+        await SeedUser(email, phone, UserRole.Student, isActive: true);
+
+        try
+        {
+            var phoneSession = await LoginForRefreshToken(client, phone);
+
+            // The token carries no jti (the wire format is frozen — see TokenService), so its only
+            // varying fields are iat/exp, at ONE-SECOND resolution. Two logins by the same user
+            // inside the same second therefore mint byte-identical tokens, and this test would be
+            // asserting on one token wearing two names. Crossing a second boundary is what makes
+            // these two genuinely separate sessions.
+            await Task.Delay(TimeSpan.FromMilliseconds(1100));
+
+            var tabletSession = await LoginForRefreshToken(client, phone);
+            Assert.NotEqual(phoneSession, tabletSession);
+
+            await client.PostAsJsonAsync("/api/auth/logout", new { refresh_token = phoneSession });
+
+            Assert.Equal(
+                HttpStatusCode.Unauthorized,
+                (await client.PostAsJsonAsync("/api/auth/refresh", new { refresh_token = phoneSession })).StatusCode);
+            Assert.Equal(
+                HttpStatusCode.OK,
+                (await client.PostAsJsonAsync("/api/auth/refresh", new { refresh_token = tabletSession })).StatusCode);
+        }
+        finally
+        {
+            await DeleteByPhone(phone);
+        }
+    }
+
+    /// <summary>The shipped frontend posts NO body to /logout. That has to stay a 204 — a logout that
+    /// starts 400-ing on deploy is a worse outcome than one that revokes nothing.</summary>
+    [Fact]
+    public async Task Logout_without_a_body_is_still_204()
+    {
+        var client = _factory.CreateClientWith(new FakeOtpStore(), new FakeOtpDeliverySender(), AnyGoogle());
+
+        var empty = await client.PostAsync("/api/auth/logout", content: null);
+        Assert.Equal(HttpStatusCode.NoContent, empty.StatusCode);
+
+        // ...and an explicit null token, which is what a client sending {} produces.
+        var nullToken = await client.PostAsJsonAsync("/api/auth/logout", new { refresh_token = (string?)null });
+        Assert.Equal(HttpStatusCode.NoContent, nullToken.StatusCode);
+    }
+
+    /// <summary>
+    /// A blocked or deleted account used to keep minting itself fresh tokens for up to seven days:
+    /// refresh re-minted purely from the token subject and never looked the user up. Only the
+    /// per-request lookup stopped them DOING anything, which meant the session stayed alive in every
+    /// way that could be observed from the client.
+    /// </summary>
+    [Fact]
+    public async Task A_deactivated_account_cannot_refresh_even_with_a_valid_token()
+    {
+        var client = _factory.CreateClientWith(new FakeOtpStore(), new FakeOtpDeliverySender(), AnyGoogle());
+        var phone = NewPhone();
+        var email = $"blocked-{Guid.NewGuid():N}@example.test";
+        await SeedUser(email, phone, UserRole.Student, isActive: true);
+
+        try
+        {
+            var refreshToken = await LoginForRefreshToken(client, phone);
+            Assert.Equal(
+                HttpStatusCode.OK,
+                (await client.PostAsJsonAsync("/api/auth/refresh", new { refresh_token = refreshToken })).StatusCode);
+
+            // An admin blocks the account (the same column PATCH /api/admin/students/{id} writes).
+            await using (var ctx = _db.CreateContext())
+            {
+                await ctx.Users.Where(u => u.Phone == phone)
+                    .ExecuteUpdateAsync(s => s.SetProperty(u => u.IsActive, false));
+            }
+
+            Assert.Equal(
+                HttpStatusCode.Unauthorized,
+                (await client.PostAsJsonAsync("/api/auth/refresh", new { refresh_token = refreshToken })).StatusCode);
+        }
+        finally
+        {
+            await DeleteByPhone(phone);
+        }
+    }
+
+    /// <summary>
+    /// FAIL-CLOSED: when the deny-list cannot be read, the refresh is REFUSED. Fail-open here would
+    /// mean an attacker holding a revoked token only has to wait for a Redis blip. Consistent with
+    /// OTP verification, which is already fail-closed — a Redis outage makes authentication
+    /// uniformly unavailable rather than selectively wrong.
+    /// </summary>
+    [Fact]
+    public async Task A_revocation_store_outage_refuses_the_refresh_rather_than_allowing_it()
+    {
+        var healthy = _factory.CreateClientWith(new FakeOtpStore(), new FakeOtpDeliverySender(), AnyGoogle());
+        var phone = NewPhone();
+        var email = $"failclosed-{Guid.NewGuid():N}@example.test";
+        await SeedUser(email, phone, UserRole.Student, isActive: true);
+
+        try
+        {
+            var refreshToken = await LoginForRefreshToken(healthy, phone);
+
+            var broken = _factory.CreateClientWith(
+                new FakeOtpStore(), new FakeOtpDeliverySender(), AnyGoogle(),
+                revocations: new ThrowingRefreshTokenRevocationStore());
+
+            Assert.Equal(
+                HttpStatusCode.Unauthorized,
+                (await broken.PostAsJsonAsync("/api/auth/refresh", new { refresh_token = refreshToken })).StatusCode);
+
+            // The WRITE side is best-effort by contrast: a logout must not fail because the store is
+            // down, or the user is left pressing a button that reports an error.
+            Assert.Equal(
+                HttpStatusCode.NoContent,
+                (await broken.PostAsJsonAsync("/api/auth/logout", new { refresh_token = refreshToken })).StatusCode);
+        }
+        finally
+        {
+            await DeleteByPhone(phone);
+        }
+    }
+
+    /// <summary>Log in through the real OTP flow and return the refresh token, which is what these
+    /// tests are actually about.</summary>
+    private async Task<string> LoginForRefreshToken(HttpClient client, string phone)
+    {
+        await client.PostAsJsonAsync("/api/auth/otp/request", new { phone });
+        var verify = await client.PostAsJsonAsync("/api/auth/otp/verify", new { phone, code = DevCode });
+        Assert.Equal(HttpStatusCode.OK, verify.StatusCode);
+        using var doc = JsonDocument.Parse(await verify.Content.ReadAsStringAsync());
+        var token = doc.RootElement.GetProperty("refresh_token").GetString();
+        Assert.False(string.IsNullOrEmpty(token));
+        return token!;
+    }
+
     // ── 7. Google sign-in via the fake verifier creates then returns the same user ──
     [Fact]
     public async Task Google_sign_in_creates_then_returns_user()
@@ -737,7 +918,8 @@ public sealed class IdentityEndpointsTests : IClassFixture<IdentityEndpointsTest
             IOtpStore otpStore,
             IOtpDeliverySender otpDelivery,
             IGoogleTokenVerifier googleVerifier,
-            IPendingPhoneChangeStore? pendingPhoneChanges = null)
+            IPendingPhoneChangeStore? pendingPhoneChanges = null,
+            IRefreshTokenRevocationStore? revocations = null)
         {
             return WithWebHostBuilder(builder =>
                 builder.ConfigureTestServices(services =>
@@ -750,6 +932,10 @@ public sealed class IdentityEndpointsTests : IClassFixture<IdentityEndpointsTest
                     services.AddSingleton(googleVerifier);
                     services.RemoveAll<IPendingPhoneChangeStore>();
                     services.AddSingleton(pendingPhoneChanges ?? new FakePendingPhoneChangeStore());
+                    // Default to the in-memory deny-list so the logout/refresh tests never reach
+                    // Redis; a test proving FAIL-CLOSED passes the throwing one instead.
+                    services.RemoveAll<IRefreshTokenRevocationStore>();
+                    services.AddSingleton(revocations ?? new FakeRefreshTokenRevocationStore());
                 })).CreateClient();
         }
 
