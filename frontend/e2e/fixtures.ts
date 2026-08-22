@@ -218,7 +218,14 @@ export async function expectNoRawJson(page: Page, where: string): Promise<void> 
  */
 const a11yTally = new Map<string, { screens: Set<string>; nodes: number }>();
 
-/** Print what axe found across the run. Call from a spec's `test.afterAll`. */
+/**
+ * Print what axe found, then RESET.
+ *
+ * Called from each spec's `test.afterAll`. The reset is what makes the label
+ * true: a worker runs several spec files against this one module instance, so
+ * without it every spec reports its own findings plus every earlier spec's, and
+ * the last one in the run appears to be by far the worst screen in the app.
+ */
 export function reportA11yTally(label: string): void {
   if (a11yTally.size === 0) return;
   const rows = [...a11yTally.entries()].sort((a, b) => b[1].nodes - a[1].nodes);
@@ -226,6 +233,7 @@ export function reportA11yTally(label: string): void {
   for (const [rule, { screens, nodes }] of rows) {
     console.log(`    ${rule}: ${nodes} nodes across ${screens.size} screen(s)`);
   }
+  a11yTally.clear();
 }
 
 /**
