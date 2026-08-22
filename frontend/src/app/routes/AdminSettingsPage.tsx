@@ -90,6 +90,19 @@ export default function AdminSettingsPage() {
       sttProvider: ai.stt_provider,
       azureSpeechRegion: ai.azure_speech_region,
       whisperModel: ai.whisper_model,
+      // The three fields below are typed as the current contract has them, and read
+      // through a fallback anyway: an API image built before they landed still answers
+      // every other field, and the panel is worth more with one empty box than with a
+      // crash. `openai_grader_model` in particular must not reach the screen as
+      // `undefined` — that turns a controlled input into an uncontrolled one.
+      //
+      // Two spellings for the OpenAI list because the server's snake_case policy splits
+      // `KnownOpenAiModels` into `known_open_ai_models` while `OpenaiApiKey` beside it
+      // becomes `openai_api_key`. Reading both means a rename cannot quietly empty the
+      // suggestion chips.
+      knownWhisperModels: ai.known_whisper_models ?? [],
+      openaiGraderModel: ai.openai_grader_model ?? "",
+      knownOpenaiModels: ai.known_open_ai_models ?? ai.known_openai_models ?? [],
       azureSpeechKey: ai.azure_speech_key,
       openaiApiKey: ai.openai_api_key,
       azureSpeechReady: ai.azure_speech_ready,
@@ -121,6 +134,7 @@ export default function AdminSettingsPage() {
         stt_provider: patch.sttProvider,
         azure_speech_region: patch.azureSpeechRegion,
         whisper_model: patch.whisperModel,
+        openai_grader_model: patch.openaiGraderModel,
         azure_speech_key: patch.azureSpeechKey,
         openai_api_key: patch.openaiApiKey,
         grader_chain: patch.graderChain,
@@ -132,6 +146,23 @@ export default function AdminSettingsPage() {
     },
     [],
   );
+
+  // Deliberately NOT cached, retried or prefetched: every call bills every backend that
+  // holds a key. It runs when the admin presses the button and at no other moment, and a
+  // rejection is left to propagate so the screen can say the REQUEST failed rather than
+  // report five backends as broken on the strength of one dead socket.
+  const testAi = useCallback(async () => {
+    const { results } = await endpoints.adminTestAiSettings();
+    return results.map((r) => ({
+      name: r.name,
+      kind: r.kind,
+      configured: r.configured,
+      ok: r.ok,
+      model: r.model,
+      error: r.error,
+      elapsedMs: r.elapsed_ms,
+    }));
+  }, []);
 
   const saveLinks = useCallback(
     async (patch: { tgSupportUrl?: string; tgChannelUrl?: string }) => {
@@ -173,6 +204,7 @@ export default function AdminSettingsPage() {
       activeNavKey="settings"
       onNavigate={onNavigate}
       onSaveAi={saveAi}
+      onTestAi={testAi}
       onSaveLinks={saveLinks}
       onSaveFeatures={saveFeatures}
     />

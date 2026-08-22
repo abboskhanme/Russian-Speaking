@@ -15,6 +15,7 @@ import type {
   AdminStudentUpdateArgs,
   AdminTeacherResponse,
   AdminTeacherUpdateArgs,
+  AiProbeResponse,
   AiSettingsResponse,
   AiSettingsUpdateArgs,
   AssignmentResponse,
@@ -738,6 +739,18 @@ export function adminAiSettings(): Promise<AiSettingsResponse> {
 /** PATCH /api/admin/settings/ai → partial update (tri-state; see AiSettingsUpdateArgs). */
 export function adminUpdateAiSettings(args: AiSettingsUpdateArgs): Promise<AiSettingsResponse> {
   return apiClient.patch<AiSettingsResponse>("/admin/settings/ai", args);
+}
+
+/** POST /api/admin/settings/ai/test → probe every backend the way the pipeline would.
+ *
+ * A POST, and not because it writes: it SPENDS. Each configured backend gets one real
+ * minimal vendor call, so this is billable and must never be fired on render, on a
+ * timer, or on a retry. Unconfigured backends come back `configured: false` and cost
+ * nothing.
+ *
+ * Slow by nature — several seconds of live vendor latency, not a local check. */
+export function adminTestAiSettings(): Promise<AiProbeResponse> {
+  return apiClient.post<AiProbeResponse>("/admin/settings/ai/test");
 }
 
 /** GET /api/admin/settings/reveal/{key} → the RAW value of one secret. A deliberate,

@@ -59,7 +59,18 @@ export const mockAdminSettings: AdminSettings = {
   activeProvider: "none",
   sttProvider: "auto",
   azureSpeechRegion: "westeurope",
-  whisperModel: "whisper-1",
+  // A model id that is deliberately NOT in the list below — the field is free text, and
+  // the fixture should show the state that used to be unreachable.
+  whisperModel: "gpt-4o-transcribe",
+  knownWhisperModels: [
+    { id: "whisper-1", label: "Whisper v1", note: "Standart transkripsiya modeli." },
+    { id: "gpt-4o-mini-transcribe", label: "GPT-4o mini transcribe", note: "Yangiroq; so‘z vaqtlarini qaytarmaydi." },
+  ],
+  openaiGraderModel: "gpt-4o-mini",
+  knownOpenaiModels: [
+    { id: "gpt-4o-mini", label: "GPT-4o mini", note: "Arzon va tez." },
+    { id: "gpt-4o", label: "GPT-4o", note: "Kuchliroq, qimmatroq." },
+  ],
   azureSpeechKey: { set: true, hint: "…a91f" },
   openaiApiKey: { set: false, hint: "" },
   azureSpeechReady: true,

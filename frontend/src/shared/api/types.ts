@@ -996,6 +996,9 @@ export interface AiSettingsResponse {
   stt_provider: string;
   azure_speech_region: string;
   whisper_model: string;
+  /** The model the OpenAI grader names in its request body. Ignored when Azure
+   * OpenAI is fully configured — Azure addresses a deployment instead. */
+  openai_grader_model: string;
   azure_speech_key: SecretState;
   openai_api_key: SecretState;
   azure_speech_ready: boolean;
@@ -1017,6 +1020,19 @@ export interface AiSettingsResponse {
   anthropic_api_key: SecretState;
   anthropic_model: string;
   known_anthropic_models: KnownModel[];
+  /** Suggestion lists, never whitelists — the model fields take any id typed into
+   * them, because a model released next month has to be usable without a deploy.
+   *
+   * Two spellings for the OpenAI one because the server's snake_case policy splits
+   * `KnownOpenAiModels` into `known_open_ai_models` while `OpenaiApiKey` right next
+   * to it becomes `openai_api_key`: same vendor, different C# casing, different
+   * wire name. Accepting both means a property rename on the server costs the panel
+   * its suggestion chips silently — which nobody would notice — rather than not at
+   * all. Both optional for the same reason `known_whisper_models` is read through
+   * a fallback: an older API image predates them. */
+  known_open_ai_models?: KnownModel[];
+  known_openai_models?: KnownModel[];
+  known_whisper_models?: KnownModel[];
 }
 
 /** PATCH /api/admin/ai. Tri-state: omit a field to leave it unchanged, send ""
@@ -1034,6 +1050,7 @@ export interface AiSettingsUpdateArgs {
   stt_provider?: string;
   azure_speech_region?: string;
   whisper_model?: string;
+  openai_grader_model?: string;
   azure_speech_key?: string;
   openai_api_key?: string;
   /** Comma-joined backend order. `""` clears it back to the server's default chain
@@ -1042,6 +1059,29 @@ export interface AiSettingsUpdateArgs {
   stt_chain?: string;
   anthropic_api_key?: string;
   anthropic_model?: string;
+}
+
+/** One backend's answer to "does this key actually work". */
+export interface ProviderProbe {
+  name: string;
+  /** `"grader"` or `"stt"`. */
+  kind: string;
+  /** `false` means SKIPPED — nobody entered a key. A deliberate state, not a failure:
+   * an unconfigured backend is passed over at no cost, which is how a fallback is
+   * parked. `ok` is meaningless when this is false. */
+  configured: boolean;
+  ok: boolean;
+  /** What the vendor said it actually served — the answer to "is my model id real". */
+  model: string | null;
+  /** The vendor's own message, trimmed. This is the line the admin acts on. */
+  error: string | null;
+  elapsed_ms: number;
+}
+
+/** POST /api/admin/settings/ai/test → one real vendor call per CONFIGURED backend.
+ * A POST because it has a cost: it bills every backend it can reach. */
+export interface AiProbeResponse {
+  results: ProviderProbe[];
 }
 
 /** GET /api/admin/reveal/{key} → the raw value of one secret. */

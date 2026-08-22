@@ -52,43 +52,56 @@
   min-width: 0;
 }
 
-/* ---- Segmented chooser ---- */
-.choices {
-  display: inline-flex;
+/* ---- Backend cards ----
+   One card per backend, laid out edge to edge. `auto-fit` rather than a fixed column
+   count because the two sections hold four cards and two: a hard 2-up would leave the
+   STT pair looking like a grid with holes in it, and a hard 1-up would waste a 1440px
+   screen the full-width rule exists to use. Below ~2 × 22rem it collapses to a single
+   column on its own, so there is no breakpoint to keep in sync. */
+.backends {
+  display: grid;
+  /* `min(…, 100%)` and not a bare 22rem: auto-fit still hands a lone column its full
+     minimum, so on a 375px phone a bare track would push the page into a sideways
+     scroll — which the full-width rule forbids more than it forbids a narrow card. */
+  grid-template-columns: repeat(auto-fit, minmax(min(22rem, 100%), 1fr));
+  gap: var(--s-3);
+  align-items: start;
+}
+.backendHead {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--s-2);
+}
+.backendName {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+
+/* ---- Probe ----
+   The button and the sentence that says what pressing it costs, on one row. They are
+   inseparable: a control that spends money at every vendor it can reach must carry its
+   price where the cursor already is, not in a paragraph further down the page that an
+   admin scrolls past. The transport-failure line joins the same row for the same
+   reason — it is about the request this button made, not about any backend. */
+.probeBar {
+  display: flex;
+  align-items: center;
   flex-wrap: wrap;
-  gap: var(--s-1);
-  padding: 3px;
-  border: 1px solid var(--line);
-  border-radius: var(--r-pill);
-  background: var(--surface-2);
+  gap: var(--s-2) var(--s-3);
 }
-.choice,
-.choiceOn {
-  padding: var(--s-1) var(--s-3);
-  border: 0;
-  border-radius: var(--r-pill);
-  background: transparent;
-  color: var(--muted);
-  font-size: var(--t-body-s-size);
-  font-weight: var(--fw-bold);
-  white-space: nowrap;
-  cursor: pointer;
-  transition: background var(--m-fast), color var(--m-fast);
-}
-.choice:hover {
-  color: var(--ink);
-}
-.choice:focus-visible,
-.choiceOn:focus-visible {
-  outline: var(--focus-ring-width) solid var(--focus-ring);
-  outline-offset: var(--focus-ring-offset);
-}
-/* Selected is filled AND announced via aria-checked — colour is never the only
-   signal (docs/03 §3.3). */
-.choiceOn {
-  background: var(--surface);
-  color: var(--accent);
-  box-shadow: var(--e-1);
+/* One card's answer to "does this key actually work". A row and not a paragraph
+   because two of the three states pair a marker (a spinner, a badge) with a sentence
+   that is the VENDOR's own wording — long enough to wrap, and the marker must stay put
+   when it does. */
+.probe {
+  display: flex;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  gap: var(--s-2);
+  min-width: 0;
 }
 
 /* ---- Chain editor ----
@@ -194,11 +207,11 @@
   gap: var(--s-2);
 }
 
-/* ---- Chip chooser ----
-   For lists that are too long or too wordy for the segmented pill: five model
-   names like "Gemini 2.5 Flash (avoid on free tier)" wrapped inside one pill read
-   as a paragraph, and the selected entry was impossible to pick out. Each option
-   gets its own bordered chip instead, so selection survives wrapping. */
+/* ---- Chips ----
+   Used for two things that want the same shape: adding a backend to a chain, and
+   suggesting a model id. Each option gets its own bordered chip rather than a slot in
+   one pill, because a label like "Gemini 2.5 Flash (avoid on free tier)" wrapped inside
+   a shared pill reads as a paragraph and the selected entry disappears into it. */
 .chips {
   display: flex;
   flex-wrap: wrap;
@@ -208,7 +221,7 @@
 .chipOn {
   padding: var(--s-2) var(--s-3);
   border: 1.5px solid var(--line-2);
-  border-radius: var(--r-pill);
+  border-radius: var(--r-md);
   background: var(--surface);
   color: var(--ink-soft);
   font-size: var(--t-body-s-size);
@@ -225,10 +238,35 @@
   outline: var(--focus-ring-width) solid var(--focus-ring);
   outline-offset: var(--focus-ring-offset);
 }
-/* Selected is carried by the border AND the fill AND aria-checked — never by
+/* Selected is carried by the border AND the fill AND aria-pressed — never by
    colour alone (docs/03 §3.3). */
 .chipOn {
   border-color: var(--primary);
   background: var(--primary-tint);
   color: var(--primary);
+}
+
+/* ---- Model suggestions ----
+   The list is advisory: the field above takes any id. The note under each name is the
+   half the choice is actually made on — price, free-tier ceiling, whether it returns
+   word timings — so it is part of the chip rather than a tooltip nobody opens. */
+.suggestions {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+}
+.chipLabel {
+  display: block;
+}
+.chipNote {
+  display: block;
+  max-width: 28ch;
+  margin-block-start: var(--s-1);
+  color: var(--muted);
+  font-weight: var(--fw-medium);
+}
+/* The note inside a selected chip sits on the tint, where --muted is too faint. */
+.chipOn .chipNote {
+  color: var(--primary);
+  opacity: 0.85;
 }
