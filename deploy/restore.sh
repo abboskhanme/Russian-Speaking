@@ -75,6 +75,7 @@ ok()   { printf '  \033[32mOK\033[0m    %s\n' "$*"; }
 # possible manner of death: the operator sees a truncated log, a zero-length
 # explanation and a non-zero code, at 2am, and cannot tell whether the backup is
 # bad or the script is. Name the line.
+# shellcheck disable=SC2154  # rc IS assigned, in the first statement of this same trap
 trap 'rc=$?; printf "\n\033[31mABORTED\033[0m  %s failed at line %s (exit %s). Nothing further was attempted.\n" "$(basename "$0")" "$LINENO" "$rc" >&2' ERR
 
 usage() { sed -n '2,45p' "$0" | sed 's/^# \{0,1\}//'; exit 2; }
