@@ -42,6 +42,32 @@ internal static class RateLimitPolicies
         // Public "try the placement" flow. A 3-answer session is ~4 hits; 30/hour
         // per IP allows a handful of retries/sessions while capping abuse. Fail-open like the rest.
         (RateLimitPolicyNames.GuestPlacement, 30, TimeSpan.FromSeconds(3600)),
+
+        // Recording an answer — one Azure STT + one grader call, billed per request.
+        //
+        // 60/hour, and the number is derived rather than picked. A measured end-to-end grade takes
+        // ~16 s and a student speaks for 15–60 s before it, so even a student doing nothing but
+        // practising lands somewhere around 20–30 answers an hour. 60 is roughly double the most
+        // energetic real user, which is the property that matters: NO real student should ever meet
+        // this, so it costs the product nothing. What it does stop is the thing a human cannot do —
+        // a client retry loop, or a script, running this route thousands of times an hour.
+        //
+        // Deliberately NOT tighter. This is a cost tail-trim, and a limit low enough to interrupt a
+        // motivated learner would be a worse bug than the bill it prevents.
+        //
+        // The partition is the USER id (the route is authenticated), so a class of eighteen on one
+        // school IP each get their own budget — see RateLimitIdentity for why that matters.
+        (RateLimitPolicyNames.SubmitAudio, 60, TimeSpan.FromSeconds(3600)),
+
+        // Authenticated placement submit — same vendor cost, but the flow is 3 answers and is taken
+        // ONCE after registering. 30/hour is ten full sessions: room to retry a failed recording or
+        // restart the test, no room for a loop.
+        (RateLimitPolicyNames.PlacementSubmit, 30, TimeSpan.FromSeconds(3600)),
+
+        // Admin key probe — one press bills up to five vendors. 10/hour is a person pasting keys
+        // and checking them; it is a guard against a double-clicked button and a reloading settings
+        // screen, not against the admin.
+        (RateLimitPolicyNames.AdminProbe, 10, TimeSpan.FromSeconds(3600)),
     };
 
     private const string TooManyRequestsBody = "{\"detail\":\"Too many requests. Please try again later.\"}";

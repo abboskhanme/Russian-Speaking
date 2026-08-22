@@ -56,4 +56,37 @@ public static class RateLimitPolicyNames
     /// placement endpoints, per-IP and FAIL-OPEN like the other guest policies. A full 3-answer
     /// session costs ~4 hits, so size the limit in multiples of that.</summary>
     public const string GuestPlacement = "guest_placement";
+
+    /// <summary>
+    /// Recording an answer (<c>POST /api/submissions</c>) — the app's most expensive route.
+    ///
+    /// <para>Every accepted submission spends one Azure STT call and one grader call at a vendor
+    /// that bills per request. Nothing else on the authenticated surface costs money per call, and
+    /// this one had no ceiling of any kind: the freemium gate stops a FREE student after three tasks
+    /// per module, but a premium student, a teacher and an admin were all unbounded — as was any
+    /// client-side retry loop that happened to run through this route.</para>
+    ///
+    /// <para>This is a COST tail-trim, not a security control. It is sized so no real student can
+    /// reach it — see the limit's note in RateLimitPolicies — and the partition is the user id, so a
+    /// whole classroom behind one school IP cannot spend each other's budget.</para>
+    /// </summary>
+    public const string SubmitAudio = "submit_audio";
+
+    /// <summary>
+    /// The authenticated placement test's per-answer submit (<c>POST /api/placement/submit</c>).
+    /// Same vendor cost as a real submission — it runs the SAME STT + grader seams — but it stores
+    /// nothing, so none of the freemium or attempt-budget logic touches it and it had no ceiling at
+    /// all. A placement session is 3 answers, so the limit is sized in multiples of that.
+    /// </summary>
+    public const string PlacementSubmit = "placement_submit";
+
+    /// <summary>
+    /// The admin "does this key actually work?" probe (<c>POST /api/admin/settings/ai/test</c>).
+    ///
+    /// <para>One press makes one REAL call to every configured backend, so it is billed per press at
+    /// up to five vendors. Admin-only, so this is not about abuse — it is about a double-clicked
+    /// button, a retried request, or a settings screen someone leaves reloading. Sized for a human
+    /// pasting keys and checking them, which is a handful of presses, not dozens.</para>
+    /// </summary>
+    public const string AdminProbe = "admin_probe";
 }

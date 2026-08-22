@@ -75,7 +75,13 @@ public static class PracticeEndpoints
                     result.Detail ?? "No attempts left for this task.", StatusCodes.Status403Forbidden),
                 _ => Results.Json(result.Submission, statusCode: StatusCodes.Status201Created),
             };
-        }).RequireAuthorization().DisableAntiforgery();
+        // RATE LIMIT submit_audio (60/hour, per USER, FAIL-OPEN). This is the only authenticated
+        // route that spends money per call — one Azure STT plus one grader request — and it had no
+        // ceiling: the 402 gate caps a FREE student at three tasks per module, but premium students,
+        // teachers and admins were unbounded, and so was any client retry loop passing through here.
+        // Sized well above the most energetic real student (see RateLimitPolicies), so it trims the
+        // cost tail without ever interrupting practice.
+        }).RequireAuthorization().RequireRateLimiting(RateLimitPolicyNames.SubmitAudio).DisableAntiforgery();
 
         // GET /api/submissions — list my attempts (?question_id, ?student_id, ?needs_review,
         // ?limit=1..200, ?offset>=0). Students see only their own; teachers their roster; admins

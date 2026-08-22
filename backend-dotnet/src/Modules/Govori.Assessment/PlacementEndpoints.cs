@@ -59,7 +59,12 @@ public static class PlacementEndpoints
 
             var band = await svc.GradeAnswerAsync(index, buffer.ToArray(), ct);
             return Results.Ok(new PlacementSubmitResponse(index, band));
-        }).RequireAuthorization().DisableAntiforgery();
+            // RATE LIMIT placement_submit (30/hour, per user, FAIL-OPEN). This route runs the SAME
+            // STT + grader seams as a real submission, so it costs the same money — but because it
+            // stores nothing, none of the freemium or attempt-budget logic that bounds
+            // POST /api/submissions applies to it, and it had no ceiling whatsoever. 30/hour is ten
+            // full 3-answer sessions: room to retry a bad recording, none for a loop.
+        }).RequireAuthorization().RequireRateLimiting(RateLimitPolicyNames.PlacementSubmit).DisableAntiforgery();
 
         // POST /api/placement/complete { bands: [...] } → { level, label_uz, band }. Averages the
         // client-collected bands → CEFR. 400 when the body is missing/malformed.

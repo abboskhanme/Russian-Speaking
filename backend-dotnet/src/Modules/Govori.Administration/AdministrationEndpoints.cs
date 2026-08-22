@@ -177,11 +177,16 @@ public static class AdministrationEndpoints
         //
         // POST, not GET: it has side effects at the vendor (a billed request) and must never be
         // fired by a link preview, a retry, or a browser prefetch.
+        //
+        // RATE LIMIT admin_probe (10/hour, per user, FAIL-OPEN). One press makes a REAL call to
+        // every configured backend, so it is billed at up to five vendors per press. Admin-only, so
+        // this is not about abuse — it is about a double-clicked button, a retried request, or a
+        // settings screen left reloading turning a key check into a bill.
         settings.MapPost("/ai/test", async (ClaimsPrincipal p, AdministrationService admin, AiProbeService probe, CancellationToken ct) =>
         {
             var (uid, deny) = await AdminGate(p, admin, ct);
             return deny ?? Results.Ok(await probe.RunAsync(ct));
-        }).RequireAuthorization();
+        }).RequireAuthorization().RequireRateLimiting(RateLimitPolicyNames.AdminProbe);
 
         // GET /api/admin/settings/features — the Faza 6 switches (docs/08 Faza 6).
         settings.MapGet("/features", async (ClaimsPrincipal p, AdministrationService admin, AppSettingsService svc, CancellationToken ct) =>
