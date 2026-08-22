@@ -2,6 +2,7 @@ using System.Reflection;
 using System.Text;
 using System.Text.Json;
 using Govori.Administration;
+using Govori.Api.Health;
 using Govori.Api.RateLimiting;
 using Govori.Api.Startup;
 using Govori.Assessment;
@@ -102,14 +103,13 @@ try
     }
 
     // ── Health checks (docs/07 §2.8) ────────────────────────────────────────
-    builder.Services.AddHealthChecks()
-        // Readiness probe. TODO Faza 2/3: add tagged checks for Postgres (Npgsql),
-        // Redis, and MinIO/S3 here as those dependencies get wired — each tagged
-        // "ready" so it participates in /health/ready below.
-        .AddCheck(
-            name: "ready",
-            check: () => HealthCheckResult.Healthy("no external dependencies wired yet"),
-            tags: new[] { "ready" });
+    // Readiness now actually probes the three dependencies a request cannot be served without —
+    // Postgres, Redis and object storage (see Govori.Api/Health). It used to be a stub that returned
+    // Healthy unconditionally, which is worse than having no readiness endpoint at all: an
+    // orchestrator would route traffic to an instance that could not reach its database, and the
+    // green probe was the evidence that it should. Each probe is bounded, so /health/ready answers
+    // quickly even when a dependency is hanging.
+    builder.Services.AddHealthChecks().AddGovoriReadinessChecks();
 
     // ── Identity / Auth vertical slice (docs/07 §7.5, Faza 3.1) ─────────────
     // Auth options come straight from configuration: SecretKey ← SECRET_KEY (required — the host
@@ -454,10 +454,13 @@ try
     // (an orchestrator must not restart a live-but-not-yet-ready process).
     app.MapHealthChecks("/health", new HealthCheckOptions { Predicate = _ => false });
 
-    // Readiness (docs/07 §2.8): only checks tagged "ready".
+    // Readiness (docs/07 §2.8): only checks tagged "ready" — Postgres, Redis, object storage.
+    // The default response writer emits the status word ONLY, so a failing probe's description (a
+    // connection string, a vendor error) stays in the logs where the operator is, and never reaches
+    // whoever can reach this endpoint.
     app.MapHealthChecks("/health/ready", new HealthCheckOptions
     {
-        Predicate = registration => registration.Tags.Contains("ready")
+        Predicate = registration => registration.Tags.Contains(ReadinessChecks.ReadyTag)
     });
 
     // Prometheus scrape endpoint → /metrics (docs/07 §2.8, §7.9).
