@@ -2,11 +2,29 @@
 node_modules
 dist
 
+# Secrets and per-machine config. Vite INLINES anything named VITE_* from a .env
+# file straight into the bundle at build time, so a stray .env.local in the build
+# context does not stay local — it ships to every browser. The build takes its one
+# public value (VITE_GOOGLE_CLIENT_ID) as a --build-arg instead, deliberately.
+.env
+.env.*
+
+# Test-only trees. tsconfig.json includes just `src`, so none of this is compiled;
+# copying it only slows the build and widens what a leaked image reveals.
+e2e
+playwright.config.ts
+vitest.config.ts
+playwright-report
+test-results
+coverage
+
 # Local/dev cruft
 .DS_Store
 *.log
 .git
 .gitignore
+.vscode
+.idea
 
 # Docker artefacts
 Dockerfile

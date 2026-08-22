@@ -1,11 +1,21 @@
 # Build output — never ship the host's bin/obj into the image (stale/other-arch).
 **/bin/
 **/obj/
+**/TestResults/
 
 # IDE / tooling
 **/.vs/
 **/.idea/
 **/*.user
+
+# Secrets. `dotnet user-secrets` writes outside the repo, but an appsettings
+# override dropped next to a project would be baked into the image and read at
+# runtime — the container gets its configuration from the environment.
+**/appsettings.Local.json
+**/appsettings.*.local.json
+**/*.env
+.env
+.env.*
 
 # Not needed to publish Govori.Api / Govori.Worker
 tests/
