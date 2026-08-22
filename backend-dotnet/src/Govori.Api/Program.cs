@@ -3,6 +3,7 @@ using System.Text;
 using System.Text.Json;
 using Govori.Administration;
 using Govori.Api.RateLimiting;
+using Govori.Api.Startup;
 using Govori.Assessment;
 using Govori.Catalog;
 using Govori.Classroom;
@@ -48,6 +49,14 @@ Log.Logger = new LoggerConfiguration()
 try
 {
     var builder = WebApplication.CreateBuilder(args);
+
+    // ── Refuse to run production on development secrets (Govori.Api/Startup) ─
+    // FIRST, before any service is registered: every problem this catches is invisible at runtime
+    // and total in effect — a missing TELEGRAM_BOT_TOKEN silently swaps in the dev OTP sender, whose
+    // fixed code 000000 logs anyone in as any phone number, and the .env.example SECRET_KEY lets
+    // anyone who has read the repo mint an admin token. A host that refuses to start is loud and
+    // fixable; one that starts wrong is a breach nobody notices. No-op outside Production.
+    ProductionSecrets.ThrowIfInsecure(builder.Configuration, builder.Environment);
 
     // ── Serilog (docs/07 §7.3 "Kuzatuv: OpenTelemetry + Serilog", §7.9) ──────
     // Replaces the default logging providers with Serilog. Structured JSON to the
@@ -352,6 +361,14 @@ try
         builder.Services.AddSingleton<IOtpDeliverySender, DevOtpDeliverySender>();
     }
 
+    // ── CORS (Govori.Api/Startup/CorsOrigins.cs) ────────────────────────────
+    // OPT-IN via BACKEND_CORS_ORIGINS. Absent = no CORS middleware at all, which is the CORRECT
+    // production shape here: nginx serves the SPA and proxies /api + /hubs to this host, so the
+    // browser never makes a cross-origin call. The variable exists for the split-origin case (Vite
+    // on :5173, or a future separate API host). A wildcard is refused at boot rather than silently
+    // downgraded — see CorsOrigins.
+    var corsOrigins = builder.Services.AddGovoriCors(builder.Configuration);
+
     // JSON: snake_case in/out. This is a WIRE CONTRACT with the shipped frontend — property names go
     // over the wire as `access_token`, `full_name`, ... Switching to camelCase breaks every client.
     builder.Services.ConfigureHttpJsonOptions(o =>
@@ -401,6 +418,13 @@ try
     // Request logging middleware — one structured line per request (method, path,
     // status, elapsed ms) correlated to the trace. docs/07 §7.9.
     app.UseSerilogRequestLogging();
+
+    // CORS must precede authentication: a browser's preflight OPTIONS carries no Authorization
+    // header, so anything that runs earlier and rejects it turns every cross-origin call into a
+    // failure the browser reports as "CORS error" rather than as the 401 it really is. Only added
+    // when origins are actually configured (see AddGovoriCors above).
+    if (corsOrigins.Length > 0)
+        app.UseCors(CorsOrigins.PolicyName);
 
     // Auth pipeline (docs/07 §7.5) — must sit before the endpoints so
     // .RequireAuthorization() is enforced on protected routes.
@@ -507,6 +531,10 @@ try
 catch (Exception ex) when (ex.GetType().Name != "StopTheHostException")
 {
     Log.Fatal(ex, "Govori.Api terminated unexpectedly during startup");
+    // Without this the process ends 0 and every orchestrator reads a refused boot as a clean,
+    // intentional shutdown — the fail-fast above would log its reason and then be indistinguishable
+    // from success. A non-zero code is what makes "refuses to start" actually mean something.
+    Environment.ExitCode = 1;
 }
 finally
 {
