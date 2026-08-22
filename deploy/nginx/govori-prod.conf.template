@@ -1,0 +1,231 @@
+# Govori — PRODUCTION nginx: TLS terminator, SPA host, and the single public
+# entry point for the API, the SignalR hub and the audio bucket.
+#
+# This is a TEMPLATE, not a config. The nginx image's entrypoint runs
+# `envsubst` over /etc/nginx/templates/*.template into /etc/nginx/conf.d/, with
+# NGINX_ENVSUBST_FILTER=^GOVORI_ so ONLY the ${GOVORI_*} names below are
+# substituted — nginx's own $host / $uri / $scheme survive untouched.
+#
+# Substituted at container start (set in docker-compose.prod.yml):
+#   ${GOVORI_SERVER_NAME}   apex domain, e.g. govorim.uz
+#   ${GOVORI_S3_BUCKET}     audio bucket name — MUST equal S3_BUCKET in .env
+#   ${GOVORI_HSTS_MAX_AGE}  seconds; 0 disables the HSTS header
+#
+# The bucket appears in a location PATH, and nginx cannot read an environment
+# variable there. Hardcoding it is the failure this template exists to prevent:
+# rename the bucket in .env and every recording 404s while every page still
+# renders perfectly, so it reads as "the audio feature broke", not "a config
+# drifted".
+
+map $http_upgrade $connection_upgrade {
+    default upgrade;
+    ''      close;
+}
+
+upstream govori_api {
+    server api:8080;
+    keepalive 32;
+}
+
+upstream govori_minio {
+    server minio:9000;
+    keepalive 16;
+}
+
+# ─────────────────────────── :80 — ACME + redirect ───────────────────────────
+server {
+    listen 80;
+    listen [::]:80;
+    server_name ${GOVORI_SERVER_NAME} www.${GOVORI_SERVER_NAME} _;
+
+    # certbot --webroot drops its challenge files here (shared volume with the
+    # certbot service). This location MUST stay above the redirect: Let's Encrypt
+    # follows redirects for HTTP-01, but a renewal that depends on the very
+    # certificate it is renewing is a bootstrap problem waiting for the first
+    # expiry.
+    location /.well-known/acme-challenge/ {
+        root /var/www/certbot;
+        access_log off;
+    }
+
+    # Container healthcheck. Plain HTTP on the loopback so `up -d` does not wait on
+    # a certificate that certbot has not issued yet.
+    location = /healthz {
+        access_log off;
+        add_header Content-Type text/plain;
+        return 200 "ok\n";
+    }
+
+    location / {
+        return 301 https://$host$request_uri;
+    }
+}
+
+# ─────────────────────────────── :443 — the app ──────────────────────────────
+server {
+    listen 443 ssl;
+    listen [::]:443 ssl;
+    http2 on;
+    server_name ${GOVORI_SERVER_NAME} www.${GOVORI_SERVER_NAME} _;
+
+    ssl_certificate     /etc/nginx/certs/fullchain.pem;
+    ssl_certificate_key /etc/nginx/certs/privkey.pem;
+    ssl_protocols       TLSv1.2 TLSv1.3;
+    ssl_ciphers         ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-CHACHA20-POLY1305:ECDHE-RSA-CHACHA20-POLY1305;
+    ssl_prefer_server_ciphers off;
+    ssl_session_cache   shared:SSL:10m;
+    ssl_session_timeout 1d;
+    ssl_session_tickets off;
+
+    # Renewals can arrive on :443 too.
+    location /.well-known/acme-challenge/ {
+        root /var/www/certbot;
+        access_log off;
+    }
+
+    # ── Security headers ─────────────────────────────────────────────────────
+    # `always` matters: without it nginx omits these on 4xx/5xx, i.e. exactly the
+    # responses an attacker is trying to provoke.
+    #
+    # THEY ARE REPEATED IN TWO LOCATIONS BELOW ON PURPOSE. nginx's add_header does
+    # not merge: the moment a location declares one add_header of its own, it
+    # inherits NONE of the server-level ones. So the two locations that need their
+    # own Cache-Control (/assets/ and the SPA fallback) would silently serve every
+    # page and every script with no nosniff, no HSTS and no frame protection —
+    # which is most of the traffic, and nothing anywhere reports it.
+    #
+    # HSTS is deliberately last-resort-reversible: it is emitted only when
+    # GOVORI_HSTS_MAX_AGE is non-zero, and it does NOT carry `preload`. Preload is
+    # a one-way door — browsers ship the list in their binary and removal takes
+    # months — which is the wrong commitment for a domain three days into HTTPS.
+    # Set GOVORI_HSTS_MAX_AGE=300 for the first day if you want an escape hatch.
+    add_header Strict-Transport-Security "max-age=${GOVORI_HSTS_MAX_AGE}; includeSubDomains" always;
+    add_header X-Content-Type-Options    "nosniff" always;
+    add_header X-Frame-Options           "SAMEORIGIN" always;
+    add_header Referrer-Policy           "strict-origin-when-cross-origin" always;
+    # microphone=(self) is load-bearing, not boilerplate: the whole product is a
+    # speaking app. A blanket `microphone=()` would break recording everywhere.
+    add_header Permissions-Policy        "microphone=(self), camera=(), geolocation=(), payment=()" always;
+
+    # ── Compression ──────────────────────────────────────────────────────────
+    # gzip only: stock nginx has no brotli module, and adding one means building a
+    # custom image. gzip on the JS bundle is worth ~70%; brotli would add ~15
+    # points on top of that and is not worth a bespoke nginx on cutover night.
+    gzip on;
+    gzip_vary on;
+    gzip_min_length 1024;
+    gzip_comp_level 5;
+    gzip_proxied any;
+    gzip_types text/plain text/css application/javascript application/json
+               image/svg+xml application/xml application/wasm font/woff2;
+
+    # Audio answers are small; teacher-uploaded video questions are not.
+    client_max_body_size 200m;
+    client_body_timeout 120s;
+
+    root /usr/share/nginx/html;
+    index index.html;
+
+    # ── REST API ─────────────────────────────────────────────────────────────
+    location /api/ {
+        proxy_pass http://govori_api;
+        proxy_http_version 1.1;
+        proxy_set_header Connection "";
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_read_timeout 120s;
+        proxy_send_timeout 120s;
+        # Audio submissions stream straight through instead of landing in a temp
+        # file first; buffering a 30 MB upload to disk on a small droplet is how
+        # /var/lib/nginx fills up.
+        proxy_request_buffering off;
+    }
+
+    # ── SignalR hub — the realtime half of Govori.Realtime ───────────────────
+    # Without the Upgrade/Connection pair nginx answers the WebSocket handshake
+    # with a 400 and SignalR quietly falls back to long polling: grading progress
+    # still arrives, just late and at several times the request cost. It looks like
+    # "the app is slow", never like "the proxy is misconfigured".
+    location /hubs/ {
+        proxy_pass http://govori_api;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection $connection_upgrade;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_buffering off;
+        proxy_read_timeout 3600s;
+        proxy_send_timeout 3600s;
+    }
+
+    # ── Audio / avatars → MinIO ──────────────────────────────────────────────
+    # The api mints presigned URLs against S3_PUBLIC_URL (= https://this host), so
+    # the browser fetches https://<domain>/<bucket>/<key>. SigV4 signs the Host
+    # header, which is why the request has to arrive here rather than at a
+    # published MinIO port — and why S3_PUBLIC_URL and this location must name the
+    # same origin.
+    location /${GOVORI_S3_BUCKET}/ {
+        proxy_pass http://govori_minio;
+        proxy_http_version 1.1;
+        proxy_set_header Connection "";
+        # Host must be forwarded verbatim: the presigned signature covers it.
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_request_buffering off;
+        proxy_buffering off;
+        client_max_body_size 200m;
+        proxy_read_timeout 300s;
+        proxy_send_timeout 300s;
+    }
+
+    # ── Static assets ────────────────────────────────────────────────────────
+    # Vite content-hashes everything under /assets/, so a year is safe and a new
+    # deploy invalidates by filename.
+    location /assets/ {
+        access_log off;
+        try_files $uri =404;
+        add_header Cache-Control "public, max-age=31536000, immutable" always;
+        # Re-declared, not duplicated by accident — see the note above add_header
+        # in the server block.
+        add_header Strict-Transport-Security "max-age=${GOVORI_HSTS_MAX_AGE}; includeSubDomains" always;
+        add_header X-Content-Type-Options    "nosniff" always;
+        add_header X-Frame-Options           "SAMEORIGIN" always;
+        add_header Referrer-Policy           "strict-origin-when-cross-origin" always;
+        add_header Permissions-Policy        "microphone=(self), camera=(), geolocation=(), payment=()" always;
+    }
+
+    # The build manifest is a build artefact, not a page asset. It is harmless but
+    # it maps the whole chunk graph; nothing in the browser asks for it.
+    location = /.vite/manifest.json { return 404; }
+
+    # default_type rather than add_header: an add_header here would drop every
+    # inherited security header from this response for no reason.
+    location = /healthz {
+        access_log off;
+        default_type text/plain;
+        return 200 "ok\n";
+    }
+
+    # ── SPA fallback ─────────────────────────────────────────────────────────
+    # index.html carries no content hash, so it must never be cached: otherwise a
+    # deploy ships new /assets/ that the stale index.html never references, and
+    # users sit on the old build until they hard-refresh.
+    location / {
+        try_files $uri $uri/ /index.html;
+        add_header Cache-Control "no-cache" always;
+        # Re-declared — see the note above add_header in the server block. This is
+        # the location that serves every HTML page, so losing the headers here
+        # would mean losing them where they matter most.
+        add_header Strict-Transport-Security "max-age=${GOVORI_HSTS_MAX_AGE}; includeSubDomains" always;
+        add_header X-Content-Type-Options    "nosniff" always;
+        add_header X-Frame-Options           "SAMEORIGIN" always;
+        add_header Referrer-Policy           "strict-origin-when-cross-origin" always;
+        add_header Permissions-Policy        "microphone=(self), camera=(), geolocation=(), payment=()" always;
+    }
+}

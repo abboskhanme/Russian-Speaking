@@ -25,3 +25,10 @@ uploads/
 
 # Production backups — never commit (contains secrets + user PII)
 /prod-backup/
+
+# TLS material, created on the droplet by deploy/setup-domain.sh and mounted into
+# the web container by docker-compose.prod.yml. `privkey.pem` is the private key
+# for govorim.uz: committing it is the one mistake here that cannot be undone by
+# deleting the file, only by revoking and reissuing the certificate.
+/nginx/certs/
+/certbot/

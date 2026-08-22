@@ -1,0 +1,436 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# Govori — PRODUCTION stack (govorim.uz / 134.209.240.56).
+#
+#   cp deploy/env.prod.example .env      # then fill it in — see deploy/CUTOVER.md
+#   docker compose -f docker-compose.prod.yml build
+#   docker compose -f docker-compose.prod.yml up -d
+#
+# HOW THIS DIFFERS FROM docker-compose.yml (dev), and why each difference exists:
+#
+#   1. ONE public port pair. nginx owns :80 and :443; db, redis, minio and the api
+#      publish NOTHING. A DigitalOcean droplet has no firewall by default, so a
+#      published 5432 is an internet-facing Postgres — the single most common way
+#      a small deployment loses its database.
+#
+#   2. NO dev seeds. The dev compose mounts four .sql files into the Postgres
+#      init dir; two of them create login accounts with a known password. They are
+#      inert on a populated volume, but "inert because the volume happens to be
+#      populated" is not a security property — they are simply absent here.
+#
+#   3. Secrets are REQUIRED, not defaulted. `${SECRET_KEY:?}` makes compose refuse
+#      to start rather than boot with `minioadmin`. Dev defaults exist so a
+#      newcomer can `up` in one command; in prod that same kindness is the bug.
+#
+#   4. Log rotation on every service. json-file logs are unbounded by default. On a
+#      small droplet an unrotated api log fills the disk, Postgres then cannot write
+#      its WAL, and the outage looks like a database fault. 10m × 3 × 7 services
+#      caps the whole stack at ~210 MB.
+#
+#   5. Resource limits. One runaway container must not take the database down with
+#      it. Defaults below suit a 2 GB droplet; check `free -m` from the backup
+#      manifest and override in .env if the box is smaller.
+#
+#   6. The data volumes are EXTERNAL. This is the most important line in the file.
+#      A compose-managed volume that does not exist yet is silently CREATED EMPTY —
+#      so a typo in a volume name would start the API against a blank database, EF
+#      would create the schema, and the stack would come up looking perfectly
+#      healthy with 50 users missing. `external: true` turns that into "volume not
+#      found" and nothing starts. Create them explicitly once (CUTOVER step 4).
+# ─────────────────────────────────────────────────────────────────────────────
+
+name: govori-prod
+
+# Every service logs through this. See note 4 above.
+x-logging: &logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
+# Applied to every service: a process inside the container can never gain
+# privileges it did not start with (setuid binaries stop being an escalation path).
+x-hardening: &hardening
+  security_opt:
+    - no-new-privileges:true
+
+# Shared backend env (api + worker). Mirrors the dev anchor, minus the dev
+# fallbacks — see note 3.
+x-backend-env: &backend-env
+  ConnectionStrings__Govori: "Host=db;Port=5432;Database=${POSTGRES_DB:?POSTGRES_DB is required};Username=${POSTGRES_USER:?POSTGRES_USER is required};Password=${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}"
+  GOVORI_DB: "Host=db;Port=5432;Database=${POSTGRES_DB};Username=${POSTGRES_USER};Password=${POSTGRES_PASSWORD}"
+  GOVORI_REDIS: "redis:6379"
+
+  # Object storage. The INTERNAL endpoint is how the api/worker talk to MinIO; the
+  # PUBLIC one is what presigned URLs are signed for, and it must be the address the
+  # BROWSER uses. They differ in prod and that asymmetry is deliberate: signing with
+  # the internal name yields URLs the browser cannot resolve, and SigV4 covers the
+  # host, so you cannot "fix" it by rewriting the URL afterwards. S3_PUBLIC_URL is
+  # the https origin; nginx proxies /<bucket>/ through to MinIO (deploy/nginx/
+  # govori-prod.conf.template), which is why no MinIO port is published.
+  GOVORI_S3_ENDPOINT: "http://minio:9000"
+  GOVORI_S3_ACCESS_KEY: "${MINIO_ROOT_USER:?MINIO_ROOT_USER is required}"
+  GOVORI_S3_SECRET_KEY: "${MINIO_ROOT_PASSWORD:?MINIO_ROOT_PASSWORD is required}"
+  GOVORI_S3_BUCKET: "${S3_BUCKET:?S3_BUCKET is required}"
+  S3_ENDPOINT_URL: "http://minio:9000"
+  S3_PUBLIC_URL: "${S3_PUBLIC_URL:?S3_PUBLIC_URL is required — e.g. https://govorim.uz}"
+  S3_ACCESS_KEY: "${MINIO_ROOT_USER}"
+  S3_SECRET_KEY: "${MINIO_ROOT_PASSWORD}"
+  S3_BUCKET: "${S3_BUCKET}"
+  S3_REGION: "${S3_REGION:-us-east-1}"
+
+  # Auth. SECRET_KEY signs the HS256 access tokens: carrying the EXISTING prod value
+  # across is what keeps the 50 logged-in users logged in. A new value is not an
+  # error anyone will see in a log — it just silently signs everybody out.
+  SECRET_KEY: "${SECRET_KEY:?SECRET_KEY is required — carry the value from the OLD stack's .env}"
+  GOOGLE_CLIENT_ID: "${GOOGLE_CLIENT_ID:-}"
+
+  # NOT `:?`-required here even though the Api REFUSES TO BOOT in Production
+  # without both (Govori.Api/Startup/ProductionSecrets.cs: missing Telegram values
+  # select the dev OTP sender, whose fixed code 000000 logs anyone in as any phone
+  # number). The Api's gate is the authority: it reports every misconfiguration in
+  # one message instead of one restart at a time, and it has a documented escape
+  # hatch. A second, non-overridable copy of the same rule in compose would make
+  # that escape hatch unreachable. Compose forwards; the Api decides.
+  TELEGRAM_BOT_TOKEN: "${TELEGRAM_BOT_TOKEN:-}"
+  TELEGRAM_BOT_USERNAME: "${TELEGRAM_BOT_USERNAME:-}"
+
+  # Empty is the correct production value: nginx serves the SPA and proxies /api
+  # from the SAME origin, so the browser never makes a cross-origin call. Set it
+  # only for a split-origin deployment, and never to `*` — the Api refuses to boot
+  # on a wildcard rather than silently dropping credentials.
+  BACKEND_CORS_ORIGINS: "${BACKEND_CORS_ORIGINS:-}"
+
+  # The deliberate, deliberately-awkward escape hatch for the boot gate above.
+  # Belongs on a laptop reproducing a production issue, never on this droplet.
+  GOVORI_ALLOW_INSECURE_PRODUCTION: "${GOVORI_ALLOW_INSECURE_PRODUCTION:-}"
+
+  # ── Admin-overridable settings ───────────────────────────────────────────────
+  # Every name below is one row in Govori.Administration/AppSettingsService's Spec
+  # map, and resolves as `app_settings row → this env var → built-in default`. So
+  # these are the STARTING values a fresh stack boots with; an admin changes them
+  # from the panel without a redeploy, and clearing one in the panel falls back to
+  # whatever is set here.
+  #
+  # THE LIST HAS TO BE COMPLETE. A key the admin panel can write but compose does
+  # not forward has no environment default at all: clearing it in the panel drops
+  # to the built-in rather than to the value in .env, and the operator's .env line
+  # is doing nothing while looking like it is. That is the same defect as an
+  # unforwarded AI key — a stack with a perfectly good .env that grades nothing.
+  LLM_PROVIDER: "${LLM_PROVIDER:-}"
+  GRADER_CHAIN: "${GRADER_CHAIN:-}"
+  STT_CHAIN: "${STT_CHAIN:-}"
+  STT_PROVIDER: "${STT_PROVIDER:-}"
+  ANTHROPIC_API_KEY: "${ANTHROPIC_API_KEY:-}"
+  ANTHROPIC_MODEL: "${ANTHROPIC_MODEL:-}"
+  GEMINI_API_KEY: "${GEMINI_API_KEY:-}"
+  GEMINI_MODEL: "${GEMINI_MODEL:-}"
+  OPENAI_API_KEY: "${OPENAI_API_KEY:-}"
+  OPENAI_GRADER_MODEL: "${OPENAI_GRADER_MODEL:-}"
+  WHISPER_MODEL: "${WHISPER_MODEL:-}"
+  AZURE_SPEECH_KEY: "${AZURE_SPEECH_KEY:-}"
+  AZURE_SPEECH_REGION: "${AZURE_SPEECH_REGION:-}"
+  AZURE_OPENAI_ENDPOINT: "${AZURE_OPENAI_ENDPOINT:-}"
+  AZURE_OPENAI_API_KEY: "${AZURE_OPENAI_API_KEY:-}"
+  AZURE_OPENAI_DEPLOYMENT: "${AZURE_OPENAI_DEPLOYMENT:-}"
+  AZURE_OPENAI_API_VERSION: "${AZURE_OPENAI_API_VERSION:-}"
+  ORTHOEPY_ENABLED: "${ORTHOEPY_ENABLED:-}"
+  TG_SUPPORT_URL: "${TG_SUPPORT_URL:-}"
+  TG_CHANNEL_URL: "${TG_CHANNEL_URL:-}"
+
+  # Faza 6 features ship OFF and are flipped from app_settings, not a redeploy.
+  REVIEW_DRILL_ENABLED: "${REVIEW_DRILL_ENABLED:-}"
+  ROLEPLAY_ENABLED: "${ROLEPLAY_ENABLED:-}"
+  ROLEPLAY_MAX_TURNS: "${ROLEPLAY_MAX_TURNS:-}"
+  ROLEPLAY_DAILY_TURNS: "${ROLEPLAY_DAILY_TURNS:-}"
+
+  # ── Product / auth tunables (read once at boot, not admin-overridable) ───────
+  # These carry the CODE'S OWN DEFAULT as the compose fallback, not an empty
+  # string, and that is not decoration. Configuration.GetValue<int>(key, default)
+  # only returns the default when the key is ABSENT; an env var that is present but
+  # empty reaches the int converter, which throws — so `${X:-}` on a numeric
+  # setting would turn "the operator left this blank" into a container that will
+  # not start. Repeating the value here also means the compose file states the
+  # live defaults instead of hiding them in Program.cs.
+  #
+  # The freemium gate is POSITIONAL: the first N tasks of every public module are
+  # free. It does NOT count a student's attempts — an env var named after a
+  # per-account attempt quota would be read by nothing at all.
+  FREE_TASKS_PER_MODULE: "${FREE_TASKS_PER_MODULE:-3}"
+  ACCESS_TOKEN_EXPIRE_MINUTES: "${ACCESS_TOKEN_EXPIRE_MINUTES:-30}"
+  REFRESH_TOKEN_EXPIRE_DAYS: "${REFRESH_TOKEN_EXPIRE_DAYS:-7}"
+  EMAIL_OTP_LENGTH: "${EMAIL_OTP_LENGTH:-6}"
+  EMAIL_OTP_TTL_SEC: "${EMAIL_OTP_TTL_SEC:-600}"
+  EMAIL_OTP_MAX_ATTEMPTS: "${EMAIL_OTP_MAX_ATTEMPTS:-5}"
+  EMAIL_VERIFY_TOKEN_EXPIRE_MINUTES: "${EMAIL_VERIFY_TOKEN_EXPIRE_MINUTES:-20}"
+
+  GOVORI_SIGNALR_BACKPLANE: "true"
+  GOVORI_RATELIMIT_BACKEND: "${GOVORI_RATELIMIT_BACKEND:-redis}"
+
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:?POSTGRES_USER is required}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+      POSTGRES_DB: ${POSTGRES_DB:?POSTGRES_DB is required}
+      # Keep timestamps in the logs comparable with the backup filenames.
+      TZ: UTC
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+    # NO `ports:`. Reach it with `docker compose -f docker-compose.prod.yml exec db psql …`.
+    logging: *logging
+    <<: *hardening
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: ${DB_MEM_LIMIT:-512m}
+
+  redis:
+    image: redis:7-alpine
+    # appendonly so a restart does not drop in-flight OTPs. It is not durable
+    # state — losing it costs a user one "resend code" tap — which is why this
+    # volume is compose-managed rather than external like the two that matter.
+    command: ["redis-server", "--appendonly", "yes", "--maxmemory", "${REDIS_MAXMEMORY:-96mb}", "--maxmemory-policy", "volatile-lru"]
+    volumes:
+      - redisdata:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 12
+    logging: *logging
+    <<: *hardening
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: ${REDIS_MEM_LIMIT:-128m}
+
+  minio:
+    # Pinned to the exact release this stack was validated against. `minio/minio`
+    # with no tag is `:latest`, and MinIO has shipped breaking admin-API changes in
+    # a patch release before — an unpinned storage layer is a redeploy that can
+    # lose audio without anyone changing a line of code.
+    image: minio/minio:RELEASE.2025-09-07T16-13-09Z
+    command: ["server", "/data", "--console-address", ":9001"]
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:?MINIO_ROOT_USER is required}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:?MINIO_ROOT_PASSWORD is required}
+      # The console is a full admin UI. It stays bound inside the network with no
+      # published port; browse it over an SSH tunnel when it is genuinely needed.
+      MINIO_BROWSER: ${MINIO_BROWSER:-off}
+    volumes:
+      - miniodata:/data
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:9000/minio/health/live"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 15s
+    logging: *logging
+    <<: *hardening
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: ${MINIO_MEM_LIMIT:-384m}
+
+  # One-shot: make sure the bucket exists, then exit 0. `Exited (0)` is the healthy
+  # steady state, not a crash.
+  #
+  # It deliberately does NOT touch the bucket policy. The dev compose runs
+  # `mc anonymous set download`, which would make every student recording readable
+  # by URL to anyone; prod serves audio through presigned URLs instead. Leaving the
+  # policy alone also means a rollback to the old stack finds the bucket exactly as
+  # it left it.
+  minio-init:
+    # Digest-pinned: `minio/mc` publishes no stable semver tag, and the client is
+    # what creates the bucket the whole product stores audio in.
+    image: minio/mc@sha256:a7fe349ef4bd8521fb8497f55c6042871b2ae640607cf99d9bede5e9bdf11727
+    depends_on:
+      minio:
+        condition: service_healthy
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        set -e
+        mc alias set local http://minio:9000 "$${MINIO_ROOT_USER}" "$${MINIO_ROOT_PASSWORD}"
+        mc mb --ignore-existing "local/$${S3_BUCKET}"
+        echo "minio bucket '$${S3_BUCKET}' ready"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+      S3_BUCKET: ${S3_BUCKET}
+    logging: *logging
+    <<: *hardening
+    restart: "no"
+
+  api:
+    build:
+      context: ./backend-dotnet
+      dockerfile: src/Govori.Api/Dockerfile
+    # An explicit, immutable tag — never `:latest`. Set IMAGE_TAG to the commit
+    # being deployed (`IMAGE_TAG=$(git rev-parse --short HEAD)`), because that tag
+    # IS the application-level rollback: the previous image is still on the disk,
+    # so going back is `IMAGE_TAG=<old sha> docker compose … up -d api worker`
+    # with no rebuild and no network.
+    image: govori/api:${IMAGE_TAG:?IMAGE_TAG is required — use the deployed commit sha}
+    environment:
+      <<: *backend-env
+      GOVORI_HANGFIRE: "true"   # client only: enqueues jobs, the worker runs them
+      # Restated here even though the Dockerfile already sets it. This one value
+      # decides whether ProductionSecrets.ThrowIfInsecure runs at all — on
+      # anything but "Production" the host quietly accepts dev OTP delivery,
+      # stock MinIO credentials and a placeholder SECRET_KEY. It is too important
+      # to live only in a base image where a future edit could drop it silently.
+      ASPNETCORE_ENVIRONMENT: "Production"
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+      minio-init:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8080/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 6
+      start_period: 60s
+    logging: *logging
+    <<: *hardening
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: ${API_MEM_LIMIT:-640m}
+
+  worker:
+    build:
+      context: ./backend-dotnet
+      dockerfile: src/Govori.Worker/Dockerfile
+    image: govori/worker:${IMAGE_TAG:?IMAGE_TAG is required — use the deployed commit sha}
+    environment:
+      <<: *backend-env
+      GOVORI_HANGFIRE: "true"      # runs the Hangfire SERVER
+      GOVORI_MAINTENANCE: "true"   # recurring cleanup jobs
+      # The Worker is a generic host, so it reads DOTNET_ENVIRONMENT — NOT
+      # ASPNETCORE_ENVIRONMENT. Setting the wrong one here is a silent no-op.
+      DOTNET_ENVIRONMENT: "Production"
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "pgrep -f Govori.Worker.dll > /dev/null || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 60s
+    logging: *logging
+    <<: *hardening
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          # The grading pipeline shells out to ffmpeg per submission. Give it more
+          # headroom than the api: an OOM here silently fails a student's recording.
+          memory: ${WORKER_MEM_LIMIT:-768m}
+
+  web:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        VITE_GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+    image: govori/web:${IMAGE_TAG:?IMAGE_TAG is required — use the deployed commit sha}
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      # A TEMPLATE, not a finished conf: the nginx image's entrypoint runs envsubst
+      # over /etc/nginx/templates/*.template into /etc/nginx/conf.d/. That is how the
+      # MinIO proxy location stays in lockstep with S3_BUCKET — nginx cannot read env
+      # vars in a location path, and a hardcoded bucket name that drifts from the .env
+      # is a 404 on every audio file while every page still renders fine.
+      - ./deploy/nginx/govori-prod.conf.template:/etc/nginx/templates/default.conf.template:ro
+      - ./nginx/certs:/etc/nginx/certs:ro
+      - ./certbot/www:/var/www/certbot:ro
+    environment:
+      # NGINX_ENVSUBST_FILTER restricts substitution to these names. Without it
+      # envsubst would also consider anything else in the environment, and the day
+      # someone adds an env var called `host` or `uri`, nginx's own $host/$uri get
+      # eaten and the config silently starts proxying to the wrong place.
+      NGINX_ENVSUBST_FILTER: "^GOVORI_"
+      GOVORI_SERVER_NAME: ${GOVORI_SERVER_NAME:?GOVORI_SERVER_NAME is required — e.g. govorim.uz}
+      GOVORI_S3_BUCKET: ${S3_BUCKET}
+      GOVORI_HSTS_MAX_AGE: ${GOVORI_HSTS_MAX_AGE:-31536000}
+    depends_on:
+      api:
+        condition: service_healthy
+    healthcheck:
+      # Plain HTTP on the loopback: the :443 block needs SNI + a valid cert and
+      # would make the healthcheck depend on certbot having run.
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1/healthz"]
+      interval: 15s
+      timeout: 5s
+      retries: 6
+      start_period: 15s
+    logging: *logging
+    security_opt:
+      - no-new-privileges:true
+    # nginx's master must stay root to bind :80/:443 and to read the cert key; the
+    # workers drop to the unprivileged `nginx` user on their own. Dropping every
+    # capability except the four that requires is the honest middle ground — a
+    # rootless image would move the ports and add a cert-permission problem to the
+    # cutover for no gain the attacker cares about.
+    cap_drop: ["ALL"]
+    cap_add: ["CHOWN", "SETGID", "SETUID", "NET_BIND_SERVICE", "DAC_OVERRIDE"]
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: ${WEB_MEM_LIMIT:-128m}
+
+  # Let's Encrypt client. `profiles: [tools]` keeps it out of `up`; it is invoked
+  # on demand by deploy/setup-domain.sh and by the renewal cron that script prints.
+  certbot:
+    image: certbot/certbot:v5.0.0
+    profiles: ["tools"]
+    volumes:
+      - ./certbot/conf:/etc/letsencrypt
+      - ./certbot/www:/var/www/certbot
+    logging: *logging
+    <<: *hardening
+
+volumes:
+  # EXTERNAL ON PURPOSE — see note 6 at the top of this file. Create them once:
+  #   docker volume create govori-pgdata
+  #   docker volume create govori-miniodata
+  # or point these at the volumes the OLD stack already uses (the names are in
+  # prod-backup/<ts>/manifest.txt), which is what the cutover actually does.
+  pgdata:
+    external: true
+    name: ${PG_VOLUME:-govori-pgdata}
+  miniodata:
+    external: true
+    name: ${MINIO_VOLUME:-govori-miniodata}
+  # Rebuildable: losing it costs one OTP resend, so compose may manage it.
+  redisdata:
+    name: ${REDIS_VOLUME:-govori-prod-redisdata}
+
+networks:
+  default:
+    name: ${NETWORK_NAME:-govori-prod-net}
