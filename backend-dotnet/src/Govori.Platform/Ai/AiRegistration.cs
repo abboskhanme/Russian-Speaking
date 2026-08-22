@@ -24,18 +24,62 @@ namespace Govori.Platform.Ai;
 /// </summary>
 public static class AiRegistration
 {
+    /// <summary>
+    /// How long one transcription gets before the chain calls it dead and moves on.
+    ///
+    /// <para><b>Where the number comes from.</b> A measured end-to-end grade — Azure STT plus a
+    /// Gemini grade, on real submitted audio — takes about 16 seconds in total. 45 s is therefore
+    /// several times the whole pipeline's normal duration for just this one leg: comfortably past
+    /// "slow today", nowhere near "hung". The value it replaces was not a decision at all but
+    /// <c>HttpClient</c>'s 100-second default, which on a stalled vendor is indistinguishable from
+    /// forever — long enough to hold a grading worker through both STT backends for over three
+    /// minutes on a single attempt.</para>
+    ///
+    /// <para>Shorter than the grader's budget on purpose: transcription is one request/response over
+    /// a few hundred kilobytes of audio, while a grader is generating tokens and legitimately thinks
+    /// for longer. Giving both the same number would mean one of them is always the wrong one.</para>
+    ///
+    /// <para><b>A timeout here MUST reach the chain as a failure, not a cancellation.</b>
+    /// <c>HttpClient</c> signals it with <c>TaskCanceledException</c>, which derives from
+    /// <c>OperationCanceledException</c> — the type the chain rethrows without falling back. The
+    /// chain distinguishes them by the caller's token (<c>when (ct.IsCancellationRequested)</c>),
+    /// which is false for a timeout, so the fallback runs. That distinction is pinned by
+    /// <c>ProviderChainTests.VendorTimeout_FallsThroughToTheNextBackend_*</c>; without it, a slow
+    /// vendor would silently abort the student's attempt instead of failing over.</para>
+    /// </summary>
+    public static readonly TimeSpan SttTimeout = TimeSpan.FromSeconds(45);
+
     /// <summary>Wire the grader + STT chains and every vendor backend behind them.</summary>
     public static IServiceCollection AddGovoriAi(this IServiceCollection services)
     {
         // One named HttpClient per vendor. Named rather than shared because the handlers have
         // genuinely different characteristics — an audio upload is not a chat completion — and
         // because a pooled client per vendor is what keeps a busy worker from exhausting sockets.
-        // The backends set their own timeouts on the resolved client.
-        services.AddHttpClient(AnthropicGraderBackend.HttpClientName);
-        services.AddHttpClient(GeminiGraderBackend.HttpClientName);
-        services.AddHttpClient(OpenAiGraderBackend.HttpClientName);
-        services.AddHttpClient(AzureSpeechSttBackend.HttpClientName);
-        services.AddHttpClient(WhisperSttBackend.HttpClientName);
+        //
+        // THE TIMEOUT IS SET HERE, not in the backends. It used to be the backend's job, and the
+        // three graders did it while the two STT backends did not — so every transcription ran on
+        // HttpClient's 100-second default, and a stalled vendor held a grading worker for that long
+        // per attempt, twice over when the chain fell through to the second backend. The failure is
+        // invisible in code review precisely because it is an ABSENT line; moving the decision to the
+        // single place every backend is registered means a new backend cannot forget it.
+        foreach (var grader in new[]
+                 {
+                     AnthropicGraderBackend.HttpClientName,
+                     GeminiGraderBackend.HttpClientName,
+                     OpenAiGraderBackend.HttpClientName,
+                 })
+        {
+            services.AddHttpClient(grader, client => client.Timeout = GraderContract.VendorTimeout);
+        }
+
+        foreach (var stt in new[]
+                 {
+                     AzureSpeechSttBackend.HttpClientName,
+                     WhisperSttBackend.HttpClientName,
+                 })
+        {
+            services.AddHttpClient(stt, client => client.Timeout = SttTimeout);
+        }
 
         // Backends are stateless — configuration arrives per call as an AiRuntimeConfig snapshot —
         // so a singleton each is correct and avoids rebuilding the object graph per submission.

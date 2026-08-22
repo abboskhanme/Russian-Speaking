@@ -34,8 +34,9 @@ public sealed class GeminiGraderBackend : IGraderBackend
     public async Task<GraderResult> AnalyzeAsync(
         GraderRequest request, AiRuntimeConfig config, CancellationToken ct)
     {
+        // The timeout is configured once, where the client is registered (AiRegistration) — the
+        // two STT backends used to be the ones that forgot it here.
         var http = _httpClientFactory.CreateClient(HttpClientName);
-        http.Timeout = GraderContract.VendorTimeout;
 
         var url = ModelsEndpoint + Uri.EscapeDataString(config.GeminiModel) + ":generateContent";
         using var message = new HttpRequestMessage(HttpMethod.Post, url)

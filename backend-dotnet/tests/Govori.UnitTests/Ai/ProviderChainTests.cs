@@ -210,6 +210,59 @@ public sealed class ProviderChainTests
         Assert.Equal(0, gemini.Calls);
     }
 
+    /// <summary>
+    /// A VENDOR TIMEOUT IS A FAILURE, NOT A CANCELLATION — and the two are one keyword apart.
+    ///
+    /// <para><c>HttpClient.Timeout</c> does not throw <see cref="TimeoutException"/>. It throws
+    /// <see cref="TaskCanceledException"/>, which derives from
+    /// <see cref="OperationCanceledException"/> — the exact type the rule above rethrows without
+    /// falling back. What separates them is the <c>when (ct.IsCancellationRequested)</c> filter on
+    /// that catch: the caller's token is NOT cancelled when a timeout fires, so the filter declines
+    /// and the generic handler moves to the next backend.</para>
+    ///
+    /// <para>Delete that filter — an entirely reasonable-looking simplification — and every vendor
+    /// timeout silently aborts the whole attempt instead of failing over. The student's answer comes
+    /// back ungraded, the log says "cancelled", and the second backend that would have answered is
+    /// never called. The existing <see cref="TimeoutException"/> case above would still pass, and so
+    /// would the cancellation case, which is why this needs its own test.</para>
+    /// </summary>
+    [Fact]
+    public async Task VendorTimeout_FallsThroughToTheNextBackend_BecauseItIsNotACallerCancellation()
+    {
+        // Exactly what HttpClient raises when its Timeout elapses.
+        var timedOut = new TaskCanceledException("The request was canceled due to the configured HttpClient.Timeout",
+            new TimeoutException());
+
+        var claude = new FakeGraderBackend("anthropic", configured: true, throws: timedOut);
+        var gemini = new FakeGraderBackend("gemini", configured: true, () => Result("gemini-3.1-flash-lite"));
+
+        // No cancellation token — the caller is still very much waiting.
+        var result = await Grader("anthropic,gemini", claude, gemini)
+            .AnalyzeAsync(new GraderRequest { QuestionPrompt = "p", TranscriptText = "t" });
+
+        Assert.Equal(1, claude.Calls);
+        Assert.Equal(1, gemini.Calls);                       // the fallback actually ran
+        Assert.Equal("gemini-3.1-flash-lite", result.Model);
+    }
+
+    /// <summary>The same distinction on the STT chain, which is where the missing timeouts actually
+    /// were. Falling through costs the pronunciation score; NOT falling through costs the attempt.</summary>
+    [Fact]
+    public async Task SttVendorTimeout_FallsThroughToTheNextBackend()
+    {
+        var timedOut = new TaskCanceledException("timeout", new TimeoutException());
+
+        var azure = new FakeSttBackend("azure_speech", configured: true, throws: timedOut);
+        var whisper = new FakeSttBackend("whisper", configured: true, () => Transcript("whisper-1"));
+
+        var result = await Stt("azure_speech,whisper", azure, whisper)
+            .TranscribeAsync(new byte[] { 1, 2, 3 }, "a.webm", referenceText: null);
+
+        Assert.Equal(1, azure.Calls);
+        Assert.Equal(1, whisper.Calls);
+        Assert.Equal("whisper-1", result.Model);
+    }
+
     // ── Rule 4 — record the model that actually ran ─────────────────────────
 
     [Fact]

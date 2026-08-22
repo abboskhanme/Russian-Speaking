@@ -49,8 +49,9 @@ public sealed class AnthropicGraderBackend : IGraderBackend
     public async Task<GraderResult> AnalyzeAsync(
         GraderRequest request, AiRuntimeConfig config, CancellationToken ct)
     {
+        // The timeout is configured once, where the client is registered (AiRegistration) — the
+        // two STT backends used to be the ones that forgot it here.
         var http = _httpClientFactory.CreateClient(HttpClientName);
-        http.Timeout = GraderContract.VendorTimeout;
 
         var client = new AnthropicClient(new ClientOptions
         {

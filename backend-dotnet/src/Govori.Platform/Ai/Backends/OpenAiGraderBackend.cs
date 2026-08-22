@@ -42,8 +42,9 @@ public sealed class OpenAiGraderBackend : IGraderBackend
         GraderRequest request, AiRuntimeConfig config, CancellationToken ct)
     {
         var useAzure = config.AzureOpenAiReady;
+        // The timeout is configured once, where the client is registered (AiRegistration) — the
+        // two STT backends used to be the ones that forgot it here.
         var http = _httpClientFactory.CreateClient(HttpClientName);
-        http.Timeout = GraderContract.VendorTimeout;
 
         using var message = new HttpRequestMessage(HttpMethod.Post, BuildUrl(config, useAzure))
         {

@@ -328,7 +328,12 @@ try
     // WHICH number, which is what stops one caller confirming another's pending change. Same lazy
     // Redis wrapper shape as IOtpStore, so it costs nothing until a change is actually started.
     builder.Services.AddSingleton<IPendingPhoneChangeStore, RedisPendingPhoneChangeStore>();
-    builder.Services.AddHttpClient<IGoogleTokenVerifier, GoogleTokenVerifier>(); // Google tokeninfo
+    // Google tokeninfo. The 10 s timeout is not decoration: this call sits INSIDE the login request,
+    // so without one an unreachable Google would hold the connection for HttpClient's 100-second
+    // default while the user watches a spinner. The verifier already maps a timeout to
+    // GoogleTokenStatus.Unreachable → 502, which is a far better answer than a hung request.
+    builder.Services.AddHttpClient<IGoogleTokenVerifier, GoogleTokenVerifier>(
+        client => client.Timeout = TimeSpan.FromSeconds(10));
 
     // Telegram OTP deep-link + delivery-state store. Registered UNCONDITIONALLY (unlike the sender
     // below, which is chosen by config): GET /api/auth/otp/status depends on it whatever the active
