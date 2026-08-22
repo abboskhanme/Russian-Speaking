@@ -116,7 +116,16 @@ export default function AdminSettingsPage() {
       tgSupportUrl: links.tg_support_url,
       tgChannelUrl: links.tg_channel_url,
     };
-  }, [ai, links]);
+    // All THREE payloads, including `flags` — it was missing, so a saved feature
+    // switch updated the state and never reached this object: the Faza 6 card went
+    // on showing the values from the page load until someone reloaded.
+    //
+    // Adding it is only safe because the screen no longer re-seeds its draft state
+    // from this object's IDENTITY (see AdminSettingsScreen's two seed effects). It
+    // used to, which is why the obvious fix was a worse bug: every flag toggle
+    // produced a new `settings` and wiped a half-typed API key out from under the
+    // person typing it.
+  }, [ai, links, flags]);
 
   const saveAi = useCallback(
     async (patch: AdminSettingsPatch) => {

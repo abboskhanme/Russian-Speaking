@@ -265,7 +265,27 @@ export function AdminSettingsScreen({
   const graderReady = (name: string) => settings.readyGraderBackends.includes(name);
   const sttReady = (name: string) => settings.readySttBackends.includes(name);
 
-  // Re-seed from a fresh fetch (after any save).
+  /* -- Re-seeding the draft from the server ---------------------------------
+   *
+   * TWO effects, each depending on the VALUES it mirrors rather than on the
+   * `settings` object. This is not a style choice; the single effect it replaces
+   * keyed on `settings` itself, and `settings` is rebuilt by the page from three
+   * separate payloads, so saving ANY one of them re-ran the whole seed.
+   *
+   * That coupling is what made the stale-flags bug unfixable at the obvious spot:
+   * the page had `flags` missing from its memo deps (the Faza 6 card showed the
+   * values from page load forever), and adding it back handed every flag toggle a
+   * fresh `settings` — which re-ran this seed and cleared the key inputs, deleting
+   * a half-typed production API key out from under whoever was typing it.
+   *
+   * Split by source, neither can do that: flipping a switch cannot touch the AI
+   * fields, and saving a model cannot reset the switches. The key inputs are not
+   * seeded from props at all any more — they are cleared by the save that
+   * consumed them (see `saveAi`), which is the moment that actually means
+   * "these are no longer yours to send".
+   */
+
+  // AI + links, from `GET /admin/ai` and `GET /admin/links`.
   useEffect(() => {
     setModel(settings.geminiModel);
     setClaudeModel(settings.anthropicModel);
@@ -274,22 +294,46 @@ export function AdminSettingsScreen({
     setGraderChain(parseChain(settings.graderChain));
     setSttChain(parseChain(settings.sttChain));
     setOrthoepy(settings.orthoepyEnabled);
-    setDrill(settings.reviewDrillEnabled);
-    setRoleplay(settings.roleplayEnabled);
-    setMaxTurns(String(settings.roleplayMaxTurns));
-    setDailyTurns(String(settings.roleplayDailyTurns));
     setRegion(settings.azureSpeechRegion);
     setAzureEndpoint(settings.azureOpenaiEndpoint);
     setAzureDeployment(settings.azureOpenaiDeployment);
     setAzureApiVersion(settings.azureOpenaiApiVersion);
     setSupport(settings.tgSupportUrl);
     setChannel(settings.tgChannelUrl);
-    setGeminiKey("");
-    setClaudeKey("");
-    setOpenaiKey("");
-    setAzureOpenaiKey("");
-    setSpeechKey("");
-  }, [settings]);
+    // Stale results are worse than none: a probe round described the configuration
+    // as it was before this change.
+    setProbes({});
+    setProbeFailed(null);
+  }, [
+    settings.geminiModel,
+    settings.anthropicModel,
+    settings.openaiGraderModel,
+    settings.whisperModel,
+    settings.graderChain,
+    settings.sttChain,
+    settings.orthoepyEnabled,
+    settings.azureSpeechRegion,
+    settings.azureOpenaiEndpoint,
+    settings.azureOpenaiDeployment,
+    settings.azureOpenaiApiVersion,
+    settings.tgSupportUrl,
+    settings.tgChannelUrl,
+  ]);
+
+  // Faza 6 switches, from `GET/PATCH /admin/feature-flags` — their own endpoint and
+  // now their own seed, so a saved switch shows what the SERVER stored (it clamps
+  // the turn limits) rather than what was typed at it.
+  useEffect(() => {
+    setDrill(settings.reviewDrillEnabled);
+    setRoleplay(settings.roleplayEnabled);
+    setMaxTurns(String(settings.roleplayMaxTurns));
+    setDailyTurns(String(settings.roleplayDailyTurns));
+  }, [
+    settings.reviewDrillEnabled,
+    settings.roleplayEnabled,
+    settings.roleplayMaxTurns,
+    settings.roleplayDailyTurns,
+  ]);
 
   const saveAi = async () => {
     if (busy) return;
@@ -341,6 +385,19 @@ export function AdminSettingsScreen({
         return;
       }
       await onSaveAi?.(patch);
+      // Only now, and only on success. A key field is emptied by the save that
+      // SENT it — not by a prop change, which is what used to clear it and could
+      // fire for a reason that had nothing to do with keys. On a failure the typed
+      // key stays in the box, because retyping a production secret you just lost
+      // to an error message is not a reasonable thing to ask of anyone.
+      setGeminiKey("");
+      setClaudeKey("");
+      setOpenaiKey("");
+      setAzureOpenaiKey("");
+      setSpeechKey("");
+      // The keys just changed, so any probe round on screen describes the old ones.
+      setProbes({});
+      setProbeFailed(null);
       setNote(t("admin.saved"));
     } catch {
       setError(t("admin.saveFailed"));
@@ -348,13 +405,6 @@ export function AdminSettingsScreen({
       setBusy(false);
     }
   };
-
-  // Stale results are worse than none: the previous round described the keys as they were
-  // before the save. Cleared on every fresh `settings`, alongside the key inputs.
-  useEffect(() => {
-    setProbes({});
-    setProbeFailed(null);
-  }, [settings]);
 
   const testAi = async (source: "grader" | "stt") => {
     if (probing || busy) return;
