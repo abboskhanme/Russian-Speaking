@@ -11,22 +11,81 @@
 
 ---
 
-## Holat — 2026-08-17
+## Holat — 2026-08-23
 
 > Quyidagi jadvallar **reja** (o'zgarmaydi); bu bo'lim esa **haqiqatda nima bajarilgani**.
 > Ziddiyat bo'lsa — shu bo'lim ustun. Belgilar: ✅ tugagan · 🟡 qisman · ⬜ boshlanmagan.
 > Qolgan ishning **ketma-ketligi** uchun → `10-YAKUNIY-ISH-REJASI.md`.
+>
+> O'lchangan baza: `dotnet build Govori.sln -c Release` **0 warning / 0 error** · to'rtala suite
+> **316 passed, 0 failed** (4 opt-in skipped; 2026-08-17 da 237 edi) · frontend `npm run build`
+> yashil, **155 vitest**, bundle **119.7 / 180 KB gz** · **14 Playwright testi** uchala rol uchun,
+> `axe` **critical 0** · jonli baholash quvuri uchidan-uchiga **10.1s** (maqsad p95 < 20s).
 
 | Faza | Holat | Nimasi qolgan |
 |---|:--:|---|
-| **0 · Ma'lumot xavfsizligi** | ⬜ | **0.5 ning kod qismi ✅** — `deploy/prod-backup-cron.sh` prod cron'ining o'rnini bosadi (`pipefail`, hajm + `pg_restore --list` tekshiruvi, real foydalanuvchi sanog'i, atomik `mv`, offsite, va **shartli** retention), `deploy/test-backup-cron.sh` buni 11 ta assertion bilan isbotlaydi. Qolgani — **droplet'ga kirishni talab qiladi**: 0.1–0.4, 0.6, 0.7 va skriptni prodga o'rnatish. 🔴 Hamon bloklovchi: real 50 foydalanuvchining zaxirasi yo'q. |
-| **1 · Xavfsizlik to'ri** | 🟡 | 1.1–1.3 ✅. **1.4 ✅** — `tests/golden/grader/` (18 keys + 8 tartib tekshiruvi). **1.5 ✅** — runner real zanjirga uriladi, ikki yugurishda 98% va 99%. **1.6 ✅** — `.github/workflows/ci.yml` da alohida `golden` job; kalitsiz jimgina o'tmaydi, yiqiladi. ⬜ **STT yarmi**: 40 ta real klip — sun'iy audio bilan to'ldirilmadi, sababi `tests/golden/grader/README.md` da. |
-| **2 · .NET poydevor** | 🟡 | **2.5 ✅** — har yugurishda alohida `govori_it_*` bazasi (EF migratsiyalaridan quriladi, `FORCE` bilan o'chiriladi); Testcontainers **emas**, sababi kodda yozilgan (net9 SDK konteyneri → tasodifiy **host** porti, `localhost` unga yetmaydi). **2.7 ⬜** — prod dump'iga, ya'ni **Faza 0 ga** bog'liq. |
-| **3 · Domen porti** | ✅ | **3.4 ✅ — AI zanjiri ulandi**: Anthropic (rasmiy SDK) · Gemini · OpenAI/Azure OpenAI graderlar, Azure Speech (unscripted, `Lexical`) · Whisper STT, `app_settings` dan tartib + kalitlar, 19 birlik test + jonli smoke. **3.10 ✅** — TTFS o'lchanadi (`Submission.CreatedAt` dan), jonli o'lchov **~10.5s** (maqsad p95 < 20s). |
-| **4 · Frontend** | 🟡 | Admin **Sozlamalar** ekrani zanjir tahrirchisi, Claude bo'limi va **Funksiyalar** bo'limini oldi ✅. **4.11 ✅** — 120 Vitest + Playwright golden path + `axe` (0 critical). **4.1 ✅** — bundle budjeti CI'da: 114.3 / 180 KB gz. **4.2 ⬜** — API tiplari hamon qo'lda, OpenAPI hujjati umuman yo'q. |
-| **5 · Cutover** | 🟡 | O'zgarishsiz. **Server yarmi ⬜** — jonli prodga tegadi, egasisiz bajarilmaydi. |
-| **6 · Yangi funksiyalar** | 🟡 | **6.4 ✅** · **6.1 ✅** Xato-replay drill (`/review`, SRS zinapoyasi endi haqiqatan ko'tariladi) · **6.5 ✅** AI Suhbat (`/chat`) — haqiqiy STT + grader zanjiri, ssenariy beat'lari orasida relevantlik bo'yicha yo'naltirish. Ikkalasi ham **flag ortida, sukut bo'yicha o'chiq**, admin panelda **Funksiyalar** bo'limidan boshqariladi. 6.2, 6.3, 6.6, 6.7, 6.8 — ⬜. |
-| **7 · Tozalash** | 🟡 | 7.1–7.8 ✅. 7.9 — **C3/C6 mahsulot qaroriga** bog'liq, texnik ish emas. |
+| **0 · Ma'lumot xavfsizligi** | 🟡 | **0.5 ✅ va endi tiklash ham ✅** — `deploy/prod-backup-cron.sh` (zaxira) va **`deploy/restore.sh`** (tiklash) yozildi va **haqiqatan sinaldi**: dev dump → toza konteyner → 21 jadval, har biri aynan mos; buzuvchi yo'l (`--into-stack`) alohida tashlab yuboriladigan stack'da 55 user + 11 MinIO obyektini qaytardi. Yo'l-yo'lakay `verify-backup.sh` dagi **haqiqiy xato** tuzatildi: MinIO obyektni FAYL emas KATALOG qilib saqlagani uchun u har sog'lom zaxirada "audio topilmadi" deb yolg'on ogohlantirardi — o'quvchi yozuvlari saqlanganini aytadigan yagona tekshiruv edi. Qolgani **droplet'ga kirishni talab qiladi**: 0.1–0.4, 0.6, 0.7. 🔴 Hamon bloklovchi: real 50 foydalanuvchining **prodda zaxirasi yo'q**. |
+| **1 · Xavfsizlik to'ri** | 🟡 | 1.1–1.6 ✅. 2026-08-23 da qayta yugurtirildi: grader **golden set o'tdi**, **jonli vendor smoke 3/3**. ⬜ **STT yarmi**: 40 ta real klip — sun'iy audio bilan to'ldirilmadi, sababi `tests/golden/grader/README.md` da. |
+| **2 · .NET poydevor** | 🟡 | **2.5 ✅**. **2.7 ⬜** — prod dump'iga, ya'ni **Faza 0 ga** bog'liq. |
+| **3 · Domen porti** | ✅ | **3.4 ✅** · **3.10 ✅** — jonli o'lchov qayta qurilgan stack'da **10.1s**. ⚠️ **Aniqlashtirish:** "fonema+prosodiya" va'dasi haqiqatga mos emas. Azure'ning xom javobi o'lchandi: unscripted rejimda fonema **ballari** keladi, **nomlari bo'sh** (455 yozuvning 455 tasi), va `PronunciationAssessment` aggregate umuman qaytmaydi, ya'ni `EnableProsodyAssessment` e'tiborsiz qoladi. Kod to'g'ri — bu vendor cheklovi. Oqibati Faza 6.2 da. |
+| **4 · Frontend** | 🟡 | Admin AI-probe UI ✅ · **ErrorBoundary ✅** — ilgari umuman yo'q edi, ya'ni har render xatosi oq ekran berardi; endi ikki daraja (ildiz + marshrut), ichkisi Suspense ichida shuning uchun lazy chunk yuklanmasa ham ushlaydi · chiqish endi refresh tokenni serverga bekor qilishga beradi ✅. **4.11 ✅** — **155 Vitest**, Playwright **uchala rol** uchun (o'quvchi · o'qituvchi · admin) + auth chekka holatlari + mobil viewport, `axe` critical **0**. **4.1 ✅** — bundle **119.7 / 180 KB gz**. **4.2 ⬜** — API tiplari hamon qo'lda, OpenAPI hujjati yo'q. |
+| **5 · Cutover** | 🟡 | **Hujjat va skriptlar tayyor** — `deploy/CUTOVER.md` (kunlar oldin · TLS · 30 daqiqalik oyna · **to'rt xil rollback**), `docker-compose.prod.yml` (log rotatsiyasi 10m×3, non-root uid 10001, resurs chegaralari, faqat nginx 80/443, **dev seed'lar YO'Q**), nginx shabloni, `preflight.sh` (18 tekshiruv), `migrate.sh`, `restore.sh`. **Server yarmi ⬜** — jonli prodga tegadi, egasisiz bajarilmaydi. |
+| **6 · Yangi funksiyalar** | 🟡 | **6.4 ✅ · 6.1 ✅ · 6.5 ✅** (ikkalasi flag ortida, sukut bo'yicha o'chiq). **6.8 — aslida ✅ edi**: achievement backend `ProfileService.BuildAchievements` da **21 nishon** bilan allaqachon qurilgan, birlik testlari bor va jonli tekshirildi; `achievements` jadvali **kerak emas** — nishonlar saqlanmaydi, hisoblanadi. **6.7 🟡** — o'qituvchi sinf xatolarini ko'radi; yetmayotgani aynan F6 ning qiymati ("1 tap → remediation topshiriq") va u **xato-turi → topshiriq xaritasini** talab qiladi, ya'ni kontent qarori. **6.2 🔴 bloklangan** — F2 ning asosi ("Azure ma'lumoti tayyor") noto'g'ri, yuqoridagi Faza 3 ga qarang; drill uchun *scripted* rejim yo'li ochiq. **6.3 ⬜** · **6.6 ⬜** (tashqi bog'liqlik: Payme/Click). |
+| **7 · Tozalash** | 🟡 | 7.1–7.8 ✅. 7.9 — **C3/C6 mahsulot qaroriga** bog'liq. |
+
+### Kontrast — o'lchangan, ikki bosqichda
+
+`serious/color-contrast` **680 → 0**, bitta shart bilan.
+
+1. A11y ishi 680 dan **16** ga tushirdi (22 ekran × 2 mavzu × 2 viewport = 88 skan). Asosiy qaror:
+   `--faint` qayta bo'yalmadi, u **matn tokeni bo'lishdan to'xtadi** — 73 iste'molchisidan 59 tasi
+   `<Text color="faint">` edi, ya'ni so'z. So'zlar `--muted` ga ko'chdi, `--faint` dekoratsiya uchun
+   qoldi (aria-hidden glif, qulf/chevron, o'chirilgan OTP — WCAG 1.4.3 nofaol boshqaruvlarni istisno qiladi).
+2. **To'la navbat bilan** qayta skanerlash yana bitta **mustaqil sababni** ochdi: Analitika "hero"
+   kartasi light mavzudagi **yagona qorong'i sirt**, va uning lokal kulrangi hech qachon o'z foni
+   bo'yicha o'lchanmagan edi (4.17:1). Tuzatildi (`9ab3c37`). Bu faqat to'la ma'lumotda ko'rinadi —
+   bir qatorli navbat yigirma to'rt qatorli navbat ko'rsatadigan narsani yashiradi.
+
+**Shundan keyin qolgan har bir buzilish bitta sababga tegishli:** brend to'ldirishi ustidagi oq matn
+(`#fffdfb` on `#ed622a` = **3.24:1**). Node soni ma'lumot hajmiga qarab o'sadi, sabab esa bitta.
+**Isbotlandi:** `--primary` ni `oklch(0.580 0.181 40)` (#cf4500) ga tushirish 4 ta o'qituvchi ekranida
+**29 → 0** beradi. Dark mavzu allaqachon 0 (uning `--primary-on` i qora siyoh, 7.12:1).
+Bu bitta qatorlik **brend qarori** va u egasiniki — shuning uchun qilinmadi.
+Brend **matn** uchun `--primary-ink` (#b93f02, 4.65:1) allaqachon qo'shilgan; to'ldirishlar,
+logotip va grafika **tegilmagan**.
+
+### Prodga tayyorlik — 2026-08-23 kechasida qo'shilgan qattiqlashtirish
+
+- **Prod noto'g'ri sirlar bilan ishga tushmaydi.** `TELEGRAM_BOT_TOKEN` yo'q bo'lsa prod dev OTP
+  jo'natuvchisini olardi, ya'ni qat'iy kod `000000` bilan **har kim har qanday raqam sifatida kirardi**
+  va stack sog'lom ko'rinardi. `.env.example` SECRET_KEY bilan esa repo'ni o'qigan har kim admin
+  tokeni yasardi. Endi barcha muammolar bir vaqtda ro'yxatlanadi va exit code 1.
+- **CORS**: yo'qligi = o'chiq (bir xil origin — to'g'ri prod shakli); wildcard **rad etiladi**,
+  jimgina pasaytirilmaydi.
+- **Refresh token bekor qilinadi** (Redis deny-list, kalit = token hash'i, fail-closed, per-token).
+  Ilgari `/logout` serverda **hech narsa** qilmasdi. Yo'l-yo'lakay: refresh endi foydalanuvchi mavjud
+  va faol ekanini tekshiradi — bloklangan hisob 7 kun yashamaydi.
+- **Vendor timeout'lari**: STT'da umuman yo'q edi (default 100s × 2 backend = osilgan worker).
+  Endi STT 45s, grader 60s. Nozik joy test bilan qotirildi: `HttpClient.Timeout`
+  `TaskCanceledException` tashlaydi, ya'ni zanjirning "bekor qilish → fallback qilma" qoidasi uni
+  yutib yuborishi mumkin edi.
+- **Pul sarflovchi yo'llarda shift**: `submit_audio` 60/soat · `placement_submit` 30/soat ·
+  `admin_probe` 10/soat, hammasi **user id bo'yicha** (bir sinf bitta IP ortida bir-birini bloklamasin).
+- **`/health/ready`** stub emas — Postgres + Redis + S3 ni tekshiradi; liveness ataylab tekshirmaydi.
+- **Log floodi to'xtatildi**: bitta `GET /api/profile/stats` prod konfiguratsiyasida **5 396 bayt**
+  log yozardi (EF har SQL ni to'liq matni bilan). Prod'da endi Warning; dev'da Information (o'sha
+  yerda maqsad shu). Ustiga compose'da log rotatsiyasi 10m × 3 **har servisda**.
+- **Muhit endi aniq aytiladi**: ikkala image `…_ENVIRONMENT=Production` ni pishirib qo'yadi (image
+  uchun to'g'ri default), dev compose esa uni ustidan yozmasdi — ya'ni dev Production sifatida
+  ishlardi va `appsettings.Development.json` hech qachon yuklanmasdi.
+- **Cutover minalari**: `ef-baseline.sh` va `rollback-db.sh` `-f` siz `docker compose` chaqirardi,
+  ya'ni droplet'da ikkala compose fayl yonma-yon turganda **dev faylini** tanlardi; ular yana
+  `PGUSER`/`PGDATABASE` ni **dev nomiga** qaytarardi. Ikkalasi ham rollback skriptlari — ya'ni aynan
+  hamma narsa noto'g'ri ketgan paytda ishga tushadi. Endi tanlov bo'lsa **rad etadi**, va nima
+  o'chirilishini tasdiqdan **oldin** chop etadi.
+- **Sertifikat yangilanishi**: `setup-domain.sh` cron qatorini faqat **chop etardi**, va o'sha qator
+  yarim ishlardi (certbot `certbot/conf/live/` ga yozadi, nginx `nginx/certs/` dan o'qiydi) — ya'ni
+  HTTPS ~60 kun ishlab, keyin **birdan** o'lardi. O'rnatiladigan va ishlaydigan holatga keltirildi.
 
 **Rejadan tashqari, rejada yo'q edi va bajarildi:** o'qituvchi paneli to'liq (7 faza),
 admin paneli, telefon+Telegram OTP auth, guruhga qo'shilish so'rovlari, media yuklash,

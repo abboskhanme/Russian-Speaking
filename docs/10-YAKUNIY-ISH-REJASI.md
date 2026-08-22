@@ -31,8 +31,23 @@ Uchta cheklov tartibni belgilaydi, va ular muzokaraga ochiq emas:
 | **S1** | **AI provayder zanjiri** | Faza **3.4** — pipeline'ning yagona ishlamayotgan qismi | ✅ |
 | **S2** | **Grader golden set + CI darvozasi** | Faza **1.4 · 1.5 · 1.6** | ✅ |
 | **S3** | **Test va infratuzilma qarzi** | **2.5 · 3.10 · 4.1 · 4.11** ✅ · **4.2** ⬜ | 🟡 |
-| **S4** | **Yangi funksiyalar (flag ortida)** | **6.1 · 6.5** ✅; 6.2 · 6.3 · 6.6 · 6.7 · 6.8 ⬜ | 🟡 |
-| **S5** | **Zaxira skriptlari, tozalash, hujjatlar, yakuniy QA** | **0.5 (kod qismi)** ✅ · 7.x | 🟡 |
+| **S4** | **Yangi funksiyalar (flag ortida)** | **6.1 · 6.5 · 6.8** ✅; **6.7** 🟡; 6.2 🔴 · 6.3 · 6.6 ⬜ | 🟡 |
+| **S5** | **Zaxira skriptlari, tozalash, hujjatlar, yakuniy QA** | **0.5** ✅ (zaxira **va** tiklash, sinalgan) · 7.x · **prodga tayyorlik** ✅ | 🟡 |
+| **S6** | **Prodga tayyorlik qattiqlashtirishi** *(2026-08-23 kechasi, rejada yo'q edi)* | Sirlar · CORS · token bekor qilish · vendor timeout · rate limit · readiness · log · cutover minalari · ErrorBoundary · uchala rol uchun E2E · kontrast | ✅ |
+
+> **S4 haqida aniqlashtirish (2026-08-23, o'lchangan).** Uchta band rejada noto'g'ri yozilgan edi:
+> **6.8 allaqachon qurilgan** (`ProfileService.BuildAchievements`, 21 nishon, jadvalsiz — nishonlar
+> hisoblanadi, saqlanmaydi; jonli tekshirildi). **6.7 yarmi qurilgan** — o'qituvchi sinf xatolarini
+> ko'radi, yetmayotgani "1 tap → remediation topshiriq" va u xato-turi → topshiriq xaritasini
+> talab qiladi, ya'ni kontent qarori. **6.2 bloklangan** — F2 ning butun asosi ("Azure ma'lumoti
+> tayyor") noto'g'ri: vendor'ning xom javobi o'lchandi, unscripted rejimda fonema **nomlari bo'sh**
+> keladi (455/455) va prosodiya umuman qaytmaydi. Drill uchun *scripted* rejim yo'li ochiq, lekin
+> bu qayta loyihalash.
+>
+> **6.3 (Kunlik 5 daqiqa) — yagona haqiqatan qurilishi mumkin bo'lgani, va ataylab qurilmadi.**
+> Shu hujjatning o'z qoidasi: *"cutover funksiyalarni kutmaydi. Deploy ≠ release."* Prodga chiqish
+> arafasida yangi foydalanuvchi yuzasini qo'shish aynan cutover'ni xavf ostiga qo'yadi. Qolgan quvvat
+> S6 ga — barqarorlikka — ketdi.
 
 ---
 
