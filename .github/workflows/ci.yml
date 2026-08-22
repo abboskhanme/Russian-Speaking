@@ -209,3 +209,213 @@ jobs:
           name: playwright-artifacts
           path: frontend/e2e/.artifacts
           retention-days: 7
+
+  # ── The integration suite, which CI has never run ───────────────────────────
+  # `backend` above skips it with the note "it needs a live Postgres + Redis +
+  # MinIO and mutates rows in setup". The first half is true and is what this job
+  # provides; the second half is not, and that is why the exclusion was costing
+  # more than it saved. TestDatabase creates a per-run `govori_it_*` database and
+  # drops it afterwards, so the suite never touches the compose database — the
+  # only thing it needed was a server to create that database ON.
+  #
+  # ~56 tests covering the paths unit tests structurally cannot: real SQL against
+  # real Postgres enum mappings, presigned URLs against a real S3 implementation,
+  # and the OTP round trip through a real Redis.
+  integration:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "9.0.x"
+
+      # Only the backing services. Building api/worker/web here would double the
+      # job's runtime to test nothing this suite exercises.
+      - name: Backing services up
+        run: |
+          cp .env.example .env
+          sed -i "s|^SECRET_KEY=.*|SECRET_KEY=$(openssl rand -hex 32)|" .env
+          docker compose up -d db redis minio minio-init
+          for _ in $(seq 1 60); do
+            if docker compose exec -T db pg_isready -U russpeak -q 2>/dev/null; then
+              echo "postgres is up"; exit 0
+            fi
+            sleep 2
+          done
+          echo "postgres did not become ready"; docker compose ps; exit 1
+
+      - name: Build
+        working-directory: backend-dotnet
+        run: dotnet build tests/Govori.IntegrationTests -c Release
+
+      - name: Test (Integration)
+        working-directory: backend-dotnet
+        # GOVORI_TEST_DB names the SERVER only — TestDatabase replaces the database
+        # name with its own per-run one. Passed explicitly rather than letting the
+        # fixture read the repo .env: the two agree today, and a silent
+        # disagreement tomorrow would have this job quietly testing nothing.
+        #
+        # The AI keys and TELEGRAM_BOT_TOKEN are deliberately NOT provided. Five of
+        # these tests assert the "not configured" behaviour, so handing the suite a
+        # populated .env makes them fail for a reason that has nothing to do with
+        # the code.
+        env:
+          GOVORI_TEST_DB: "Host=localhost;Port=5433;Database=russpeak;Username=russpeak;Password=russpeak"
+          GOVORI_S3_ENDPOINT: "http://localhost:9000"
+          GOVORI_S3_ACCESS_KEY: minioadmin
+          GOVORI_S3_SECRET_KEY: minioadmin
+          GOVORI_S3_BUCKET: govori-audio
+        run: dotnet test tests/Govori.IntegrationTests --no-build -c Release --verbosity normal
+
+      - name: Failure diagnostics
+        if: failure()
+        run: docker compose logs --tail=100 db redis minio
+
+  # ── Do the images actually build? ───────────────────────────────────────────
+  # Nothing in CI built a container image, so the first time anyone found out was
+  # on the droplet, during the cutover window. This job caught a real one on its
+  # first run: api and worker share a BuildKit NuGet cache mount, `docker compose
+  # build` runs them concurrently, and with the default sharing=shared the two
+  # `dotnet restore` processes corrupt each other's extraction staging. It passes
+  # on a warm cache and fails on a machine that has never built before — which is
+  # exactly the droplet.
+  #
+  # It builds the PROD compose file, so it also type-checks that file: a bad
+  # interpolation or a missing build context fails here rather than at 02:00.
+  images:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build all three images
+        env:
+          # Placeholders only. This job proves the images BUILD; nothing is run
+          # against real data and nothing is pushed anywhere.
+          IMAGE_TAG: ci-${{ github.sha }}
+          GOVORI_SERVER_NAME: example.invalid
+          POSTGRES_USER: ci
+          POSTGRES_PASSWORD: ci
+          POSTGRES_DB: ci
+          MINIO_ROOT_USER: ciaccesskey
+          MINIO_ROOT_PASSWORD: cisecretkey
+          S3_BUCKET: govori-audio
+          S3_PUBLIC_URL: https://example.invalid
+          SECRET_KEY: ci-only-not-a-real-secret-0123456789abcdef
+        run: docker compose -f docker-compose.prod.yml build
+
+      - name: The runtime images must not run as root
+        env:
+          IMAGE_TAG: ci-${{ github.sha }}
+        run: |
+          # A non-root USER is easy to add and just as easy to lose in a refactor,
+          # and nothing at runtime complains when it goes missing.
+          for img in "govori/api:ci-${{ github.sha }}" "govori/worker:ci-${{ github.sha }}"; do
+            u=$(docker image inspect "$img" --format '{{.Config.User}}')
+            echo "$img runs as '${u:-root}'"
+            [ -n "$u" ] && [ "$u" != "root" ] && [ "$u" != "0" ] || { echo "FAIL: $img would run as root"; exit 1; }
+          done
+
+      - name: The frontend image must serve the SPA
+        env:
+          IMAGE_TAG: ci-${{ github.sha }}
+        run: |
+          # `docker run` of the image on its own — the baked-in server block and
+          # the HEALTHCHECK both have to work without compose mounting anything.
+          docker run -d --name ci-web -p 8099:80 "govori/web:ci-${{ github.sha }}"
+          for _ in $(seq 1 30); do
+            if curl -fsS http://localhost:8099/healthz >/dev/null 2>&1; then break; fi
+            sleep 1
+          done
+          curl -fsS http://localhost:8099/healthz
+          curl -fsS http://localhost:8099/ | grep -qi '<div id="root"' \
+            || { echo "FAIL: the image does not serve the SPA"; docker logs ci-web; exit 1; }
+          # SPA fallback: a client-side route must return the app, not a 404.
+          test "$(curl -s -o /dev/null -w '%{http_code}' http://localhost:8099/teacher/klasslar)" = "200"
+          docker rm -f ci-web
+
+  # ── The deploy scripts themselves ───────────────────────────────────────────
+  # These run as root on a droplet holding the only copy of 50 users' data, and
+  # until now nothing checked them at all.
+  ops:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: shellcheck
+        run: |
+          docker run --rm -v "$PWD:/mnt" -w /mnt koalaman/shellcheck:stable \
+            -S warning $(git ls-files 'deploy/*.sh')
+
+      - name: Both compose files must render
+        env:
+          IMAGE_TAG: ci
+          GOVORI_SERVER_NAME: example.invalid
+          POSTGRES_USER: ci
+          POSTGRES_PASSWORD: ci
+          POSTGRES_DB: ci
+          MINIO_ROOT_USER: ciaccesskey
+          MINIO_ROOT_PASSWORD: cisecretkey
+          S3_BUCKET: govori-audio
+          S3_PUBLIC_URL: https://example.invalid
+          SECRET_KEY: ci-only-not-a-real-secret-0123456789abcdef
+        run: |
+          cp .env.example .env
+          sed -i "s|^SECRET_KEY=.*|SECRET_KEY=$(openssl rand -hex 32)|" .env
+          docker compose -f docker-compose.yml config >/dev/null
+          docker compose -f docker-compose.prod.yml config >/dev/null
+
+      - name: The prod compose must publish ONLY nginx's ports
+        env:
+          IMAGE_TAG: ci
+          GOVORI_SERVER_NAME: example.invalid
+          POSTGRES_USER: ci
+          POSTGRES_PASSWORD: ci
+          POSTGRES_DB: ci
+          MINIO_ROOT_USER: ciaccesskey
+          MINIO_ROOT_PASSWORD: cisecretkey
+          S3_BUCKET: govori-audio
+          S3_PUBLIC_URL: https://example.invalid
+          SECRET_KEY: ci-only-not-a-real-secret-0123456789abcdef
+        run: |
+          # A droplet has no firewall by default, so a `ports:` line added to db
+          # during a debugging session and left there is an internet-facing
+          # Postgres. Assert the shape rather than trusting review to catch it.
+          PUB=$(docker compose -f docker-compose.prod.yml config \
+                | awk '/^  [a-z-]+:$/{sub(/:$/,"",$1); s=$1} /published:/{gsub(/"/,"",$2); print s "/" $2}')
+          echo "published: $PUB"
+          UNEXPECTED=$(echo "$PUB" | grep -vE '^(web/80|web/443)$' | grep -v '^$' || true)
+          [ -z "$UNEXPECTED" ] || { echo "FAIL: unexpected published ports: $UNEXPECTED"; exit 1; }
+
+      - name: Every service must rotate its logs
+        env:
+          IMAGE_TAG: ci
+          GOVORI_SERVER_NAME: example.invalid
+          POSTGRES_USER: ci
+          POSTGRES_PASSWORD: ci
+          POSTGRES_DB: ci
+          MINIO_ROOT_USER: ciaccesskey
+          MINIO_ROOT_PASSWORD: cisecretkey
+          S3_BUCKET: govori-audio
+          S3_PUBLIC_URL: https://example.invalid
+          SECRET_KEY: ci-only-not-a-real-secret-0123456789abcdef
+        run: |
+          # json-file logs are unbounded by default and one GET /api/profile/stats
+          # writes ~5.4 KB. A full disk stops Postgres writing its WAL, and the
+          # outage then presents as a database fault. One service missing this is
+          # enough to fill the disk.
+          docker compose -f docker-compose.prod.yml config > /tmp/prod.rendered.yml
+          MISSING=""
+          while IFS= read -r s; do
+            [ -n "$s" ] || continue
+            awk -v want="  $s:" '$0==want{i=1;next} /^  [a-z0-9-]+:$/{i=0} i' /tmp/prod.rendered.yml \
+              | grep -q 'max-size' || MISSING="$MISSING $s"
+          done < <(docker compose -f docker-compose.prod.yml config --services)
+          [ -z "$MISSING" ] || { echo "FAIL: no log rotation on:$MISSING"; exit 1; }
+          echo "all services rotate logs"
+
+      # The backup script's own test suite. It proves the nightly backup cannot
+      # delete a good backup when the dump fails — the exact failure that wiped a
+      # week of backups before. A fix is worth what its test is worth, so the test
+      # runs here rather than being something someone remembers to run.
+      - name: Backup safety suite
+        run: bash deploy/test-backup-cron.sh
