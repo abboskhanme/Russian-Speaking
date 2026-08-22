@@ -136,12 +136,30 @@ export async function signIn(page: Page): Promise<void> {
  *      hence a required `expectedPath` — arriving somewhere is not the same as
  *      arriving where the nav claims to go.
  */
-export async function clickNav(page: Page, label: string, expectedPath: RegExp): Promise<void> {
+export async function clickNav(
+  page: Page,
+  label: string | RegExp,
+  expectedPath: RegExp,
+): Promise<void> {
+  // A string is matched EXACTLY. Pass a RegExp only for a destination whose
+  // accessible name carries a live badge — the teacher's Navbat reads "Navbat 24"
+  // in the sidebar and "24Navbat" in the bottom bar, so neither an exact string
+  // nor an anchored pattern survives both breakpoints.
   const item = page.getByRole("navigation").getByRole("button", { name: label, exact: true });
   await expect(item, `exactly one visible nav button named "${label}"`).toHaveCount(1);
   await item.click();
   await expectPath(page, expectedPath);
   await waitForApp(page);
+}
+
+/** The accessible name of a nav destination — the badge counts live in here. */
+export function navItem(page: Page, label: string | RegExp) {
+  return page.getByRole("navigation").getByRole("button", { name: label, exact: true });
+}
+
+/** Demo content is Russian prose and full of regex metacharacters. */
+export function escapeRe(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
 /** Assert the pathname we are actually standing on, polling out the SPA redirect. */
