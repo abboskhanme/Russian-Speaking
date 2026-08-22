@@ -161,14 +161,22 @@ jobs:
           done
           echo "stack did not become healthy"; docker compose ps; exit 1
 
-      - name: Resolve the seeded student
-        # `deploy/seed/20-dev-users.sql` inserts with gen_random_uuid(), so the id
-        # is per-database and cannot be hard-coded in the suite.
+      - name: Resolve the seeded users
+        # `deploy/seed/20-dev-users.sql` inserts with gen_random_uuid(), so the ids
+        # are per-database and cannot be hard-coded in the suite. Two are needed:
+        # the student drives its own journey, and the admin drives the admin one
+        # AND is how e2e/people.ts finds a teacher with a non-empty grading queue.
         run: |
-          ID=$(docker compose exec -T db psql -U russpeak -d russpeak -tAc \
-            "select id from users where email = 'student@govori.uz'" | tr -d '[:space:]')
-          test -n "$ID" || { echo "dev student not seeded"; exit 1; }
-          echo "E2E_STUDENT_ID=$ID" >> "$GITHUB_ENV"
+          resolve() {
+            docker compose exec -T db psql -U russpeak -d russpeak -tAc \
+              "select id from users where email = '$1'" | tr -d '[:space:]'
+          }
+          STUDENT=$(resolve 'student@govori.uz')
+          ADMIN=$(resolve 'admin@govori.uz')
+          test -n "$STUDENT" || { echo "dev student not seeded"; exit 1; }
+          test -n "$ADMIN" || { echo "dev admin not seeded"; exit 1; }
+          echo "E2E_STUDENT_ID=$STUDENT" >> "$GITHUB_ENV"
+          echo "E2E_ADMIN_ID=$ADMIN" >> "$GITHUB_ENV"
 
       - name: Install
         working-directory: frontend
