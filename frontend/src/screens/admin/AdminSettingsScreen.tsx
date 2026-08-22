@@ -481,7 +481,7 @@ export function AdminSettingsScreen({
         {/* ---- AI grader ---- */}
         <section className={styles.section} aria-label={t("admin.aiGrader")}>
           <div className={styles.sectionHead}>
-            <Text as="h2" variant="label" color="faint" className={styles.legend}>
+            <Text as="h2" variant="label" color="muted" className={styles.legend}>
               {t("admin.aiGrader")}
             </Text>
             <Badge variant={graderServing ? "success" : "danger"} size="sm">
@@ -642,7 +642,7 @@ export function AdminSettingsScreen({
         {/* ---- STT ---- */}
         <section className={styles.section} aria-label={t("admin.stt")}>
           <div className={styles.sectionHead}>
-            <Text as="h2" variant="label" color="faint" className={styles.legend}>
+            <Text as="h2" variant="label" color="muted" className={styles.legend}>
               {t("admin.stt")}
             </Text>
             <Badge variant={sttServing ? "success" : "danger"} size="sm">
@@ -729,7 +729,7 @@ export function AdminSettingsScreen({
             switch nobody finds. Both ship OFF — docs/08 is explicit that cutover must not
             wait on Faza 6. */}
         <section className={styles.section} aria-label={t("admin.features")}>
-          <Text as="h2" variant="label" color="faint" className={styles.legend}>
+          <Text as="h2" variant="label" color="muted" className={styles.legend}>
             {t("admin.features")}
           </Text>
           <Card variant="outline" padding="md" className={styles.card}>
@@ -784,7 +784,7 @@ export function AdminSettingsScreen({
 
         {/* ---- Outbound links ---- */}
         <section className={styles.section} aria-label={t("admin.links")}>
-          <Text as="h2" variant="label" color="faint" className={styles.legend}>
+          <Text as="h2" variant="label" color="muted" className={styles.legend}>
             {t("admin.links")}
           </Text>
           <Card variant="outline" padding="md" className={styles.card}>
@@ -1165,12 +1165,12 @@ function ModelField({
         autoCorrect="off"
       />
       {current === "" && (
-        <Text as="span" variant="body-s" color="faint">
+        <Text as="span" variant="body-s" color="muted">
           {t("admin.choiceUnset")}
         </Text>
       )}
       {custom && (
-        <Text as="span" variant="body-s" color="faint">
+        <Text as="span" variant="body-s" color="muted">
           {t("admin.modelCustom")}
         </Text>
       )}
@@ -1233,7 +1233,7 @@ function SecretField({
         placeholder={t("admin.secretPlaceholder")}
         aria-label={label}
       />
-      <Text as="span" variant="body-s" color="faint">
+      <Text as="span" variant="body-s" color="muted">
         {t("admin.secretBlankHint")}
       </Text>
     </div>
