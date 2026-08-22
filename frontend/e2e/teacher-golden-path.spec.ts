@@ -17,6 +17,15 @@
  *     badge has been wrong while the data was right);
  *   • the assignment is looked up in `/api/assignments` by question.
  *
+ * ON THE SELECTORS. Action buttons are matched by PATTERN, not exact text, on
+ * purpose: an accessibility pass typically EXTENDS an accessible name rather
+ * than replacing it ("Ochish" → "Guruhni ochish: 9-A"), and an exact match turns
+ * every such improvement into a red suite. What keeps that from becoming the
+ * loose-selector hazard is that each click is followed immediately by the
+ * pathname it was supposed to produce — the pattern chooses, the URL confirms.
+ * The nav is the one place patterns are NOT enough, which is why `clickNav`
+ * asserts there is exactly one match before it clicks anything.
+ *
  * IDEMPOTENCE. Nothing here is cleaned up, because nothing here needs to be:
  * every assertion is relative to a value read at the start of the same run. The
  * journey grades one more attempt each time it runs and re-uses whichever
@@ -94,7 +103,7 @@ test("a teacher triages the queue, grades an attempt and assigns follow-up work"
 
   await test.step("a group card opens its roster", async () => {
     await expectVisibleText(page, group.name);
-    await page.getByRole("button", { name: "Ochish", exact: true }).first().click();
+    await page.getByRole("button", { name: /Ochish/i }).first().click();
     await expectPath(page, new RegExp(`^/teacher/classes/${UUID}$`));
     await expectVisibleText(page, group.name);
     await expectNoCriticalA11y(page, "/teacher/classes/:groupId");
@@ -149,7 +158,7 @@ test("a teacher triages the queue, grades an attempt and assigns follow-up work"
   await test.step("Tahrir opens that attempt's detail", async () => {
     // The queue CARD is a plain div — "Tahrir" is the only way in, and the
     // sibling "✓ Tasdiqlash" would grade it without ever opening it.
-    await page.getByRole("button", { name: "Tahrir", exact: true }).first().click();
+    await page.getByRole("button", { name: /^Tahrir/i }).first().click();
     await expectPath(page, new RegExp(`^/teacher/queue/${UUID}$`));
     expect(new URL(page.url()).pathname.split("/").pop()).toBe(target.id);
     if (target.student_name) await expectVisibleText(page, target.student_name);
@@ -175,7 +184,7 @@ test("a teacher triages the queue, grades an attempt and assigns follow-up work"
     await expect(comment, "the manual-grading sheet should offer one comment box").toHaveCount(1);
     await comment.fill(`Tekshirildi ${marker}`);
 
-    await page.getByRole("button", { name: "Saqlash", exact: true }).click();
+    await page.getByRole("button", { name: /^Saqlash/i }).click();
     // Still on the attempt: saving refetches in place rather than navigating.
     await expectPath(page, new RegExp(`^/teacher/queue/${UUID}$`));
   });
