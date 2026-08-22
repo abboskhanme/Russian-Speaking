@@ -7,7 +7,6 @@
     "dev": "vite",
     "build": "npm run check:tokens && tsc && vite build",
     "preview": "vite preview",
-    "lint": "eslint .",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:e2e": "playwright test",
