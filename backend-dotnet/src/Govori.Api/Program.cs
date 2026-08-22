@@ -429,6 +429,19 @@ try
 
     // Request logging middleware — one structured line per request (method, path,
     // status, elapsed ms) correlated to the trace. docs/07 §7.9.
+    // Unhandled-exception handler, FIRST so it wraps everything below. ASP.NET Core does not leak
+    // stack traces in Production on its own — with no handler an unhandled exception ends as a bare
+    // 500 with an EMPTY body — so this is not closing a leak; it is closing the gap between that
+    // empty body and the { "detail": ... } shape every other error in this API uses, and adding the
+    // trace id that ties the response to the log line. In Development the framework's own developer
+    // exception page sits earlier still and keeps winning, so local debugging is unaffected.
+    app.UseGovoriExceptionHandler();
+
+    // Response headers the API owns. nginx owns HSTS / X-Frame-Options / Referrer-Policy /
+    // Permissions-Policy and the /api/ location inherits them — see Startup/SecurityHeaders.cs for
+    // why those are deliberately NOT repeated here.
+    app.UseGovoriSecurityHeaders();
+
     app.UseSerilogRequestLogging();
 
     // CORS must precede authentication: a browser's preflight OPTIONS carries no Authorization
