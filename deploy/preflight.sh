@@ -124,6 +124,56 @@ if [ -f "$ENV_FILE" ]; then
     latest)   bad "IMAGE_TAG=latest — the tag IS the rollback; use the commit sha" ;;
     *)        ok "IMAGE_TAG=${TAG}" ;;
   esac
+
+  # S3_PUBLIC_URL is what presigned URLs are SIGNED FOR, and SigV4 covers the
+  # Host header — so a wrong value cannot be rewritten afterwards by nginx or by
+  # the client. It fails as "every audio file and avatar 404s" while every page
+  # still renders perfectly, which reads as a broken feature rather than a typo.
+  PUB="$(envval S3_PUBLIC_URL)"
+  case "$PUB" in
+    "")            bad "S3_PUBLIC_URL is empty" ;;
+    */)            bad "S3_PUBLIC_URL ends with a slash ('${PUB}') — presigned URLs would carry a double slash" ;;
+    http://*)      bad "S3_PUBLIC_URL is http (${PUB}); the site is https, and the signed host must match exactly" ;;
+    *minio*|*localhost*|*127.0.0.1*)
+                   bad "S3_PUBLIC_URL points at an internal address (${PUB}) — it must be the origin the BROWSER uses" ;;
+    https://*)     ok "S3_PUBLIC_URL=${PUB}" ;;
+    *)             bad "S3_PUBLIC_URL is not an https origin: ${PUB}" ;;
+  esac
+
+  # Catch the copy-paste directly: comparing against the shipped examples finds a
+  # secret that survived from a template even when it looks random enough to pass
+  # the length and placeholder checks above.
+  for ex in .env.example deploy/env.prod.example; do
+    [ -f "$ex" ] || continue
+    EXV="$(sed -n 's/^SECRET_KEY=//p' "$ex" 2>/dev/null | head -1)"
+    if [ -n "$EXV" ] && [ "$EXV" = "$SK" ]; then
+      bad "SECRET_KEY is byte-for-byte the value in ${ex} — anyone with the repo can mint an admin token"
+    fi
+  done
+fi
+
+# ── 3b. The environment name, in the compose file itself ─────────────────────
+# Not read from .env: docker-compose.prod.yml hardcodes these, and that is the
+# point of checking. This single value decides whether the API's own secrets gate
+# runs at all — on anything but Production it silently accepts dev OTP delivery,
+# stock MinIO credentials and a placeholder signing key. The Worker is a generic
+# host and reads the OTHER name, so both must be present or half the stack runs
+# unguarded.
+sec "3b. Environment name (Production, on both hosts)"
+if [ -f "$COMPOSE_FILE" ] && [ -f "$ENV_FILE" ]; then
+  RENDERED="$(docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" config 2>/dev/null || true)"
+  for svc in api worker; do
+    for var in ASPNETCORE_ENVIRONMENT DOTNET_ENVIRONMENT; do
+      VAL="$(printf '%s' "$RENDERED" | awk -v s="  ${svc}:" -v v="$var" '
+        $0 == s {inside=1; next}
+        /^  [a-z]/ && $0 != s {inside=0}
+        inside && $1 == v":" {print $2; exit}')"
+      if [ "$VAL" = "Production" ]; then ok "${svc}: ${var}=Production"
+      elif [ -z "$VAL" ];      then bad "${svc}: ${var} is NOT SET — that host would not be in Production"
+      else                          bad "${svc}: ${var}=${VAL}, not Production — the secrets gate is disabled on that host"
+      fi
+    done
+  done
 fi
 
 # ── 4. The data volumes exist AND HAVE DATA IN THEM ──────────────────────────
