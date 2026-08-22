@@ -64,7 +64,7 @@
 /* Selected: raised pill. The hairline carries the edge in dark mode, where the
  * shadow alone cannot separate --surface from --surface. */
 .active {
-  color: var(--primary);
+  color: var(--primary-ink);
   background: var(--surface);
   border-color: var(--line);
   box-shadow: var(--e-1);

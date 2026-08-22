@@ -43,7 +43,7 @@
 }
 .primary {
   background: var(--primary-tint);
-  color: var(--primary-press);
+  color: var(--primary-ink);
   border-color: var(--primary-tint-2);
 }
 .accent {

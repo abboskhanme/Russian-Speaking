@@ -86,7 +86,8 @@ Barcha ranglar **OKLCH** — perceptual bir tekislik, dark mode uchun mexanik hi
 | `--primary-tint` | `oklch(0.945 0.038 48)` | `oklch(0.300 0.055 42)` | tanlangan nav, chip foni |
 | `--primary-tint-2` | `oklch(0.905 0.068 46)` | `oklch(0.360 0.070 42)` | tint ustidagi chegara |
 | `--primary-on` | `oklch(0.995 0.004 60)` | `oklch(0.180 0.020 45)` | primary ustidagi matn |
-| `--accent` | `oklch(0.545 0.155 272)` | `oklch(0.680 0.140 272)` | progress, premium, ma'lumot vizuali |
+| `--primary-ink` | `oklch(0.535 0.165 40)` | `oklch(0.720 0.170 42)` | **brend rangi MATN sifatida** (§3.3 To'ldirish/Siyoh qoidasi) |
+| `--accent` | `oklch(0.530 0.155 272)` | `oklch(0.695 0.140 272)` | progress, premium, ma'lumot vizuali |
 | `--accent-tint` | `oklch(0.945 0.035 272)` | `oklch(0.300 0.055 272)` | |
 
 > **Nega Ember (hue 40), Duolingo-yashil emas?** Yashil = "to'g'ri/xato" semantikasiga tegib ketadi;
@@ -104,7 +105,7 @@ Barcha ranglar **OKLCH** — perceptual bir tekislik, dark mode uchun mexanik hi
 | `--surface-3` | `oklch(0.958 0.013 74)` | `oklch(0.315 0.018 60)` |
 | `--ink` | `oklch(0.270 0.024 55)` | `oklch(0.965 0.008 75)` |
 | `--ink-soft` | `oklch(0.450 0.020 58)` | `oklch(0.830 0.012 72)` |
-| `--muted` | `oklch(0.600 0.018 62)` | `oklch(0.680 0.014 68)` |
+| `--muted` | `oklch(0.520 0.018 62)` | `oklch(0.700 0.014 68)` |
 | `--faint` | `oklch(0.745 0.014 68)` | `oklch(0.520 0.012 64)` |
 | `--line` | `oklch(0.910 0.011 72)` | `oklch(0.320 0.014 60)` |
 | `--line-2` | `oklch(0.862 0.016 70)` | `oklch(0.400 0.016 60)` |
@@ -112,15 +113,27 @@ Barcha ranglar **OKLCH** — perceptual bir tekislik, dark mode uchun mexanik hi
 Dark mode **hech qachon `#000`** — iliq ko'mir (`chroma 0.012`, `hue 60`). Kechqurun mashq qilish
 qulay bo'lsin.
 
+> **Kulrang matn uchun uchta daraja bor, to'rtta emas — va `--faint` ularning biri emas.**
+> Oq fonda AA (4.5:1) o'tadigan eng ochiq kulrang L **0.526** ga to'g'ri keladi (bog'lovchi fon
+> `--bg` emas, `--primary-tint`). `--ink-soft` L 0.450 bo'lgani uchun butun qonuniy band 0.076
+> kenglikda — **bitta** qadamga joy bor. Shuning uchun matn rampasi `--ink` → `--ink-soft` →
+> `--muted` bilan tugaydi.
+>
+> **`--faint` hech qachon matn tashimaydi.** U dekoratsiya tokeni: `aria-hidden` gliflar,
+> qulf/chevron/o'q belgilari, o'chirilgan (disabled) boshqaruvlar — WCAG 1.4.3 nofaol
+> komponentlarni istisno qiladi. Agar so'z bo'yamoqchi bo'lsangiz, sizga `--muted` kerak.
+
 ### Semantik
 
 | Token | Light | Dark | Ma'no |
 |---|---|---|---|
 | `--success` | `oklch(0.640 0.140 155)` | `oklch(0.720 0.130 155)` | to'g'ri, bajarildi |
 | `--warn` | `oklch(0.760 0.135 82)` | `oklch(0.800 0.125 82)` | e'tibor |
-| `--danger` | `oklch(0.605 0.170 20)` | `oklch(0.680 0.160 20)` | xato, o'chirish |
-| `--info` | `oklch(0.600 0.115 245)` | `oklch(0.700 0.105 245)` | maslahat |
+| `--danger` | `oklch(0.540 0.170 20)` | `oklch(0.705 0.160 20)` | xato, o'chirish |
+| `--info` | `oklch(0.520 0.115 245)` | `oklch(0.700 0.105 245)` | maslahat |
 | + har biriga `-tint` | `L 0.945, C ÷4` | `L 0.300, C ÷2.5` | fon |
+| `--warn-ink` | `oklch(0.530 0.110 82)` | `oklch(0.800 0.125 82)` | qahrabo **matn** |
+| `--success-ink` | `oklch(0.505 0.140 155)` | `oklch(0.720 0.130 155)` | yashil **matn** |
 
 ### Talaffuz shkalasi (per-word)
 
@@ -139,6 +152,24 @@ qulay bo'lsin.
 - Matn: **≥ 4.5:1**; katta matn (≥ 24px yoki ≥ 19px bold): ≥ 3:1.
 - Interaktiv chegara / ikonka: ≥ 3:1.
 - `--primary` ustidagi oq matn: light rejimda tekshirilgan (`primary-on`), dark rejimda **qora** matn.
+
+#### To'ldirish / Siyoh qoidasi — aralashtirilmaydi
+
+> **`--primary` = TO'LDIRISH. `--primary-ink` = SO'Z. Hech qachon almashtirilmaydi.**
+
+Yorqin rang to'ldirish sifatida to'g'ri va matn sifatida o'qilmaydi: `#ed622a` oq fonda
+**3.26:1**, ya'ni tugma yuzi uchun mukammal, 11px yorliq uchun yaroqsiz. Yechim rangni
+to'qlashtirish emas — u brend identitetini o'zgartirardi — balki **ikkiga ajratish**:
+
+| Rol | Token | Qayerda |
+|---|---|---|
+| to'ldirish | `--primary` · `--success` · `--warn` | tugma foni, progress bar, logotip, talaffuz belgisi, ikonka |
+| matn | `--primary-ink` · `--success-ink` · `--warn-ink` | yorliq, havola, nishon matni, faol tab |
+
+Har bir `-ink` — AA o'tadigan **eng ochiq** qiymat, ya'ni ohang saqlanadi, keraksiz
+to'qlashtirilmaydi. `--primary-ink` xromasi 0.185 emas, **0.165**: sRGB bu yorug'likda 0.185 ni
+ushlolmaydi, ko'k kanal 0 ga qadalar va e'lon qilingan qiymat renderlangan qiymatdan farq
+qila boshlardi. Dark mavzuda brend allaqachon 4.87:1 — u yerda siyoh to'ldirishni takrorlaydi.
 - Fokus halqasi: 2.5px `--primary`, 2px offset, **har doim ko'rinadi** (`:focus-visible`).
 
 ---

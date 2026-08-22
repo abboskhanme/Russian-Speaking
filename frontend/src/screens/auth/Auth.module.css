@@ -450,7 +450,7 @@
   color: var(--primary);
 }
 .note-info .noteText {
-  color: var(--primary-press);
+  color: var(--primary-ink);
 }
 .noteIcon {
   flex: none;

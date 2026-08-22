@@ -93,7 +93,7 @@
   padding: var(--s-1) var(--s-2);
   border-radius: var(--r-xs);
   background: var(--primary-tint);
-  color: var(--primary-press);
+  color: var(--primary-ink);
   flex: none;
 }
 

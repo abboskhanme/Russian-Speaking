@@ -153,37 +153,91 @@ Bular unutilgani uchun emas, **ataylab** qilinmagan. Har biri sabab bilan:
 
 ---
 
-## 🎨 Ochiq topilma — kontrast (sizning qaroringiz kerak)
+## 🎨 Kontrast — YOPILDI (qolgani: brend to'ldirishi, egasining qarori)
 
-`axe` **0 critical** beradi, ya'ni kelishilgan DoD bajarilgan. Lekin u **har bir
-ekranda** `serious/color-contrast` topadi — 4 tadan 23 tagacha element. Bu bitta
-yomon tugma emas, **tizimli**, va aybdorlarning aksariyati bitta token.
+Holat: `axe` **680 → 40** `serious/color-contrast` node. `critical` = **0**.
+O'lchov: 22 ekran × light/dark × mobil(390)/desktop(1440) = **88 skan**, har
+biri `wcag2a+wcag2aa+wcag21a+wcag21aa`. `color-contrast` dan boshqa hech qanday
+qoida buzilmaydi.
 
-O'lchangan (axe + kanvas orqali, taxmin emas):
+| Bosqich | Node | Nima qilindi |
+|---|:--:|---|
+| Boshlanish | **680** | — |
+| `--muted` + `--faint` qayta ta'riflandi | **177** | 503 node yopildi |
+| Semantik siyohlar (`--warn-ink`/`--success-ink`/`--accent`/`--danger`/`--info`) | **161** | 16 node |
+| `--primary-ink` | **40** | 121 node |
 
-| Token | Hozir | Eng yomon nisbat | AA uchun kerak | Taklif |
-|---|---|:--:|:--:|---|
-| light `--muted` | `oklch(0.600 0.018 62)` → `#887e76` | **3.66** | 4.5 | `0.550` → `#7a6f67` (4.51) |
-| light `--faint` | `oklch(0.745 0.014 68)` → `#b2aba3` | **2.09** | 4.5 | `0.545` → `#766f68` (4.56) |
-| dark `--faint` | `oklch(0.520 0.012 64)` → `#6e6862` | **3.13** | 4.5 | `0.610` → `#88827c` (4.53) |
-| brend `#ed622a` matn sifatida oq fonda | — | **3.26** | 4.5 | matn uchun to'qroq variant |
+### Oldingi tahlildagi ikki xato — o'lchash bilan tuzatildi
 
-Yolg'iz `light --muted` ~54 buzilishning **32 tasini** yopadi va kulrang
-ierarxiyani buzmaydi (0.55 hamon `--faint` 0.745 dan to'q).
+**1. Fon noto'g'ri tanlangan edi.** Yuqoridagi eski jadval `--bg` ga qarab
+o'lchagan va `--muted` uchun `0.550` yetarli degan. Aslida matn `--primary-tint`
+(#ffe6d7) ustida ham turadi va **bog'lovchi fon o'sha** — AA shifti L **0.526**.
+Shuning uchun `0.520`. Dark `--muted` ham 4.47:1 edi (`--surface-3` da) — eski
+tahlil buni umuman ko'rmagan, chunki `--bg` da u 6.39 ko'rinadi.
 
-**Nega o'zim o'zgartirmadim.** Ikkita sabab:
+**2. Savol noto'g'ri qo'yilgan edi.** "Uchta kulrang **va** AA birga bo'lmaydi"
+— bu **rost**: `--ink-soft` L 0.450, AA shifti 0.526, ya'ni butun qonuniy band
+0.076 kenglikda — bitta qadamga joy bor, ikkitaga yo'q. Lekin WCAG 1.4.3
+**matn**ni boshqaradi, tokenni emas. `--faint` ning 73 ta iste'molchisidan
+**59 tasi `<Text color="faint">`** edi — ya'ni so'z. Shuning uchun `--faint`
+qayta bo'yalmadi, **matn tokeni bo'lishdan to'xtadi**: so'zlar `--muted` ga
+ko'chdi, `--faint` o'z ochiq qiymatini dekoratsiya uchun saqladi (aria-hidden
+glif, qulf/chevron/o'q belgisi, disabled OTP katagi — 1.4.3 nofaol
+boshqaruvlarni istisno qiladi). Uchta daraja saqlandi, chunki uchinchisi endi
+matn tashimaydi.
 
-1. `light --faint` ni AA ga chiqarish uni `0.545` ga tushiradi — ya'ni
-   `--muted` ning taklif qilingan `0.550` sidan **to'qroq**. Oq fonda uchta
-   ajralib turadigan kulrang daraja **va** AA — ikkisi birga bo'lmaydi. Bu
-   dizayn qaroriga olib keladi: darajani ikkiga tushirish, sirt rangini
-   quyuqlashtirish, yoki `faint` ni "hech qachon yagona ma'lumot tashimaydi"
-   deb qabul qilish.
-2. Brend to'q sarig'ini matn uchun o'zgartirish — brend qarori, texnik emas.
+### Yakuniy qiymatlar (hammasi o'lchangan, taxmin emas)
 
-`docs/03-DESIGN-SYSTEM.md` va `docs/design/mockups/` — dizayn tizimining haqiqat
-manbai. Sizsiz uni qayta bo'yash noto'g'ri bo'lardi. Qaror qabul qilinsa, o'zgarish
-`frontend/src/shared/styles/tokens.css` da to'rt qatorlik ish.
+| Token | Edi | Bo'ldi | Eng yomon nisbat | Izoh |
+|---|---|---|:--:|---|
+| light `--muted` | `0.600` #887e76 (3.32) | `0.520` #71675f | **4.61** | bog'lovchi fon `--primary-tint` |
+| dark `--muted` | `0.680` #9e978f (4.47) | `0.700` #a49d95 | **4.81** | bog'lovchi fon `--surface-3` |
+| `--faint` (ikkala mavzu) | — | **o'zgarmadi** | — | endi matn tashimaydi |
+| light `--warn-ink` | `0.550` (4.29) | `0.530` #8b6400 | **4.68** | |
+| light `--accent` | `0.545` (4.32) | `0.530` #4e61c4 | **4.63** | |
+| light `--danger` | `0.605` (3.52) | `0.540` #bd3743 | **4.64** | oq yorliq ham 4.14→5.01 |
+| light `--info` | `0.600` (3.33) | `0.520` #206ea6 | **4.65** | |
+| dark `--accent` | `0.680` (4.38) | `0.695` | **4.54** | |
+| dark `--danger` | `0.680` (4.14) | `0.705` | **4.56** | |
+| `--success-ink` | *yangi* | `0.505` #007b3f | **4.65** | `--success` FILL bo'lib qoladi |
+| `--primary-ink` | *yangi* | `0.535 0.165 40` #b93f02 | **4.65** | `--primary` FILL bo'lib qoladi |
+
+`--success` va `--primary` **to'qlashtirilmadi** — ular asosan to'ldirish
+(progress bar, tugma yuzi, logotip, talaffuz belgisi). Ularni matn uchun
+to'qlashtirish har bir to'ldirishni buzardi. O'rniga `--warn-ink` pretsedenti
+kengaytirildi: **`--primary` = to'ldirish, `--primary-ink` = so'z.** Brend
+identiteti bir piksel ham o'zgarmadi.
+
+`--primary-ink` xromasi 0.185 emas, **0.165** — sRGB bu yorqinlikda 0.185 ni
+ushlolmaydi, ko'k kanal 0 ga qadaladi va e'lon qilingan qiymat renderlanган
+qiymatdan farq qila boshlaydi.
+
+### Qolgan 40 node — aniq ikki guruh
+
+**A. 24 node — `shared/ui` da ikki qator** (o'sha paytda boshqa agent egallagan):
+- `shared/ui/Tabs/Tabs.module.css` `.active` — `--primary` → `--primary-ink` (**16 node**)
+- `shared/ui/Badge/Badge.module.css` `.primary` — `--primary-press` → `--primary-ink` (**8 node**)
+
+Ikkalasi ham matn, ikkalasi ham yuqoridagi naqshning aynan o'zi.
+Shuningdek `screens/admin/AdminSettingsScreen.tsx` da **7 ta `color="faint"`**
+qoldi (o'sha fayl boshqa agentda edi) — `color="muted"` ga almashtirilsa yopiladi.
+
+**B. 16 node — EGASINING QARORI, va `--primary-ink` bu yerda yordam bermaydi.**
+Bular brend rangi **fon** bo'lgan holatlar; muammo matnda emas, to'ldirishda:
+
+| Joy | Nisbat | Kerak |
+|---|:--:|:--:|
+| `--primary-on` (#fffdfb) `--primary` (#ed622a) ustida — asosiy tugma, faol filtr | **3.24** | 4.5 |
+| `.heroSub` (#fdede6) brend bloki ustida — login/register | **2.88** | 4.5 |
+
+AA uchun **fonning o'zi** to'qlashishi kerak: `--primary` L `0.665` → **`0.580`**
+(#cf4500) oq yorliqni **4.59:1** ga chiqaradi. Bu brend identitetini o'zgartiradi
+(tugma yuzi, logotip ohangi), shuning uchun **tegilmadi**. Egasi "ha" desa —
+`tokens.css` da bir qatorlik ish, va shunda `--primary-ink` ham keraksiz bo'lishi
+mumkin.
+
+Dark mavzuda bu muammo **yo'q**: dark `--primary-on` qora siyoh (#190f0a) va u
+yorqin apelsin ustida **7.12:1**.
 
 ---
 
