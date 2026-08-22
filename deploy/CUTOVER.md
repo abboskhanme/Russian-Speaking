@@ -345,20 +345,20 @@ docker-compose.prod.yml down`, and repeat this step.
 ### 3.6 Adopt the database into EF Core
 
 ```bash
-# COMPOSE_FILE is not optional. ef-baseline.sh calls `docker compose exec` with
-# no -f, so without it Compose picks docker-compose.yml — the DEV file — and the
-# script talks to the wrong stack (or to nothing).
+# Both compose files live in this directory, so the script will REFUSE to run
+# until you say which stack you mean. That refusal is the point — it drops
+# alembic_version, and doing that to the wrong database is not recoverable by
+# re-running anything.
 export COMPOSE_FILE=docker-compose.prod.yml
-
-# The defaults are the dev names. Take the real ones from the running container
-# so this works whatever the old stack was configured with.
-DB=$(docker compose ps -q db)
-export PGUSER=$(docker exec $DB printenv POSTGRES_USER)
-export PGDATABASE=$(docker exec $DB printenv POSTGRES_DB)
 
 COMPOSE_DB_SERVICE=db bash deploy/ef-baseline.sh --dry-run   # read the SQL it prints
 COMPOSE_DB_SERVICE=db bash deploy/ef-baseline.sh             # apply
 ```
+
+It prints the compose file and the database it resolved before doing anything —
+read those two lines. The database name comes from the RUNNING container, so it
+is right whatever the old stack was configured with; set `PGDATABASE` / `PGUSER`
+only if you deliberately want to override it.
 
 It writes one bookkeeping row and drops `alembic_version`. It touches no
 application table, and it refuses to run against a database that does not already
@@ -637,10 +637,11 @@ because after it, anything surprising will be blamed on the migration.
   every page still renders normally.
 * **The droplet builds the images itself.** Budget disk for the .NET SDK image,
   the BuildKit cache and two ~900 MB runtime images on top of the database.
-* **`ef-baseline.sh` and `rollback-db.sh` call bare `docker compose`** (no `-f`).
-  On the droplet, where both a dev and a prod compose file sit in the repo root,
-  they will pick the DEV one unless you `export COMPOSE_FILE=docker-compose.prod.yml`
-  first. Every step in Part 3 that uses them does so.
+* **`ef-baseline.sh` and `rollback-db.sh` now refuse to guess which stack they
+  are pointed at.** With both compose files in the repo root they stop and ask for
+  `COMPOSE_FILE`, rather than silently picking the dev one. Both print the compose
+  file, the database and the user they resolved before they touch anything — read
+  those lines; they are the last chance to notice you are aimed at the wrong stack.
 
 ## Command index
 
@@ -652,7 +653,7 @@ because after it, anything surprising will be blamed on the migration.
 | `deploy/restore.sh … --into-stack --yes` | **destructive** — rebuilds the live DB from a dump | no — this is the rollback |
 | `deploy/verify-backup.sh <dir>` | older, chattier inspector for a backup directory | yes |
 | `deploy/ef-baseline.sh` | adopts a populated DB into EF history | once, deliberately |
-| `deploy/rollback-db.sh` | schema-level undo, database only | no — mid-window rollback |
+| `deploy/rollback-db.sh` | schema-level undo, database only | no — mid-window rollback (needs `COMPOSE_FILE`) |
 | `deploy/setup-domain.sh` | issues the TLS cert and installs renewal | once per domain |
 | `deploy/renew-cert.sh` | renews and deploys the cert | yes — runs from cron |
 | `deploy/prod-backup-cron.sh` | the nightly backup | yes — runs from cron |

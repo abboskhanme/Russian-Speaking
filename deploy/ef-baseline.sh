@@ -39,8 +39,15 @@
 #     PGDATABASE (default: russpeak)
 #
 #   Against the docker compose stack you can also skip the network entirely:
-#     COMPOSE_DB_SERVICE=db bash deploy/ef-baseline.sh
+#     COMPOSE_FILE=docker-compose.prod.yml COMPOSE_DB_SERVICE=db bash deploy/ef-baseline.sh
 #   which runs psql inside the db container instead of connecting over TCP.
+#
+#   COMPOSE_FILE is required whenever more than one compose file is present (the
+#   droplet has both a dev and a prod one). The script REFUSES rather than guess:
+#   adopting the wrong database into EF history writes a claim about the schema
+#   that nothing later re-checks. In compose mode PGUSER/PGDATABASE default to
+#   the values read off the RUNNING container, not to the dev names — set them
+#   explicitly only to override that.
 #
 # RE-RUNNING
 #   Safe. The history row is inserted only if absent, the history table is
@@ -59,6 +66,14 @@ BASELINE_ID="20260720140929_InitialBaseline"
 PRODUCT_VERSION="9.0.4"
 
 # --- Connection -------------------------------------------------------------
+# Record what the OPERATOR actually set, BEFORE any default is applied. In
+# compose mode the real names are read off the running container, and an explicit
+# value must still win over that — but `${PGUSER:-russpeak}` erases the difference
+# between "they chose russpeak" and "they chose nothing", so this has to be
+# captured first.
+PGUSER_EXPLICIT="${PGUSER+yes}"
+PGDATABASE_EXPLICIT="${PGDATABASE+yes}"
+
 PGHOST="${PGHOST:-localhost}"
 PGPORT="${PGPORT:-5433}"
 PGUSER="${PGUSER:-russpeak}"
@@ -76,10 +91,27 @@ for arg in "$@"; do
   esac
 done
 
+# --- Which stack, and which database? ---------------------------------------
+# Bare `docker compose` picks whichever file it finds first, and on the droplet
+# the dev and prod compose files sit in the same directory — so this script could
+# silently adopt the WRONG database into EF history, which is a lie about the
+# schema that nothing later re-checks. The helper refuses to guess when there is
+# a choice, and reads the real database name off the running container instead of
+# falling back to the dev default `russpeak`.
+GOVORI_COMPOSE_FILE=""
+if [[ -n "$COMPOSE_DB_SERVICE" ]]; then
+  # shellcheck source=deploy/lib/compose-target.sh
+  . "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/lib/compose-target.sh"
+  resolve_compose_file || exit 1
+  DBENV="$(compose_db_env "$COMPOSE_DB_SERVICE")" || exit 1
+  [[ -n "$PGUSER_EXPLICIT" ]]     || PGUSER="${DBENV%%$'\t'*}"
+  [[ -n "$PGDATABASE_EXPLICIT" ]] || PGDATABASE="${DBENV##*$'\t'}"
+fi
+
 # psql wrapper: either inside the compose db container or over TCP.
 psql_q() {
   if [[ -n "$COMPOSE_DB_SERVICE" ]]; then
-    docker compose exec -T "$COMPOSE_DB_SERVICE" \
+    docker compose -f "$GOVORI_COMPOSE_FILE" exec -T "$COMPOSE_DB_SERVICE" \
       psql -U "$PGUSER" -d "$PGDATABASE" -v ON_ERROR_STOP=1 -t -A -c "$1"
   else
     psql -h "$PGHOST" -p "$PGPORT" -U "$PGUSER" -d "$PGDATABASE" \
@@ -170,7 +202,7 @@ fi
 
 # --- Apply ------------------------------------------------------------------
 if [[ -n "$COMPOSE_DB_SERVICE" ]]; then
-  printf '%s\n' "$SQL" | docker compose exec -T "$COMPOSE_DB_SERVICE" \
+  printf '%s\n' "$SQL" | docker compose -f "$GOVORI_COMPOSE_FILE" exec -T "$COMPOSE_DB_SERVICE" \
     psql -U "$PGUSER" -d "$PGDATABASE" -v ON_ERROR_STOP=1 -q
 else
   printf '%s\n' "$SQL" | psql -h "$PGHOST" -p "$PGPORT" -U "$PGUSER" \

@@ -20,9 +20,15 @@
 # USAGE
 #   ./deploy/rollback-db.sh --dump prod-backup/<ts>/db.dump --yes
 #
-#   Target (defaults to the local docker stack):
+#   Target:
+#     COMPOSE_FILE=docker-compose.prod.yml   which stack. REQUIRED when more than
+#                                    one compose file is present — the droplet has
+#                                    both, and this script drops a database, so it
+#                                    refuses to guess rather than pick the dev one.
 #     COMPOSE_DB_SERVICE=db          run psql/pg_restore inside that container
-#     PGDATABASE (default russpeak)  PGUSER (default russpeak)
+#     PGDATABASE / PGUSER            default to the values read off the RUNNING
+#                                    container in compose mode; set them only to
+#                                    override that.
 #     PGHOST/PGPORT/PGPASSWORD       when connecting over TCP instead
 #
 # ORDER OF OPERATIONS ON A REAL ROLLBACK
@@ -43,6 +49,12 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
+# Captured BEFORE defaulting: in compose mode the real names come off the running
+# container, and an explicit value must still win — but `${PGDATABASE:-russpeak}`
+# erases the difference between "they chose russpeak" and "they chose nothing".
+PGUSER_EXPLICIT="${PGUSER+yes}"
+PGDATABASE_EXPLICIT="${PGDATABASE+yes}"
+
 DB="${PGDATABASE:-russpeak}"
 USER="${PGUSER:-russpeak}"
 SVC="${COMPOSE_DB_SERVICE:-}"
@@ -58,15 +70,39 @@ if (( SIZE < 10000 )); then
   exit 1
 fi
 
+# --- Which stack, and which database? ---------------------------------------
+# This script DROPS the database it is aimed at, and it is run when everything
+# has already gone wrong, under time pressure, by someone who may have skipped a
+# line of the runbook. Bare `docker compose` picks whichever file it finds first,
+# and on the droplet the dev and prod compose files sit side by side — so the
+# rollback itself could have destroyed the wrong database. The helper refuses to
+# guess when there is a choice, and takes the real database name from the running
+# container rather than the dev default `russpeak`.
+GOVORI_COMPOSE_FILE=""
 if [[ -n "$SVC" ]]; then
-  psql_run()    { docker compose exec -T "$SVC" psql -U "$USER" "$@"; }
-  restore_run() { docker compose exec -T "$SVC" pg_restore -U "$USER" -d "$DB" --no-owner; }
+  # shellcheck source=deploy/lib/compose-target.sh
+  . "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/lib/compose-target.sh"
+  resolve_compose_file || exit 1
+  DBENV="$(compose_db_env "$SVC")" || exit 1
+  [[ -n "$PGUSER_EXPLICIT" ]]     || USER="${DBENV%%$'\t'*}"
+  [[ -n "$PGDATABASE_EXPLICIT" ]] || DB="${DBENV##*$'\t'}"
+
+  psql_run()    { docker compose -f "$GOVORI_COMPOSE_FILE" exec -T "$SVC" psql -U "$USER" "$@"; }
+  restore_run() { docker compose -f "$GOVORI_COMPOSE_FILE" exec -T "$SVC" pg_restore -U "$USER" -d "$DB" --no-owner; }
 else
   psql_run()    { psql -U "$USER" "$@"; }
   restore_run() { pg_restore -U "$USER" -d "$DB" --no-owner; }
 fi
 
-echo "==> Target database : $DB"
+# Say the target out loud before the confirmation prompt, not after. The whole
+# point of the --yes gate is that the operator gets to read WHAT is about to be
+# dropped, and "database" alone is not enough when two stacks are on one host.
+echo "==> Target database : $DB (as $USER)"
+if [[ -n "$SVC" ]]; then
+  echo "==> Target stack    : service '$SVC' in ${GOVORI_COMPOSE_FILE}"
+else
+  echo "==> Target stack    : direct psql connection (no compose service)"
+fi
 echo "==> Dump            : $DUMP (${SIZE} bytes)"
 echo "==> Current contents (about to be REPLACED):"
 psql_run -d "$DB" -c "SELECT 'users' t, count(*) FROM users UNION ALL SELECT 'submissions', count(*) FROM submissions;" 2>/dev/null \
