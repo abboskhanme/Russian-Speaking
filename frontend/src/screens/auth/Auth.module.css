@@ -106,7 +106,7 @@
 
 .tab[data-active] {
   background: var(--surface);
-  color: var(--primary);
+  color: var(--primary-ink);
   box-shadow: var(--e-1);
 }
 
@@ -337,7 +337,7 @@
   color: var(--success-ink);
 }
 .stepLabel[data-state="active"] {
-  color: var(--primary);
+  color: var(--primary-ink);
 }
 
 /* ============================ ADDRESS (Manzil) ========================= */
@@ -423,7 +423,7 @@
   font-size: var(--t-title-m-size);
   font-weight: var(--fw-black);
   letter-spacing: 0.28em;
-  color: var(--primary);
+  color: var(--primary-ink);
 }
 
 /* ============================ NOTES ==================================== */
@@ -544,7 +544,7 @@
   border: none;
   padding: 0;
   cursor: pointer;
-  color: var(--primary);
+  color: var(--primary-ink);
   font-family: var(--font-sans);
   font-size: var(--t-body-s-size);
   font-weight: var(--fw-bold);
@@ -575,7 +575,7 @@
   transition: color var(--m-instant);
 }
 .tryLink:hover {
-  color: var(--primary);
+  color: var(--primary-ink);
   text-decoration: underline;
 }
 .tryLink:focus-visible {

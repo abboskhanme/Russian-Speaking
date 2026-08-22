@@ -174,7 +174,7 @@ button.row:focus-visible {
 .optionSelected {
   border-color: var(--primary);
   background: var(--primary-tint);
-  color: var(--primary);
+  color: var(--primary-ink);
 }
 
 .optionLabel {

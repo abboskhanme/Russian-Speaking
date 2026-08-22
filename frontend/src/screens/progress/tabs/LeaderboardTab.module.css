@@ -121,7 +121,7 @@
 }
 .leagueBronze {
   background: var(--primary-tint);
-  color: var(--primary);
+  color: var(--primary-ink);
   border-color: var(--primary-tint-2);
 }
 
@@ -255,7 +255,7 @@
  * surface so the initials stay legible. */
 .rowMe .avatar {
   background: var(--surface);
-  color: var(--primary);
+  color: var(--primary-ink);
 }
 
 .name {

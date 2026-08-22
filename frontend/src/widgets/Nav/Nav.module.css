@@ -97,11 +97,11 @@
 }
 .sidebar .item[aria-current="page"] {
   background: var(--primary-tint);
-  color: var(--primary-press);
+  color: var(--primary-ink);
   font-weight: var(--fw-bold);
 }
 .sidebar .item.emphasized:not([aria-current="page"]) {
-  color: var(--primary);
+  color: var(--primary-ink);
 }
 
 .sidebar .label {
@@ -182,7 +182,7 @@
   transform: scale(var(--tap-scale));
 }
 .bottom .item[aria-current="page"] {
-  color: var(--primary);
+  color: var(--primary-ink);
 }
 .bottom .label {
   font-size: var(--t-label-size);

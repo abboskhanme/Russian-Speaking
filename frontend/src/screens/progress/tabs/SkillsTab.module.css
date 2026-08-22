@@ -33,6 +33,12 @@
 .trend {
   margin: 0;
 }
+/* The up-trend is the one place --success is a WORD rather than a fill, and as
+ * text it is 3.14:1. The attribute selector outranks the single-class .cSuccess
+ * that shared/ui/Text applies, so the ink swaps without editing that file. */
+.trend[data-dir="up"] {
+  color: var(--success-ink);
+}
 .chart {
   margin-top: var(--s-2);
 }

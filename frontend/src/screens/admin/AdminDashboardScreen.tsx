@@ -91,7 +91,7 @@ export function AdminDashboardScreen({
     >
       <div className={styles.page} data-density="compact">
         <section className={styles.section} aria-label={t("admin.people")}>
-          <Text as="h2" variant="label" color="faint" className={styles.legend}>
+          <Text as="h2" variant="label" color="muted" className={styles.legend}>
             {t("admin.people")}
           </Text>
           <div className={styles.tiles}>
@@ -109,7 +109,7 @@ export function AdminDashboardScreen({
         </section>
 
         <section className={styles.section} aria-label={t("admin.content")}>
-          <Text as="h2" variant="label" color="faint" className={styles.legend}>
+          <Text as="h2" variant="label" color="muted" className={styles.legend}>
             {t("admin.content")}
           </Text>
           <div className={styles.tiles}>
@@ -122,13 +122,13 @@ export function AdminDashboardScreen({
           </div>
           {/* A draft reaches nobody, so the gap between the two is the honest
               measure of how much authored work is actually live. */}
-          <Text as="p" variant="body-s" color="faint">
+          <Text as="p" variant="body-s" color="muted">
             {t("admin.draftsNote", { count: Math.max(0, stats.questions - stats.publishedQuestions) })}
           </Text>
         </section>
 
         <section className={styles.section} aria-label={t("admin.activity")}>
-          <Text as="h2" variant="label" color="faint" className={styles.legend}>
+          <Text as="h2" variant="label" color="muted" className={styles.legend}>
             {t("admin.activity")}
           </Text>
           <div className={styles.tiles}>

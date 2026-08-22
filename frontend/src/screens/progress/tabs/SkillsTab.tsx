@@ -167,6 +167,7 @@ function TrendLine({
       weight="bold"
       color={TREND_COLOR[dir]}
       className={styles.trend}
+      data-dir={dir}
     >
       <span aria-hidden>{TREND_ARROW[dir]} </span>
       {text}

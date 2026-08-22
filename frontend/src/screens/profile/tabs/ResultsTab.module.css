@@ -38,11 +38,11 @@
   min-width: 0;
 }
 .xpValue {
-  color: var(--primary);
+  color: var(--primary-ink);
   line-height: 1.05;
 }
 .xpLabel {
-  color: var(--primary);
+  color: var(--primary-ink);
   margin-top: var(--s-1);
 }
 .xpCaption {
@@ -133,7 +133,7 @@
   flex: none;
   border-radius: var(--r-pill);
   background: var(--primary-tint);
-  color: var(--primary);
+  color: var(--primary-ink);
 }
 .bandNum {
   color: inherit;

@@ -42,7 +42,7 @@
   padding-inline-end: 72px;
 }
 .todayKicker {
-  color: var(--primary);
+  color: var(--primary-ink);
   letter-spacing: var(--t-label-tracking);
 }
 .todayTitle {

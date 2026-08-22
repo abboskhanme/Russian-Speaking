@@ -36,6 +36,17 @@
   --primary-tint:   oklch(0.945 0.038 48);   /* selected nav / chip bg */
   --primary-tint-2: oklch(0.905 0.068 46);   /* border over tint */
   --primary-on:     oklch(0.995 0.004 60);   /* text on primary */
+  /* --primary IS THE FILL. --primary-ink IS THE WORD. Never swap them.
+   * #ed622a is 3.26:1 on white — fine for a button face, a logo or a progress
+   * bar, and unreadable as 11px type. This is the --warn / --warn-ink split
+   * already used below, applied to the brand: the identity itself (fills,
+   * buttons, marks) does not move a pixel; only small type gets a legible
+   * sibling. Lightest value that clears AA, so the tone is kept, not deepened
+   * for its own sake — and chroma is 0.165 rather than 0.185 because sRGB
+   * cannot hold 0.185 at this lightness: the blue channel would pin to 0 and
+   * the declared value would stop being the rendered one.
+   * #b93f02 — 5.55:1 on --surface, 4.65 on --primary-tint (the binding one). */
+  --primary-ink:    oklch(0.535 0.165 40);
   --accent:         oklch(0.530 0.155 272);  /* progress / premium / data viz */
   --accent-tint:    oklch(0.945 0.035 272);
 
@@ -223,6 +234,7 @@
   --primary-tint:   oklch(0.945 0.038 48);
   --primary-tint-2: oklch(0.905 0.068 46);
   --primary-on:     oklch(0.995 0.004 60);
+  --primary-ink:    oklch(0.535 0.165 40);
   --accent:         oklch(0.530 0.155 272);
   --accent-tint:    oklch(0.945 0.035 272);
 
@@ -268,6 +280,9 @@
   --primary-tint:   oklch(0.300 0.055 42);
   --primary-tint-2: oklch(0.360 0.070 42);
   --primary-on:     oklch(0.180 0.020 45);
+  /* Dark needs no darker sibling: the brand orange is already 4.87:1 on the
+   * darkest surface, so the ink tracks the fill — same as --warn-ink below. */
+  --primary-ink:    oklch(0.720 0.170 42);
   --accent:         oklch(0.695 0.140 272);
   --accent-tint:    oklch(0.300 0.055 272);
 
@@ -320,6 +335,7 @@
     --primary-tint:   oklch(0.300 0.055 42);
     --primary-tint-2: oklch(0.360 0.070 42);
     --primary-on:     oklch(0.180 0.020 45);
+    --primary-ink:    oklch(0.720 0.170 42);
     --accent:         oklch(0.695 0.140 272);
     --accent-tint:    oklch(0.300 0.055 272);
 

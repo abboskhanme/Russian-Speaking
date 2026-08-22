@@ -34,7 +34,7 @@
   padding: var(--s-1) var(--s-3);
   border-radius: var(--r-pill);
   background: var(--primary-tint);
-  color: var(--primary);
+  color: var(--primary-ink);
   white-space: nowrap;
 }
 .xpStar {
@@ -42,5 +42,5 @@
   display: block;
 }
 .xpText {
-  color: var(--primary);
+  color: var(--primary-ink);
 }

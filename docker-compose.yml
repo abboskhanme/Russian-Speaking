@@ -23,6 +23,20 @@ name: govori
 
 # Shared backend env (Api + Worker). Values resolve from .env with sane dev defaults.
 x-backend-env: &backend-env
+  # THIS FILE IS THE DEV STACK, so it must say so out loud. Both images bake
+  # `…_ENVIRONMENT=Production` as their default — the right default for an image,
+  # since a stack that forgets to choose should get the strict one. But it means the
+  # environment is never Development unless something overrides it, and .NET reads
+  # two different variable names for the two hosts: the Api (ASP.NET) reads
+  # ASPNETCORE_ENVIRONMENT, the Worker (generic host) reads DOTNET_ENVIRONMENT.
+  #
+  # Left unset, `docker compose up` runs the dev stack in Production, where the
+  # startup guard (Govori.Api/Startup) refuses to boot without a real
+  # TELEGRAM_BOT_TOKEN and off the .env.example SECRET_KEY — correct in production,
+  # fatal on a laptop. It also silently ignored appsettings.Development.json, which
+  # is why EF was logging every SQL statement here.
+  ASPNETCORE_ENVIRONMENT: "${ASPNETCORE_ENVIRONMENT:-Development}"
+  DOTNET_ENVIRONMENT: "${ASPNETCORE_ENVIRONMENT:-Development}"
   # Postgres. To point at an existing populated DB (e.g. prod), set these to it and
   # REMOVE the seed mount on `db` below. Adopt that DB into EF's migration history
   # ONCE with deploy/ef-baseline.sh — never run `ef database update` against a
