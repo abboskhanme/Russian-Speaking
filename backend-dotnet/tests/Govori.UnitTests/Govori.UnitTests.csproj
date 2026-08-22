@@ -31,6 +31,10 @@
          four rules it encodes (skip-unconfigured, fall-back-on-throw, rethrow-on-cancel,
          report-the-model-that-really-ran) are unit-testable and worth pinning here. -->
     <ProjectReference Include="..\..\src\Govori.Platform\Govori.Platform.csproj" />
+    <!-- AiProbeService is pure routing over the same IGraderBackend/ISttBackend fakes the chain
+         tests already use — no database, no vendor — so the rules it encodes (skipped is not
+         failed; report the model that really answered) are unit-testable here. -->
+    <ProjectReference Include="..\..\src\Modules\Govori.Administration\Govori.Administration.csproj" />
   </ItemGroup>
 
 </Project>
