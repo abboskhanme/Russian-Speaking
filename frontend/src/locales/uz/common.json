@@ -787,7 +787,11 @@
   },
   "errors": {
     "loadTitle": "Ma'lumotni yuklab bo'lmadi",
-    "loadBody": "Internet aloqangizni tekshiring va qayta urinib ko'ring."
+    "loadBody": "Internet aloqangizni tekshiring va qayta urinib ko'ring.",
+    "crashTitle": "Nimadir noto'g'ri ketdi",
+    "crashBody": "Bu sahifani ko'rsatib bo'lmadi. Qayta urinib ko'ring yoki bosh sahifaga qayting.",
+    "crashHome": "Bosh sahifaga",
+    "crashDetails": "Texnik tafsilotlar"
   },
   "months": {
     "1": "yanvar",

@@ -787,7 +787,11 @@
   },
   "errors": {
     "loadTitle": "Couldn't load data",
-    "loadBody": "Check your connection and try again."
+    "loadBody": "Check your connection and try again.",
+    "crashTitle": "Something went wrong",
+    "crashBody": "This page couldn't be displayed. Try again, or go back to the home page.",
+    "crashHome": "Go to home",
+    "crashDetails": "Technical details"
   },
   "months": {
     "1": "January",

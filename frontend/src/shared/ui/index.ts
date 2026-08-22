@@ -13,6 +13,7 @@
  *   Data        — Badge, StatTile
  *   Feedback    — Spinner, Skeleton
  *   Foundations — Text, VisuallyHidden
+ *   Resilience  — ErrorBoundary
  */
 export { Button } from "./Button";
 export type { ButtonProps, ButtonVariant, ButtonSize } from "./Button";
@@ -55,6 +56,10 @@ export type {
 
 export { VisuallyHidden } from "./VisuallyHidden";
 export type { VisuallyHiddenProps } from "./VisuallyHidden";
+
+/* Resilience — the screen a person meets when a render throws (see its header). */
+export { ErrorBoundary } from "./ErrorBoundary";
+export type { ErrorBoundaryProps } from "./ErrorBoundary";
 
 /* Domain-specific — the core interaction (docs/03 §3.6, docs/08 §4.6) */
 export { Mascot } from "./Mascot";
