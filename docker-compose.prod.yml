@@ -166,6 +166,21 @@ x-backend-env: &backend-env
   GOVORI_SIGNALR_BACKPLANE: "true"
   GOVORI_RATELIMIT_BACKEND: "${GOVORI_RATELIMIT_BACKEND:-redis}"
 
+  # ── The environment name — BOTH spellings, on BOTH services ─────────────────
+  # Hardcoded to Production, not `${VAR:-Production}`: this is the production
+  # compose file, and an override would be a way to accidentally run the live
+  # stack in Development, which is the one setting that disables the
+  # ProductionSecrets boot gate.
+  #
+  # Both names are set because the two hosts read DIFFERENT ones: the Api is a
+  # WebApplicationBuilder (ASPNETCORE_ENVIRONMENT) and the Worker is a generic
+  # host (DOTNET_ENVIRONMENT). Setting only the one each service happens to need
+  # works right up until a service changes host type, and then half the stack is
+  # silently in another environment — with the secrets gate off on that half.
+  # Setting both is free and removes the question.
+  ASPNETCORE_ENVIRONMENT: "Production"
+  DOTNET_ENVIRONMENT: "Production"
+
 services:
   db:
     image: postgres:16-alpine
@@ -285,12 +300,6 @@ services:
     environment:
       <<: *backend-env
       GOVORI_HANGFIRE: "true"   # client only: enqueues jobs, the worker runs them
-      # Restated here even though the Dockerfile already sets it. This one value
-      # decides whether ProductionSecrets.ThrowIfInsecure runs at all — on
-      # anything but "Production" the host quietly accepts dev OTP delivery,
-      # stock MinIO credentials and a placeholder SECRET_KEY. It is too important
-      # to live only in a base image where a future edit could drop it silently.
-      ASPNETCORE_ENVIRONMENT: "Production"
     depends_on:
       db:
         condition: service_healthy
@@ -323,9 +332,6 @@ services:
       <<: *backend-env
       GOVORI_HANGFIRE: "true"      # runs the Hangfire SERVER
       GOVORI_MAINTENANCE: "true"   # recurring cleanup jobs
-      # The Worker is a generic host, so it reads DOTNET_ENVIRONMENT — NOT
-      # ASPNETCORE_ENVIRONMENT. Setting the wrong one here is a silent no-op.
-      DOTNET_ENVIRONMENT: "Production"
     depends_on:
       db:
         condition: service_healthy
