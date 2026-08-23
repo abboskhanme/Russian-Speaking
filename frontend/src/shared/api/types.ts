@@ -193,6 +193,22 @@ export function isNeedsRegistration(
  * login OTP view (status polling included) rather than a bare code box. */
 export type PhoneChangeRequestResponse = OtpDeliveryInfo;
 
+/** GET /api/auth/dev/users → one seeded demo account per role, for the login
+ * page's DEVELOPMENT-ONLY one-tap sign-in.
+ *
+ * It has NO entry in `openapi.json` and therefore none in `check:contract`, on
+ * purpose: the document describes the API production serves, and these routes do
+ * not exist there — the backend only maps them when `IsDevelopment()`, so
+ * production answers 404. (The gate reports an unmatched type like this one as
+ * "frontend-local", which is exactly what it is.) The .NET side is
+ * `DevLoginEndpoints.DevUserResponse`, and it deliberately lives outside
+ * `Govori.Contracts` for the same reason. */
+export interface DevUserResponse {
+  id: string;
+  full_name: string;
+  role: UserRole;
+}
+
 /* ── Catalog (CatalogContracts.cs) — Home + Practice ─────────────────────── */
 
 export type QuestionType = "text" | "image" | "video";

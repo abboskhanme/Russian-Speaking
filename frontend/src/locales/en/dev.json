@@ -1,0 +1,15 @@
+{
+  "auth": {
+    "devLogin": {
+      "badge": "Development only",
+      "title": "Demo accounts",
+      "hint": "Pick a role — no verification code needed.",
+      "failed": "Could not sign in. Try again.",
+      "roles": {
+        "student": "student",
+        "teacher": "teacher",
+        "admin": "admin"
+      }
+    }
+  }
+}

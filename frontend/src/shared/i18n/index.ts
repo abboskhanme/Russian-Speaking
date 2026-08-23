@@ -23,6 +23,18 @@ import enCommon from "../../locales/en/common.json";
 import ruCommon from "../../locales/ru/common.json";
 import uzCommon from "../../locales/uz/common.json";
 
+// DEVELOPMENT-ONLY strings — today, the login page's one-tap demo-account picker.
+// They live in their own files rather than in common.json because common.json is
+// bundled WHOLE: a key added there ships to production even when the component
+// that reads it has been compiled out, and "Faqat development" appearing in a
+// production bundle is exactly the trace this feature must not leave. Merged in
+// below, behind `import.meta.env.DEV`, which Vite folds to `false` in a
+// production build — so these three imports become unreferenced and Rollup drops
+// the JSON along with them.
+import enDev from "../../locales/en/dev.json";
+import ruDev from "../../locales/ru/dev.json";
+import uzDev from "../../locales/uz/dev.json";
+
 export const SUPPORTED_LANGS = ["uz", "ru", "en"] as const;
 export type AppLang = (typeof SUPPORTED_LANGS)[number];
 
@@ -74,6 +86,16 @@ if (!i18n.isInitialized) {
     returnNull: false,
     react: { useSuspense: false },
   });
+}
+
+// Merge the development-only strings over `common`, in every language. Deep merge
+// + overwrite, so this ADDS keys and never disturbs a shipped one. The whole block
+// disappears from a production build (see the imports above).
+if (import.meta.env.DEV) {
+  const devResources: Record<AppLang, object> = { uz: uzDev, ru: ruDev, en: enDev };
+  for (const lang of SUPPORTED_LANGS) {
+    i18n.addResourceBundle(lang, defaultNS, devResources[lang], true, true);
+  }
 }
 
 /** Change the active UI language (uz | ru | en) and persist the choice. */

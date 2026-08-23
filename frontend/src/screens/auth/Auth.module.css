@@ -559,6 +559,115 @@
   border-radius: var(--r-xs);
 }
 
+/* ============================ DEV LOGIN PANEL ========================== */
+/* The DEVELOPMENT-ONLY one-tap sign-in on /login (see LoginScreen's
+ * DevLoginPanel). The markup is compiled out of the production bundle by
+ * `import.meta.env.DEV`; these rules are not — a class name in a stylesheet is
+ * neither an endpoint path nor UI text, and splitting them into a second sheet
+ * would not change that, because a stylesheet is emitted for every module that
+ * is imported and Auth.module.css is imported either way.
+ *
+ * It is styled to be UNMISTAKABLE: dashed border, warning tint, a literal
+ * "development only" badge. It must never be confused with the primary CTA a few
+ * pixels above it — someone looking at a screenshot has to read it as a tool. */
+.devPanel {
+  margin-top: var(--s-6);
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-3);
+  padding: var(--s-4);
+  border: 1.5px dashed var(--warn);
+  border-radius: var(--r-sm);
+  background: var(--warn-tint);
+}
+
+.devPanelHead {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  flex-wrap: wrap;
+}
+
+.devPanelBadge {
+  font-family: var(--font-sans);
+  font-size: var(--t-label-size);
+  font-weight: var(--fw-black);
+  letter-spacing: var(--t-label-tracking);
+  text-transform: uppercase;
+  color: var(--warn-ink);
+  border: 1px solid var(--warn);
+  border-radius: var(--r-pill);
+  padding: 3px 9px;
+}
+
+.devPanelTitle {
+  font-family: var(--font-sans);
+  font-size: var(--t-body-size);
+  font-weight: var(--fw-black);
+  color: var(--ink);
+}
+
+.devPanelHint {
+  font-family: var(--font-sans);
+  font-size: var(--t-body-s-size);
+  line-height: 1.45;
+  color: var(--ink-soft);
+}
+
+.devPanelList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+}
+
+/* Deliberately NOT the Button primitive: this is not one of the app's actions,
+ * and borrowing the primary CTA's shape is exactly the confusion to avoid. */
+.devUser {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-3);
+  width: 100%;
+  min-height: 48px;
+  padding: 10px var(--s-4);
+  background: var(--surface);
+  border: 1px solid var(--line-2);
+  border-radius: var(--r-sm);
+  cursor: pointer;
+  text-align: start;
+  transition:
+    border-color var(--m-instant),
+    background-color var(--m-instant);
+}
+.devUser:hover:not(:disabled) {
+  border-color: var(--warn);
+  background: var(--surface-2);
+}
+.devUser:disabled {
+  cursor: progress;
+  opacity: 0.6;
+}
+.devUser:focus-visible {
+  outline: var(--focus-ring-width) solid var(--focus-ring);
+  outline-offset: var(--focus-ring-offset);
+}
+
+.devUserName {
+  font-family: var(--font-sans);
+  font-size: var(--t-body-size);
+  font-weight: var(--fw-bold);
+  color: var(--ink);
+}
+
+.devUserRole {
+  flex: none;
+  font-family: var(--font-mono);
+  font-size: var(--t-body-s-size);
+  font-weight: var(--fw-semibold);
+  /* Text, so it stays on the readable ramp — never --faint. */
+  color: var(--muted);
+}
+
 /* ============================ TRY-IT LINK ============================== */
 /* Secondary "experience the system before signing up" link, low on the auth
  * screens → the public /try guest placement flow. A subtle text link, never a

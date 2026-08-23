@@ -8,13 +8,14 @@
  * registration on the next verify. Composed from `shared/ui` + Ovoz DS tokens;
  * i18n via `auth.*`. No email/password anywhere.
  */
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation, useNavigate } from "react-router-dom";
 import { Button } from "../../shared/ui";
 import { ThemeToggle } from "../../widgets";
-import { useAuth } from "../../shared/auth";
-import { isApiError, type OtpRequestResponse } from "../../shared/api";
+import { tokenStore, useAuth } from "../../shared/auth";
+import { endpoints, isApiError } from "../../shared/api";
+import type { DevUserResponse, OtpRequestResponse } from "../../shared/api";
 import { AuthHero } from "./AuthHero";
 import { IconInput } from "./IconInput";
 import { OtpStep } from "./OtpStep";
@@ -203,7 +204,115 @@ export default function LoginScreen() {
             </OtpStep>
           )
         )}
+
+        {/*
+          DEVELOPMENT ONLY. `import.meta.env.DEV` is a literal Vite replaces at build
+          time, so a production build reads `false && …` and Rollup drops both this
+          element and the whole DevLoginPanel declaration below — the shipped bundle
+          contains no panel, no endpoint path and no demo account. That is the second
+          of two independent barriers; the first is that the backend never registers
+          the routes outside Development (404, not 403). See DevLoginEndpoints.
+        */}
+        {import.meta.env.DEV && <DevLoginPanel />}
       </div>
     </div>
+  );
+}
+
+/**
+ * One-tap sign-in as a seeded demo account — a DEVELOPMENT TOOL, and it is meant to
+ * look like one. It exists because testing three roles used to mean three phone
+ * numbers and three Telegram OTP round-trips.
+ *
+ * Two rules make it safe to have on the login page at all:
+ *
+ *   1. **A 404 renders nothing.** `GET /api/auth/dev/users` does not exist in
+ *      production, and the panel treats every failure — 404 included — as "there is
+ *      nothing to offer" and returns `null`. So even in the impossible case where
+ *      this code reached a production bundle, it would draw no UI.
+ *   2. **It never looks like a way in.** The badge names it, the surface is dashed
+ *      and off-palette from the real CTA, and each row says which role it signs in
+ *      as. Anyone who sees a screenshot should read "dev tool" immediately rather
+ *      than "a login button I have not seen before".
+ */
+function DevLoginPanel() {
+  const { t } = useTranslation();
+  const { hydrateUser } = useAuth();
+  const navigate = useNavigate();
+
+  const [users, setUsers] = useState<DevUserResponse[] | null>(null);
+  const [busyId, setBusyId] = useState<string | null>(null);
+  const [failed, setFailed] = useState(false);
+
+  useEffect(() => {
+    let alive = true;
+    endpoints
+      .devUsers()
+      .then((list) => {
+        if (alive) setUsers(list);
+      })
+      // Every failure is the same answer: draw nothing. A 404 IS the production
+      // case, and it must not surface as an error the user is asked to care about.
+      .catch(() => {
+        if (alive) setUsers(null);
+      });
+    return () => {
+      alive = false;
+    };
+  }, []);
+
+  if (!users || users.length === 0) return null;
+
+  async function signIn(user: DevUserResponse) {
+    setBusyId(user.id);
+    setFailed(false);
+    try {
+      const tokens = await endpoints.devLogin(user.id);
+      tokenStore.set(tokens.access_token, tokens.refresh_token);
+      hydrateUser(await endpoints.me(true));
+      // Always "/", never the remembered `from` path: the role that is signing in is
+      // not the one that was bounced here, and RoleHome is what maps a role to its
+      // home (student stays on `/`, teacher → `/teacher`, admin → `/admin`).
+      navigate("/", { replace: true });
+    } catch {
+      // A half-stored session is worse than none: clear before reporting.
+      tokenStore.clear();
+      setFailed(true);
+      setBusyId(null);
+    }
+  }
+
+  return (
+    <section className={styles.devPanel} aria-labelledby="dev-login-title">
+      <div className={styles.devPanelHead}>
+        <span className={styles.devPanelBadge}>{t("auth.devLogin.badge")}</span>
+        <h2 id="dev-login-title" className={styles.devPanelTitle}>
+          {t("auth.devLogin.title")}
+        </h2>
+      </div>
+      <p className={styles.devPanelHint}>{t("auth.devLogin.hint")}</p>
+
+      {failed && (
+        <div className={styles.error} role="alert">
+          {t("auth.devLogin.failed")}
+        </div>
+      )}
+
+      <div className={styles.devPanelList}>
+        {users.map((user) => (
+          <button
+            key={user.id}
+            type="button"
+            className={styles.devUser}
+            onClick={() => void signIn(user)}
+            disabled={busyId !== null}
+            data-busy={busyId === user.id ? "" : undefined}
+          >
+            <span className={styles.devUserName}>{user.full_name}</span>
+            <span className={styles.devUserRole}>{t(`auth.devLogin.roles.${user.role}`)}</span>
+          </button>
+        ))}
+      </div>
+    </section>
   );
 }

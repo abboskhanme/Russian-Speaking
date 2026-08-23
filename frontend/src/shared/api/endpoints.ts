@@ -24,6 +24,7 @@ import type {
   AttemptDetailResponse,
   AuthConfigResponse,
   DailySessionResponse,
+  DevUserResponse,
   DrillCatalogResponse,
   DrillResultResponse,
   GroupResponse,
@@ -217,6 +218,45 @@ export function phoneChangeConfirm(code: string): Promise<MeResponse> {
     "/auth/phone/change/confirm",
     { code },
     { skipAuthRedirect: true },
+  );
+}
+
+/* ── Auth — DEVELOPMENT-ONLY one-tap sign-in ──────────────────────────────
+ *
+ * These two call routes that DO NOT EXIST in production: the backend maps them
+ * only when `IsDevelopment()`, so a production host answers 404 — not 403, and
+ * not a route with a check inside it. See `DevLoginEndpoints` on the .NET side.
+ *
+ * The only caller is the panel in `LoginScreen`, and that whole block sits behind
+ * `import.meta.env.DEV`, which Vite folds to `false` in a production build — so
+ * these functions become unreferenced and are dropped from the bundle. That is
+ * the SECOND, independent barrier: even if the routes somehow existed, the
+ * shipped app would carry no code that knows their paths. `frontend/dist` is
+ * grepped for exactly that.
+ *
+ * `auth: false` because the login page calls them before anyone is signed in, and
+ * `skipAuthRedirect` so a refusal surfaces to the caller instead of bouncing the
+ * browser to `/login` — which is where it already is.
+ */
+
+/** GET /api/auth/dev/users → the seeded demo accounts (one per role) that exist
+ * in THIS database. **404 in production, and the panel must treat that as "do not
+ * render".** */
+export function devUsers(): Promise<DevUserResponse[]> {
+  return apiClient.get<DevUserResponse[]>("/auth/dev/users", {
+    auth: false,
+    skipAuthRedirect: true,
+  });
+}
+
+/** POST /api/auth/dev/login → a real token pair for one of the accounts
+ * {@link devUsers} listed. The server accepts ONLY those ids: any other user id,
+ * including a real one, is a `403`. */
+export function devLogin(userId: string): Promise<TokenResponse> {
+  return apiClient.post<TokenResponse>(
+    "/auth/dev/login",
+    { user_id: userId },
+    { auth: false, skipAuthRedirect: true },
   );
 }
 
