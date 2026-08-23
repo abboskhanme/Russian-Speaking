@@ -28,9 +28,11 @@ using Govori.Practice;
 using Govori.Realtime;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
+using Microsoft.AspNetCore.Http.Json;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
+using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 using OpenTelemetry;
 using OpenTelemetry.Exporter;
@@ -590,6 +592,38 @@ try
     // Clients connect with their JWT and call SubscribeToAttempt(id) to stream grading progress.
     // The hub's [Authorize] enforces the bearer; per-attempt ownership is checked inside the hub.
     app.MapHub<AttemptsHub>("/hubs/attempts");
+
+    // ── OpenAPI document (docs/08 Faza 4.2) ─────────────────────────────────
+    // `--emit-openapi <path>` writes backend-dotnet/openapi.json and exits. It sits HERE, after the
+    // last Map call and before app.Run(), for two reasons: every route is registered by now, and the
+    // host is only BUILT — never STARTED — so the emit touches no Postgres, no Redis and no S3. That
+    // is what lets CI regenerate the file and diff it on a plain runner, and it is why the committed
+    // file can be trusted as the frontend contract gate's input (see Startup/OpenApiDocument.cs).
+    if (OpenApiDocument.EmitPath(args) is { } openApiPath)
+    {
+        var document = OpenApiDocument.Build(
+            ((IEndpointRouteBuilder)app).DataSources.SelectMany(source => source.Endpoints),
+            app.Services.GetRequiredService<IOptions<JsonOptions>>().Value.SerializerOptions,
+            app.Services.GetRequiredService<IServiceProviderIsService>().IsService);
+        File.WriteAllText(openApiPath, OpenApiDocument.Serialize(document));
+        Log.Information("OpenAPI document written to {Path}", Path.GetFullPath(openApiPath));
+        return;
+    }
+
+    // The document itself, served in Development ONLY. There is no Swagger UI anywhere in this
+    // repo — the explorer that must not reach production is simply never built, which is a stronger
+    // guarantee than an environment check around one. Registered AFTER the emit block on purpose:
+    // the committed file then describes the routes production actually has, not this one.
+    if (app.Environment.IsDevelopment())
+    {
+        app.MapGet("/openapi/v1.json", (IOptions<JsonOptions> json, IServiceProviderIsService probe) =>
+            Results.Text(
+                OpenApiDocument.Serialize(OpenApiDocument.Build(
+                    ((IEndpointRouteBuilder)app).DataSources.SelectMany(source => source.Endpoints),
+                    json.Value.SerializerOptions,
+                    probe.IsService)),
+                "application/json"));
+    }
 
     app.Run();
 }

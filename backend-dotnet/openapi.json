@@ -1,0 +1,6093 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Govori API",
+    "version": "1.0.0",
+    "description": "Generated from the running host\u0027s endpoint table and its own JsonSerializerOptions (backend-dotnet/src/Govori.Api/Startup/OpenApiDocument.cs). Property names are the exact wire names. Response bodies are intentionally absent \u2014 see that file."
+  },
+  "paths": {
+    "/api/admin/billing/plans": {
+      "get": {
+        "summary": "HTTP: GET /api/admin/billing/plans",
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      },
+      "post": {
+        "summary": "HTTP: POST /api/admin/billing/plans",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PlanUpsertRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/admin/billing/plans/{id}": {
+      "patch": {
+        "summary": "HTTP: PATCH /api/admin/billing/plans/{id:guid}",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PlanUpsertRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      },
+      "delete": {
+        "summary": "HTTP: DELETE /api/admin/billing/plans/{id:guid}",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/admin/billing/subscriptions": {
+      "get": {
+        "summary": "HTTP: GET /api/admin/billing/subscriptions",
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/admin/settings/ai": {
+      "get": {
+        "summary": "HTTP: GET /api/admin/settings/ai",
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      },
+      "patch": {
+        "summary": "HTTP: PATCH /api/admin/settings/ai",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AiSettingsUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/admin/settings/ai/test": {
+      "post": {
+        "summary": "HTTP: POST /api/admin/settings/ai/test",
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/admin/settings/features": {
+      "get": {
+        "summary": "HTTP: GET /api/admin/settings/features",
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      },
+      "patch": {
+        "summary": "HTTP: PATCH /api/admin/settings/features",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FeatureFlagsUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/admin/settings/links": {
+      "get": {
+        "summary": "HTTP: GET /api/admin/settings/links",
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      },
+      "patch": {
+        "summary": "HTTP: PATCH /api/admin/settings/links",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LinksUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/admin/settings/reveal/{key}": {
+      "get": {
+        "summary": "HTTP: GET /api/admin/settings/reveal/{key}",
+        "parameters": [
+          {
+            "name": "key",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/admin/stats": {
+      "get": {
+        "summary": "HTTP: GET /api/admin/stats",
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/admin/students": {
+      "get": {
+        "summary": "HTTP: GET /api/admin/students",
+        "parameters": [
+          {
+            "name": "search",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/admin/students/{id}": {
+      "patch": {
+        "summary": "HTTP: PATCH /api/admin/students/{id:guid}",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StudentUpdateRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      },
+      "delete": {
+        "summary": "HTTP: DELETE /api/admin/students/{id:guid}",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/admin/teachers": {
+      "get": {
+        "summary": "HTTP: GET /api/admin/teachers",
+        "parameters": [
+          {
+            "name": "search",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/admin/teachers/{id}": {
+      "patch": {
+        "summary": "HTTP: PATCH /api/admin/teachers/{id:guid}",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TeacherUpdateRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      },
+      "delete": {
+        "summary": "HTTP: DELETE /api/admin/teachers/{id:guid}",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/assignments": {
+      "post": {
+        "summary": "HTTP: POST /api/assignments/",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateAssignmentRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      },
+      "get": {
+        "summary": "HTTP: GET /api/assignments/",
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/assignments/mine": {
+      "get": {
+        "summary": "HTTP: GET /api/assignments/mine",
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/assignments/module": {
+      "post": {
+        "summary": "HTTP: POST /api/assignments/module",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateModuleAssignmentRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/auth/config": {
+      "get": {
+        "summary": "HTTP: GET /api/auth/config",
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/auth/google": {
+      "post": {
+        "summary": "HTTP: POST /api/auth/google",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GoogleAuthRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/auth/logout": {
+      "post": {
+        "summary": "HTTP: POST /api/auth/logout",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LogoutRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/auth/me": {
+      "get": {
+        "summary": "HTTP: GET /api/auth/me",
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      },
+      "patch": {
+        "summary": "HTTP: PATCH /api/auth/me",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateProfileRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/auth/me/avatar": {
+      "post": {
+        "summary": "HTTP: POST /api/auth/me/avatar",
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      },
+      "delete": {
+        "summary": "HTTP: DELETE /api/auth/me/avatar",
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/auth/otp/request": {
+      "post": {
+        "summary": "HTTP: POST /api/auth/otp/request",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OtpRequestRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/auth/otp/status": {
+      "get": {
+        "summary": "HTTP: GET /api/auth/otp/status",
+        "parameters": [
+          {
+            "name": "requestId",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/auth/otp/verify": {
+      "post": {
+        "summary": "HTTP: POST /api/auth/otp/verify",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OtpVerifyRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/auth/phone/change/confirm": {
+      "post": {
+        "summary": "HTTP: POST /api/auth/phone/change/confirm",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PhoneChangeConfirmRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/auth/phone/change/request": {
+      "post": {
+        "summary": "HTTP: POST /api/auth/phone/change/request",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PhoneChangeRequestRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/auth/refresh": {
+      "post": {
+        "summary": "HTTP: POST /api/auth/refresh",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RefreshRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/billing/checkout": {
+      "post": {
+        "summary": "HTTP: POST /api/billing/checkout",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CheckoutRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/billing/plans": {
+      "get": {
+        "summary": "HTTP: GET /api/billing/plans",
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/billing/subscription": {
+      "get": {
+        "summary": "HTTP: GET /api/billing/subscription",
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/billing/webhook/{provider}": {
+      "post": {
+        "summary": "HTTP: POST /api/billing/webhook/{provider}",
+        "parameters": [
+          {
+            "name": "provider",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/blocks": {
+      "get": {
+        "summary": "HTTP: GET /api/blocks/",
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      },
+      "post": {
+        "summary": "HTTP: POST /api/blocks/",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateBlockRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/blocks/student": {
+      "get": {
+        "summary": "HTTP: GET /api/blocks/student",
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/blocks/{id}": {
+      "get": {
+        "summary": "HTTP: GET /api/blocks/{id:guid}",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      },
+      "patch": {
+        "summary": "HTTP: PATCH /api/blocks/{id:guid}",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateBlockRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/daily": {
+      "get": {
+        "summary": "HTTP: GET /api/daily",
+        "parameters": [
+          {
+            "name": "tz_offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/drills/attempts": {
+      "post": {
+        "summary": "HTTP: POST /api/drills/attempts",
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/drills/pairs": {
+      "get": {
+        "summary": "HTTP: GET /api/drills/pairs",
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/groups": {
+      "post": {
+        "summary": "HTTP: POST /api/groups/",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateGroupRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      },
+      "get": {
+        "summary": "HTTP: GET /api/groups/",
+        "parameters": [
+          {
+            "name": "teacher_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/groups/join": {
+      "post": {
+        "summary": "HTTP: POST /api/groups/join",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/JoinGroupRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/groups/leave": {
+      "post": {
+        "summary": "HTTP: POST /api/groups/leave",
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/groups/mine": {
+      "get": {
+        "summary": "HTTP: GET /api/groups/mine",
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/groups/requests": {
+      "get": {
+        "summary": "HTTP: GET /api/groups/requests",
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/groups/requests/mine": {
+      "get": {
+        "summary": "HTTP: GET /api/groups/requests/mine",
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/groups/requests/{id}/approve": {
+      "post": {
+        "summary": "HTTP: POST /api/groups/requests/{id:guid}/approve",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/groups/requests/{id}/reject": {
+      "post": {
+        "summary": "HTTP: POST /api/groups/requests/{id:guid}/reject",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/groups/{id}": {
+      "get": {
+        "summary": "HTTP: GET /api/groups/{id:guid}",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/guest/assess": {
+      "post": {
+        "summary": "HTTP: POST /api/guest/assess",
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/guest/demo": {
+      "get": {
+        "summary": "HTTP: GET /api/guest/demo",
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/guest/placement/complete": {
+      "post": {
+        "summary": "HTTP: POST /api/guest/placement/complete",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PlacementCompleteRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/guest/placement/questions": {
+      "get": {
+        "summary": "HTTP: GET /api/guest/placement/questions",
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/guest/placement/submit": {
+      "post": {
+        "summary": "HTTP: POST /api/guest/placement/submit",
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/guest/tts": {
+      "get": {
+        "summary": "HTTP: GET /api/guest/tts",
+        "parameters": [
+          {
+            "name": "text",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/leaderboard": {
+      "get": {
+        "summary": "HTTP: GET /api/leaderboard",
+        "parameters": [
+          {
+            "name": "group_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "period",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/notifications": {
+      "get": {
+        "summary": "HTTP: GET /api/notifications/",
+        "parameters": [
+          {
+            "name": "unread_only",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      },
+      "delete": {
+        "summary": "HTTP: DELETE /api/notifications/",
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/notifications/read-all": {
+      "post": {
+        "summary": "HTTP: POST /api/notifications/read-all",
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/notifications/unread-count": {
+      "get": {
+        "summary": "HTTP: GET /api/notifications/unread-count",
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/notifications/{id}": {
+      "delete": {
+        "summary": "HTTP: DELETE /api/notifications/{id:guid}",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/notifications/{id}/read": {
+      "post": {
+        "summary": "HTTP: POST /api/notifications/{id:guid}/read",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/ping": {
+      "get": {
+        "summary": "HTTP: GET /api/ping",
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/placement/complete": {
+      "post": {
+        "summary": "HTTP: POST /api/placement/complete",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PlacementCompleteRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/placement/questions": {
+      "get": {
+        "summary": "HTTP: GET /api/placement/questions",
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/placement/submit": {
+      "post": {
+        "summary": "HTTP: POST /api/placement/submit",
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/profile/achievements": {
+      "get": {
+        "summary": "HTTP: GET /api/profile/achievements",
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/profile/results": {
+      "get": {
+        "summary": "HTTP: GET /api/profile/results",
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/profile/stats": {
+      "get": {
+        "summary": "HTTP: GET /api/profile/stats",
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/progress/leaderboard": {
+      "get": {
+        "summary": "HTTP: GET /api/progress/leaderboard",
+        "parameters": [
+          {
+            "name": "period",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/progress/skills": {
+      "get": {
+        "summary": "HTTP: GET /api/progress/skills",
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/questions": {
+      "get": {
+        "summary": "HTTP: GET /api/questions/",
+        "parameters": [
+          {
+            "name": "q",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "block_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "unassigned",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      },
+      "post": {
+        "summary": "HTTP: POST /api/questions/",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateQuestionRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/questions/{id}": {
+      "patch": {
+        "summary": "HTTP: PATCH /api/questions/{id:guid}",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateQuestionRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/questions/{id}/media": {
+      "post": {
+        "summary": "HTTP: POST /api/questions/{id:guid}/media",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      },
+      "delete": {
+        "summary": "HTTP: DELETE /api/questions/{id:guid}/media",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/reports/gradebook": {
+      "get": {
+        "summary": "HTTP: GET /api/reports/gradebook",
+        "parameters": [
+          {
+            "name": "group_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/reports/insights": {
+      "get": {
+        "summary": "HTTP: GET /api/reports/insights",
+        "parameters": [
+          {
+            "name": "group_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/review": {
+      "get": {
+        "summary": "HTTP: GET /api/review/",
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      },
+      "post": {
+        "summary": "HTTP: POST /api/review/",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateReviewsRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/review/drill": {
+      "get": {
+        "summary": "HTTP: GET /api/review/drill",
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/review/{id}/answer": {
+      "post": {
+        "summary": "HTTP: POST /api/review/{id:guid}/answer",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReviewAnswerRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/roleplay/conversations": {
+      "post": {
+        "summary": "HTTP: POST /api/roleplay/conversations",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RoleplayStartRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/roleplay/conversations/{id}/end": {
+      "post": {
+        "summary": "HTTP: POST /api/roleplay/conversations/{id:guid}/end",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/roleplay/conversations/{id}/turns": {
+      "post": {
+        "summary": "HTTP: POST /api/roleplay/conversations/{id:guid}/turns",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/roleplay/scenarios": {
+      "get": {
+        "summary": "HTTP: GET /api/roleplay/scenarios",
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/settings/links": {
+      "get": {
+        "summary": "HTTP: GET /api/settings/links",
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/submissions": {
+      "post": {
+        "summary": "HTTP: POST /api/submissions/",
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      },
+      "get": {
+        "summary": "HTTP: GET /api/submissions/",
+        "parameters": [
+          {
+            "name": "question_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "student_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "needs_review",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/submissions/{id}": {
+      "get": {
+        "summary": "HTTP: GET /api/submissions/{id:guid}",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/submissions/{id}/detail": {
+      "get": {
+        "summary": "HTTP: GET /api/submissions/{id:guid}/detail",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/submissions/{id}/review": {
+      "patch": {
+        "summary": "HTTP: PATCH /api/submissions/{id:guid}/review",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReviewSubmissionRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT"
+      }
+    },
+    "schemas": {
+      "AchievementResponse": {
+        "type": "object",
+        "properties": {
+          "key": {
+            "type": "string"
+          },
+          "progress": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "target": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "unlocked": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "key",
+          "progress",
+          "target",
+          "unlocked"
+        ]
+      },
+      "AdminStatsResponse": {
+        "type": "object",
+        "properties": {
+          "teachers": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "students": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "questions": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "published_questions": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "submissions": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "evaluated_submissions": {
+            "type": "integer",
+            "format": "int32"
+          }
+        },
+        "required": [
+          "teachers",
+          "students",
+          "questions",
+          "published_questions",
+          "submissions",
+          "evaluated_submissions"
+        ]
+      },
+      "AdminSubscriptionResponse": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "user_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "user_name": {
+            "type": "string"
+          },
+          "user_email": {
+            "type": "string",
+            "nullable": true
+          },
+          "plan_code": {
+            "type": "string"
+          },
+          "plan_name": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          },
+          "starts_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "ends_at": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "provider": {
+            "type": "string",
+            "nullable": true
+          },
+          "teacher_granted": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "id",
+          "user_id",
+          "user_name",
+          "plan_code",
+          "plan_name",
+          "status",
+          "starts_at",
+          "teacher_granted"
+        ]
+      },
+      "AiProbeResponse": {
+        "type": "object",
+        "properties": {
+          "results": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ProviderProbe"
+            }
+          }
+        },
+        "required": [
+          "results"
+        ]
+      },
+      "AiSettingsResponse": {
+        "type": "object",
+        "properties": {
+          "llm_provider": {
+            "type": "string"
+          },
+          "gemini_model": {
+            "type": "string"
+          },
+          "orthoepy_enabled": {
+            "type": "boolean"
+          },
+          "known_gemini_models": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/KnownModel"
+            }
+          },
+          "azure_openai_endpoint": {
+            "type": "string"
+          },
+          "azure_openai_deployment": {
+            "type": "string"
+          },
+          "azure_openai_api_version": {
+            "type": "string"
+          },
+          "gemini_api_key": {
+            "$ref": "#/components/schemas/SecretState"
+          },
+          "azure_openai_api_key": {
+            "$ref": "#/components/schemas/SecretState"
+          },
+          "azure_ready": {
+            "type": "boolean"
+          },
+          "active_provider": {
+            "type": "string"
+          },
+          "stt_provider": {
+            "type": "string"
+          },
+          "azure_speech_region": {
+            "type": "string"
+          },
+          "whisper_model": {
+            "type": "string"
+          },
+          "openai_grader_model": {
+            "type": "string"
+          },
+          "azure_speech_key": {
+            "$ref": "#/components/schemas/SecretState"
+          },
+          "openai_api_key": {
+            "$ref": "#/components/schemas/SecretState"
+          },
+          "azure_speech_ready": {
+            "type": "boolean"
+          },
+          "stt_active_provider": {
+            "type": "string"
+          },
+          "grader_chain": {
+            "type": "string"
+          },
+          "stt_chain": {
+            "type": "string"
+          },
+          "grader_backends": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "stt_backends": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "ready_grader_backends": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "ready_stt_backends": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "anthropic_api_key": {
+            "$ref": "#/components/schemas/SecretState"
+          },
+          "anthropic_model": {
+            "type": "string"
+          },
+          "known_anthropic_models": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/KnownModel"
+            }
+          },
+          "known_openai_models": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/KnownModel"
+            }
+          },
+          "known_whisper_models": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/KnownModel"
+            }
+          }
+        },
+        "required": [
+          "llm_provider",
+          "gemini_model",
+          "orthoepy_enabled",
+          "known_gemini_models",
+          "azure_openai_endpoint",
+          "azure_openai_deployment",
+          "azure_openai_api_version",
+          "gemini_api_key",
+          "azure_openai_api_key",
+          "azure_ready",
+          "active_provider",
+          "stt_provider",
+          "azure_speech_region",
+          "whisper_model",
+          "openai_grader_model",
+          "azure_speech_key",
+          "openai_api_key",
+          "azure_speech_ready",
+          "stt_active_provider",
+          "grader_chain",
+          "stt_chain",
+          "grader_backends",
+          "stt_backends",
+          "ready_grader_backends",
+          "ready_stt_backends",
+          "anthropic_api_key",
+          "anthropic_model",
+          "known_anthropic_models",
+          "known_openai_models",
+          "known_whisper_models"
+        ]
+      },
+      "AiSettingsUpdate": {
+        "type": "object",
+        "properties": {
+          "llm_provider": {
+            "type": "string",
+            "nullable": true
+          },
+          "gemini_model": {
+            "type": "string",
+            "nullable": true
+          },
+          "gemini_api_key": {
+            "type": "string",
+            "nullable": true
+          },
+          "orthoepy_enabled": {
+            "type": "string",
+            "nullable": true
+          },
+          "azure_openai_endpoint": {
+            "type": "string",
+            "nullable": true
+          },
+          "azure_openai_api_key": {
+            "type": "string",
+            "nullable": true
+          },
+          "azure_openai_deployment": {
+            "type": "string",
+            "nullable": true
+          },
+          "azure_openai_api_version": {
+            "type": "string",
+            "nullable": true
+          },
+          "stt_provider": {
+            "type": "string",
+            "nullable": true
+          },
+          "azure_speech_region": {
+            "type": "string",
+            "nullable": true
+          },
+          "whisper_model": {
+            "type": "string",
+            "nullable": true
+          },
+          "openai_grader_model": {
+            "type": "string",
+            "nullable": true
+          },
+          "azure_speech_key": {
+            "type": "string",
+            "nullable": true
+          },
+          "openai_api_key": {
+            "type": "string",
+            "nullable": true
+          },
+          "grader_chain": {
+            "type": "string",
+            "nullable": true
+          },
+          "stt_chain": {
+            "type": "string",
+            "nullable": true
+          },
+          "anthropic_api_key": {
+            "type": "string",
+            "nullable": true
+          },
+          "anthropic_model": {
+            "type": "string",
+            "nullable": true
+          }
+        }
+      },
+      "AssignmentResponse": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "student_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "student_name": {
+            "type": "string",
+            "nullable": true
+          },
+          "question_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "question_title": {
+            "type": "string",
+            "nullable": true
+          },
+          "question_topic": {
+            "type": "string",
+            "nullable": true
+          },
+          "question_level": {
+            "type": "string",
+            "nullable": true
+          },
+          "due_at": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "completed": {
+            "type": "boolean"
+          },
+          "submission_id": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          },
+          "overall_band": {
+            "type": "number",
+            "format": "double",
+            "nullable": true
+          },
+          "max_attempts": {
+            "type": "integer",
+            "format": "int32",
+            "nullable": true
+          },
+          "attempts_used": {
+            "type": "integer",
+            "format": "int32"
+          }
+        },
+        "required": [
+          "id",
+          "student_id",
+          "question_id",
+          "created_at",
+          "completed"
+        ]
+      },
+      "AttemptDetailResponse": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "status": {
+            "type": "string"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "completed_at": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "question_title": {
+            "type": "string",
+            "nullable": true
+          },
+          "question_topic": {
+            "type": "string",
+            "nullable": true
+          },
+          "question_level": {
+            "type": "string",
+            "nullable": true
+          },
+          "reference_text": {
+            "type": "string",
+            "nullable": true
+          },
+          "model_answer_text": {
+            "type": "string",
+            "nullable": true
+          },
+          "audio_url": {
+            "type": "string",
+            "nullable": true
+          },
+          "audio_duration_sec": {
+            "type": "number",
+            "format": "double",
+            "nullable": true
+          },
+          "audio_expired": {
+            "type": "boolean"
+          },
+          "transcript": {
+            "type": "string",
+            "nullable": true
+          },
+          "band": {
+            "type": "integer",
+            "format": "int32",
+            "nullable": true
+          },
+          "overall_band": {
+            "type": "number",
+            "format": "double",
+            "nullable": true
+          },
+          "fluency_score": {
+            "type": "number",
+            "format": "double",
+            "nullable": true
+          },
+          "lexical_score": {
+            "type": "number",
+            "format": "double",
+            "nullable": true
+          },
+          "grammar_score": {
+            "type": "number",
+            "format": "double",
+            "nullable": true
+          },
+          "pronunciation_score": {
+            "type": "number",
+            "format": "double",
+            "nullable": true
+          },
+          "relevance_score": {
+            "type": "number",
+            "format": "double",
+            "nullable": true
+          },
+          "feedback": {
+            "type": "string",
+            "nullable": true
+          },
+          "corrections": {
+            "type": "string",
+            "nullable": true
+          },
+          "teacher_band": {
+            "type": "number",
+            "format": "double",
+            "nullable": true
+          },
+          "teacher_comment": {
+            "type": "string",
+            "nullable": true
+          },
+          "reviewed_at": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "words": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TranscriptWordResponse"
+            }
+          },
+          "student_name": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "required": [
+          "id",
+          "status",
+          "created_at",
+          "audio_expired",
+          "words"
+        ]
+      },
+      "AuthConfigResponse": {
+        "type": "object",
+        "properties": {
+          "google": {
+            "type": "boolean"
+          },
+          "otp_delivery": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "google",
+          "otp_delivery"
+        ]
+      },
+      "CheckoutRequest": {
+        "type": "object",
+        "properties": {
+          "plan_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "idempotency_key": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "required": [
+          "plan_id"
+        ]
+      },
+      "CheckoutResponse": {
+        "type": "object",
+        "properties": {
+          "intent_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "status": {
+            "type": "string"
+          },
+          "provider": {
+            "type": "string"
+          },
+          "amount_minor": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "currency": {
+            "type": "string"
+          },
+          "reason": {
+            "type": "string",
+            "nullable": true
+          },
+          "redirect_url": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "required": [
+          "intent_id",
+          "status",
+          "provider",
+          "amount_minor",
+          "currency"
+        ]
+      },
+      "CreateAssignmentRequest": {
+        "type": "object",
+        "properties": {
+          "question_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "student_ids": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "nullable": true
+          },
+          "group_id": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          },
+          "due_at": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "max_attempts": {
+            "type": "integer",
+            "format": "int32",
+            "nullable": true
+          }
+        },
+        "required": [
+          "question_id"
+        ]
+      },
+      "CreateBlockRequest": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "nullable": true
+          },
+          "topic": {
+            "type": "string",
+            "nullable": true
+          },
+          "level": {
+            "type": "string",
+            "nullable": true
+          },
+          "ru_style": {
+            "type": "string",
+            "nullable": true
+          },
+          "visibility": {
+            "type": "string",
+            "nullable": true
+          }
+        }
+      },
+      "CreateGroupRequest": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "nullable": true
+          }
+        }
+      },
+      "CreateModuleAssignmentRequest": {
+        "type": "object",
+        "properties": {
+          "block_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "student_ids": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "nullable": true
+          },
+          "group_id": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          },
+          "due_at": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "max_attempts": {
+            "type": "integer",
+            "format": "int32",
+            "nullable": true
+          }
+        },
+        "required": [
+          "block_id"
+        ]
+      },
+      "CreateQuestionRequest": {
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string",
+            "nullable": true
+          },
+          "prompt_text": {
+            "type": "string",
+            "nullable": true
+          },
+          "level": {
+            "type": "string",
+            "nullable": true
+          },
+          "topic": {
+            "type": "string",
+            "nullable": true
+          },
+          "ru_style": {
+            "type": "string",
+            "nullable": true
+          },
+          "instruction_text": {
+            "type": "string",
+            "nullable": true
+          },
+          "model_answer_text": {
+            "type": "string",
+            "nullable": true
+          },
+          "prep_time_sec": {
+            "type": "integer",
+            "format": "int32",
+            "nullable": true
+          },
+          "answer_time_limit_sec": {
+            "type": "integer",
+            "format": "int32",
+            "nullable": true
+          },
+          "block_id": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          }
+        }
+      },
+      "CreateReviewsRequest": {
+        "type": "object",
+        "properties": {
+          "question_ids": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          "student_ids": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "nullable": true
+          },
+          "group_id": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          }
+        },
+        "required": [
+          "question_ids"
+        ]
+      },
+      "DailyPhraseResponse": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "text": {
+            "type": "string"
+          },
+          "level": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "text",
+          "level"
+        ]
+      },
+      "DailySessionResponse": {
+        "type": "object",
+        "properties": {
+          "day": {
+            "type": "string"
+          },
+          "streak": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "completed": {
+            "type": "boolean"
+          },
+          "steps": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DailyStepResponse"
+            }
+          }
+        },
+        "required": [
+          "day",
+          "streak",
+          "completed",
+          "steps"
+        ]
+      },
+      "DailyStepResponse": {
+        "type": "object",
+        "properties": {
+          "kind": {
+            "type": "string"
+          },
+          "done": {
+            "type": "boolean"
+          },
+          "est_seconds": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "phrases": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DailyPhraseResponse"
+            }
+          },
+          "task_id": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          },
+          "task_title": {
+            "type": "string",
+            "nullable": true
+          },
+          "module_name": {
+            "type": "string",
+            "nullable": true
+          },
+          "level": {
+            "type": "string",
+            "nullable": true
+          },
+          "due_count": {
+            "type": "integer",
+            "format": "int32",
+            "nullable": true
+          }
+        },
+        "required": [
+          "kind",
+          "done",
+          "est_seconds",
+          "phrases"
+        ]
+      },
+      "DrillAttemptRequest": {
+        "type": "object",
+        "properties": {
+          "pair_slug": {
+            "type": "string",
+            "nullable": true
+          },
+          "target_word": {
+            "type": "string",
+            "nullable": true
+          }
+        }
+      },
+      "DrillCatalogResponse": {
+        "type": "object",
+        "properties": {
+          "state": {
+            "$ref": "#/components/schemas/DrillState"
+          },
+          "pairs": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DrillPairResponse"
+            }
+          },
+          "daily_left": {
+            "type": "integer",
+            "format": "int32"
+          }
+        },
+        "required": [
+          "state",
+          "pairs",
+          "daily_left"
+        ]
+      },
+      "DrillOutcome": {
+        "type": "string",
+        "enum": [
+          "Correct",
+          "Twin",
+          "Other",
+          "Silent"
+        ]
+      },
+      "DrillPairResponse": {
+        "type": "object",
+        "properties": {
+          "slug": {
+            "type": "string"
+          },
+          "contrast_ru": {
+            "type": "string"
+          },
+          "why_uz": {
+            "type": "string"
+          },
+          "level": {
+            "type": "string"
+          },
+          "word_a": {
+            "type": "string"
+          },
+          "word_b": {
+            "type": "string"
+          },
+          "gloss_a_uz": {
+            "type": "string"
+          },
+          "gloss_b_uz": {
+            "type": "string"
+          },
+          "ipa_a": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "ipa_b": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "focus_index_a": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "focus_index_b": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "attempts": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "correct": {
+            "type": "integer",
+            "format": "int32"
+          }
+        },
+        "required": [
+          "slug",
+          "contrast_ru",
+          "why_uz",
+          "level",
+          "word_a",
+          "word_b",
+          "gloss_a_uz",
+          "gloss_b_uz",
+          "ipa_a",
+          "ipa_b",
+          "focus_index_a",
+          "focus_index_b",
+          "attempts",
+          "correct"
+        ]
+      },
+      "DrillPhonemeResponse": {
+        "type": "object",
+        "properties": {
+          "ipa": {
+            "type": "string"
+          },
+          "score": {
+            "type": "number",
+            "format": "double",
+            "nullable": true
+          },
+          "focus": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "ipa",
+          "focus"
+        ]
+      },
+      "DrillResultResponse": {
+        "type": "object",
+        "properties": {
+          "state": {
+            "$ref": "#/components/schemas/DrillState"
+          },
+          "outcome": {
+            "$ref": "#/components/schemas/DrillOutcome"
+          },
+          "target_word": {
+            "type": "string"
+          },
+          "heard_text": {
+            "type": "string",
+            "nullable": true
+          },
+          "heard_word": {
+            "type": "string",
+            "nullable": true
+          },
+          "accuracy": {
+            "type": "number",
+            "format": "double",
+            "nullable": true
+          },
+          "phonemes": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DrillPhonemeResponse"
+            }
+          },
+          "daily_left": {
+            "type": "integer",
+            "format": "int32"
+          }
+        },
+        "required": [
+          "state",
+          "outcome",
+          "target_word",
+          "phonemes",
+          "daily_left"
+        ]
+      },
+      "DrillState": {
+        "type": "string",
+        "enum": [
+          "Ready",
+          "Disabled",
+          "Unconfigured",
+          "BudgetSpent"
+        ]
+      },
+      "FeatureFlagsResponse": {
+        "type": "object",
+        "properties": {
+          "review_drill_enabled": {
+            "type": "boolean"
+          },
+          "roleplay_enabled": {
+            "type": "boolean"
+          },
+          "roleplay_max_turns": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "roleplay_daily_turns": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "class_insights_enabled": {
+            "type": "boolean"
+          },
+          "daily_five_enabled": {
+            "type": "boolean"
+          },
+          "phoneme_drill_enabled": {
+            "type": "boolean"
+          },
+          "phoneme_drill_daily_attempts": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "payments_enabled": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "review_drill_enabled",
+          "roleplay_enabled",
+          "roleplay_max_turns",
+          "roleplay_daily_turns"
+        ]
+      },
+      "FeatureFlagsUpdate": {
+        "type": "object",
+        "properties": {
+          "review_drill_enabled": {
+            "type": "string",
+            "nullable": true
+          },
+          "roleplay_enabled": {
+            "type": "string",
+            "nullable": true
+          },
+          "roleplay_max_turns": {
+            "type": "string",
+            "nullable": true
+          },
+          "roleplay_daily_turns": {
+            "type": "string",
+            "nullable": true
+          },
+          "class_insights_enabled": {
+            "type": "string",
+            "nullable": true
+          },
+          "daily_five_enabled": {
+            "type": "string",
+            "nullable": true
+          },
+          "phoneme_drill_enabled": {
+            "type": "string",
+            "nullable": true
+          },
+          "phoneme_drill_daily_attempts": {
+            "type": "string",
+            "nullable": true
+          },
+          "payments_enabled": {
+            "type": "string",
+            "nullable": true
+          }
+        }
+      },
+      "GoogleAuthRequest": {
+        "type": "object",
+        "properties": {
+          "credential": {
+            "type": "string"
+          },
+          "group_code": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "required": [
+          "credential"
+        ]
+      },
+      "GradebookRowResponse": {
+        "type": "object",
+        "properties": {
+          "student_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "full_name": {
+            "type": "string"
+          },
+          "email": {
+            "type": "string"
+          },
+          "attempts": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "avg_band": {
+            "type": "number",
+            "format": "double",
+            "nullable": true
+          },
+          "best_band": {
+            "type": "number",
+            "format": "double",
+            "nullable": true
+          },
+          "last_activity": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "fluency": {
+            "type": "number",
+            "format": "double",
+            "nullable": true
+          },
+          "grammar": {
+            "type": "number",
+            "format": "double",
+            "nullable": true
+          },
+          "pronunciation": {
+            "type": "number",
+            "format": "double",
+            "nullable": true
+          },
+          "lexical": {
+            "type": "number",
+            "format": "double",
+            "nullable": true
+          },
+          "trend_delta": {
+            "type": "number",
+            "format": "double",
+            "nullable": true
+          }
+        },
+        "required": [
+          "student_id",
+          "full_name",
+          "email",
+          "attempts"
+        ]
+      },
+      "GradingProgressEvent": {
+        "type": "object",
+        "properties": {
+          "submission_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "state": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string",
+            "nullable": true
+          },
+          "at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "submission_id",
+          "state",
+          "status",
+          "at"
+        ]
+      },
+      "GroupDetailResponse": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string"
+          },
+          "join_code": {
+            "type": "string"
+          },
+          "member_count": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "teacher_id": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          },
+          "teacher_name": {
+            "type": "string",
+            "nullable": true
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "members": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/GroupMemberResponse"
+            }
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "join_code",
+          "member_count",
+          "created_at",
+          "members"
+        ]
+      },
+      "GroupJoinRequestResponse": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "group_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "group_name": {
+            "type": "string"
+          },
+          "join_code": {
+            "type": "string"
+          },
+          "student_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "student_name": {
+            "type": "string"
+          },
+          "student_email": {
+            "type": "string"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "group_id",
+          "group_name",
+          "join_code",
+          "student_id",
+          "student_name",
+          "student_email",
+          "created_at"
+        ]
+      },
+      "GroupMemberResponse": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "full_name": {
+            "type": "string"
+          },
+          "email": {
+            "type": "string"
+          },
+          "is_premium": {
+            "type": "boolean"
+          },
+          "submission_count": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "joined_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "full_name",
+          "email",
+          "is_premium",
+          "submission_count",
+          "joined_at"
+        ]
+      },
+      "GroupResponse": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string"
+          },
+          "join_code": {
+            "type": "string"
+          },
+          "member_count": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "teacher_id": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          },
+          "teacher_name": {
+            "type": "string",
+            "nullable": true
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "join_code",
+          "member_count",
+          "created_at"
+        ]
+      },
+      "GuestAssessResponse": {
+        "type": "object",
+        "properties": {
+          "transcript": {
+            "type": "string",
+            "nullable": true
+          },
+          "phrase": {
+            "type": "string"
+          },
+          "overall": {
+            "type": "integer",
+            "format": "int32",
+            "nullable": true
+          },
+          "criteria": {
+            "$ref": "#/components/schemas/GuestCriteria"
+          },
+          "errors": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/GuestWordError"
+            }
+          },
+          "level": {
+            "type": "string"
+          },
+          "on_topic": {
+            "type": "boolean"
+          },
+          "completeness": {
+            "type": "integer",
+            "format": "int32",
+            "nullable": true
+          },
+          "scored": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "phrase",
+          "criteria",
+          "errors",
+          "level",
+          "on_topic",
+          "scored"
+        ]
+      },
+      "GuestCriteria": {
+        "type": "object",
+        "properties": {
+          "pronunciation": {
+            "type": "integer",
+            "format": "int32",
+            "nullable": true
+          },
+          "stress": {
+            "type": "integer",
+            "format": "int32",
+            "nullable": true
+          },
+          "intonation": {
+            "type": "integer",
+            "format": "int32",
+            "nullable": true
+          },
+          "fluency": {
+            "type": "integer",
+            "format": "int32",
+            "nullable": true
+          },
+          "grammar": {
+            "type": "integer",
+            "format": "int32",
+            "nullable": true
+          }
+        }
+      },
+      "GuestDemoResponse": {
+        "type": "object",
+        "properties": {
+          "phrase": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "phrase"
+        ]
+      },
+      "GuestWordError": {
+        "type": "object",
+        "properties": {
+          "word": {
+            "type": "string"
+          },
+          "accuracy": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "error_type": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "required": [
+          "word",
+          "accuracy"
+        ]
+      },
+      "InsightsDayPoint": {
+        "type": "object",
+        "properties": {
+          "date": {
+            "type": "string",
+            "format": "date"
+          },
+          "attempts": {
+            "type": "integer",
+            "format": "int32"
+          }
+        },
+        "required": [
+          "date",
+          "attempts"
+        ]
+      },
+      "InsightsErrorResponse": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string"
+          },
+          "count": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "student_count": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "share": {
+            "type": "number",
+            "format": "double"
+          },
+          "remediation": {
+            "nullable": true,
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/InsightsRemediationResponse"
+              }
+            ]
+          }
+        },
+        "required": [
+          "type",
+          "count",
+          "student_count",
+          "share"
+        ]
+      },
+      "InsightsMonthPoint": {
+        "type": "object",
+        "properties": {
+          "year": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "month": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "avg": {
+            "type": "number",
+            "format": "double",
+            "nullable": true
+          },
+          "attempts": {
+            "type": "integer",
+            "format": "int32"
+          }
+        },
+        "required": [
+          "year",
+          "month",
+          "attempts"
+        ]
+      },
+      "InsightsRemediationResponse": {
+        "type": "object",
+        "properties": {
+          "question_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "question_title": {
+            "type": "string"
+          },
+          "question_topic": {
+            "type": "string",
+            "nullable": true
+          },
+          "question_level": {
+            "type": "string",
+            "nullable": true
+          },
+          "students": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/InsightsRemediationStudent"
+            }
+          }
+        },
+        "required": [
+          "question_id",
+          "question_title",
+          "students"
+        ]
+      },
+      "InsightsRemediationStudent": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "full_name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "full_name"
+        ]
+      },
+      "InsightsResponse": {
+        "type": "object",
+        "properties": {
+          "class_avg": {
+            "type": "number",
+            "format": "double",
+            "nullable": true
+          },
+          "class_level": {
+            "type": "string",
+            "nullable": true
+          },
+          "class_level_label": {
+            "type": "string",
+            "nullable": true
+          },
+          "trend_delta": {
+            "type": "number",
+            "format": "double",
+            "nullable": true
+          },
+          "trend": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/InsightsMonthPoint"
+            }
+          },
+          "active_students": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "total_students": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "assignments_done": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "assignments_total": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "practice_sec_week": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "reviewed_week": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "skills": {
+            "$ref": "#/components/schemas/InsightsSkillsResponse"
+          },
+          "week": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/InsightsDayPoint"
+            }
+          },
+          "errors": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/InsightsErrorResponse"
+            }
+          },
+          "remediation_enabled": {
+            "type": "boolean"
+          },
+          "remediation_min_students": {
+            "type": "integer",
+            "format": "int32"
+          }
+        },
+        "required": [
+          "trend",
+          "active_students",
+          "total_students",
+          "assignments_done",
+          "assignments_total",
+          "practice_sec_week",
+          "reviewed_week",
+          "skills",
+          "week",
+          "errors"
+        ]
+      },
+      "InsightsSkillsResponse": {
+        "type": "object",
+        "properties": {
+          "fluency": {
+            "type": "number",
+            "format": "double",
+            "nullable": true
+          },
+          "grammar": {
+            "type": "number",
+            "format": "double",
+            "nullable": true
+          },
+          "pronunciation": {
+            "type": "number",
+            "format": "double",
+            "nullable": true
+          },
+          "lexical": {
+            "type": "number",
+            "format": "double",
+            "nullable": true
+          }
+        }
+      },
+      "JoinGroupRequest": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "nullable": true
+          }
+        }
+      },
+      "JoinGroupResponse": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string"
+          },
+          "join_code": {
+            "type": "string"
+          },
+          "member_count": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "teacher_id": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          },
+          "teacher_name": {
+            "type": "string",
+            "nullable": true
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "pending": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "join_code",
+          "member_count",
+          "created_at",
+          "pending"
+        ]
+      },
+      "KnownModel": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "label": {
+            "type": "string"
+          },
+          "note": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "label"
+        ]
+      },
+      "LeaderboardEntryResponse": {
+        "type": "object",
+        "properties": {
+          "rank": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "full_name": {
+            "type": "string"
+          },
+          "xp": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "weekly_xp": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "current_streak": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "is_me": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "rank",
+          "id",
+          "full_name",
+          "xp",
+          "weekly_xp",
+          "current_streak",
+          "is_me"
+        ]
+      },
+      "LinksResponse": {
+        "type": "object",
+        "properties": {
+          "tg_support_url": {
+            "type": "string"
+          },
+          "tg_channel_url": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "tg_support_url",
+          "tg_channel_url"
+        ]
+      },
+      "LinksUpdate": {
+        "type": "object",
+        "properties": {
+          "tg_support_url": {
+            "type": "string",
+            "nullable": true
+          },
+          "tg_channel_url": {
+            "type": "string",
+            "nullable": true
+          }
+        }
+      },
+      "LogoutRequest": {
+        "type": "object",
+        "properties": {
+          "refresh_token": {
+            "type": "string",
+            "nullable": true
+          }
+        }
+      },
+      "MeResponse": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "email": {
+            "type": "string"
+          },
+          "full_name": {
+            "type": "string"
+          },
+          "role": {
+            "type": "string"
+          },
+          "is_active": {
+            "type": "boolean"
+          },
+          "is_premium": {
+            "type": "boolean"
+          },
+          "region": {
+            "type": "string",
+            "nullable": true
+          },
+          "district": {
+            "type": "string",
+            "nullable": true
+          },
+          "address": {
+            "type": "string",
+            "nullable": true
+          },
+          "phone": {
+            "type": "string",
+            "nullable": true
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "level": {
+            "type": "string",
+            "nullable": true
+          },
+          "level_label": {
+            "type": "string",
+            "nullable": true
+          },
+          "avatar_url": {
+            "type": "string",
+            "nullable": true
+          },
+          "notifications_enabled": {
+            "type": "boolean"
+          },
+          "preferred_language": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "email",
+          "full_name",
+          "role",
+          "is_active",
+          "is_premium"
+        ]
+      },
+      "NeedsRegistrationResponse": {
+        "type": "object",
+        "properties": {
+          "needs_registration": {
+            "type": "boolean"
+          }
+        }
+      },
+      "NotificationResponse": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "type": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "body": {
+            "type": "string",
+            "nullable": true
+          },
+          "link": {
+            "type": "string",
+            "nullable": true
+          },
+          "is_read": {
+            "type": "boolean"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "type",
+          "title",
+          "is_read",
+          "created_at"
+        ]
+      },
+      "NullGradingEvents": {
+        "type": "object",
+        "properties": {}
+      },
+      "OtpRequestRequest": {
+        "type": "object",
+        "properties": {
+          "phone": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "phone"
+        ]
+      },
+      "OtpSentResponse": {
+        "type": "object",
+        "properties": {
+          "ok": {
+            "type": "boolean"
+          },
+          "delivery": {
+            "type": "string"
+          },
+          "expires_in": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "telegram_link": {
+            "type": "string",
+            "nullable": true
+          },
+          "dev_hint": {
+            "type": "string",
+            "nullable": true
+          },
+          "request_id": {
+            "type": "string",
+            "nullable": true
+          },
+          "telegram_mode": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "required": [
+          "ok",
+          "delivery",
+          "expires_in"
+        ]
+      },
+      "OtpStatusResponse": {
+        "type": "object",
+        "properties": {
+          "state": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "state"
+        ]
+      },
+      "OtpVerifyRequest": {
+        "type": "object",
+        "properties": {
+          "phone": {
+            "type": "string"
+          },
+          "code": {
+            "type": "string"
+          },
+          "full_name": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "required": [
+          "phone",
+          "code"
+        ]
+      },
+      "PhoneChangeConfirmRequest": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "code"
+        ]
+      },
+      "PhoneChangeRequestRequest": {
+        "type": "object",
+        "properties": {
+          "new_phone": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "new_phone"
+        ]
+      },
+      "PlacementCompleteRequest": {
+        "type": "object",
+        "properties": {
+          "bands": {
+            "type": "array",
+            "items": {
+              "type": "number",
+              "format": "double"
+            }
+          }
+        },
+        "required": [
+          "bands"
+        ]
+      },
+      "PlacementQuestionResponse": {
+        "type": "object",
+        "properties": {
+          "index": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "prompt_ru": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "index",
+          "prompt_ru"
+        ]
+      },
+      "PlacementResultResponse": {
+        "type": "object",
+        "properties": {
+          "level": {
+            "type": "string"
+          },
+          "label_uz": {
+            "type": "string"
+          },
+          "band": {
+            "type": "number",
+            "format": "double"
+          }
+        },
+        "required": [
+          "level",
+          "label_uz",
+          "band"
+        ]
+      },
+      "PlacementSubmitResponse": {
+        "type": "object",
+        "properties": {
+          "index": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "band": {
+            "type": "number",
+            "format": "double"
+          }
+        },
+        "required": [
+          "index",
+          "band"
+        ]
+      },
+      "PlanResponse": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "code": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string",
+            "nullable": true
+          },
+          "price_minor": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "currency": {
+            "type": "string"
+          },
+          "duration_days": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "is_active": {
+            "type": "boolean"
+          },
+          "sort_order": {
+            "type": "integer",
+            "format": "int32"
+          }
+        },
+        "required": [
+          "id",
+          "code",
+          "name",
+          "price_minor",
+          "currency",
+          "duration_days",
+          "is_active",
+          "sort_order"
+        ]
+      },
+      "PlanUpsertRequest": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "nullable": true
+          },
+          "name": {
+            "type": "string",
+            "nullable": true
+          },
+          "description": {
+            "type": "string",
+            "nullable": true
+          },
+          "price_minor": {
+            "type": "integer",
+            "format": "int64",
+            "nullable": true
+          },
+          "currency": {
+            "type": "string",
+            "nullable": true
+          },
+          "duration_days": {
+            "type": "integer",
+            "format": "int32",
+            "nullable": true
+          },
+          "is_active": {
+            "type": "boolean",
+            "nullable": true
+          },
+          "sort_order": {
+            "type": "integer",
+            "format": "int32",
+            "nullable": true
+          }
+        }
+      },
+      "ProfileResultItemResponse": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "title": {
+            "type": "string"
+          },
+          "band": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "trend": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "title",
+          "band",
+          "created_at",
+          "trend"
+        ]
+      },
+      "ProfileStatsResponse": {
+        "type": "object",
+        "properties": {
+          "attempts": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "avg_band": {
+            "type": "number",
+            "format": "double",
+            "nullable": true
+          },
+          "current_streak": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "longest_streak": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "total_practice_sec": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "level": {
+            "type": "string",
+            "nullable": true
+          },
+          "level_label": {
+            "type": "string",
+            "nullable": true
+          },
+          "xp": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "today_practice_sec": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "week_practice_sec": {
+            "type": "integer",
+            "format": "int32"
+          }
+        },
+        "required": [
+          "attempts",
+          "current_streak",
+          "longest_streak",
+          "total_practice_sec",
+          "xp"
+        ]
+      },
+      "ProgressLeaderboardResponse": {
+        "type": "object",
+        "properties": {
+          "period": {
+            "type": "string"
+          },
+          "league": {
+            "type": "string"
+          },
+          "my_rank": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "total_students": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "percentile": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "my_xp": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "current_streak": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "rank_delta": {
+            "type": "integer",
+            "format": "int32",
+            "nullable": true
+          },
+          "neighbors": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ProgressLeaderboardRowResponse"
+            }
+          }
+        },
+        "required": [
+          "period",
+          "league",
+          "my_rank",
+          "total_students",
+          "percentile",
+          "my_xp",
+          "current_streak",
+          "neighbors"
+        ]
+      },
+      "ProgressLeaderboardRowResponse": {
+        "type": "object",
+        "properties": {
+          "rank": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "full_name": {
+            "type": "string"
+          },
+          "xp": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "is_me": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "rank",
+          "id",
+          "full_name",
+          "xp",
+          "is_me"
+        ]
+      },
+      "ProgressSkillResponse": {
+        "type": "object",
+        "properties": {
+          "key": {
+            "type": "string"
+          },
+          "score": {
+            "type": "integer",
+            "format": "int32"
+          }
+        },
+        "required": [
+          "key",
+          "score"
+        ]
+      },
+      "ProgressSkillsResponse": {
+        "type": "object",
+        "properties": {
+          "level": {
+            "type": "string",
+            "nullable": true
+          },
+          "level_label": {
+            "type": "string",
+            "nullable": true
+          },
+          "band": {
+            "type": "number",
+            "format": "double",
+            "nullable": true
+          },
+          "band_delta": {
+            "type": "number",
+            "format": "double",
+            "nullable": true
+          },
+          "delta_weeks": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "trend": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ProgressTrendPointResponse"
+            }
+          },
+          "skills": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ProgressSkillResponse"
+            }
+          }
+        },
+        "required": [
+          "delta_weeks",
+          "trend",
+          "skills"
+        ]
+      },
+      "ProgressTrendPointResponse": {
+        "type": "object",
+        "properties": {
+          "week_index": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "band": {
+            "type": "number",
+            "format": "double"
+          }
+        },
+        "required": [
+          "week_index",
+          "band"
+        ]
+      },
+      "ProviderProbe": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string"
+          },
+          "configured": {
+            "type": "boolean"
+          },
+          "ok": {
+            "type": "boolean"
+          },
+          "model": {
+            "type": "string",
+            "nullable": true
+          },
+          "error": {
+            "type": "string",
+            "nullable": true
+          },
+          "elapsed_ms": {
+            "type": "integer",
+            "format": "int32"
+          }
+        },
+        "required": [
+          "name",
+          "kind",
+          "configured",
+          "ok",
+          "elapsed_ms"
+        ]
+      },
+      "RefreshRequest": {
+        "type": "object",
+        "properties": {
+          "refresh_token": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "refresh_token"
+        ]
+      },
+      "RevealResponse": {
+        "type": "object",
+        "properties": {
+          "key": {
+            "type": "string"
+          },
+          "value": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "key",
+          "value"
+        ]
+      },
+      "ReviewAnswerRequest": {
+        "type": "object",
+        "properties": {
+          "outcome": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "outcome"
+        ]
+      },
+      "ReviewAnswerResponse": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "round": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "total_rounds": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "graduated": {
+            "type": "boolean"
+          },
+          "next_due_at": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "remaining_due": {
+            "type": "integer",
+            "format": "int32"
+          }
+        },
+        "required": [
+          "id",
+          "round",
+          "total_rounds",
+          "graduated",
+          "remaining_due"
+        ]
+      },
+      "ReviewDrillItemResponse": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "question_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "question_title": {
+            "type": "string"
+          },
+          "prompt_text": {
+            "type": "string"
+          },
+          "instruction_text": {
+            "type": "string",
+            "nullable": true
+          },
+          "model_answer_text": {
+            "type": "string",
+            "nullable": true
+          },
+          "question_topic": {
+            "type": "string",
+            "nullable": true
+          },
+          "question_level": {
+            "type": "string",
+            "nullable": true
+          },
+          "weakness_dim": {
+            "type": "string"
+          },
+          "round": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "total_rounds": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "due_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "question_id",
+          "question_title",
+          "prompt_text",
+          "weakness_dim",
+          "round",
+          "total_rounds",
+          "due_at"
+        ]
+      },
+      "ReviewDrillResponse": {
+        "type": "object",
+        "properties": {
+          "due_count": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "total_rounds": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ReviewDrillItemResponse"
+            }
+          }
+        },
+        "required": [
+          "due_count",
+          "total_rounds",
+          "items"
+        ]
+      },
+      "ReviewItemResponse": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "question_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "question_title": {
+            "type": "string",
+            "nullable": true
+          },
+          "question_topic": {
+            "type": "string",
+            "nullable": true
+          },
+          "question_level": {
+            "type": "string",
+            "nullable": true
+          },
+          "weakness_dim": {
+            "type": "string"
+          },
+          "due_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "question_id",
+          "weakness_dim",
+          "due_at"
+        ]
+      },
+      "ReviewSubmissionRequest": {
+        "type": "object",
+        "properties": {
+          "teacher_band": {
+            "type": "number",
+            "format": "double",
+            "nullable": true
+          },
+          "teacher_comment": {
+            "type": "string",
+            "nullable": true
+          }
+        }
+      },
+      "RoleplayCatalogResponse": {
+        "type": "object",
+        "properties": {
+          "state": {
+            "type": "string"
+          },
+          "scenarios": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RoleplayScenarioResponse"
+            }
+          },
+          "max_turns": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "daily_turns_left": {
+            "type": "integer",
+            "format": "int32"
+          }
+        },
+        "required": [
+          "state",
+          "scenarios",
+          "max_turns",
+          "daily_turns_left"
+        ]
+      },
+      "RoleplayCorrection": {
+        "type": "object",
+        "properties": {
+          "original": {
+            "type": "string"
+          },
+          "corrected": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string"
+          },
+          "explanation": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "original",
+          "corrected",
+          "type",
+          "explanation"
+        ]
+      },
+      "RoleplayScenarioResponse": {
+        "type": "object",
+        "properties": {
+          "slug": {
+            "type": "string"
+          },
+          "title_ru": {
+            "type": "string"
+          },
+          "goal_uz": {
+            "type": "string"
+          },
+          "level": {
+            "type": "string"
+          },
+          "minutes": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "tone": {
+            "type": "string"
+          },
+          "icon": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "slug",
+          "title_ru",
+          "goal_uz",
+          "level",
+          "minutes",
+          "tone",
+          "icon"
+        ]
+      },
+      "RoleplayStartRequest": {
+        "type": "object",
+        "properties": {
+          "scenario_slug": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "scenario_slug"
+        ]
+      },
+      "RoleplayStartResponse": {
+        "type": "object",
+        "properties": {
+          "state": {
+            "type": "string"
+          },
+          "conversation_id": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          },
+          "scenario": {
+            "nullable": true,
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/RoleplayScenarioResponse"
+              }
+            ]
+          },
+          "opening_ru": {
+            "type": "string",
+            "nullable": true
+          },
+          "turns_left": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "daily_turns_left": {
+            "type": "integer",
+            "format": "int32"
+          }
+        },
+        "required": [
+          "state",
+          "turns_left",
+          "daily_turns_left"
+        ]
+      },
+      "RoleplaySummaryResponse": {
+        "type": "object",
+        "properties": {
+          "state": {
+            "type": "string"
+          },
+          "conversation_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "title_ru": {
+            "type": "string"
+          },
+          "turns": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "fluency": {
+            "type": "number",
+            "format": "double",
+            "nullable": true
+          },
+          "goal_reached": {
+            "type": "boolean"
+          },
+          "phrases": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "corrections": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RoleplayCorrection"
+            }
+          }
+        },
+        "required": [
+          "state",
+          "conversation_id",
+          "title_ru",
+          "turns",
+          "goal_reached",
+          "phrases",
+          "corrections"
+        ]
+      },
+      "RoleplayTurnResponse": {
+        "type": "object",
+        "properties": {
+          "state": {
+            "type": "string"
+          },
+          "conversation_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "turn_index": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "student_text": {
+            "type": "string",
+            "nullable": true
+          },
+          "partner_ru": {
+            "type": "string"
+          },
+          "corrections": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RoleplayCorrection"
+            }
+          },
+          "retried": {
+            "type": "boolean"
+          },
+          "turns_left": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "daily_turns_left": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "finished": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "state",
+          "conversation_id",
+          "turn_index",
+          "partner_ru",
+          "corrections",
+          "retried",
+          "turns_left",
+          "daily_turns_left",
+          "finished"
+        ]
+      },
+      "SecretState": {
+        "type": "object",
+        "properties": {
+          "set": {
+            "type": "boolean"
+          },
+          "hint": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "set"
+        ]
+      },
+      "StudentModuleResponse": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string"
+          },
+          "topic": {
+            "type": "string",
+            "nullable": true
+          },
+          "level": {
+            "type": "string",
+            "nullable": true
+          },
+          "ru_style": {
+            "type": "string",
+            "nullable": true
+          },
+          "visibility": {
+            "type": "string"
+          },
+          "cover_url": {
+            "type": "string",
+            "nullable": true
+          },
+          "total": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "done_count": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "next_task_id": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          },
+          "tasks": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/StudentTaskResponse"
+            }
+          },
+          "spent_sec": {
+            "type": "integer",
+            "format": "int32"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "visibility",
+          "total",
+          "done_count",
+          "tasks",
+          "spent_sec"
+        ]
+      },
+      "StudentResponse": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "email": {
+            "type": "string"
+          },
+          "full_name": {
+            "type": "string"
+          },
+          "phone": {
+            "type": "string",
+            "nullable": true
+          },
+          "region": {
+            "type": "string",
+            "nullable": true
+          },
+          "district": {
+            "type": "string",
+            "nullable": true
+          },
+          "age": {
+            "type": "integer",
+            "format": "int32",
+            "nullable": true
+          },
+          "is_active": {
+            "type": "boolean"
+          },
+          "is_premium": {
+            "type": "boolean"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "submission_count": {
+            "type": "integer",
+            "format": "int32"
+          }
+        },
+        "required": [
+          "id",
+          "email",
+          "full_name",
+          "is_active",
+          "is_premium",
+          "created_at",
+          "submission_count"
+        ]
+      },
+      "StudentTaskResponse": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "title": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string"
+          },
+          "level": {
+            "type": "string",
+            "nullable": true
+          },
+          "sort_order": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "done": {
+            "type": "boolean"
+          },
+          "locked": {
+            "type": "boolean"
+          },
+          "premium_locked": {
+            "type": "boolean"
+          },
+          "band": {
+            "type": "integer",
+            "format": "int32",
+            "nullable": true
+          }
+        },
+        "required": [
+          "id",
+          "title",
+          "type",
+          "sort_order",
+          "done",
+          "locked",
+          "premium_locked"
+        ]
+      },
+      "StudentUpdateRequest": {
+        "type": "object",
+        "properties": {
+          "full_name": {
+            "type": "string",
+            "nullable": true
+          },
+          "is_active": {
+            "type": "boolean",
+            "nullable": true
+          },
+          "is_premium": {
+            "type": "boolean",
+            "nullable": true
+          }
+        }
+      },
+      "SubmissionResponse": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "student_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "question_id": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          },
+          "reference_text": {
+            "type": "string",
+            "nullable": true
+          },
+          "audio_key": {
+            "type": "string"
+          },
+          "audio_url": {
+            "type": "string",
+            "nullable": true
+          },
+          "audio_duration_sec": {
+            "type": "number",
+            "format": "double",
+            "nullable": true
+          },
+          "status": {
+            "type": "string"
+          },
+          "error_message": {
+            "type": "string",
+            "nullable": true
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "completed_at": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "student_name": {
+            "type": "string",
+            "nullable": true
+          },
+          "question_title": {
+            "type": "string",
+            "nullable": true
+          },
+          "question_topic": {
+            "type": "string",
+            "nullable": true
+          },
+          "question_level": {
+            "type": "string",
+            "nullable": true
+          },
+          "model_answer_text": {
+            "type": "string",
+            "nullable": true
+          },
+          "teacher_comment": {
+            "type": "string",
+            "nullable": true
+          },
+          "teacher_band": {
+            "type": "number",
+            "format": "double",
+            "nullable": true
+          },
+          "reviewed_at": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "overall_band": {
+            "type": "number",
+            "format": "double",
+            "nullable": true
+          },
+          "fluency_score": {
+            "type": "number",
+            "format": "double",
+            "nullable": true
+          },
+          "lexical_score": {
+            "type": "number",
+            "format": "double",
+            "nullable": true
+          },
+          "grammar_score": {
+            "type": "number",
+            "format": "double",
+            "nullable": true
+          },
+          "pronunciation_score": {
+            "type": "number",
+            "format": "double",
+            "nullable": true
+          }
+        },
+        "required": [
+          "id",
+          "student_id",
+          "audio_key",
+          "status",
+          "created_at"
+        ]
+      },
+      "SubscriptionStatusResponse": {
+        "type": "object",
+        "properties": {
+          "is_premium": {
+            "type": "boolean"
+          },
+          "source": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          },
+          "plan": {
+            "nullable": true,
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PlanResponse"
+              }
+            ]
+          },
+          "starts_at": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "ends_at": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "payments_enabled": {
+            "type": "boolean"
+          },
+          "provider_configured": {
+            "type": "boolean"
+          },
+          "provider": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "is_premium",
+          "source",
+          "status",
+          "payments_enabled",
+          "provider_configured",
+          "provider"
+        ]
+      },
+      "TeacherBlockDetailResponse": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string"
+          },
+          "topic": {
+            "type": "string",
+            "nullable": true
+          },
+          "level": {
+            "type": "string",
+            "nullable": true
+          },
+          "ru_style": {
+            "type": "string",
+            "nullable": true
+          },
+          "visibility": {
+            "type": "string"
+          },
+          "is_published": {
+            "type": "boolean"
+          },
+          "sort_order": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "task_count": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "student_count": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "tasks": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TeacherQuestionResponse"
+            }
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "visibility",
+          "is_published",
+          "sort_order",
+          "task_count",
+          "student_count",
+          "created_at",
+          "updated_at",
+          "tasks"
+        ]
+      },
+      "TeacherBlockResponse": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string"
+          },
+          "topic": {
+            "type": "string",
+            "nullable": true
+          },
+          "level": {
+            "type": "string",
+            "nullable": true
+          },
+          "ru_style": {
+            "type": "string",
+            "nullable": true
+          },
+          "visibility": {
+            "type": "string"
+          },
+          "is_published": {
+            "type": "boolean"
+          },
+          "sort_order": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "task_count": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "student_count": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "visibility",
+          "is_published",
+          "sort_order",
+          "task_count",
+          "student_count",
+          "created_at",
+          "updated_at"
+        ]
+      },
+      "TeacherQuestionResponse": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "title": {
+            "type": "string"
+          },
+          "prompt_text": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string"
+          },
+          "level": {
+            "type": "string",
+            "nullable": true
+          },
+          "topic": {
+            "type": "string",
+            "nullable": true
+          },
+          "ru_style": {
+            "type": "string",
+            "nullable": true
+          },
+          "instruction_text": {
+            "type": "string",
+            "nullable": true
+          },
+          "model_answer_text": {
+            "type": "string",
+            "nullable": true
+          },
+          "prep_time_sec": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "answer_time_limit_sec": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "is_published": {
+            "type": "boolean"
+          },
+          "is_public": {
+            "type": "boolean"
+          },
+          "block_id": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          },
+          "block_name": {
+            "type": "string",
+            "nullable": true
+          },
+          "sort_order": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "submission_count": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "media_url": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "required": [
+          "id",
+          "title",
+          "prompt_text",
+          "type",
+          "prep_time_sec",
+          "answer_time_limit_sec",
+          "is_published",
+          "is_public",
+          "sort_order",
+          "submission_count",
+          "created_at",
+          "updated_at"
+        ]
+      },
+      "TeacherResponse": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "email": {
+            "type": "string"
+          },
+          "full_name": {
+            "type": "string"
+          },
+          "is_active": {
+            "type": "boolean"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "question_count": {
+            "type": "integer",
+            "format": "int32"
+          }
+        },
+        "required": [
+          "id",
+          "email",
+          "full_name",
+          "is_active",
+          "created_at",
+          "question_count"
+        ]
+      },
+      "TeacherUpdateRequest": {
+        "type": "object",
+        "properties": {
+          "full_name": {
+            "type": "string",
+            "nullable": true
+          },
+          "is_active": {
+            "type": "boolean",
+            "nullable": true
+          }
+        }
+      },
+      "TokenResponse": {
+        "type": "object",
+        "properties": {
+          "access_token": {
+            "type": "string"
+          },
+          "refresh_token": {
+            "type": "string"
+          },
+          "token_type": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "access_token",
+          "refresh_token"
+        ]
+      },
+      "TranscriptWordResponse": {
+        "type": "object",
+        "properties": {
+          "word": {
+            "type": "string"
+          },
+          "start": {
+            "type": "number",
+            "format": "double",
+            "nullable": true
+          },
+          "end": {
+            "type": "number",
+            "format": "double",
+            "nullable": true
+          },
+          "accuracy": {
+            "type": "number",
+            "format": "double",
+            "nullable": true
+          },
+          "error_type": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "required": [
+          "word"
+        ]
+      },
+      "UnreadCountResponse": {
+        "type": "object",
+        "properties": {
+          "count": {
+            "type": "integer",
+            "format": "int32"
+          }
+        },
+        "required": [
+          "count"
+        ]
+      },
+      "UpdateBlockRequest": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "nullable": true
+          },
+          "topic": {
+            "type": "string",
+            "nullable": true
+          },
+          "level": {
+            "type": "string",
+            "nullable": true
+          },
+          "ru_style": {
+            "type": "string",
+            "nullable": true
+          },
+          "visibility": {
+            "type": "string",
+            "nullable": true
+          },
+          "is_published": {
+            "type": "boolean",
+            "nullable": true
+          },
+          "sort_order": {
+            "type": "integer",
+            "format": "int32",
+            "nullable": true
+          }
+        }
+      },
+      "UpdateProfileRequest": {
+        "type": "object",
+        "properties": {
+          "region": {
+            "type": "string",
+            "nullable": true
+          },
+          "district": {
+            "type": "string",
+            "nullable": true
+          },
+          "address": {
+            "type": "string",
+            "nullable": true
+          },
+          "full_name": {
+            "type": "string",
+            "nullable": true
+          },
+          "notifications_enabled": {
+            "type": "boolean",
+            "nullable": true
+          },
+          "preferred_language": {
+            "type": "string",
+            "nullable": true
+          }
+        }
+      },
+      "UpdateQuestionRequest": {
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string",
+            "nullable": true
+          },
+          "prompt_text": {
+            "type": "string",
+            "nullable": true
+          },
+          "level": {
+            "type": "string",
+            "nullable": true
+          },
+          "topic": {
+            "type": "string",
+            "nullable": true
+          },
+          "ru_style": {
+            "type": "string",
+            "nullable": true
+          },
+          "instruction_text": {
+            "type": "string",
+            "nullable": true
+          },
+          "model_answer_text": {
+            "type": "string",
+            "nullable": true
+          },
+          "prep_time_sec": {
+            "type": "integer",
+            "format": "int32",
+            "nullable": true
+          },
+          "answer_time_limit_sec": {
+            "type": "integer",
+            "format": "int32",
+            "nullable": true
+          },
+          "is_published": {
+            "type": "boolean",
+            "nullable": true
+          },
+          "sort_order": {
+            "type": "integer",
+            "format": "int32",
+            "nullable": true
+          },
+          "block_id": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          },
+          "detach_block": {
+            "type": "boolean",
+            "nullable": true
+          }
+        }
+      }
+    }
+  }
+}
