@@ -187,6 +187,41 @@ Shuning uchun:
   yiqiladi. Bunday bazani EF tarixiga **bir marta** `deploy/ef-baseline.sh` orqali
   qabul qildiring; keyingi migratsiyalar odatdagidek qo'llanadi.
 
+## Dev'da bir bosishda kirish (`/login` dagi "Namunaviy hisoblar")
+
+Development'da login sahifasida uchta seed hisob ro'yxati chiqadi — `student@govori.uz` ·
+`teacher@govori.uz` · `admin@govori.uz` — va bittasini bosish OTP'siz kirgizadi. Sabab: bitta
+telefon raqami bitta hisob, ya'ni uch rolni ketma-ket ko'rish uchun uch marta Telegram OTP kutish
+kerak edi.
+
+Bu **autentifikatsiyani chetlab o'tish**, shuning uchun u prodda *yashirilgan* emas, **mavjud
+emas**. Uch mustaqil to'siq:
+
+1. **Backend.** `GET/POST /api/auth/dev/{users,login}` faqat `environment.IsDevelopment()` bo'lganda
+   `Map*` qilinadi (`Modules/Govori.Identity/DevLoginEndpoints.cs`). Prodda ular **404** —
+   403 emas, chunki marshrut umuman ro'yxatdan o'tmagan. `IsProduction()` ni inkor qilish
+   **ataylab** ishlatilmagan: `Staging`, nomsiz muhit va `Prod` kabi xato yozuv `!IsProduction()`
+   dan o'tib ketadi. Endpoint faqat yuqoridagi uchta emailni qabul qiladi.
+2. **Frontend.** Butun panel `import.meta.env.DEV` ichida, ya'ni prod build'da Rollup uni
+   tashlab yuboradi. Matnlari ham `locales/*/common.json` da emas, alohida `locales/*/dev.json` da
+   — `common.json` **butunligicha** to'plamga tushadi, komponent olib tashlangan bo'lsa ham.
+   Tekshirish: `npm run build` dan keyin `grep -r "dev/users\|student@govori.uz" frontend/dist/`
+   → **hech narsa**.
+3. **Boot darvozasi.** `ProductionSecrets.HostProblems` mapping'ni boshqaradigan **ayni**
+   predikatni (`DevLoginEndpoints.IsEnabled`) so'raydi va u Production'da "yoqilgan" desa,
+   host **ishga tushmaydi**. Bugun bu o'lik kod — 1-qatlam buzilgan kun uchun qo'yilgan.
+
+Endpointlar `ExcludeFromDescription()` qilingan, ya'ni `openapi.json` **o'zgarmaydi**: hujjat
+prod yuzasini tasvirlaydi va ikkala muhitda bayt-ma-bayt bir xil qoladi.
+
+> **Nega dev stack'ning frontend'i endi `NODE_ENV=development` bilan quriladi.** `import.meta.env.DEV`
+> `NODE_ENV` ga bog'langan, `--mode` ga emas (`vite build` `--mode development` bilan ham
+> NODE_ENV=production qo'yadi — o'lchandi). Ilgari `docker-compose.yml` **prod** to'plamini
+> serverda ko'rsatardi, ya'ni har qanday dev asbob aynan o'zi kerak bo'lgan joyda yo'q edi.
+> `frontend/Dockerfile` dagi `BUILD_NODE_ENV` ARG **sukut bo'yicha `production`** —
+> `docker-compose.prod.yml` hech narsa uzatmaydi va qat'iy javobni oladi; dev compose esa
+> `development` deb yozadi.
+
 ## Prod'da nima farq qiladi
 - Real prod Postgres / S3 (MinIO emas) ulanadi; `S3_PUBLIC_URL` real domenga.
 - Real AI kalitlari: `AZURE_SPEECH_KEY/REGION`, `GEMINI_API_KEY`, `OPENAI_API_KEY`

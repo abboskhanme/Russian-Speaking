@@ -252,6 +252,13 @@ services:
       dockerfile: Dockerfile
       args:
         VITE_GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+        # THIS FILE IS THE DEV STACK — the same argument the backend env block above
+        # makes, applied to the SPA. Left on the image default this stack served a
+        # PRODUCTION bundle: `import.meta.env.DEV` was false, so every development-only
+        # tool (today: the login page's one-tap demo-account picker) was compiled out of
+        # the one place it is meant to be used. docker-compose.prod.yml passes nothing
+        # here and gets the strict default. See frontend/Dockerfile.
+        BUILD_NODE_ENV: "${FRONTEND_BUILD_NODE_ENV:-development}"
     image: govori/web:dev
     container_name: govori-web
     depends_on:

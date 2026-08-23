@@ -32,7 +32,23 @@ COPY . .
 # VITE_GOOGLE_CLIENT_ID is inlined into the bundle at build time (import.meta.env).
 ARG VITE_GOOGLE_CLIENT_ID=""
 ENV VITE_GOOGLE_CLIENT_ID=$VITE_GOOGLE_CLIENT_ID
-RUN npm run build
+
+# What `import.meta.env.DEV` compiles to, and therefore whether the DEVELOPMENT-ONLY
+# tools survive the build. Today that is the login page's one-tap demo-account picker
+# (see LoginScreen / DevLoginEndpoints): a bypass that must not exist in a shipped
+# bundle, so the whole block sits behind `import.meta.env.DEV` and Rollup drops it
+# when that is false.
+#
+# `vite build` pins NODE_ENV=production on its own, and `--mode development` does NOT
+# change it (mode only selects .env files) — measured, not assumed. NODE_ENV is the
+# one lever, which is why it is this and not a mode flag.
+#
+# THE DEFAULT IS production, deliberately, and it matches the reasoning docker-compose.yml
+# already spells out for ASPNETCORE_ENVIRONMENT: a build that forgets to choose must get
+# the strict answer. The dev stack opts in (docker-compose.yml passes `development`, which
+# is what makes localhost:8081 useful for development); docker-compose.prod.yml never does.
+ARG BUILD_NODE_ENV=production
+RUN NODE_ENV=$BUILD_NODE_ENV npm run build
 
 # ────────────────────────── runtime ──────────────────────────
 FROM nginx:1.27-alpine AS runtime
