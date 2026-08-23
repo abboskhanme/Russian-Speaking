@@ -17,10 +17,13 @@
 > Ziddiyat bo'lsa — shu bo'lim ustun. Belgilar: ✅ tugagan · 🟡 qisman · ⬜ boshlanmagan.
 > Qolgan ishning **ketma-ketligi** uchun → `10-YAKUNIY-ISH-REJASI.md`.
 >
-> O'lchangan baza: `dotnet build Govori.sln -c Release` **0 warning / 0 error** · to'rtala suite
-> **316 passed, 0 failed** (4 opt-in skipped; 2026-08-17 da 237 edi) · frontend `npm run build`
-> yashil, **155 vitest**, bundle **119.7 / 180 KB gz** · **14 Playwright testi** uchala rol uchun,
-> `axe` **critical 0** · jonli baholash quvuri uchidan-uchiga **10.1s** (maqsad p95 < 20s).
+> O'lchangan baza (2026-08-23 kun oxiri): `dotnet build Govori.sln -c Release`
+> **0 warning / 0 error** · to'rtala suite **418 passed, 0 failed** (207 Unit + 40 Arch +
+> 136 Integration + 35 Characterization, 4 opt-in skipped; kun boshida **237** edi) ·
+> frontend `npm run build` yashil, **189 vitest** (kun boshida 120), bundle
+> **127.8 / 180 KB gz** · **14 Playwright testi** uchala rol + auth chekkalari + mobil,
+> `axe` **critical 0** · `npm run check:contract` **0 xato** · jonli baholash quvuri
+> uchidan-uchiga **9.1s** (maqsad p95 < 20s) · 402 to'siq uchala holatda jonli tasdiqlangan.
 
 | Faza | Holat | Nimasi qolgan |
 |---|:--:|---|
