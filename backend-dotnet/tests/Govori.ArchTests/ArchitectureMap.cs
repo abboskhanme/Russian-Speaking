@@ -41,11 +41,19 @@ public static class ArchitectureMap
     /// module that would otherwise host it — Administration — must stay reachable from nothing.</summary>
     public const string Billing = "Govori.Billing";
 
+    /// <summary>The phoneme drill and its minimal-pair content (docs/01 F2). The tenth module, and
+    /// separate for much the same reason as Billing: it owns two tables of its own and shares no
+    /// part of the submit flow. It is also the ONLY caller permitted to ask the STT seam for
+    /// scripted recognition — everything else must stay unscripted (see <c>SttRecognitionMode</c>) —
+    /// and that is a capability worth keeping inside one reviewable boundary rather than spreading
+    /// through Practice.</summary>
+    public const string Drills = "Govori.Drills";
+
     /// <summary>Every domain-module namespace/assembly prefix.</summary>
     public static readonly IReadOnlyList<string> DomainModules = new[]
     {
         Identity, Catalog, Practice, Assessment,
-        Classroom, Engagement, Administration, Guest, Billing,
+        Classroom, Engagement, Administration, Guest, Billing, Drills,
     };
 
     /// <summary>The two application-host assemblies no library/module may depend on.</summary>
@@ -90,7 +98,7 @@ public static class ArchitectureMap
         {
             Api, Worker, Contracts, Infrastructure, Platform, Realtime,
             Identity, Catalog, Practice, Assessment,
-            Classroom, Engagement, Administration, Guest, Billing,
+            Classroom, Engagement, Administration, Guest, Billing, Drills,
         };
         all.RemoveAll(ns => ns == self);
         return all.ToArray();
