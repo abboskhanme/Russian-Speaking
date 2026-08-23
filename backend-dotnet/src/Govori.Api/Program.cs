@@ -6,6 +6,7 @@ using Govori.Api.Health;
 using Govori.Api.RateLimiting;
 using Govori.Api.Startup;
 using Govori.Assessment;
+using Govori.Billing;
 using Govori.Catalog;
 using Govori.Classroom;
 using Govori.Contracts;
@@ -272,6 +273,21 @@ try
     // the providers are singletons.
     builder.Services.AddSingleton<ITtsProvider, AzureTtsProvider>(); // TODO(Faza 3.4): real Azure TTS
     builder.Services.AddScoped<GuestService>();
+
+    // ── Billing / tariffs + subscriptions (docs/08 Faza 6.6) ────────────────
+    // BillingService owns plans, subscriptions and payment attempts. It does NOT own the premium
+    // rule: that is Govori.Infrastructure.PremiumAccess (is_premium OR an active subscription), read
+    // by the catalog paywall too, so the billing screen can never disagree with the 402 gate.
+    //
+    // The provider seam is registered with the ONLY adapter that exists — one that cannot take
+    // money and says so. There is deliberately no simulation mode, not even behind an env var: a
+    // stub that reported success would tell a real student their payment went through. The whole
+    // surface is additionally behind `payments_enabled`, which is OFF by default; turning it on
+    // without a configured provider still refuses every checkout rather than opening a dead flow.
+    // Replacing this line with a Payme/Click adapter is the entire integration — see
+    // UnconfiguredPaymentProvider's remarks for the credentials each one needs.
+    builder.Services.AddSingleton<IPaymentProvider, UnconfiguredPaymentProvider>();
+    builder.Services.AddScoped<BillingService>();
 
     // ── Rate limiting (docs/07 §7.3, §3.8) ──────────────────────────────────
     // ASP.NET Core RateLimiter: per-user-or-IP fixed-window
@@ -546,6 +562,15 @@ try
     // lives in the Guest module's MapGuestEndpoints extension, one call per domain. These are NOT
     // .RequireAuthorization() — they ARE rate-limited (per-IP, fail-open).
     app.MapGuestEndpoints();
+
+    // ── Billing endpoints (docs/08 Faza 6.6) ────────────────────────────────
+    // Student (/api/billing/{plans,subscription,checkout}), the admin tariff editor
+    // (/api/admin/billing/…) and the provider callback (/api/billing/webhook/{provider}) live in the
+    // Billing module's MapBillingEndpoints extension, one call per domain. The webhook is the only
+    // anonymous route: a payment provider holds no user token. It grants NOTHING unless the adapter
+    // verifies the callback's signature — an unverified webhook is a self-service premium button —
+    // and the stub adapter verifies nothing, so today it rejects every callback.
+    app.MapBillingEndpoints();
 
     // ── Real-time attempt-progress hub (docs/08 Faza 3.10) ──────────────────
     // Clients connect with their JWT and call SubscribeToAttempt(id) to stream grading progress.
