@@ -55,6 +55,7 @@ export const test = base.extend<{ errorGuard: ErrorGuard }>({
       page.on("console", (message: ConsoleMessage) => {
         if (message.type() !== "error") return;
         if (isForeignResourceFailure(message, origin)) return;
+        if (isDisabledFeatureProbe(message, origin)) return;
         errors.push(`console.error: ${message.text()}`);
       });
 
@@ -80,6 +81,37 @@ function isForeignResourceFailure(message: ConsoleMessage, origin: string): bool
   if (!/Failed to load resource|net::ERR_/.test(message.text())) return false;
   const url = message.location().url;
   return !!url && !url.startsWith(origin);
+}
+
+/**
+ * Two endpoints answer 404 to mean "this feature is switched off", and the browser
+ * logs that as a console error before any of our code sees it.
+ *
+ * It is a convention, not an accident: `HomePage`, `PracticeHubPage`, `DailyPage`
+ * and `ReviewDrillPage` each document a 404 here as "not enabled" rather than a
+ * failure, and it predates Faza 6 — `review_drill_enabled` has always worked this
+ * way. Since every flag ships OFF, that is one console 404 per probe on every page
+ * load, which would fail this guard permanently and teach the team to switch it off.
+ *
+ * Matched by URL rather than through `tolerate()` because Chromium's "Failed to
+ * load resource" text does not carry the URL — only `location()` does — so a text
+ * pattern would have to waive *every* 404 in the app to catch these two. Listed
+ * exactly: a 404 from anywhere else, including a different path on the same
+ * feature, still fails the run.
+ *
+ * This list should shrink, not grow. F2 already went the other way and it reads
+ * better: `GET /api/drills/pairs` answers `200 { state: "Disabled" }`, because that
+ * screen has three different things to say about being blocked and a 404 collapses
+ * them into one dead end. Each flag added on the 404 convention puts another error
+ * in every production console too, where it is indistinguishable from a real one.
+ */
+const FLAG_PROBE_PATHS = ["/api/daily", "/api/review/drill"];
+
+function isDisabledFeatureProbe(message: ConsoleMessage, origin: string): boolean {
+  if (!/status of 404/.test(message.text())) return false;
+  const url = message.location().url;
+  if (!url || !url.startsWith(origin)) return false;
+  return FLAG_PROBE_PATHS.includes(new URL(url).pathname);
 }
 
 /**

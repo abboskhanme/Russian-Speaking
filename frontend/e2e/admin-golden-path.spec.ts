@@ -193,8 +193,15 @@ test("an admin reads the dashboard, grants premium and saves a setting", async (
     return ((await res.json()) as FeatureFlags).roleplay_max_turns;
   };
 
+  // By its label, never by position. This read `getByRole("spinbutton").first()`
+  // until Faza 6.2 put a second number field above it, at which point the step
+  // edited the phoneme drill's daily cap while still asserting against
+  // `roleplay_max_turns` — the failure named a value, not a wrong field, so it
+  // reads as a broken save rather than a test pointing at the wrong input.
+  const maxTurns = () => page.getByRole("spinbutton", { name: /eng ko'p tur/i });
+
   await test.step("a feature limit is edited and saved", async () => {
-    const turns = page.getByRole("spinbutton").first();
+    const turns = maxTurns();
     await expect(turns).toHaveValue(String(restored));
     await turns.fill(String(changed));
     await page.getByRole("button", { name: /Funksiyalarni saqlash/i }).click();
@@ -207,9 +214,9 @@ test("an admin reads the dashboard, grants premium and saves a setting", async (
   await test.step("the saved value survives a reload, and is then restored", async () => {
     // A reload is the difference between "the form remembers" and "the server does".
     await goTo(page, "/admin/settings", /^\/admin\/settings$/);
-    await expect(page.getByRole("spinbutton").first()).toHaveValue(String(changed));
+    await expect(maxTurns()).toHaveValue(String(changed));
 
-    await page.getByRole("spinbutton").first().fill(String(restored));
+    await maxTurns().fill(String(restored));
     await page.getByRole("button", { name: /Funksiyalarni saqlash/i }).click();
     await expect
       .poll(featuresNow, { message: "the feature limit was left changed" })
