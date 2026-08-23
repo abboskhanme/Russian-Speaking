@@ -60,9 +60,14 @@ export default function HomePage() {
             ? {
                 total: d.value.steps.length,
                 // The warm-up leaves no server-side trace, so the server always
-                // reports it undone. Counting only what the server can observe
-                // keeps Home from claiming a step it cannot see.
-                done: d.value.steps.filter((step) => step.done).length,
+                // reports that one undone. Mid-session Home therefore counts only
+                // what the server can observe — it must not claim a step it cannot
+                // see. But once the server calls the day COMPLETE, every step it
+                // can observe is done, and showing "2 of 3" beside "bajarildi"
+                // would contradict itself on the same card.
+                done: d.value.completed
+                  ? d.value.steps.length
+                  : d.value.steps.filter((step) => step.done).length,
                 completed: d.value.completed,
               }
             : null,
