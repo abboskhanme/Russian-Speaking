@@ -17,10 +17,14 @@ Uchta cheklov tartibni belgilaydi, va ular muzokaraga ochiq emas:
 2. **AI'ga tegishdan oldin uni o'lchaydigan narsa kerak.** `05-ROADMAP` ning eng
    to'g'ri qarori shu edi va kuchda qoladi: golden set graderni **almashtirgandan
    keyin emas, u bilan birga** keladi (S2).
-3. **Prodga tegadigan hamma narsa — foydalanuvchi bilan.** 50 ta real
-   foydalanuvchi bitta droplet'da yashaydi va zaxirasi yo'q. Cutover, prod
-   backup, prod hash bilan login — bularning hech biri kechasi yolg'iz
-   bajariladigan ish emas. Ular **bloklangan** deb belgilanadi, yashirilmaydi.
+3. **Prodga tegadigan hamma narsa — foydalanuvchi bilan.** *(2026-08-23 da
+   sababi o'zgardi, qoidasi emas.)* Egasining qarori: prod ma'lumoti
+   **ko'chirilmaydi**, server **noldan** quriladi — ya'ni "50 foydalanuvchi
+   zaxirasiz" xavfi endi mavzu emas. Lekin qoida kuchda qoladi: o'rnatishning
+   o'zi tashqariga qaragan, qaytarib bo'lmaydigan amal (DNS, TLS, Let's Encrypt
+   soatlik limiti, haqiqiy Telegram bot). U **bloklangan** deb belgilanadi,
+   yashirilmaydi. Tayyorgarlik esa to'liq bajarildi: `deploy/INSTALL.md` va
+   lokal toza o'rnatish simulyatsiyasi.
 
 ---
 
@@ -161,9 +165,9 @@ Bular unutilgani uchun emas, **ataylab** qilinmagan. Har biri sabab bilan:
 
 | Faza | Nega bloklangan |
 |---|---|
-| **0.1–0.4, 0.6, 0.7 · Prod zaxirasi** | `134.209.240.56` ga kirishni talab qiladi. Zaxira olish — jonli mashinada bajariladigan amal; egasi yonida bo'lishi kerak. **Skript** tuzatiladi (5.1), **ishga tushirish** — yo'q. Bu hamon eng katta xavf: 50 ta real foydalanuvchi dunyoda bitta joyda. |
-| **2.7 · Real prod hash bilan login** | Prod dump'iga bog'liq → Faza 0 ga bog'liq |
-| **5.x · Cutover server yarmi** | Jonli prodni almashtiradi. Qaytarib bo'lmaydigan, tashqariga qaragan amal — hech qanday sharoitda yolg'iz bajarilmaydi |
+| ~~**0.1–0.4, 0.6, 0.7 · Prod zaxirasi**~~ | **Mavzudan chiqdi (2026-08-23)**: prod ma'lumoti ko'chirilmaydi, ya'ni qutqariladigan 50 foydalanuvchi yo'q. Zaxira **yo'qolmadi, ko'chdi** — o'rnatishdan **keyingi** ish bo'ldi: `deploy/INSTALL.md` 9.1 (kundalik cron o'sha kechaning o'zida) va `deploy/README.md` §"After the install". `preflight.sh` `live` rejimga o'tgach zaxira yo'qligini yana FAIL qiladi. |
+| ~~**2.7 · Real prod hash bilan login**~~ | **Mavzudan chiqdi (2026-08-23)**: ko'chiriladigan hash yo'q. Login umuman parolsiz (telefon + Telegram OTP, `password_hash` NULL) va parolsiz **admin** kirishi lokal simulyatsiyada uchidan-uchiga sinaldi: OTP → token → `role=admin` → `/api/admin/stats` 200, tokensiz 401. |
+| **5.5 · O'rnatishning server yarmi** | Tashqariga qaragan, qaytarib bo'lmaydigan amal: DNS, Let's Encrypt (soatiga 5 muvaffaqiyatsiz urinish limiti), haqiqiy Telegram bot, egasining o'z telefon raqami birinchi admin uchun. **Tayyorgarlik tugadi** — `deploy/INSTALL.md`, `bootstrap-admin.sh`, `smoke.sh`, va bo'sh volume'dan boshlangan lokal simulyatsiya yashil. Qolgani — droplet. |
 | **7.9 · `TEACHER-PANEL-PLAN.md` + `dev-role.sh`** | C3/C6 **mahsulot qaroriga** bog'liq — texnik emas, egasining qarori |
 
 ---

@@ -24,13 +24,13 @@
 
 | Faza | Holat | Nimasi qolgan |
 |---|:--:|---|
-| **0 · Ma'lumot xavfsizligi** | 🟡 | **0.5 ✅ va endi tiklash ham ✅** — `deploy/prod-backup-cron.sh` (zaxira) va **`deploy/restore.sh`** (tiklash) yozildi va **haqiqatan sinaldi**: dev dump → toza konteyner → 21 jadval, har biri aynan mos; buzuvchi yo'l (`--into-stack`) alohida tashlab yuboriladigan stack'da 55 user + 11 MinIO obyektini qaytardi. Yo'l-yo'lakay `verify-backup.sh` dagi **haqiqiy xato** tuzatildi: MinIO obyektni FAYL emas KATALOG qilib saqlagani uchun u har sog'lom zaxirada "audio topilmadi" deb yolg'on ogohlantirardi — o'quvchi yozuvlari saqlanganini aytadigan yagona tekshiruv edi. Qolgani **droplet'ga kirishni talab qiladi**: 0.1–0.4, 0.6, 0.7. 🔴 Hamon bloklovchi: real 50 foydalanuvchining **prodda zaxirasi yo'q**. |
+| **0 · Ma'lumot xavfsizligi** | 🟡 | **0.5 ✅ va endi tiklash ham ✅** — `deploy/prod-backup-cron.sh` (zaxira) va **`deploy/restore.sh`** (tiklash) yozildi va **haqiqatan sinaldi**: dev dump → toza konteyner → 21 jadval, har biri aynan mos; buzuvchi yo'l (`--into-stack`) alohida tashlab yuboriladigan stack'da 55 user + 11 MinIO obyektini qaytardi. Yo'l-yo'lakay `verify-backup.sh` dagi **haqiqiy xato** tuzatildi: MinIO obyektni FAYL emas KATALOG qilib saqlagani uchun u har sog'lom zaxirada "audio topilmadi" deb yolg'on ogohlantirardi — o'quvchi yozuvlari saqlanganini aytadigan yagona tekshiruv edi. Qolgani **droplet'ga kirishni talab qiladi**: 0.1–0.4, 0.6, 0.7. ✅ **Bloklovchi emas** (2026-08-23, egasining qarori): prod ma'lumoti ko'chirilmaydi, server noldan quriladi — ya'ni asrab qolinadigan 50 foydalanuvchi yo'q va zaxira **kritik yo'lda emas**. Skriptlar saqlanadi va o'rnatishning **ertasiga** kerak bo'ladi: `deploy/README.md` §"After the install". |
 | **1 · Xavfsizlik to'ri** | 🟡 | 1.1–1.6 ✅. 2026-08-23 da qayta yugurtirildi: grader **golden set o'tdi**, **jonli vendor smoke 3/3**. ⬜ **STT yarmi**: 40 ta real klip — sun'iy audio bilan to'ldirilmadi, sababi `tests/golden/grader/README.md` da. |
-| **2 · .NET poydevor** | 🟡 | **2.5 ✅**. **2.7 ⬜** — prod dump'iga, ya'ni **Faza 0 ga** bog'liq. |
+| **2 · .NET poydevor** | ✅ | **2.5 ✅**. **2.7 — mavzudan chiqdi** (2026-08-23): "real prod hash bilan login" ko'chiriladigan foydalanuvchilar bo'lgandagina mavzu edi. Toza bazada hech kimning hash'i yo'q, va login umuman parolsiz — telefon + Telegram OTP, `password_hash` NULL. |
 | **3 · Domen porti** | ✅ | **3.4 ✅** · **3.10 ✅** — jonli o'lchov qayta qurilgan stack'da **10.1s**. ⚠️ **Aniqlashtirish:** "fonema+prosodiya" va'dasi haqiqatga mos emas. Azure'ning xom javobi o'lchandi: unscripted rejimda fonema **ballari** keladi, **nomlari bo'sh** (455 yozuvning 455 tasi), va `PronunciationAssessment` aggregate umuman qaytmaydi, ya'ni `EnableProsodyAssessment` e'tiborsiz qoladi. Kod to'g'ri — bu vendor cheklovi. Oqibati Faza 6.2 da. |
 | **4 · Frontend** | 🟡 | Admin AI-probe UI ✅ · **ErrorBoundary ✅** — ilgari umuman yo'q edi, ya'ni har render xatosi oq ekran berardi; endi ikki daraja (ildiz + marshrut), ichkisi Suspense ichida shuning uchun lazy chunk yuklanmasa ham ushlaydi · chiqish endi refresh tokenni serverga bekor qilishga beradi ✅. **4.11 ✅** — **155 Vitest**, Playwright **uchala rol** uchun (o'quvchi · o'qituvchi · admin) + auth chekka holatlari + mobil viewport, `axe` critical **0**. **4.1 ✅** — bundle **119.7 / 180 KB gz**. **4.2 ⬜** — API tiplari hamon qo'lda, OpenAPI hujjati yo'q. |
-| **5 · Cutover** | 🟡 | **Hujjat va skriptlar tayyor** — `deploy/CUTOVER.md` (kunlar oldin · TLS · 30 daqiqalik oyna · **to'rt xil rollback**), `docker-compose.prod.yml` (log rotatsiyasi 10m×3, non-root uid 10001, resurs chegaralari, faqat nginx 80/443, **dev seed'lar YO'Q**), nginx shabloni, `preflight.sh` (18 tekshiruv), `migrate.sh`, `restore.sh`. **Server yarmi ⬜** — jonli prodga tegadi, egasisiz bajarilmaydi. |
-| **6 · Yangi funksiyalar** | 🟡 | **6.4 ✅ · 6.1 ✅ · 6.5 ✅** (ikkalasi flag ortida, sukut bo'yicha o'chiq). **6.8 — aslida ✅ edi**: achievement backend `ProfileService.BuildAchievements` da **21 nishon** bilan allaqachon qurilgan, birlik testlari bor va jonli tekshirildi; `achievements` jadvali **kerak emas** — nishonlar saqlanmaydi, hisoblanadi. **6.7 🟡** — o'qituvchi sinf xatolarini ko'radi; yetmayotgani aynan F6 ning qiymati ("1 tap → remediation topshiriq") va u **xato-turi → topshiriq xaritasini** talab qiladi, ya'ni kontent qarori. **6.2 🔴 bloklangan** — F2 ning asosi ("Azure ma'lumoti tayyor") noto'g'ri, yuqoridagi Faza 3 ga qarang; drill uchun *scripted* rejim yo'li ochiq. **6.3 ⬜** · **6.6 ⬜** (tashqi bog'liqlik: Payme/Click). |
+| **5 · Noldan o'rnatish** *(ilgari "Cutover")* | 🟡 | **Yo'l almashdi** (2026-08-23): ma'lumot ko'chirilmaydi, server **noldan** quriladi. Yangi asosiy hujjat **`deploy/INSTALL.md`** — toza droplet'dan `https://govorim.uz` gacha 9 qadam. `deploy/CUTOVER.md` **o'chirilmadi**, lekin kritik yo'ldan chiqarildi (yuqorisida ogohlantirish; mavjud bazani EF ga qabul qilish kerak bo'lgan kun uchun saqlanadi). `ef-baseline.sh` **ishlatilmaydi** — sxema EF migratsiyalaridan noldan quriladi. Yangi: `deploy/bootstrap-admin.sh` (toza bazada **birinchi admin** — o'z-o'zidan ro'yxatdan o'tish har doim `student` yaratadi), `deploy/smoke.sh`, `preflight.sh` da **install/live rejimlari**. **Lokal simulyatsiya to'liq yashil**: bo'sh volume → barcha migratsiyalar → birinchi admin → 6 servis healthy → smoke. **Server yarmi ⬜** — egasisiz bajarilmaydi. |
+| **6 · Yangi funksiyalar** | 🟡 | **6.4 ✅ · 6.1 ✅ · 6.5 ✅** (ikkalasi flag ortida, sukut bo'yicha o'chiq). **6.8 — aslida ✅ edi**: achievement backend `ProfileService.BuildAchievements` da **21 nishon** bilan allaqachon qurilgan, birlik testlari bor va jonli tekshirildi; `achievements` jadvali **kerak emas** — nishonlar saqlanmaydi, hisoblanadi. **6.7 ✅** — «Mashq ber» tugmasi ishlaydi (`class_insights_enabled`, sukut o'chiq). **`class_insights` jadvali qo'shilmadi** va **xarita ham qo'lda yozilmadi**: bazadagi haqiqiy `corrections.type` lug'ati atigi bir necha hodisa nomidan iborat (`word_order` · `grammar` · `lexical` · `pronunciation_hint` · `style` · `relevance`) va birortasi mavzu emas, `questions` da esa faqat `topic`/`level` bor — ya'ni `word_order → "Еда и вкусы"` degan jadval sof taxmin bo'lardi. Xato turini topshiriq bilan bog'laydigan **yagona o'lchangan** dalil baholangan javoblarning o'zida: sinf shu xatoda aynan **qaysi promptlarda** qoqilgan. Shuning uchun mashq — shu xato eng ko'p sodir bo'lgan (hali chop etilgan) savol, va u **faqat o'sha xatoni qilgan** o'quvchilarga, **tasdiq modalidan keyin** biriktiriladi. Chegara: kamida **3 ta turli o'quvchi** — F6 ning va'dasi "12 o'quvchi qoqildi", bitta o'quvchi sinf naqshi emas; chegaradan past qator ko'rinaveradi, faqat tugmasi o'chiq. **6.2 🔴 bloklangan** — F2 ning asosi ("Azure ma'lumoti tayyor") noto'g'ri, yuqoridagi Faza 3 ga qarang; drill uchun *scripted* rejim yo'li ochiq. **6.3 ⬜** · **6.6 ⬜** (tashqi bog'liqlik: Payme/Click). |
 | **7 · Tozalash** | 🟡 | 7.1–7.8 ✅. 7.9 — **C3/C6 mahsulot qaroriga** bog'liq. |
 
 ### Kontrast — o'lchangan, ikki bosqichda
@@ -139,16 +139,29 @@ minimal so'rov. Ilgari noto'g'ri kalit **jimgina va kech** yiqilardi: zanjir uni
 o'tkazib yuborardi, birinchi alomat esa o'quvchining topshirig'i boshqa vendor tomonidan
 baholanishi edi.
 
-**Keyingi uchta ish, tartib bilan:** (1) Faza 0 — prod zaxirasi **egasi bilan**, chunki qolgan
-hamma narsa unga bog'liq; (2) golden set uchun 40 ta real klip; (3) cutover.
+**Keyingi uchta ish, tartib bilan:** (1) **noldan o'rnatish** — `deploy/INSTALL.md`, egasi bilan
+(Faza 0 endi bloklovchi emas: 2026-08-23 qarori bo'yicha prod ma'lumoti ko'chirilmaydi);
+(2) golden set uchun 40 ta real klip; (3) o'rnatishdan keyin — kundalik zaxira va monitoring.
 
 ---
 
-## Faza 0 · Ma'lumot xavfsizligi — 🔴 **BLOKLOVCHI**
+## Faza 0 · Ma'lumot xavfsizligi — 🟡 **bloklovchi EMAS** *(2026-08-23 da o'zgardi)*
 
-> **Hech narsa yozilmasdan oldin.** Auditda topilgan: **prod backup mavjud emas.**
-> `backups/` — lokal demo ma'lumot (34 foydalanuvchi, 30 tasi `@demo.uz`). Real 50 foydalanuvchi
-> dunyoda **bitta joyda**: `134.209.240.56` dagi `postgres-data` volume ichida.
+> **Bu bo'lim endi kritik yo'lda emas — egasining qarori bilan.**
+>
+> **Qaror (2026-08-23):** prod ma'lumoti **ko'chirilmaydi**, server **noldan** quriladi.
+> Ya'ni asrab qolinishi kerak bo'lgan 50 foydalanuvchi yo'q, va "zaxirasiz prodga tegib
+> bo'lmaydi" bloklovchisi **o'z-o'zidan yo'qoldi** — chunki tegiladigan prod ma'lumoti yo'q.
+>
+> **Nima o'zgarmadi:** zaxira baribir kerak — faqat **oldin** emas, **keyin**. Server ishga
+> tushgan kuni ma'lumot yo'q; ertasiga bor. Shuning uchun `deploy/INSTALL.md` 9.1-qadami
+> kundalik zaxira cron'ini **o'sha kechaning o'zida** o'rnatishni talab qiladi, va
+> `preflight.sh` `live` rejimga o'tgach zaxira yo'qligini yana FAIL deb ko'rsata boshlaydi.
+>
+> Quyidagi 0.1–0.7 jadvali **tarixiy** — u mavjud prod ma'lumotini qutqarish uchun yozilgan.
+> Skriptlar (`backup-prod.sh`, `restore.sh`, `verify-backup.sh`, `prod-backup-cron.sh`,
+> `rollback-db.sh`) **saqlanadi va sinalgan**; ularning o'rni endi `deploy/README.md`
+> §"After the install".
 
 | # | Ish | DoD |
 |---|---|---|
@@ -194,7 +207,7 @@ Zaxirasiz bu talabni bajarib bo'lmaydi — faqat umid qilish mumkin. Bu 1 soatli
 | 2.4 | Enum/JSONB/TIMESTAMPTZ/snake_case mapping (`07 §7.4` tuzoqlar) | Integration test: har jadvalga read+write |
 | 2.5 | Testcontainers — haqiqiy Postgres | `dotnet test` konteynerni ko'taradi |
 | **2.6** | **Auth port**: BCrypt.Net-Next + JWT HS256 | 🔴 **C1/C2 characterization testlari yashil** |
-| 2.7 | **Real prod hash bilan login testi** | 50 foydalanuvchi kira oladi (isbotlangan) |
+| ~~2.7~~ | ~~**Real prod hash bilan login testi**~~ — **mavzudan chiqdi (2026-08-23)**: ko'chiriladigan hash yo'q, server noldan quriladi. Login parolsiz (telefon + Telegram OTP, `password_hash` NULL); parolsiz admin kirishi lokal simulyatsiyada uchidan-uchiga sinaldi | — |
 | 2.8 | Serilog + OpenTelemetry + `/health`, `/health/ready` | `/metrics` chiqadi |
 | 2.9 | Docker image (Azure Speech native deps: `libasound2`, `libssl3`) | Konteynerda ishlaydi |
 
@@ -239,17 +252,25 @@ Zaxirasiz bu talabni bajarib bo'lmaydi — faqat umid qilish mumkin. Bu 1 soatli
 
 ---
 
-## Faza 5 · Cutover — *~1 hafta*
+## Faza 5 · Noldan o'rnatish — *~1 kun*
+
+> **2026-08-23 da qayta yozildi.** Ilgari bu "Cutover" edi: jonli Python stack'ini
+> ma'lumotni asrab qolgan holda .NET ga almashtirish. Egasining qarori bilan **prod
+> ma'lumoti ko'chirilmaydi** — server noldan quriladi. Ya'ni nusxa ustida mashq,
+> `ef-baseline.sh`, eski stack'ni ikki hafta saqlash, "dump'dan tiklash" rollback'i —
+> **hech biri bu yo'lda emas**. Eski reja `deploy/CUTOVER.md` da saqlanadi.
+>
+> Asosiy hujjat: **`deploy/INSTALL.md`**.
 
 | # | Ish | DoD |
 |---|---|---|
-| 5.1 | Yangi stack prod DB **nusxasiga** ulanadi, read-only smoke | Bir hafta barqaror |
-| **5.2** | **Cutover mashqi** — nusxa ustida, to'liq, **kamida 2 marta** | Rollback ham mashq qilingan |
-| 5.3 | Additive migratsiya (**faqat `CREATE TABLE`**) | `ALTER`/`DROP` yo'q — ko'rib chiqilgan |
-| 5.4 | Rollback skripti + sinovi | Eski stack qayta ko'tariladi |
-| **5.5** | 🎯 **Cutover** (~30 daq, kam faollik) — `07 §7.10` | Smoke yashil |
-| 5.6 | Eski stack 2 hafta **o'chirilgan holda turadi** | O'chirilmaydi |
-| 5.7 | 48 soat kuzatuv | Xato darajasi normal |
+| **5.1** | `deploy/INSTALL.md` — toza droplet'dan `https://govorim.uz` gacha | ✅ Har qadam: buyruq → kutilayotgan natija → nima noto'g'ri bo'lishi mumkin |
+| **5.2** | **Lokal toza o'rnatish simulyatsiyasi** — bo'sh volume → migratsiyalar → birinchi admin → stack → smoke | ✅ Alohida stack'da uchidan-uchiga yashil |
+| **5.3** | `deploy/bootstrap-admin.sh` — **birinchi admin** (toza bazada o'z-o'zidan ro'yxatdan o'tish har doim `student` yaratadi, ya'ni admin panelga yo'l yo'q) | ✅ Parolsiz (telefon+OTP), idempotent, bajarishdan oldin rejasini chop etadi va `--yes` talab qiladi |
+| **5.4** | `preflight.sh` → **install/live rejimlari**; `deploy/smoke.sh` | ✅ Bo'sh volume `install` da PASS, `live` da FAIL |
+| **5.5** | 🎯 **O'rnatish** (egasi bilan, droplet'da) | ⬜ Smoke yashil + Telegram kodi keladi + bitta javob baholanadi |
+| **5.6** | Kundalik zaxira cron'i — **o'sha kechaning o'zida** | ⬜ `INSTALL.md` 9.1 |
+| 5.7 | 48 soat kuzatuv | ⬜ Xato darajasi normal |
 
 ---
 
@@ -267,7 +288,7 @@ Zaxirasiz bu talabni bajarib bo'lmaydi — faqat umid qilish mumkin. Bu 1 soatli
 | 6.4 | **F4 · Placement test** | — | 4 kun |
 | **6.5** | **F1 · Roleplay / AI Suhbat** 🎯 | `scenarios`, `roleplay_turns` | 2 hafta |
 | 6.6 | **Payments** (admin dizaynida bor) | `plans`, `entitlements`, `subscriptions` | 2 hafta |
-| 6.7 | **F6 · Sinf insaytlari** | `class_insights` | 1 hafta |
+| 6.7 | **F6 · Sinf insaytlari** ✅ | — (`class_insights` **kerak emas**) | 1 hafta |
 | 6.8 | Achievement backend | `achievements` | 3 kun |
 
 ---
@@ -297,7 +318,7 @@ Zaxirasiz bu talabni bajarib bo'lmaydi — faqat umid qilish mumkin. Bu 1 soatli
 ## Vaqt va ketma-ketlik
 
 ```
-Faza 0 ─ MA'LUMOT XAVFSIZLIGI (1 soat)        🔴 BLOKLOVCHI
+Faza 0 ─ MA'LUMOT XAVFSIZLIGI (1 soat)        🟡 bloklovchi EMAS (2026-08-23)
    ↓
 Faza 1 ─ Characterization + golden set (1 hafta)   ← bularsiz port ko'r-ko'rona
    ↓
@@ -307,7 +328,7 @@ Faza 3 ─ Domen porti (4 hafta) ──────┐
    ↓                                  │ (parallel bo'lishi mumkin)
 Faza 4 ─ Frontend (4 hafta) ◄─────────┘
    ↓
-Faza 5 ─ CUTOVER (1 hafta)
+Faza 5 ─ NOLDAN O'RNATISH (1 kun) — deploy/INSTALL.md
    ↓
 Faza 6 ─ Yangi funksiyalar (5 hafta, flag ortida)
    ↓
@@ -323,11 +344,11 @@ Bu **1 dev + Claude Code** uchun. Majburiyat emas — tartib uchun.
 
 | Xavf | Ehtimol | Ta'sir | Yumshatish |
 |---|:---:|:---:|---|
-| 🔴 **Prod ma'lumoti yo'qoladi (backup yo'q)** | **Yuqori** | **Halokatli** | **Faza 0. Hoziroq.** |
+| ~~🔴 **Prod ma'lumoti yo'qoladi (backup yo'q)**~~ | — | — | **Mavzudan chiqdi (2026-08-23)**: prod ma'lumoti ko'chirilmaydi. O'rniga yangi xavf: **yangi** ma'lumot birinchi kecha zaxirasiz qoladi → `INSTALL.md` 9.1, o'rnatish kechasining o'zida |
 | 🔴 Backup skripti jimgina yiqilib, yaxshilarini o'chiradi | **Yuqori** | **Halokatli** | Faza 0.5 |
 | Volume orphan (papka nomi o'zgarsa) | O'rta | Yuqori | `name:` pin / `external: true` |
 | Port xatti-harakati jimgina siljiydi | **Yuqori** | Yuqori | **Characterization testlar (Faza 1)** |
-| 50 foydalanuvchi login qila olmaydi | Past | **Halokatli** | bcrypt/JWT isbotlangan + Faza 2.7 |
+| ~~50 foydalanuvchi login qila olmaydi~~ | — | — | **Mavzudan chiqdi**: ko'chiriladigan foydalanuvchi yo'q. O'rniga yangi xavf: **birinchi admin yaratilmasa `/admin` ga hech kim kira olmaydi** (ro'yxatdan o'tish har doim `student` yaratadi) → `deploy/bootstrap-admin.sh`; `preflight.sh` va `smoke.sh` adminsiz holatni FAIL qiladi |
 | Cutover funksiyalarni kutib cho'ziladi | **Yuqori** | Yuqori | **Feature flag** — deploy ≠ release |
 | AI grader regressiyasi | Yuqori | Yuqori | Golden set (Faza 1) |
 | Gemini .NET SDK yo'q | Aniq | O'rta | REST + `IGraderProvider` |
