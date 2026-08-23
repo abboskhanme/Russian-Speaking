@@ -1,7 +1,7 @@
 # ─────────────────────────────────────────────────────────────────────────────
 # Govori — PRODUCTION stack (govorim.uz / 134.209.240.56).
 #
-#   cp deploy/env.prod.example .env      # then fill it in — see deploy/CUTOVER.md
+#   cp deploy/env.prod.example .env      # then fill it in — see deploy/INSTALL.md
 #   docker compose -f docker-compose.prod.yml build
 #   docker compose -f docker-compose.prod.yml up -d
 #
@@ -27,15 +27,18 @@
 #      caps the whole stack at ~210 MB.
 #
 #   5. Resource limits. One runaway container must not take the database down with
-#      it. Defaults below suit a 2 GB droplet; check `free -m` from the backup
-#      manifest and override in .env if the box is smaller.
+#      it. Defaults below suit a 2 GB droplet; check `free -m` on the host and
+#      override in .env if the box is smaller.
 #
 #   6. The data volumes are EXTERNAL. This is the most important line in the file.
 #      A compose-managed volume that does not exist yet is silently CREATED EMPTY —
 #      so a typo in a volume name would start the API against a blank database, EF
 #      would create the schema, and the stack would come up looking perfectly
-#      healthy with 50 users missing. `external: true` turns that into "volume not
-#      found" and nothing starts. Create them explicitly once (CUTOVER step 4).
+#      healthy and missing every user. `external: true` turns that into "volume
+#      not found" and nothing starts. Create them explicitly, once:
+#          docker volume create govori-pgdata
+#          docker volume create govori-miniodata
+#      (INSTALL.md step 5.1)
 # ─────────────────────────────────────────────────────────────────────────────
 
 name: govori-prod
@@ -78,10 +81,11 @@ x-backend-env: &backend-env
   S3_BUCKET: "${S3_BUCKET}"
   S3_REGION: "${S3_REGION:-us-east-1}"
 
-  # Auth. SECRET_KEY signs the HS256 access tokens: carrying the EXISTING prod value
-  # across is what keeps the 50 logged-in users logged in. A new value is not an
-  # error anyone will see in a log — it just silently signs everybody out.
-  SECRET_KEY: "${SECRET_KEY:?SECRET_KEY is required — carry the value from the OLD stack's .env}"
+  # Auth. SECRET_KEY signs the HS256 access tokens. On a fresh install, generate it
+  # once (`openssl rand -base64 48`) and keep a copy off the machine — CHANGING it
+  # afterwards is not an error anyone will see in a log, it just silently signs
+  # every logged-in user out at once.
+  SECRET_KEY: "${SECRET_KEY:?SECRET_KEY is required — generate with: openssl rand -base64 48}"
   GOOGLE_CLIENT_ID: "${GOOGLE_CLIENT_ID:-}"
 
   # NOT `:?`-required here even though the Api REFUSES TO BOOT in Production
@@ -263,8 +267,8 @@ services:
   # It deliberately does NOT touch the bucket policy. The dev compose runs
   # `mc anonymous set download`, which would make every student recording readable
   # by URL to anyone; prod serves audio through presigned URLs instead. Leaving the
-  # policy alone also means a rollback to the old stack finds the bucket exactly as
-  # it left it.
+  # policy alone also means re-running this one-shot never widens access to a
+  # bucket that already exists.
   minio-init:
     # Digest-pinned: `minio/mc` publishes no stable semver tag, and the client is
     # what creates the bucket the whole product stores audio in.
@@ -425,8 +429,8 @@ volumes:
   # EXTERNAL ON PURPOSE — see note 6 at the top of this file. Create them once:
   #   docker volume create govori-pgdata
   #   docker volume create govori-miniodata
-  # or point these at the volumes the OLD stack already uses (the names are in
-  # prod-backup/<ts>/manifest.txt), which is what the cutover actually does.
+  # (deploy/INSTALL.md step 5.1). They are the only two volumes whose loss is not
+  # recoverable, which is exactly why compose is not allowed to invent them.
   pgdata:
     external: true
     name: ${PG_VOLUME:-govori-pgdata}
