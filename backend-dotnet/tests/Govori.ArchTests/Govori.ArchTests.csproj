@@ -40,6 +40,7 @@
     <ProjectReference Include="..\..\src\Modules\Govori.Engagement\Govori.Engagement.csproj" />
     <ProjectReference Include="..\..\src\Modules\Govori.Administration\Govori.Administration.csproj" />
     <ProjectReference Include="..\..\src\Modules\Govori.Guest\Govori.Guest.csproj" />
+    <ProjectReference Include="..\..\src\Modules\Govori.Billing\Govori.Billing.csproj" />
   </ItemGroup>
 
 </Project>

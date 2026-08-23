@@ -24,7 +24,7 @@ public sealed class BoundaryRuleTests
 
     // ── Rule 1 — Platform is the outside world: never depends on a domain, never on a host ──────
     // docs/07 §7.2: "Govori.Platform.* hech qachon Govori.Domains.* ga reference qilmaydi (bir tomonlama)."
-    // Covers: Govori.Platform  →  must not reference any of the 8 domain modules, nor Api/Worker.
+    // Covers: Govori.Platform  →  must not reference any domain module, nor Api/Worker.
     [Fact]
     public void Platform_DoesNotDependOnAnyDomainModule_NorHost()
     {
@@ -56,7 +56,7 @@ public sealed class BoundaryRuleTests
 
     // ── Rule 3 — No domain module depends on a host (Api / Worker) ───────────────────────────────
     // A module is a library consumed BY the hosts; the arrow never points back up.
-    // Covers: all 8 domain modules  →  must not reference Govori.Api or Govori.Worker.
+    // Covers: every domain module  →  must not reference Govori.Api or Govori.Worker.
     [Theory]
     [MemberData(nameof(DomainModuleNames))]
     public void DomainModule_DoesNotDependOnHost(string module)
@@ -146,6 +146,6 @@ public sealed class BoundaryRuleTests
         ArchitectureMap.Infrastructure, ArchitectureMap.Platform, ArchitectureMap.Realtime,
         ArchitectureMap.Identity, ArchitectureMap.Catalog, ArchitectureMap.Practice,
         ArchitectureMap.Assessment, ArchitectureMap.Classroom, ArchitectureMap.Engagement,
-        ArchitectureMap.Administration, ArchitectureMap.Guest,
+        ArchitectureMap.Administration, ArchitectureMap.Guest, ArchitectureMap.Billing,
     }.Select(a => new object[] { a });
 }

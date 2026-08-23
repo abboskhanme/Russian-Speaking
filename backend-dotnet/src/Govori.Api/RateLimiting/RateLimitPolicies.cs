@@ -68,6 +68,17 @@ internal static class RateLimitPolicies
         // and checking them; it is a guard against a double-clicked button and a reloading settings
         // screen, not against the admin.
         (RateLimitPolicyNames.AdminProbe, 10, TimeSpan.FromSeconds(3600)),
+
+        // Starting a purchase. A person buying premium presses once; a mistyped card and a retry is
+        // a handful more. 20/hour per USER leaves that untouched and stops anyone minting a fresh
+        // idempotency key in a loop — which is the one thing the key itself cannot stop.
+        (RateLimitPolicyNames.BillingCheckout, 20, TimeSpan.FromSeconds(3600)),
+
+        // Provider callbacks, per SOURCE IP (the caller is a provider, not a user). Deliberately
+        // generous: providers retry callbacks they believe failed, and throttling a genuine payment
+        // notification away would lose money we have already taken. The security control here is the
+        // signature check, never this number.
+        (RateLimitPolicyNames.BillingWebhook, 600, TimeSpan.FromSeconds(3600)),
     };
 
     private const string TooManyRequestsBody = "{\"detail\":\"Too many requests. Please try again later.\"}";

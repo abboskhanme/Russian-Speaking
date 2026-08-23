@@ -98,10 +98,22 @@ public sealed class CatalogService
     ///   <item>FreeTasksPerModule &lt;= 0 → false (whole module free)</item>
     ///   <item>else → <see cref="TaskIndexAsync"/> &gt;= FreeTasksPerModule</item>
     /// </list>
+    ///
+    /// <para><b>"Premium" widened in Faza 6.6 and the gate did not.</b> It used to read
+    /// <c>student.IsPremium</c> — the teacher grant — and now asks
+    /// <see cref="PremiumAccess.HasPremiumAsync(GovoriDbContext, User, DateTime, CancellationToken)"/>,
+    /// which is that same flag OR an active subscription. Teacher-granted premium therefore behaves
+    /// EXACTLY as before (the check short-circuits on the flag and never reaches the database), and
+    /// with no subscription rows every answer this method gives is byte-for-byte the pre-6.6 one.
+    /// The C4 fixture is unchanged because the rule it froze is unchanged: what counts as premium
+    /// simply has a second, additive source. Reading that source from here rather than duplicating
+    /// it is what stops a paying student meeting a 402.</para>
     /// </summary>
     public async Task<bool> NeedsPremiumAsync(User student, Question q, CancellationToken ct = default)
     {
-        if (student.Role != UserRole.Student || student.IsPremium)
+        if (student.Role != UserRole.Student)
+            return false;
+        if (await PremiumAccess.HasPremiumAsync(_db, student, DateTime.UtcNow, ct))
             return false;
 
         // A task with no module — or one whose module row is missing — yields a null visibility
@@ -168,6 +180,12 @@ public sealed class CatalogService
         var freeN = _options.FreeTasksPerModule;
         var blockIds = blocks.Select(b => b.Id).ToList();
 
+        // Resolved ONCE for the whole view, from the same single source the 402 gate uses
+        // (PremiumAccess: teacher grant OR active subscription). Once, not per module: the module
+        // list must not be able to disagree with itself about whether this student has premium, and
+        // one EXISTS query is not worth repeating per row.
+        var hasPremium = await PremiumAccess.HasPremiumAsync(_db, user, DateTime.UtcNow, ct);
+
         // All published, live tasks for these modules in one query, then group in memory (rather
         // than one query per module) — the per-block ordering key is (sort_order, created_at),
         // which must match TaskIndexAsync so positions and the freemium gate agree.
@@ -217,7 +235,7 @@ public sealed class CatalogService
                 continue;                           // a module with no live tasks is not shown
 
             // Positional freemium applies only to official public modules.
-            var gated = b.Visibility == "public" && !user.IsPremium && freeN > 0;
+            var gated = b.Visibility == "public" && !hasPremium && freeN > 0;
 
             var tasks = new List<StudentTaskResponse>(qs.Count);
             var prevDone = true;                    // the first task is always sequentially unlocked

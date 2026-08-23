@@ -1,0 +1,30 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\Govori.Contracts\Govori.Contracts.csproj" />
+    <ProjectReference Include="..\..\Govori.Infrastructure\Govori.Infrastructure.csproj" />
+    <!-- NOTE (Billing→Catalog/Administration boundary): deliberately NOT referenced.
+         · Catalog owns the frozen 402 gate and needs to know whether the caller has premium; Billing
+           owns subscriptions, which is half of that answer. Rather than an edge in either direction,
+           the shared rule lives ONCE in Govori.Infrastructure.PremiumAccess, which both read. See
+           that type's remarks — this is the whole reason it is not a method on either service.
+         · Administration owns the app_settings editor, and `payments_enabled` is edited there. This
+           module reads the flag straight off the app_settings table through the shared DbContext,
+           exactly as Govori.Practice reads `roleplay_enabled`. Same mechanism, no module edge. -->
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- This module defines its own minimal-API endpoint group (MapBillingEndpoints) and uses
+         ClaimsPrincipal / Results / HttpRequest — the shared ASP.NET Core framework provides those
+         types to a class library. Same modular-endpoint pattern as Govori.Identity / Govori.Catalog /
+         Govori.Practice / Govori.Classroom / Govori.Engagement / Govori.Administration. -->
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <TargetFramework>net9.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+</Project>

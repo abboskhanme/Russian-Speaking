@@ -89,4 +89,31 @@ public static class RateLimitPolicyNames
     /// pasting keys and checking them, which is a handful of presses, not dozens.</para>
     /// </summary>
     public const string AdminProbe = "admin_probe";
+
+    /// <summary>
+    /// Starting a purchase (<c>POST /api/billing/checkout</c>).
+    ///
+    /// <para>Every hit writes a <c>payment_intents</c> row and — once a real adapter is wired —
+    /// opens a transaction at a payment provider. The idempotency key already collapses a RETRY of
+    /// the same attempt into one row; this caps someone minting a fresh key each time, which the key
+    /// cannot. Authenticated, so the partition is the user id.</para>
+    ///
+    /// <para>Sized for a person buying something: a purchase is one press, a mistyped card is a few
+    /// more. Nobody legitimately starts dozens of checkouts an hour.</para>
+    /// </summary>
+    public const string BillingCheckout = "billing_checkout";
+
+    /// <summary>
+    /// The payment-provider callback (<c>POST /api/billing/webhook/{provider}</c>).
+    ///
+    /// <para>Anonymous by necessity — the provider calls it, not a logged-in user — so the partition
+    /// is the source IP. It is NOT the security control: signature verification is (an unverified
+    /// webhook is a self-service premium button for anyone who can reach the URL). This only stops a
+    /// flood of forged callbacks from spending database work on rejecting them one at a time.</para>
+    ///
+    /// <para>Generous, because a real provider legitimately retries a callback it thinks failed, and
+    /// rate-limiting a genuine payment notification into oblivion would lose a payment we have
+    /// already taken.</para>
+    /// </summary>
+    public const string BillingWebhook = "billing_webhook";
 }

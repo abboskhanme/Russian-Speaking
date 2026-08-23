@@ -25,7 +25,7 @@ public static class ArchitectureMap
     /// <summary>The EF Core aggregate root the Api layer must NOT touch outside the composition root.</summary>
     public const string DbContextType = "Govori.Infrastructure.GovoriDbContext";
 
-    // --- the eight domain modules (docs/07 §7.2) ----------------------------------------------
+    // --- the domain modules (docs/07 §7.2; Billing joined them in Faza 6.6) --------------------
     public const string Identity = "Govori.Identity";
     public const string Catalog = "Govori.Catalog";
     public const string Practice = "Govori.Practice";
@@ -35,11 +35,17 @@ public static class ArchitectureMap
     public const string Administration = "Govori.Administration";
     public const string Guest = "Govori.Guest";
 
-    /// <summary>All eight domain-module namespace/assembly prefixes.</summary>
+    /// <summary>Tariffs, subscriptions and payment attempts (docs/08 Faza 6.6). The ninth module:
+    /// docs/07 §7.2 froze the list at eight, and this one is added rather than folded into an
+    /// existing domain because it owns three tables of its own and a provider seam, and because the
+    /// module that would otherwise host it — Administration — must stay reachable from nothing.</summary>
+    public const string Billing = "Govori.Billing";
+
+    /// <summary>Every domain-module namespace/assembly prefix.</summary>
     public static readonly IReadOnlyList<string> DomainModules = new[]
     {
         Identity, Catalog, Practice, Assessment,
-        Classroom, Engagement, Administration, Guest,
+        Classroom, Engagement, Administration, Guest, Billing,
     };
 
     /// <summary>The two application-host assemblies no library/module may depend on.</summary>
@@ -84,7 +90,7 @@ public static class ArchitectureMap
         {
             Api, Worker, Contracts, Infrastructure, Platform, Realtime,
             Identity, Catalog, Practice, Assessment,
-            Classroom, Engagement, Administration, Guest,
+            Classroom, Engagement, Administration, Guest, Billing,
         };
         all.RemoveAll(ns => ns == self);
         return all.ToArray();
