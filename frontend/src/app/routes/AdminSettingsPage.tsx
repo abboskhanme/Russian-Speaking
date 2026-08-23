@@ -59,6 +59,8 @@ export default function AdminSettingsPage() {
                 class_insights_enabled: false,
                 daily_five_enabled: false,
                 payments_enabled: false,
+                phoneme_drill_enabled: false,
+                phoneme_drill_daily_attempts: 40,
               },
         );
       })
@@ -79,6 +81,8 @@ export default function AdminSettingsPage() {
       classInsightsEnabled: flags.class_insights_enabled,
       dailyFiveEnabled: flags.daily_five_enabled,
       paymentsEnabled: flags.payments_enabled,
+      phonemeDrillEnabled: flags.phoneme_drill_enabled,
+      phonemeDrillDailyAttempts: flags.phoneme_drill_daily_attempts,
       llmProvider: ai.llm_provider,
       geminiModel: ai.gemini_model,
       knownGeminiModels: ai.known_gemini_models,
@@ -199,6 +203,8 @@ export default function AdminSettingsPage() {
       roleplayDailyTurns: string;
       classInsightsEnabled: string;
       dailyFiveEnabled: string;
+      phonemeDrillEnabled: string;
+      phonemeDrillDailyAttempts: string;
       paymentsEnabled: string;
     }) => {
       setFlags(
@@ -210,6 +216,8 @@ export default function AdminSettingsPage() {
           class_insights_enabled: patch.classInsightsEnabled,
           daily_five_enabled: patch.dailyFiveEnabled,
           payments_enabled: patch.paymentsEnabled,
+          phoneme_drill_enabled: patch.phonemeDrillEnabled,
+          phoneme_drill_daily_attempts: patch.phonemeDrillDailyAttempts,
         }),
       );
     },

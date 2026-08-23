@@ -740,6 +740,12 @@ export interface FeatureFlagsResponse {
    *  still refused while no provider is configured, so turning this on cannot open a flow
    *  that takes money nothing can collect. */
   payments_enabled: boolean;
+  /** F2 · the minimal-pair phoneme drill. Off by default because every attempt
+   *  costs a speech-vendor call — and two when the learner missed. */
+  phoneme_drill_enabled: boolean;
+  /** F2 · attempts per student per UTC day. The product ceiling; the burst
+   *  ceiling is a separate server-side rate limit. */
+  phoneme_drill_daily_attempts: number;
 }
 
 /** PATCH body. Everything is a string, booleans included — the tri-state needs
@@ -753,6 +759,8 @@ export interface FeatureFlagsUpdateArgs {
   class_insights_enabled?: string;
   daily_five_enabled?: string;
   payments_enabled?: string;
+  phoneme_drill_enabled?: string;
+  phoneme_drill_daily_attempts?: string;
 }
 
 export interface LinksResponse {

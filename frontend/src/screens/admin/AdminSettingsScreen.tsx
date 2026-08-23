@@ -37,6 +37,10 @@ export interface AdminSettings {
   roleplayDailyTurns: number;
   classInsightsEnabled: boolean;
   dailyFiveEnabled: boolean;
+  /** F2 · the minimal-pair phoneme drill. */
+  phonemeDrillEnabled: boolean;
+  /** F2 · attempts per student per UTC day. */
+  phonemeDrillDailyAttempts: number;
   paymentsEnabled: boolean;
   llmProvider: string;
   geminiModel: string;
@@ -131,6 +135,8 @@ export interface AdminSettingsProps {
     roleplayDailyTurns: string;
     classInsightsEnabled: string;
     dailyFiveEnabled: string;
+    phonemeDrillEnabled: string;
+    phonemeDrillDailyAttempts: string;
     paymentsEnabled: string;
   }) => Promise<void>;
 }
@@ -242,6 +248,10 @@ export function AdminSettingsScreen({
   const [dailyTurns, setDailyTurns] = useState(String(settings.roleplayDailyTurns));
   const [classInsights, setClassInsights] = useState(settings.classInsightsEnabled);
   const [dailyFive, setDailyFive] = useState(settings.dailyFiveEnabled);
+  const [phonemeDrill, setPhonemeDrill] = useState(settings.phonemeDrillEnabled);
+  const [drillAttempts, setDrillAttempts] = useState(
+    String(settings.phonemeDrillDailyAttempts),
+  );
   const [payments, setPayments] = useState(settings.paymentsEnabled);
   const [busy, setBusy] = useState(false);
   const [note, setNote] = useState<string | null>(null);
@@ -339,6 +349,8 @@ export function AdminSettingsScreen({
     setDailyTurns(String(settings.roleplayDailyTurns));
     setClassInsights(settings.classInsightsEnabled);
     setDailyFive(settings.dailyFiveEnabled);
+    setPhonemeDrill(settings.phonemeDrillEnabled);
+    setDrillAttempts(String(settings.phonemeDrillDailyAttempts));
     setPayments(settings.paymentsEnabled);
   }, [
     settings.reviewDrillEnabled,
@@ -347,6 +359,8 @@ export function AdminSettingsScreen({
     settings.roleplayDailyTurns,
     settings.classInsightsEnabled,
     settings.dailyFiveEnabled,
+    settings.phonemeDrillEnabled,
+    settings.phonemeDrillDailyAttempts,
     settings.paymentsEnabled,
   ]);
 
@@ -454,6 +468,8 @@ export function AdminSettingsScreen({
         roleplayDailyTurns: dailyTurns.trim(),
         classInsightsEnabled: String(classInsights),
         dailyFiveEnabled: String(dailyFive),
+        phonemeDrillEnabled: String(phonemeDrill),
+        phonemeDrillDailyAttempts: drillAttempts,
         paymentsEnabled: String(payments),
       });
       setNote(t("admin.saved"));
@@ -821,6 +837,32 @@ export function AdminSettingsScreen({
                 aria-label={t("admin.payments")}
               />
             </div>
+            <div className={styles.switchRow}>
+              <span className={styles.switchText}>
+                <Text as="span" variant="body" weight="semibold">
+                  {t("admin.phonemeDrill")}
+                </Text>
+                {/* The hint names the cost, because this is the switch whose bill
+                    scales with use: every attempt is a speech-vendor call, and two
+                    when the learner missed. */}
+                <Text as="span" variant="body-s" color="muted">
+                  {t("admin.phonemeDrillHint")}
+                </Text>
+              </span>
+              <Switch
+                checked={phonemeDrill}
+                onChange={setPhonemeDrill}
+                aria-label={t("admin.phonemeDrill")}
+              />
+            </div>
+            <Input
+              label={t("admin.phonemeDrillDailyAttempts")}
+              type="number"
+              min={1}
+              max={500}
+              value={drillAttempts}
+              onChange={(e) => setDrillAttempts(e.currentTarget.value)}
+            />
             <Input
               label={t("admin.roleplayMaxTurns")}
               type="number"
