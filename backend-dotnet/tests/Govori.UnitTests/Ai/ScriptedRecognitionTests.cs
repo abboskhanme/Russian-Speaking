@@ -169,6 +169,40 @@ public class ScriptedRecognitionTests
         Assert.Equal("мишка", result.Text);
     }
 
+    /// <summary>
+    /// Azure sends the word's accuracy FLATTENED onto the word — measured, the live response is
+    /// <c>"Word":"мышка","Offset":…,"AccuracyScore":49.0</c> with no <c>PronunciationAssessment</c>
+    /// wrapper. Reading only the nested shape (as this backend did) returned null for every word of
+    /// every attempt, which is invisible until something actually displays a word score.
+    /// </summary>
+    [Fact]
+    public async Task A_flattened_word_accuracy_is_read()
+    {
+        var result = await TranscribeAsync(
+            ResponseWith("\"Phonemes\":[]"), Reference, SttRecognitionMode.Scripted);
+
+        var word = Assert.Single(result.Words!);
+        Assert.Equal(49.0, word.Accuracy);
+    }
+
+    /// <summary>The nested shape still wins where a vendor revision sends it, so an endpoint
+    /// upgrade cannot quietly swap which number is reported.</summary>
+    [Fact]
+    public async Task A_nested_word_accuracy_still_takes_precedence()
+    {
+        var body = """
+            {"RecognitionStatus":"Success","NBest":[{"Lexical":"мишка","Words":[
+              {"Word":"мышка","AccuracyScore":49.0,
+               "PronunciationAssessment":{"AccuracyScore":88.0,"ErrorType":"Mispronunciation"}}]}]}
+            """;
+
+        var result = await TranscribeAsync(body, Reference, SttRecognitionMode.Scripted);
+
+        var word = Assert.Single(result.Words!);
+        Assert.Equal(88.0, word.Accuracy);
+        Assert.Equal("Mispronunciation", word.ErrorType);
+    }
+
     // ─────────────────────────── harness ───────────────────────────
 
     /// <summary>Sends one request through the real backend and hands back the decoded

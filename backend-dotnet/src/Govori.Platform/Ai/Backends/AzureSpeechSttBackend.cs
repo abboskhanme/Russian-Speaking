@@ -276,8 +276,11 @@ public sealed class AzureSpeechSttBackend : ISttBackend
                 Word = word.Word,
                 Start = start,
                 End = end,
-                Accuracy = word.PronunciationAssessment?.AccuracyScore,
-                ErrorType = word.PronunciationAssessment?.ErrorType,
+                // Nested first, flattened as the fallback — both shapes are real. See AzureWord:
+                // the live vendor sends the flattened one, so reading only the nested shape left
+                // every word score null.
+                Accuracy = word.PronunciationAssessment?.AccuracyScore ?? word.AccuracyScore,
+                ErrorType = word.PronunciationAssessment?.ErrorType ?? word.ErrorType,
                 Phonemes = MapPhonemes(word.Phonemes),
             });
         }
@@ -508,6 +511,17 @@ public sealed class AzureSpeechSttBackend : ISttBackend
         public long? Offset { get; init; }
         public long? Duration { get; init; }
         public AzureWordAssessment? PronunciationAssessment { get; init; }
+
+        /// <summary>The FLATTENED word accuracy — the same shape problem the NBest level has, one
+        /// level down, and it was silently costing every word score. Measured against the live
+        /// vendor: <c>"Word":"мышка","Offset":…,"AccuracyScore":49.0,"Phonemes":[…]</c> — no
+        /// <c>PronunciationAssessment</c> wrapper anywhere in the response, so reading only the
+        /// nested shape yielded null for every word of every attempt.</summary>
+        public double? AccuracyScore { get; init; }
+
+        /// <summary>Flattened miscue label, for the same reason as <see cref="AccuracyScore"/>.</summary>
+        public string? ErrorType { get; init; }
+
         public IReadOnlyList<AzurePhoneme>? Phonemes { get; init; }
     }
 
