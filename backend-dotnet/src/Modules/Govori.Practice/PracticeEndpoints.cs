@@ -157,6 +157,10 @@ public static class PracticeEndpoints
         // business, not Program.cs's.
         app.MapRoleplayEndpoints();
 
+        // F3 · Kunlik 5 daqiqa (docs/08 Faza 6.3) — same reasoning. It is a read-only aggregator
+        // over surfaces this module and Catalog already expose, so it adds a route, not a slice.
+        app.MapDailyEndpoints();
+
         return app;
     }
 
