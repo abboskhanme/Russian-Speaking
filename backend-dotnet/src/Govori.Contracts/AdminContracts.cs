@@ -164,7 +164,13 @@ public sealed record FeatureFlagsResponse(
     bool ClassInsightsEnabled = false,
     /// <summary>F3 · «Kunlik 5 daqiqa», the daily session on Home. ADDITIVE (appended last),
     /// default off.</summary>
-    bool DailyFiveEnabled = false);
+    bool DailyFiveEnabled = false,
+    /// <summary>F2 · the phoneme drill on minimal pairs. ADDITIVE (appended last), default off —
+    /// the attempt route spends Azure calls.</summary>
+    bool PhonemeDrillEnabled = false,
+    /// <summary>F2 · attempts per student per UTC day. Mirrors <c>DrillService</c>'s default of
+    /// 40.</summary>
+    int PhonemeDrillDailyAttempts = 40);
 
 /// <summary>
 /// Partial update of the feature flags. Same tri-state contract as every other settings write:
@@ -182,7 +188,9 @@ public sealed record FeatureFlagsUpdate(
     string? RoleplayMaxTurns = null,
     string? RoleplayDailyTurns = null,
     string? ClassInsightsEnabled = null,
-    string? DailyFiveEnabled = null);
+    string? DailyFiveEnabled = null,
+    string? PhonemeDrillEnabled = null,
+    string? PhonemeDrillDailyAttempts = null);
 
 // ─── Admin user management ───────────────────────────────────────────────────
 

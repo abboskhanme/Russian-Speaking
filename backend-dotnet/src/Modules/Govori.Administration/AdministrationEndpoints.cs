@@ -212,9 +212,12 @@ public static class AdministrationEndpoints
             Add(vals, "roleplay_daily_turns", body.RoleplayDailyTurns);
             Add(vals, "class_insights_enabled", body.ClassInsightsEnabled);
             Add(vals, "daily_five_enabled", body.DailyFiveEnabled);
+            Add(vals, "phoneme_drill_enabled", body.PhonemeDrillEnabled);
+            Add(vals, "phoneme_drill_daily_attempts", body.PhonemeDrillDailyAttempts);
 
             foreach (var key in new[]
-                     { "review_drill_enabled", "roleplay_enabled", "class_insights_enabled", "daily_five_enabled" })
+                     { "review_drill_enabled", "roleplay_enabled", "class_insights_enabled", "daily_five_enabled",
+                       "phoneme_drill_enabled" })
             {
                 if (!vals.TryGetValue(key, out var v) || v is null || v.Length == 0)
                     continue;                       // "" clears the override — legal, not a value
