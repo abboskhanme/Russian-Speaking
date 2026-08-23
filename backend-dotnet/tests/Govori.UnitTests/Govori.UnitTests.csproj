@@ -35,6 +35,10 @@
          tests already use — no database, no vendor — so the rules it encodes (skipped is not
          failed; report the model that really answered) are unit-testable here. -->
     <ProjectReference Include="..\..\src\Modules\Govori.Administration\Govori.Administration.csproj" />
+    <!-- The minimal-pair seed is pure content — no database, no vendor — and its IPA arrays are
+         joined to Azure's scores by index, so an off-by-one here would print one sound's score under
+         another sound's name. Those invariants are cheapest to pin right here. -->
+    <ProjectReference Include="..\..\src\Modules\Govori.Drills\Govori.Drills.csproj" />
   </ItemGroup>
 
 </Project>

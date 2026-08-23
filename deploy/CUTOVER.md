@@ -1,3 +1,27 @@
+> # ⚠️ THIS IS NOT THE DOCUMENT YOU WANT
+>
+> **Decision of 2026-08-23, from the owner: production data is NOT migrated. The
+> server is built from zero.** Follow **[`INSTALL.md`](INSTALL.md)** instead.
+>
+> This runbook solves a different problem: replacing a live stack **while keeping
+> the database it is already serving**. Everything below assumes there are rows
+> worth preserving — the dump, the volume adoption, `ef-baseline.sh`, logging in
+> with the old password hashes, "restore from the dump" as a rollback. On a clean
+> install none of it applies, and some of it does damage: `ef-baseline.sh` on an
+> empty database claims a schema that was never created, after which every real
+> migration is skipped and the first query fails on a missing table.
+>
+> **It is kept, not deleted.** The knowledge here was expensive and every script
+> it drives is real and tested. The day an existing populated database has to be
+> brought under EF Core's ownership — a second environment, a restored copy, a
+> customer's own deployment — this is the document for it. Until then it is
+> history, and following it is a mistake.
+>
+> If you are unsure which situation you are in: run `bash deploy/migrate.sh
+> --list`. It inspects the database and says so out loud before doing anything.
+
+---
+
 # Cutover runbook — Python/Alembic stack → .NET stack
 
 **Target:** `134.209.240.56` / `govorim.uz` · ~50 real users whose data exists in
