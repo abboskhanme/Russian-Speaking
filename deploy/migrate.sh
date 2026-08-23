@@ -6,18 +6,28 @@
 # WHY THIS IS A SCRIPT AND NOT A LINE IN THE RUNBOOK
 # The application deliberately does NOT migrate itself at startup — no
 # Database.Migrate(), no EnsureCreated(). That is the right call for a database
-# holding 50 real users: a schema change should be a decision someone makes, not
-# a side effect of a container restarting at 3am. But it leaves a gap, because
-# the droplet has no .NET SDK on it, and `dotnet ef` is an SDK tool. The command
-# that fills the gap is long, easy to get subtly wrong, and needed exactly once,
-# in the middle of a maintenance window, by someone tired. So it lives here,
-# tested, instead of in a document as something to retype.
+# holding real users: a schema change should be a decision someone makes, not a
+# side effect of a container restarting at 3am. But it leaves a gap, because the
+# droplet has no .NET SDK on it, and `dotnet ef` is an SDK tool. The command that
+# fills the gap is long, easy to get subtly wrong, and needed at the one moment
+# nobody wants to be retyping it. So it lives here, tested, instead of in a
+# document as something to copy.
 #
-# ORDER MATTERS. On a database that is already populated and has never been
-# adopted, run deploy/ef-baseline.sh FIRST. The baseline migration was generated
-# FROM the live schema, so applying it to a populated database would try to
-# recreate tables that already exist. ef-baseline.sh marks it as applied without
-# running it; this script then applies everything after it.
+# THE TWO SITUATIONS, AND HOW TO TELL THEM APART
+#   EMPTY database (a fresh install — deploy/INSTALL.md). Nothing to do first:
+#   this script applies every migration from InitialBaseline onwards and builds
+#   the whole schema. deploy/ef-baseline.sh is NOT part of that path and must not
+#   be run — it exists to adopt a schema that already exists, and here there is
+#   nothing to adopt.
+#
+#   POPULATED database that EF has never seen (adopting an existing deployment —
+#   deploy/CUTOVER.md). Run deploy/ef-baseline.sh FIRST: the baseline migration
+#   was generated FROM that schema, so applying it for real would try to recreate
+#   tables that are already there. ef-baseline.sh marks it applied without
+#   running it; this script then applies everything after it.
+#
+# The script decides which of the two it is by looking, and says so before it
+# does anything. You should not have to know in advance.
 #
 # USAGE (from the repo root, on the droplet)
 #   bash deploy/migrate.sh --list        # read-only: what is applied, what is pending
@@ -85,10 +95,25 @@ log "mode     : ${MODE}"
 APPLIED="$(docker exec -e PGPASSWORD="$PGPASS_V" "$DB_CTR" psql -U "$PGUSER_V" -d "$PGDB_V" -A -t \
   -c 'SELECT count(*) FROM "__EFMigrationsHistory"' 2>/dev/null | tr -d '[:space:]' || true)"
 if [ -z "$APPLIED" ]; then
-  log "WARNING: this database has NO __EFMigrationsHistory table."
-  log "         If it is POPULATED, stop and run deploy/ef-baseline.sh first —"
-  log "         applying the baseline migration to an existing schema will fail."
-  log "         If it is genuinely empty, continuing is correct."
+  # No history table. That is TWO different situations with opposite answers, and
+  # the script used to describe both and leave the choice to whoever was reading
+  # at the time. On a fresh install (deploy/INSTALL.md) the empty case is the
+  # normal one, and being told to "consider ef-baseline.sh" there is an invitation
+  # to fake a history row for a schema that does not exist yet — after which every
+  # real migration is skipped and the first query fails on a missing table. So ask
+  # the database which situation this is instead of asking the operator.
+  if [ "$(docker exec -e PGPASSWORD="$PGPASS_V" "$DB_CTR" psql -U "$PGUSER_V" -d "$PGDB_V" -A -t \
+            -c "SELECT to_regclass('public.users') IS NOT NULL" 2>/dev/null | tr -d '[:space:]')" = "t" ]; then
+    log "WARNING: this database is POPULATED but has no __EFMigrationsHistory table."
+    log "         STOP. Run deploy/ef-baseline.sh first — applying the baseline"
+    log "         migration to a schema that already exists fails on its first"
+    log "         CREATE TABLE. (Adopting existing data: deploy/CUTOVER.md.)"
+  else
+    log "this database is EMPTY — no schema, no history. That is the correct"
+    log "starting point for a fresh install, and every migration below will run"
+    log "for real. Do NOT run deploy/ef-baseline.sh: it exists to adopt an"
+    log "already-populated database, and here there is nothing to adopt."
+  fi
 else
   log "migrations already applied: ${APPLIED}"
 fi
