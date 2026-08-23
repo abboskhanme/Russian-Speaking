@@ -426,6 +426,164 @@ namespace Govori.Infrastructure.Migrations
                     b.ToTable("notifications", (string)null);
                 });
 
+            modelBuilder.Entity("Govori.Infrastructure.Entities.PaymentIntent", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<long>("AmountMinor")
+                        .HasColumnType("bigint")
+                        .HasColumnName("amount_minor");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at")
+                        .HasDefaultValueSql("now()");
+
+                    b.Property<string>("Currency")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(3)
+                        .HasColumnType("character varying(3)")
+                        .HasDefaultValue("UZS")
+                        .HasColumnName("currency");
+
+                    b.Property<string>("ExternalId")
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)")
+                        .HasColumnName("external_id");
+
+                    b.Property<string>("FailureReason")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("failure_reason");
+
+                    b.Property<string>("IdempotencyKey")
+                        .IsRequired()
+                        .HasMaxLength(80)
+                        .HasColumnType("character varying(80)")
+                        .HasColumnName("idempotency_key");
+
+                    b.Property<Guid>("PlanId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("plan_id");
+
+                    b.Property<string>("Provider")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)")
+                        .HasColumnName("provider");
+
+                    b.Property<string>("ProviderPayload")
+                        .HasColumnType("jsonb")
+                        .HasColumnName("provider_payload");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)")
+                        .HasColumnName("status");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at")
+                        .HasDefaultValueSql("now()");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("user_id");
+
+                    b.HasKey("Id")
+                        .HasName("payment_intents_pkey");
+
+                    b.HasIndex("PlanId")
+                        .HasDatabaseName("ix_payment_intents_plan_id");
+
+                    b.HasIndex("UserId", "CreatedAt")
+                        .HasDatabaseName("ix_payment_intents_user_created");
+
+                    b.HasIndex("UserId", "IdempotencyKey")
+                        .IsUnique()
+                        .HasDatabaseName("uq_payment_intents_idempotency");
+
+                    b.ToTable("payment_intents", (string)null);
+                });
+
+            modelBuilder.Entity("Govori.Infrastructure.Entities.Plan", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)")
+                        .HasColumnName("code");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at")
+                        .HasDefaultValueSql("now()");
+
+                    b.Property<string>("Currency")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(3)
+                        .HasColumnType("character varying(3)")
+                        .HasDefaultValue("UZS")
+                        .HasColumnName("currency");
+
+                    b.Property<string>("Description")
+                        .HasColumnType("text")
+                        .HasColumnName("description");
+
+                    b.Property<int>("DurationDays")
+                        .HasColumnType("integer")
+                        .HasColumnName("duration_days");
+
+                    b.Property<bool>("IsActive")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(true)
+                        .HasColumnName("is_active");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(120)
+                        .HasColumnType("character varying(120)")
+                        .HasColumnName("name");
+
+                    b.Property<long>("PriceMinor")
+                        .HasColumnType("bigint")
+                        .HasColumnName("price_minor");
+
+                    b.Property<int>("SortOrder")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(0)
+                        .HasColumnName("sort_order");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at")
+                        .HasDefaultValueSql("now()");
+
+                    b.HasKey("Id")
+                        .HasName("plans_pkey");
+
+                    b.HasIndex("Code")
+                        .IsUnique()
+                        .HasDatabaseName("uq_plans_code");
+
+                    b.ToTable("plans", (string)null);
+                });
+
             modelBuilder.Entity("Govori.Infrastructure.Entities.Question", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1044,6 +1202,68 @@ namespace Govori.Infrastructure.Migrations
                     b.ToTable("submissions", (string)null);
                 });
 
+            modelBuilder.Entity("Govori.Infrastructure.Entities.Subscription", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at")
+                        .HasDefaultValueSql("now()");
+
+                    b.Property<DateTime?>("EndsAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("ends_at");
+
+                    b.Property<string>("ExternalId")
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)")
+                        .HasColumnName("external_id");
+
+                    b.Property<Guid>("PlanId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("plan_id");
+
+                    b.Property<string>("Provider")
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)")
+                        .HasColumnName("provider");
+
+                    b.Property<DateTime>("StartsAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("starts_at");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)")
+                        .HasColumnName("status");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at")
+                        .HasDefaultValueSql("now()");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("user_id");
+
+                    b.HasKey("Id")
+                        .HasName("subscriptions_pkey");
+
+                    b.HasIndex("PlanId")
+                        .HasDatabaseName("ix_subscriptions_plan_id");
+
+                    b.HasIndex("UserId", "Status")
+                        .HasDatabaseName("ix_subscriptions_user_status");
+
+                    b.ToTable("subscriptions", (string)null);
+                });
+
             modelBuilder.Entity("Govori.Infrastructure.Entities.TelegramBinding", b =>
                 {
                     b.Property<long>("TelegramUserId")
@@ -1522,6 +1742,27 @@ namespace Govori.Infrastructure.Migrations
                     b.Navigation("User");
                 });
 
+            modelBuilder.Entity("Govori.Infrastructure.Entities.PaymentIntent", b =>
+                {
+                    b.HasOne("Govori.Infrastructure.Entities.Plan", "Plan")
+                        .WithMany()
+                        .HasForeignKey("PlanId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("payment_intents_plan_id_fkey");
+
+                    b.HasOne("Govori.Infrastructure.Entities.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("payment_intents_user_id_fkey");
+
+                    b.Navigation("Plan");
+
+                    b.Navigation("User");
+                });
+
             modelBuilder.Entity("Govori.Infrastructure.Entities.Question", b =>
                 {
                     b.HasOne("Govori.Infrastructure.Entities.QuestionBlock", "Block")
@@ -1641,6 +1882,27 @@ namespace Govori.Infrastructure.Migrations
                     b.Navigation("ReviewedByNavigation");
 
                     b.Navigation("Student");
+                });
+
+            modelBuilder.Entity("Govori.Infrastructure.Entities.Subscription", b =>
+                {
+                    b.HasOne("Govori.Infrastructure.Entities.Plan", "Plan")
+                        .WithMany()
+                        .HasForeignKey("PlanId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("subscriptions_plan_id_fkey");
+
+                    b.HasOne("Govori.Infrastructure.Entities.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("subscriptions_user_id_fkey");
+
+                    b.Navigation("Plan");
+
+                    b.Navigation("User");
                 });
 
             modelBuilder.Entity("Govori.Infrastructure.Entities.Topic", b =>

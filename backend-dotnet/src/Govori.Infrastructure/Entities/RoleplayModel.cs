@@ -23,6 +23,11 @@ public partial class GovoriDbContext
 
     partial void OnModelCreatingPartial(ModelBuilder modelBuilder)
     {
+        // Faza 6.6's three billing tables (BillingModel.cs). A partial method may have exactly ONE
+        // body, and this is it, so every later feature that maps its own tables hangs off this line
+        // rather than growing a second implementation the compiler would reject.
+        ConfigureBilling(modelBuilder);
+
         modelBuilder.Entity<Scenario>(entity =>
         {
             entity.HasKey(e => e.Id).HasName("scenarios_pkey");
