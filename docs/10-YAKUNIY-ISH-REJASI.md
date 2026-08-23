@@ -35,23 +35,38 @@ Uchta cheklov tartibni belgilaydi, va ular muzokaraga ochiq emas:
 | **S1** | **AI provayder zanjiri** | Faza **3.4** — pipeline'ning yagona ishlamayotgan qismi | ✅ |
 | **S2** | **Grader golden set + CI darvozasi** | Faza **1.4 · 1.5 · 1.6** | ✅ |
 | **S3** | **Test va infratuzilma qarzi** | **2.5 · 3.10 · 4.1 · 4.11** ✅ · **4.2** ⬜ | 🟡 |
-| **S4** | **Yangi funksiyalar (flag ortida)** | **6.1 · 6.5 · 6.8** ✅; **6.7** 🟡; 6.2 🔴 · 6.3 · 6.6 ⬜ | 🟡 |
+| **S4** | **Yangi funksiyalar (flag ortida)** | **6.1 · 6.2 · 6.3 · 6.5 · 6.7 · 6.8** ✅ · **6.6** 🟡 (skelet) | ✅ |
 | **S5** | **Zaxira skriptlari, tozalash, hujjatlar, yakuniy QA** | **0.5** ✅ (zaxira **va** tiklash, sinalgan) · 7.x · **prodga tayyorlik** ✅ | 🟡 |
 | **S6** | **Prodga tayyorlik qattiqlashtirishi** *(2026-08-23 kechasi, rejada yo'q edi)* | Sirlar · CORS · token bekor qilish · vendor timeout · rate limit · readiness · log · cutover minalari · ErrorBoundary · uchala rol uchun E2E · kontrast | ✅ |
+| **S7** | **Noldan o'rnatish** *(egasining 2026-08-23 qarori)* | `INSTALL.md` · `bootstrap-admin.sh` · `smoke.sh` · `preflight.sh` rejimlari · sertifikat zanjiri | ✅ |
 
-> **S4 haqida aniqlashtirish (2026-08-23, o'lchangan).** Uchta band rejada noto'g'ri yozilgan edi:
-> **6.8 allaqachon qurilgan** (`ProfileService.BuildAchievements`, 21 nishon, jadvalsiz — nishonlar
-> hisoblanadi, saqlanmaydi; jonli tekshirildi). **6.7 yarmi qurilgan** — o'qituvchi sinf xatolarini
-> ko'radi, yetmayotgani "1 tap → remediation topshiriq" va u xato-turi → topshiriq xaritasini
-> talab qiladi, ya'ni kontent qarori. **6.2 bloklangan** — F2 ning butun asosi ("Azure ma'lumoti
-> tayyor") noto'g'ri: vendor'ning xom javobi o'lchandi, unscripted rejimda fonema **nomlari bo'sh**
-> keladi (455/455) va prosodiya umuman qaytmaydi. Drill uchun *scripted* rejim yo'li ochiq, lekin
-> bu qayta loyihalash.
+> **S4 — yakuniy holat (2026-08-23).** Sprint yopildi. Uch band reja yozganidan boshqacha chiqdi,
+> va uchalasi ham **o'lchov bilan** aniqlandi:
 >
-> **6.3 (Kunlik 5 daqiqa) — yagona haqiqatan qurilishi mumkin bo'lgani, va ataylab qurilmadi.**
-> Shu hujjatning o'z qoidasi: *"cutover funksiyalarni kutmaydi. Deploy ≠ release."* Prodga chiqish
-> arafasida yangi foydalanuvchi yuzasini qo'shish aynan cutover'ni xavf ostiga qo'yadi. Qolgan quvvat
-> S6 ga — barqarorlikka — ketdi.
+> **6.8 allaqachon qurilgan ekan** — `ProfileService.BuildAchievements`, 21 nishon, **jadvalsiz**
+> (nishonlar saqlanmaydi, hisoblanadi). Jonli tekshirildi. Reja "boshlanmagan" deb yozgan edi.
+>
+> **6.7 yarmi qurilgan edi** — o'qituvchi sinf xatolarini ko'rardi, "1 tap → remediation topshiriq"
+> yo'q edi. Yetishmayotgan yarmi qurildi, va **xarita qo'lda yozilmadi**: bazadagi haqiqiy
+> `corrections` lug'ati sanab chiqildi (`word_order` 127 · `relevance` 1 · `style` 1) va xarita
+> sifatida "shu xato eng ko'p sodir bo'lgan savol" olindi — nol taxminli. Chegara **3 ta turli
+> o'quvchi** (hodisa emas, odam: bitta gapchan javob bir turdagi 5 ta tuzatish keltirishi mumkin).
+>
+> **6.2 ning butun asosi noto'g'ri edi.** `docs/01` uni "Azure ma'lumoti tayyor" deb asoslaydi.
+> Vendor'ning xom javobi o'lchandi: `ru-RU` uchun fonema **nomlari bo'sh** keladi (455/455), va bu
+> scripted rejimda ham o'zgarmaydi — aynan bir xil so'rov `en-US` ga yuborilganda 14/14 nomlangan
+> IPA qaytdi. Ya'ni bu so'rov shakli emas, **lokal cheklovi**; Microsoft hujjati ham shuni aytadi
+> (fonema nomi va prosodiya faqat `en-US`).
+> Shuning uchun funksiya **boshqa signal ustiga** qurildi: ball emas, **oqibat** — «мышка» so'radik,
+> «мишка» eshitildi, *sichqoncha* / *ayiqcha*. Bu vendor inventaridan mustaqil va o'quvchi uchun
+> tushunarliroq. Pozitsion ballar bezak sifatida qo'shildi va **hech qachon shart emas**.
+> Yo'l-yo'lakay o'lchangan ikkinchi narsa: scripted rejimda `Lexical` **reference matnni** qaytaradi,
+> aytilganini emas (6/6) — shuning uchun scripted javobning matni hech qayerda o'qilmaydi.
+>
+> **6.6 — skelet.** Egasining qarori: merchant hisobi hozircha yo'q. Jadvallar, tariflar, obuna
+> holati, to'lov oqimining UI'si qurildi; provayder adapteri **stub** va u hech qachon muvaffaqiyat
+> qaytarmaydi. Premium endi bitta manbadan hisoblanadi (`is_premium` **yoki** faol obuna), va
+> o'qituvchi bergan premium regressiya qilmagani jonli isbotlandi.
 
 ---
 
@@ -132,8 +147,15 @@ degan gap — hozircha **da'vo**; golden set uni **o'lchovga** aylantiradi.
 
 ### S4 · Yangi funksiyalar — **feature flag ortida**
 
+> ✅ **Yopildi 2026-08-23.** Quyidagi jadval — dastlabki **reja** va u tarix sifatida qoladi;
+> haqiqatda nima chiqqani yuqoridagi "S4 — yakuniy holat" izohida. Uch band rejadan farq qildi
+> (6.8 allaqachon qurilgan edi · 6.7 yarmi · 6.2 ning asosi noto'g'ri edi), 6.6 esa skelet
+> holida to'xtadi — merchant hisobi egasida yo'q.
+>
 > Arxitektor tuzatishi 08 dan o'zgarmaydi: **cutover bularni kutmaydi.**
 > Cutover funksiyalarga bog'lansa — u hech qachon sodir bo'lmaydi. Deploy ≠ release.
+> *(Bu qoida 2026-08-23 da sinovdan o'tdi: funksiyalar cutover'dan **oldin** tugadi, lekin
+> o'rnatish baribir ularni kutmasdan bajarilishi mumkin — hammasi flag ortida, sukut o'chiq.)*
 
 Tartib — qiymat/xarajat bo'yicha, eng arzon foydadan boshlab:
 
