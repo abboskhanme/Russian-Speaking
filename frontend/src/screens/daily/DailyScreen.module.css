@@ -1,0 +1,220 @@
+/* DailyScreen — «Bugungi 5 daqiqa», the F3 daily session (docs/08 Faza 6.3).
+ * Composed from shared/ui + widgets; every colour / space / radius / shadow /
+ * motion value is a token, so light and dark both come from tokens.css.
+ * Full-width per docs/04 §4.10 — the page root spans its column with no
+ * max-width + auto-margin centring. */
+
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-5);
+  width: 100%;
+}
+
+/* ---- The rail: today's steps and where we are in them ---- */
+
+.rail {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-3);
+  width: 100%;
+}
+
+.railHead {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--s-3);
+}
+
+.railMeta {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+}
+
+/* One row per step on a phone, one column each once there is room. The rail is a
+ * map of the session, so it must stay readable at 390px rather than shrink into
+ * three unlabelled dots. */
+.steps {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--s-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+@media (min-width: 720px) {
+  .steps {
+    grid-auto-flow: column;
+    grid-auto-columns: minmax(0, 1fr);
+    gap: var(--s-3);
+  }
+}
+
+.step {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  min-width: 0;
+  padding: var(--s-3) var(--s-4);
+  border-radius: var(--r-lg);
+  border: 1px solid var(--line);
+  background: var(--surface);
+  transition: border-color var(--m-fast), background var(--m-fast);
+}
+
+.stepText {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+/* The number/tick badge. `--faint` is decorative-only, so the digit inside a
+ * not-yet-reached step still uses a real text token. */
+.dot {
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+  inline-size: 26px;
+  block-size: 26px;
+  border-radius: var(--r-pill);
+  background: var(--surface-2);
+  color: var(--muted);
+  font-size: var(--t-label-size);
+  font-weight: var(--fw-bold);
+}
+
+.todo {
+  /* the resting look above */
+}
+
+.current {
+  border-color: var(--primary);
+  background: var(--primary-tint);
+}
+.current .dot {
+  background: var(--primary);
+  color: var(--primary-on);
+}
+
+.done {
+  border-color: var(--success);
+  background: var(--success-tint);
+}
+.done .dot {
+  background: var(--success);
+  color: var(--primary-on);
+}
+
+/* ---- The step card ---- */
+
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-5);
+  width: 100%;
+}
+
+.cardHead {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-1);
+}
+
+.cardActions {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--s-2);
+}
+
+/* ---- Warm-up phrases ---- */
+
+.phrases {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.phrase {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+  padding: var(--s-4);
+  border-radius: var(--r-lg);
+  background: var(--surface-2);
+  border-inline-start: 3px solid var(--primary);
+}
+
+/* The line to say out loud — the loudest thing on the card, because saying it is
+ * the entire step. */
+.phraseText {
+  margin: 0;
+  font-size: var(--t-title-s-size);
+  font-weight: var(--fw-semibold);
+  line-height: 1.45;
+  color: var(--ink);
+}
+
+.phraseMeta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--s-2);
+}
+
+/* ---- The task target ---- */
+
+.target {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+  padding: var(--s-4);
+  border-radius: var(--r-lg);
+  background: var(--primary-tint);
+}
+
+.targetTags {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s-2);
+}
+
+.targetTitle {
+  margin: 0;
+  font-weight: var(--fw-black);
+  letter-spacing: -0.01em;
+}
+
+/* ---- Terminal states ---- */
+
+.state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--s-3);
+  padding-block: var(--s-8);
+  text-align: center;
+  width: 100%;
+}
+.stateText {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-1);
+  max-inline-size: 46ch;
+}
+.stateActions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--s-3);
+  margin-top: var(--s-2);
+}
