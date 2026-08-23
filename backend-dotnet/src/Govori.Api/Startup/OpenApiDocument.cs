@@ -136,6 +136,15 @@ public static class OpenApiDocument
 
         foreach (var endpoint in endpoints.OfType<RouteEndpoint>())
         {
+            // A route that opts out of description is not part of the contract. This is what keeps
+            // the committed document describing the API PRODUCTION serves even though the emit is
+            // required to run with ASPNETCORE_ENVIRONMENT=Development (docs/09): the dev-only
+            // one-tap login (see DevLoginEndpoints) is registered on that host and must not appear
+            // here, or the file would stop being byte-identical between the two environments and
+            // would start advertising routes production answers 404 for.
+            if (endpoint.Metadata.GetMetadata<IExcludeFromDescriptionMetadata>()?.ExcludeFromDescription == true)
+                continue;
+
             var template = Template(endpoint.RoutePattern);
             var methods = endpoint.Metadata.GetMetadata<HttpMethodMetadata>()?.HttpMethods;
             if (methods is null || methods.Count == 0) continue;

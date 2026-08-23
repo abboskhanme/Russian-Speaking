@@ -299,6 +299,11 @@ public static class IdentityEndpoints
             };
         }).RequireAuthorization().RequireRateLimiting(RateLimitPolicyNames.PhoneChange);
 
+        // The DEVELOPMENT-ONLY one-tap sign-in as a seeded demo account. It maps NOTHING outside
+        // Development — see DevLoginEndpoints for why a registered-but-403 route would not be good
+        // enough, and why the check is IsDevelopment() rather than !IsProduction().
+        app.MapDevLoginEndpoints();
+
         return app;
     }
 

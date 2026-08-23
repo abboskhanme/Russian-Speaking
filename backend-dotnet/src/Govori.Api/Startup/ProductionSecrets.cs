@@ -1,3 +1,4 @@
+using Govori.Identity;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Hosting;
 
@@ -19,6 +20,13 @@ namespace Govori.Api.Startup;
 /// dev delivery, <c>minioadmin</c> and a short throwaway secret — that is what makes them runnable
 /// with no external accounts. The gate keys off <see cref="IHostEnvironment.IsProduction"/>, so
 /// nothing here changes how the stack behaves anywhere except the one environment where it matters.</para>
+///
+/// <para><b>One of the checks is deliberately dead code.</b> The dev-login tripwire in
+/// <see cref="ThrowIfInsecure"/> asks <c>DevLoginEndpoints.IsEnabled</c> — the very predicate that
+/// decides whether that bypass is mapped — whether it would fire on a host being booted as
+/// Production. It cannot today, and it is there for the day the predicate is loosened by someone who
+/// did not read why it was written that way. A guard that can only fire after a mistake is the only
+/// kind worth having for a mistake this quiet.</para>
 ///
 /// <para><b>The escape hatch is deliberate and deliberately awkward.</b>
 /// <see cref="OverrideKey"/>=true starts a Production-configured host with insecure values, for the
@@ -70,7 +78,7 @@ public static class ProductionSecrets
         if (IsTruthy(config[OverrideKey]))
             return;
 
-        var problems = Problems(config);
+        var problems = Problems(config).Concat(HostProblems(environment)).ToList();
         if (problems.Count == 0)
             return;
 
@@ -83,9 +91,43 @@ public static class ProductionSecrets
     }
 
     /// <summary>
+    /// Findings that come from the HOST rather than from its configuration — things that are unsafe
+    /// because of what the process will REGISTER, not because of a value somebody typed.
+    ///
+    /// <para>Today there is exactly one: the development-only one-tap login
+    /// (<c>GET/POST /api/auth/dev/*</c>), which mints a token pair for a seeded demo account with no
+    /// credential of any kind. This asks <c>DevLoginEndpoints.IsEnabled</c> — the SAME predicate that
+    /// decides whether those routes get mapped, not a second opinion about it.</para>
+    ///
+    /// <para><b>It cannot fire today, and that is the point.</b> <c>IsDevelopment()</c> and
+    /// <c>IsProduction()</c> are mutually exclusive, so on the one environment <see cref="ThrowIfInsecure"/>
+    /// gates this is dead code. It is a tripwire, and a tripwire is only ever crossed by a mistake:
+    /// the day that predicate is widened — to <c>!IsProduction()</c>, to a config flag, to "just for
+    /// staging" — Production refuses to boot instead of quietly serving a login bypass that no log
+    /// line would mention. Changing the predicate's signature also breaks this call site, which puts
+    /// whoever is widening it in front of this comment.</para>
+    ///
+    /// <para>Separate from <see cref="Problems(IConfiguration)"/> so the configuration rules stay
+    /// pure, and so this one can be driven from a test with a host environment the real runtime can
+    /// never produce.</para>
+    /// </summary>
+    public static IReadOnlyList<string> HostProblems(IHostEnvironment environment)
+    {
+        if (!DevLoginEndpoints.IsEnabled(environment))
+            return Array.Empty<string>();
+
+        return new[]
+        {
+            "The development-only one-tap login (GET/POST /api/auth/dev/*) would be REGISTERED on this "
+            + "host. It issues a full session for a seeded account with no credential of any kind, and "
+            + "must not EXIST outside Development — see DevLoginEndpoints.",
+        };
+    }
+
+    /// <summary>
     /// Every insecure-configuration finding, as human-readable sentences. Pure and free of the host,
     /// so the rules can be driven directly from a test instead of by booting a process and reading
-    /// its exit code.
+    /// its exit code. Host-shaped findings live in <see cref="HostProblems"/>.
     /// </summary>
     public static IReadOnlyList<string> Problems(IConfiguration config)
     {

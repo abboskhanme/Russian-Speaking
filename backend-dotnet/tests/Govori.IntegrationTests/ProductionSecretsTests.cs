@@ -252,6 +252,51 @@ public sealed class ProductionSecretsTests
             () => ProductionSecrets.ThrowIfInsecure(insecure, new StubEnvironment(Environments.Production)));
     }
 
+    // ── the dev-login tripwire (ProductionSecrets.HostProblems) ──────────────
+
+    /// <summary>
+    /// The third layer under the development-only one-tap login. Layer 1 is that the routes are only
+    /// mapped when <c>IsDevelopment()</c>; layer 2 is that the UI is compiled out of the production
+    /// bundle. This is what catches the day layer 1 is edited by someone who did not read why.
+    ///
+    /// <para>It is driven with a host environment the real runtime cannot hand to
+    /// <see cref="ProductionSecrets.ThrowIfInsecure"/> (that one has already returned by the time a
+    /// Development host gets here), because the RULE is what has to be pinned: "if the bypass would
+    /// be registered, this is a problem." The day the predicate widens, that rule starts firing on a
+    /// real Production host without anyone touching this file.</para>
+    /// </summary>
+    [Fact]
+    public void A_host_that_would_register_the_dev_login_is_a_problem()
+    {
+        var problems = ProductionSecrets.HostProblems(new StubEnvironment(Environments.Development));
+
+        Assert.Contains(problems, p => p.Contains("/api/auth/dev/*", StringComparison.Ordinal));
+    }
+
+    /// <summary>
+    /// The environments that must NOT register it. Production is the obvious one; the rest are the
+    /// reason the predicate is the affirmative <c>IsDevelopment()</c> and not <c>!IsProduction()</c>
+    /// — every name here passes a negated check, and not one of them is a developer's laptop.
+    /// </summary>
+    [Theory]
+    [InlineData("Production")]
+    [InlineData("Staging")]
+    [InlineData("Preview")]
+    [InlineData("Prod")]          // a typo in a deploy file; ASPNETCORE_ENVIRONMENT is free text
+    [InlineData("")]              // the variable was never set on a host that overrode the default
+    public void No_other_environment_registers_the_dev_login(string environmentName)
+    {
+        Assert.Empty(ProductionSecrets.HostProblems(new StubEnvironment(environmentName)));
+    }
+
+    /// <summary>A healthy Production host must still boot — the tripwire above must not be something
+    /// that fires on the way in on every deploy.</summary>
+    [Fact]
+    public void A_healthy_production_host_has_no_host_problems()
+    {
+        Assert.Empty(ProductionSecrets.HostProblems(new StubEnvironment(Environments.Production)));
+    }
+
     /// <summary>Minimal <see cref="IHostEnvironment"/>: the gate reads only EnvironmentName (through
     /// IsProduction/IsDevelopment), so nothing else needs to be real.</summary>
     private sealed class StubEnvironment : IHostEnvironment
