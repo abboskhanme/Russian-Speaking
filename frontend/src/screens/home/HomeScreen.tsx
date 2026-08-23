@@ -25,8 +25,15 @@ export interface HomeUser {
 export interface HomeToday {
   /** Daily goal in minutes (e.g. 5). */
   goalMinutes: number;
-  /** Practice seconds done TODAY — fills the segmented progress. */
-  doneSeconds: number;
+  /**
+   * Practice seconds done TODAY — fills the segmented progress.
+   *
+   * `null` means UNKNOWN (the stats read failed), not zero. The bar is then left
+   * out entirely rather than drawn empty: an empty bar is a claim that nothing was
+   * practised today, and that claim is exactly what the app cannot make when it
+   * could not reach the endpoint that knows.
+   */
+  doneSeconds: number | null;
 }
 
 /**
@@ -78,9 +85,26 @@ export interface HomeScreenProps {
   today: HomeToday;
   /** Null → the "O'QITUVCHINGIZ" block is replaced by a quiet independent state. */
   group: HomeGroup | null;
-  stats: HomeStats;
+  /**
+   * The QISQACHA figures, or `null` when they could not be loaded.
+   *
+   * Null is a THIRD state, and it exists because the second-worst thing this
+   * screen can do is show zeros. A student with a 40-day streak who opens Home
+   * during a stats outage reads "0" as "I lost it" — the number is not merely
+   * stale, it is the specific wrong number that describes the thing they are
+   * afraid of. A gap says "I don't know"; a zero says "you have none".
+   *
+   * There is no loading value here on purpose: the page holds its own spinner
+   * until the first round of fetches settles, so this screen only ever renders a
+   * settled outcome.
+   */
+  stats: HomeStats | null;
   /** Today's F3 session, or null when the flag is off (see {@link HomeDaily}). */
   daily?: HomeDaily | null;
+  /** Re-fetch the QISQACHA figures after a failure. Without it the only way out
+   * of the failed state is a full page reload, which costs the student everything
+   * else on the screen to recover one card. */
+  onRetryStats?: () => void;
   /** Start today's practice (the "Boshlash" CTA). */
   onStart?: () => void;
   /** Message the teacher (the "Yozish" action). Hidden when absent. */
@@ -121,6 +145,7 @@ export function HomeScreen({
   today,
   group,
   stats,
+  onRetryStats,
   daily = null,
   onStart,
   onMessageTeacher,
@@ -167,14 +192,31 @@ export function HomeScreen({
             {t("home.summary")}
           </Text>
           <div className={styles.statGrid}>
-            <StatCell value={stats.level ?? "—"} label={t("home.statLevel")} />
+            {/* An em dash in every cell, not a zero. The three cells keep their
+                labels so the layout does not jump when the retry succeeds. */}
+            <StatCell value={stats ? (stats.level ?? "—") : "—"} label={t("home.statLevel")} />
             <StatCell
-              value={String(stats.weekMinutes)}
-              unit={t("home.statWeekUnit")}
+              value={stats ? String(stats.weekMinutes) : "—"}
+              unit={stats ? t("home.statWeekUnit") : undefined}
               label={t("home.statWeek")}
             />
-            <StatCell value={String(stats.currentStreak)} label={t("home.statStreak")} />
+            <StatCell
+              value={stats ? String(stats.currentStreak) : "—"}
+              label={t("home.statStreak")}
+            />
           </div>
+          {!stats && (
+            <div className={styles.statsError} role="status">
+              <Text as="span" variant="body-s" color="muted">
+                {t("home.statsFailed")}
+              </Text>
+              {onRetryStats && (
+                <Button variant="ghost" size="sm" onClick={onRetryStats}>
+                  {t("common.retry")}
+                </Button>
+              )}
+            </div>
+          )}
         </section>
       </div>
     </AppShell>
@@ -196,7 +238,9 @@ function TodayCard({
 }) {
   const { t } = useTranslation();
   const goalSec = Math.max(today.goalMinutes, 1) * 60;
-  const fraction = Math.min(today.doneSeconds / goalSec, 1);
+  // Unknown stays unknown: with no figure there is no bar, rather than a bar
+  // drawn at zero that reads as "you have done nothing today".
+  const fraction = today.doneSeconds === null ? null : Math.min(today.doneSeconds / goalSec, 1);
 
   return (
     <Card variant="raised" padding="lg" className={styles.todayCard}>
@@ -221,9 +265,9 @@ function TodayCard({
             it was: the flag must leave no trace on this card. */}
         {daily ? (
           <StepDots done={daily.done} total={daily.total} />
-        ) : (
+        ) : fraction !== null ? (
           <SegmentBar fraction={fraction} />
-        )}
+        ) : null}
 
         <div className={styles.todayActions}>
           <Button variant="primary" size="lg" onClick={onStart}>

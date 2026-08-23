@@ -24,12 +24,23 @@ export default function HomePage() {
   const navigate = useNavigate();
   const onNavigate = useNavHandler();
 
-  const [today, setToday] = useState<HomeToday>({ goalMinutes: DAILY_GOAL_MIN, doneSeconds: 0 });
+  // doneSeconds starts UNKNOWN, not 0, for the same reason: it comes from the same
+  // read, and an empty progress bar is the same false claim in a different shape.
+  const [today, setToday] = useState<HomeToday>({ goalMinutes: DAILY_GOAL_MIN, doneSeconds: null });
   const [group, setGroup] = useState<HomeGroup | null>(null);
   /** Group the student has asked to join and is waiting on — see HomeScreen's
    * `pendingGroupName`. Only meaningful while `group` is null. */
   const [pendingGroupName, setPendingGroupName] = useState<string | null>(null);
-  const [stats, setStats] = useState<HomeStats>({ level: null, weekMinutes: 0, currentStreak: 0 });
+  /**
+   * The QISQACHA figures, or `null` when the read failed.
+   *
+   * `allSettled` was always the right call — one dead section must not blank the
+   * page — but the rejected branch used to do NOTHING, which left the initial
+   * zeros on screen looking like data. A student with a 40-day streak read "0"
+   * during a stats outage as "I lost it". The failure now has a value of its own,
+   * and the screen says "I don't know" instead of "you have none".
+   */
+  const [stats, setStats] = useState<HomeStats | null>(null);
   /** Today's F3 session — null while `daily_five_enabled` is off (the probe 404s)
    * and null on any other failure. Both draw Home exactly as it was before F3, so
    * a switched-off feature leaves no mark here at all. */
@@ -80,6 +91,9 @@ export default function HomePage() {
             currentStreak: s.value.current_streak,
           });
           setToday({ goalMinutes: DAILY_GOAL_MIN, doneSeconds: s.value.today_practice_sec });
+        } else {
+          setStats(null);
+          setToday({ goalMinutes: DAILY_GOAL_MIN, doneSeconds: null });
         }
 
         // A student belongs to at most one group in practice; take the first.
@@ -131,6 +145,25 @@ export default function HomePage() {
     [daily, navigate],
   );
 
+  // Retry just the figures. Re-running the whole page load would throw away the
+  // group and assignment blocks that loaded perfectly well, and would flash the
+  // full-page spinner to recover one card.
+  const onRetryStats = useCallback(() => {
+    endpoints
+      .profileStats()
+      .then((v) => {
+        setStats({
+          level: v.level,
+          weekMinutes: Math.round(v.week_practice_sec / 60),
+          currentStreak: v.current_streak,
+        });
+        setToday({ goalMinutes: DAILY_GOAL_MIN, doneSeconds: v.today_practice_sec });
+      })
+      // Still unknown. Staying in the failed state is the honest outcome — the
+      // alternative is showing zeros again, which is the bug this exists to fix.
+      .catch(() => undefined);
+  }, []);
+
   // Join a group by code, then refetch so the "O'QITUVCHINGIZ" block replaces the
   // join form. Errors propagate to NoGroupCard, which surfaces them inline.
   const onJoinGroup = useCallback(async (code: string) => {
@@ -147,6 +180,7 @@ export default function HomePage() {
       today={today}
       group={group}
       stats={stats}
+      onRetryStats={onRetryStats}
       daily={daily}
       onStart={onStart}
       onJoinGroup={onJoinGroup}

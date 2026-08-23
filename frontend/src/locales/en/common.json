@@ -103,6 +103,7 @@
     "statWeek": "This week",
     "statWeekUnit": "min",
     "statStreak": "Streak",
+    "statsFailed": "Couldn't load your figures",
     "greetHi": "Hi, {{name}}",
     "noGroup": "You're not in a group yet",
     "noGroupHint": "You're practicing solo — ask your teacher for a group code.",

@@ -104,6 +104,17 @@
   background: var(--primary);
 }
 
+/* The QISQACHA block's failed state. It sits under the three cells rather than
+ * replacing them, so the retry does not reflow the page — and so the labels stay
+ * on screen to say WHICH numbers are missing. */
+.statsError {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--s-2);
+  margin-top: var(--s-2);
+}
+
 /* ---- Teacher + group ---- */
 .teacherCard {
   display: flex;

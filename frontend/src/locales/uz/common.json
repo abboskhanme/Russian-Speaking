@@ -103,6 +103,7 @@
     "statWeek": "Bu hafta",
     "statWeekUnit": "daq",
     "statStreak": "Streak",
+    "statsFailed": "Ko'rsatkichlarni yuklab bo'lmadi",
     "greetHi": "Salom, {{name}}",
     "noGroup": "Siz hali guruhda emassiz",
     "noGroupHint": "Mustaqil mashq qilyapsiz — o'qituvchidan guruh kodini so'rashingiz mumkin.",
