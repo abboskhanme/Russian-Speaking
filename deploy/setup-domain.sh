@@ -120,12 +120,25 @@ else
 fi
 
 # 7. Report what is actually being served, not what was requested.
+#
+# The certificate is read OUT of the container and parsed here. The obvious
+# `dc exec web openssl x509 …` cannot work — the web image is nginx:1.27-alpine
+# and ships no openssl binary — so this step printed "unknown" for both lines on
+# every successful run, i.e. the one check that confirms the new certificate
+# actually reached nginx confirmed nothing. `cat` exists everywhere.
 echo
 echo "==> Verifying…"
-SERVED_END="$(dc exec -T web openssl x509 -enddate -noout -in /etc/nginx/certs/fullchain.pem 2>/dev/null | cut -d= -f2 || true)"
-SERVED_ISSUER="$(dc exec -T web openssl x509 -issuer -noout -in /etc/nginx/certs/fullchain.pem 2>/dev/null || true)"
-echo "    nginx is serving: ${SERVED_ISSUER:-unknown}"
-echo "    valid until:      ${SERVED_END:-unknown}"
+SERVED_PEM="$(dc exec -T web cat /etc/nginx/certs/fullchain.pem 2>/dev/null || true)"
+if [ -z "$SERVED_PEM" ]; then
+  echo "    WARNING: could not read /etc/nginx/certs/fullchain.pem from the web container."
+elif ! command -v openssl >/dev/null 2>&1; then
+  echo "    (no openssl on this host — check the certificate from a browser)"
+else
+  SERVED_ISSUER="$(printf '%s\n' "$SERVED_PEM" | openssl x509 -issuer -noout 2>/dev/null || true)"
+  SERVED_END="$(printf '%s\n' "$SERVED_PEM" | openssl x509 -enddate -noout 2>/dev/null | cut -d= -f2 || true)"
+  echo "    nginx is serving: ${SERVED_ISSUER:-unreadable}"
+  echo "    valid until:      ${SERVED_END:-unreadable}"
+fi
 echo
 echo "==> Done. https://${DOMAIN} should now be live."
 echo "    Renewal runs from cron; it logs to /var/log/govori-cert.log."

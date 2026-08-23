@@ -68,8 +68,16 @@ fi
 # ── The check the old one-liner never made ───────────────────────────────────
 # Ask the RUNNING nginx what it is actually serving, not what is on disk. This is
 # the only assertion that distinguishes "renewal ran" from "renewal worked".
-END="$(dc exec -T web sh -c \
-  "openssl x509 -enddate -noout -in /etc/nginx/certs/fullchain.pem" 2>/dev/null | cut -d= -f2 || true)"
+#
+# The certificate is read OUT of the container and parsed by the HOST's openssl.
+# Running openssl INSIDE the container cannot work — the web image is
+# nginx:1.27-alpine and has no openssl binary — so this line produced an empty
+# END on every run and the guard below turned every otherwise-successful renewal
+# into a FATAL. Twice a day, from cron, for as long as the cron had been
+# installed. `cat` exists in every image.
+[ -n "$(command -v openssl || true)" ] || die "openssl is not installed on this host; the renewal cannot verify what nginx is serving"
+END="$(dc exec -T web cat /etc/nginx/certs/fullchain.pem 2>/dev/null \
+       | openssl x509 -enddate -noout 2>/dev/null | cut -d= -f2 || true)"
 [ -n "$END" ] || die "could not read the certificate nginx is serving"
 
 END_EPOCH="$(date -u -d "$END" +%s 2>/dev/null || date -u -j -f '%b %e %T %Y %Z' "$END" +%s 2>/dev/null || echo 0)"
