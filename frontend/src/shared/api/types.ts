@@ -1309,6 +1309,12 @@ export interface PlanUpsertArgs {
   name?: string;
   description?: string;
   price_minor?: number;
+  /** Travels WITH `price_minor`, the same way it does on {@link PlanResponse} — the display
+   * formatter reads it rather than assuming so'm, so a plan created without it can never be
+   * formatted right afterwards. `PlanUpsertRequest.Currency` has accepted it since the tariff
+   * editor shipped; this mirror simply did not declare it, which meant the panel could read a
+   * plan's currency and never change it. Found by `npm run check:contract`. */
+  currency?: string;
   duration_days?: number;
   is_active?: boolean;
   sort_order?: number;

@@ -280,13 +280,18 @@ public static class OpenApiDocument
     /// <summary>
     /// Every public, serializable DTO in Govori.Contracts, ordered by name so the committed file
     /// only changes when the contract does. Static helper classes (CefrScale, PhoneNumbers, …) and
-    /// interfaces carry no wire shape and are skipped.
+    /// interfaces carry no wire shape and are skipped, and so does a type with no JSON properties
+    /// at all: Govori.Contracts also holds seam IMPLEMENTATIONS (NullGradingEvents), and describing
+    /// one as an empty object would put a shape in the document that no response ever carries.
     /// </summary>
     private static IEnumerable<Type> ContractTypes(JsonSerializerOptions options) =>
         ContractsAssembly.GetExportedTypes()
             .Where(type => !type.IsInterface && !type.IsGenericTypeDefinition && !(type.IsAbstract && type.IsSealed))
-            .Where(type => type.IsEnum || options.GetTypeInfo(type).Kind == JsonTypeInfoKind.Object)
+            .Where(type => type.IsEnum || IsWireShape(options.GetTypeInfo(type)))
             .OrderBy(type => type.Name, StringComparer.Ordinal);
+
+    private static bool IsWireShape(JsonTypeInfo info) =>
+        info.Kind == JsonTypeInfoKind.Object && info.Properties.Count > 0;
 
     private static JsonObject RootSchema(Type type, JsonSerializerOptions options)
     {
@@ -296,24 +301,19 @@ public static class OpenApiDocument
         var properties = new JsonObject();
         var required = new JsonArray();
 
-        // A positional record's optional parameters (`string? Region = null`) are what makes a field
-        // absent-able. Matching them by CLR name is how a default value becomes "not required" here
-        // rather than every non-nullable member being reported as mandatory.
-        var optional = type.GetConstructors()
-            .OrderByDescending(constructor => constructor.GetParameters().Length)
-            .FirstOrDefault()
-            ?.GetParameters()
-            .Where(parameter => parameter.HasDefaultValue)
-            .Select(parameter => parameter.Name!)
-            .ToHashSet(StringComparer.OrdinalIgnoreCase) ?? [];
-
+        // `required` = every non-nullable member, and a C# DEFAULT VALUE does not change that. This
+        // host sets no DefaultIgnoreCondition, so System.Text.Json writes every property of every
+        // response — `string PreferredLanguage = "uz"` is a default for CONSTRUCTION, never a reason
+        // for the field to be absent from the JSON. Treating a defaulted parameter as optional here
+        // was tried first and produced a page of warnings claiming the API "may omit" fields it
+        // sends on every single response, which is the fastest way to teach people to ignore the
+        // warnings. A body the CLIENT may send partially says so through nullability instead —
+        // every partial-update DTO in this codebase is `string? X = null`.
         foreach (var property in info.Properties)
         {
             var nullable = IsNullable(property);
             properties[property.Name] = SchemaFor(Underlying(property.PropertyType), options, nullable);
-
-            var clrName = (property.AttributeProvider as MemberInfo)?.Name ?? property.Name;
-            if (!nullable && !optional.Contains(clrName)) required.Add(property.Name);
+            if (!nullable) required.Add(property.Name);
         }
 
         var schema = new JsonObject { ["type"] = "object", ["properties"] = properties };
@@ -343,7 +343,7 @@ public static class OpenApiDocument
     {
         type = Underlying(type);
 
-        if (type.Assembly == ContractsAssembly && (type.IsEnum || options.GetTypeInfo(type).Kind == JsonTypeInfoKind.Object))
+        if (type.Assembly == ContractsAssembly && (type.IsEnum || IsWireShape(options.GetTypeInfo(type))))
         {
             var reference = new JsonObject { ["$ref"] = "#/components/schemas/" + type.Name };
             // OpenAPI 3.0 forbids siblings next to $ref, so a nullable reference has to be wrapped.

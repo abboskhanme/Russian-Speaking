@@ -11,7 +11,8 @@
     "test:watch": "vitest",
     "test:e2e": "playwright test",
     "check:tokens": "node scripts/check-tokens.mjs",
-    "check:budget": "node scripts/check-budget.mjs"
+    "check:budget": "node scripts/check-budget.mjs",
+    "check:contract": "node scripts/check-contract.mjs"
   },
   "dependencies": {
     "@radix-ui/react-slot": "^1.1.2",

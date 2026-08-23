@@ -2660,7 +2660,8 @@
           "student_id",
           "question_id",
           "created_at",
-          "completed"
+          "completed",
+          "attempts_used"
         ]
       },
       "AttemptDetailResponse": {
@@ -3367,7 +3368,12 @@
           "review_drill_enabled",
           "roleplay_enabled",
           "roleplay_max_turns",
-          "roleplay_daily_turns"
+          "roleplay_daily_turns",
+          "class_insights_enabled",
+          "daily_five_enabled",
+          "phoneme_drill_enabled",
+          "phoneme_drill_daily_attempts",
+          "payments_enabled"
         ]
       },
       "FeatureFlagsUpdate": {
@@ -4000,7 +4006,9 @@
           "reviewed_week",
           "skills",
           "week",
-          "errors"
+          "errors",
+          "remediation_enabled",
+          "remediation_min_students"
         ]
       },
       "InsightsSkillsResponse": {
@@ -4095,7 +4103,8 @@
         },
         "required": [
           "id",
-          "label"
+          "label",
+          "note"
         ]
       },
       "LeaderboardEntryResponse": {
@@ -4242,7 +4251,10 @@
           "full_name",
           "role",
           "is_active",
-          "is_premium"
+          "is_premium",
+          "created_at",
+          "notifications_enabled",
+          "preferred_language"
         ]
       },
       "NeedsRegistrationResponse": {
@@ -4251,7 +4263,10 @@
           "needs_registration": {
             "type": "boolean"
           }
-        }
+        },
+        "required": [
+          "needs_registration"
+        ]
       },
       "NotificationResponse": {
         "type": "object",
@@ -4289,10 +4304,6 @@
           "is_read",
           "created_at"
         ]
-      },
-      "NullGradingEvents": {
-        "type": "object",
-        "properties": {}
       },
       "OtpRequestRequest": {
         "type": "object",
@@ -4628,7 +4639,9 @@
           "current_streak",
           "longest_streak",
           "total_practice_sec",
-          "xp"
+          "xp",
+          "today_practice_sec",
+          "week_practice_sec"
         ]
       },
       "ProgressLeaderboardResponse": {
@@ -5284,7 +5297,8 @@
           }
         },
         "required": [
-          "set"
+          "set",
+          "hint"
         ]
       },
       "StudentModuleResponse": {
@@ -5919,7 +5933,8 @@
         },
         "required": [
           "access_token",
-          "refresh_token"
+          "refresh_token",
+          "token_type"
         ]
       },
       "TranscriptWordResponse": {
