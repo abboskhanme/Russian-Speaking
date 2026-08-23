@@ -49,6 +49,10 @@
     <ProjectReference Include="..\..\src\Modules\Govori.Administration\Govori.Administration.csproj" />
     <!-- Guest demo (Faza 3.8): assert phrase membership + reuse the ITtsProvider seam in tests. -->
     <ProjectReference Include="..\..\src\Modules\Govori.Guest\Govori.Guest.csproj" />
+    <!-- Billing (Faza 6.6): construct BillingService directly with a CONFIGURED fake
+         IPaymentProvider, so the idempotency guard and the verified-callback grant — code the
+         shipped stub refuses before ever reaching — are actually executed against real SQL. -->
+    <ProjectReference Include="..\..\src\Modules\Govori.Billing\Govori.Billing.csproj" />
   </ItemGroup>
 
 </Project>

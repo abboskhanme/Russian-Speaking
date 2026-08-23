@@ -88,13 +88,16 @@ public sealed record PaymentStartResult(
 /// from an unverified body.
 /// </summary>
 /// <param name="ExternalId">The provider's transaction id.</param>
-/// <param name="IdempotencyKey">The key the intent was created with, echoed back by the provider,
-/// so the callback can be matched to its intent without trusting a client-supplied id.</param>
+/// <param name="IntentId">Which <see cref="PaymentIntent"/> this callback settles — the id the
+/// adapter sent the provider as the merchant order reference and read back out of the callback.
+/// Deliberately the intent's PRIMARY KEY and not its idempotency key: the key is unique only per
+/// user, so two people who happened to send the same one would make "find the intent for this
+/// callback" ambiguous, and an ambiguous match here credits a payment to the wrong account.</param>
 /// <param name="Paid">Whether the money actually moved. A verified callback that says "not paid" is
 /// still authentic, and still must not grant a subscription.</param>
 /// <param name="RawPayload">The exact body, stored for reconciliation.</param>
 public sealed record PaymentCallback(
     string ExternalId,
-    string IdempotencyKey,
+    Guid IntentId,
     bool Paid,
     string RawPayload);

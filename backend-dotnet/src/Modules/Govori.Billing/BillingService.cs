@@ -291,8 +291,10 @@ public sealed class BillingService
         if (callback is null)
             return BillingResult<bool>.Forbidden();
 
+        // By PRIMARY KEY, never by idempotency key: that key is unique only per user, so matching on
+        // it could settle one person's payment against another person's intent.
         var intent = await _db.PaymentIntents
-            .FirstOrDefaultAsync(i => i.IdempotencyKey == callback.IdempotencyKey, ct);
+            .FirstOrDefaultAsync(i => i.Id == callback.IntentId, ct);
         if (intent is null)
             return BillingResult<bool>.Forbidden();
 
