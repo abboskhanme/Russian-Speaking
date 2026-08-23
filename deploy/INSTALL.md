@@ -123,9 +123,12 @@ missing 2 GB.
 df -h /
 ```
 
-Expect **at least 15 GB free**. The build needs room for the .NET SDK image
-(~1 GB), the BuildKit cache, and two ~900 MB runtime images, on top of the
-database and the audio.
+Expect **at least 15 GB free**. `preflight.sh`'s hard floor is 8 GB — that is the
+point below which the build cannot finish. 15 leaves room for the BuildKit cache
+and for keeping the *previous* image tag on disk, which is what makes rolling back
+a two-minute `up -d` instead of a rebuild. The build itself needs the .NET SDK
+image (~1 GB) and produces two ~900 MB runtime images, on top of the database and
+the audio.
 
 ### 1.5 The snapshot
 
