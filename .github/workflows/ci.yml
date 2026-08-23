@@ -23,6 +23,37 @@ jobs:
         working-directory: backend-dotnet
         run: dotnet build Govori.sln --no-restore -c Release
 
+      # ── The contract document has to be CURRENT, not merely present ────────
+      # backend-dotnet/openapi.json is a committed file, which means it can go stale — and a stale
+      # document is worse than no document. The frontend gate would compare types.ts against last
+      # month's contract, the two would agree perfectly because both are old, and CI would report
+      # "the contract holds" about a contract nobody checked. That is the same silent drift this
+      # whole gate exists to prevent, only now wearing a green tick.
+      #
+      # So: regenerate and fail on any diff. The emit BUILDS the host and never STARTS it, so this
+      # step needs no Postgres, no Redis and no S3 — verified by running it in a container with no
+      # network at all. SECRET_KEY is a throwaway with a self-describing value: the host refuses to
+      # boot without one, and nothing here signs a token. --no-launch-profile keeps the output
+      # independent of launchSettings.json, which is also why ASPNETCORE_ENVIRONMENT is set by
+      # hand — the profile was quietly supplying it, and without it the production-secrets guard
+      # (correctly) refuses to build a host with no Telegram token and no database. The document is
+      # byte-identical under either environment; this is about getting the host built at all.
+      - name: The OpenAPI document must be current
+        working-directory: backend-dotnet
+        env:
+          ASPNETCORE_ENVIRONMENT: Development
+          SECRET_KEY: openapi-emit-only-not-a-real-secret
+        run: |
+          dotnet run --project src/Govori.Api -c Release --no-build --no-launch-profile \
+            -- --emit-openapi "$GITHUB_WORKSPACE/backend-dotnet/openapi.json"
+          git diff --exit-code -- openapi.json || {
+            echo ""
+            echo "openapi.json is stale — the API changed and the document did not follow."
+            echo "Regenerate it and commit the result (docs/09-DOCKER.md):"
+            echo "  dotnet run --project src/Govori.Api -c Release -- --emit-openapi ../backend-dotnet/openapi.json"
+            exit 1
+          }
+
       # Unit / Arch / Characterization run with no external dependencies.
       # Govori.IntegrationTests is DELIBERATELY excluded: it needs a live
       # Postgres + Redis + MinIO and mutates rows in setup, so it belongs in a
@@ -112,6 +143,20 @@ jobs:
       - name: Typecheck
         working-directory: frontend
         run: npx tsc --noEmit
+
+      # ── The hand-written API types vs the backend's OpenAPI document ───────
+      # docs/08 Faza 4.2. `tsc` above proves the frontend agrees with ITSELF; it cannot see a
+      # backend change, because src/shared/api/types.ts is written by hand (deliberately — it
+      # carries ~1400 lines of reasoning a generator would delete). This step is what notices a
+      # field the API added, removed, renamed or retyped.
+      #
+      # It is only half the check. The other half lives in the `backend` job, which regenerates
+      # openapi.json and fails on a diff — without it, this step would only prove that two stale
+      # files agree with each other. The script itself refuses to run against a stub document
+      # (fewer than 50 paths or 50 schemas) rather than passing on nothing.
+      - name: API contract gate
+        working-directory: frontend
+        run: npm run check:contract
 
       # Vitest (jsdom). `tsc` above proves the frontend COMPILES; this is the only
       # step that says anything about whether it works.

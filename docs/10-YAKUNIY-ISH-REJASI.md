@@ -34,7 +34,7 @@ Uchta cheklov tartibni belgilaydi, va ular muzokaraga ochiq emas:
 |---|---|---|:--:|
 | **S1** | **AI provayder zanjiri** | Faza **3.4** — pipeline'ning yagona ishlamayotgan qismi | ✅ |
 | **S2** | **Grader golden set + CI darvozasi** | Faza **1.4 · 1.5 · 1.6** | ✅ |
-| **S3** | **Test va infratuzilma qarzi** | **2.5 · 3.10 · 4.1 · 4.11** ✅ · **4.2** ⬜ | 🟡 |
+| **S3** | **Test va infratuzilma qarzi** | **2.5 · 3.10 · 4.1 · 4.2 · 4.11** ✅ | ✅ |
 | **S4** | **Yangi funksiyalar (flag ortida)** | **6.1 · 6.2 · 6.3 · 6.5 · 6.7 · 6.8** ✅ · **6.6** 🟡 (skelet) | ✅ |
 | **S5** | **Zaxira skriptlari, tozalash, hujjatlar, yakuniy QA** | **0.5** ✅ (zaxira **va** tiklash, sinalgan) · 7.x · **prodga tayyorlik** ✅ | 🟡 |
 | **S6** | **Prodga tayyorlik qattiqlashtirishi** *(2026-08-23 kechasi, rejada yo'q edi)* | Sirlar · CORS · token bekor qilish · vendor timeout · rate limit · readiness · log · cutover minalari · ErrorBoundary · uchala rol uchun E2E · kontrast | ✅ |
@@ -139,7 +139,7 @@ degan gap — hozircha **da'vo**; golden set uni **o'lchovga** aylantiradi.
 |---|---|---|
 | 3.1 | **2.5** Testcontainers | Integratsiya testlari umumiy dev Postgres'ga uriladi va qatorlarni o'zgartiradi — bitta parallel yugurish ikkovini ham buzadi |
 | 3.2 | **3.10** TTFS instrumentatsiyasi | "p95 < 20s" hech qachon **o'lchanmagan**; o'lchovsiz maqsad — maqsad emas |
-| 3.3 | **4.2** OpenAPI → TS klient | `shared/api/types.ts` qo'lda yozilgan; backend kontrakti jimgina siljisa, frontend buni kompilyatsiyada emas, prodda biladi |
+| 3.3 ✅ | **4.2** OpenAPI hujjati + kontrakt darvozasi | `shared/api/types.ts` qo'lda yozilgan; backend kontrakti jimgina siljisa, frontend buni kompilyatsiyada emas, prodda biladi. **Yopildi generatsiya bilan emas** — qo'lda yozilgan fayl qoladi (izohlari saqlab qolishga arziydigan bilim), va `npm run check:contract` uni `backend-dotnet/openapi.json` ga solishtiradi. Hujjat host'ning **o'z** `JsonSerializerOptions` idan chiqadi, ya'ni nomlar wire bilan tekshiruv orqali emas, **konstruksiya** orqali bir xil; CI avval hujjatni qayta yaratib eskirmaganini isbotlaydi, keyin darvozani yuritadi. |
 | 3.4 | **4.11** Vitest + Playwright golden path + `axe` | CI hozir faqat `tsc` + `vite build` — ya'ni "kompilyatsiya bo'ldi" dan boshqa hech narsani isbotlamaydi |
 | 3.5 | **4.1** Bundle budjeti CI'da | O'quvchi initial JS ≤ 180KB gz — budjetsiz u faqat o'sadi |
 

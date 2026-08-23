@@ -97,6 +97,52 @@ ikkalasi ham real vendorga uriladi va pul sarflaydi:
 ... -e GOVORI_LIVE_AI=1 --env-file .env ... --testcasefilter:"FullyQualifiedName~LiveVendorSmokeTests"
 ```
 
+### OpenAPI hujjati va kontrakt darvozasi (docs/08 Faza 4.2)
+
+`backend-dotnet/openapi.json` — API ning mashina o'qiy oladigan tavsifi, **repoga commit
+qilinadi**. Uni qayta yaratish:
+
+```bash
+# Hujjatni qayta yarat (avval build qilingan bo'lsin)
+docker run --rm -v "$PWD":/repo -v govori-nuget:/root/.nuget/packages -w /repo/backend-dotnet \
+  -e ASPNETCORE_ENVIRONMENT=Development \
+  -e SECRET_KEY=openapi-emit-only-not-a-real-secret \
+  mcr.microsoft.com/dotnet/sdk:9.0 \
+  dotnet run --project src/Govori.Api -c Release --no-build --no-launch-profile \
+    -- --emit-openapi /repo/backend-dotnet/openapi.json
+
+# Qo'lda yozilgan TS tiplarini shu hujjatga solishtir
+docker run --rm -v "$PWD/frontend":/app -v "$PWD/backend-dotnet":/backend-dotnet -w /app \
+  node:22-alpine sh -c 'npm run check:contract'
+```
+
+Uchta narsa bu buyruqda ataylab shunday:
+
+- **`SECRET_KEY` qiymati o'zini tushuntiradi.** Host kalitsiz ishga tushishdan bosh tortadi,
+  lekin bu yerda hech narsa token imzolamaydi — bu **haqiqiy kalit emas** va uni hech qayerga
+  nusxalash kerak emas.
+- **`ASPNETCORE_ENVIRONMENT=Development` majburiy**, `--no-launch-profile` esa chiqishni
+  `launchSettings.json` dan mustaqil qiladi. Sababi: profilsiz muhit `Production` bo'ladi va
+  `ProductionSecrets` (to'g'ri qiladi) Telegram tokeni va bazasi yo'q host'ni qurishdan bosh
+  tortadi. Hujjatning **o'zi ikkala muhitda bayt-ma-bayt bir xil** — bu faqat host qurilishi
+  uchun.
+- **Host quriladi, lekin ishga tushmaydi** (`app.Run()` chaqirilmaydi), ya'ni emit'ga Postgres,
+  Redis yoki S3 **kerak emas** — `--network none` konteynerda ham ~1 soniyada ishlaydi.
+
+Hujjat **deterministik**: path'lar va sxemalar tartiblangan, maydonlar e'lon tartibida. Ikki
+yugurish bir xil bayt beradi, shuning uchun CI "qayta yarat + `git diff --exit-code`" qila oladi.
+
+> **Nega `types.ts` generatsiya qilinmaydi.** `shared/api/types.ts` **qo'lda** yoziladi va shunday
+> qoladi: unda generator saqlay olmaydigan bilim bor (nega `known_open_ai_models` hamon qabul
+> qilinadi, nega maydon ixtiyoriy, tri-state PATCH semantikasi). Darvoza uni **almashtirmaydi** —
+> u qo'lda yozilgan faylni hujjatga solishtiradi, ya'ni siljish kompilyatsiyada emas, CI da
+> ushlanadi. Nima tekshiriladi va nima tekshirilmaydi — `frontend/scripts/check-contract.mjs`
+> boshidagi izohda.
+
+Development'da hujjatni `GET http://localhost:8082/openapi/v1.json` dan ham olsa bo'ladi.
+**Swagger UI yo'q** — umuman qo'shilmagan, shuning uchun prodda o'chirish kerak bo'lgan narsa
+ham yo'q.
+
 ### Frontend
 
 ```bash
