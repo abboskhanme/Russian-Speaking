@@ -4,6 +4,7 @@ using Govori.Contracts;
 using Govori.Infrastructure;
 using Govori.Infrastructure.Entities;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 
 namespace Govori.Classroom;
 
@@ -37,8 +38,17 @@ namespace Govori.Classroom;
 public sealed class ClassroomService
 {
     private readonly GovoriDbContext _db;
+    private readonly IConfiguration? _config;
 
-    public ClassroomService(GovoriDbContext db) => _db = db;
+    // The configuration is OPTIONAL (nullable, default null) so every test that constructs this
+    // service directly — `new ClassroomService(ctx)` — keeps compiling; DI supplies it in the host.
+    // It carries only the env-var half of the class-insights feature flag
+    // (see ClassInsightsEnabledAsync); nothing else in this service reads configuration.
+    public ClassroomService(GovoriDbContext db, IConfiguration? config = null)
+    {
+        _db = db;
+        _config = config;
+    }
 
     // Unambiguous join-code alphabet — no 0/O/1/I, so a code read aloud cannot be mistyped.
     private const string CodeAlphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
@@ -643,6 +653,15 @@ public sealed class ClassroomService
             Pronunciation: ClassroomScoring.MeanOrNull(evals.Select(e => e.PronunciationScore)),
             Lexical: ClassroomScoring.MeanOrNull(evals.Select(e => (double?)e.LexicalScore)));
 
+        // F6 · the one-tap remediation. Flag off ⇒ the tallies are still turned into rows (the
+        // "Ko'p uchragan xatolar" list has always been there) but nothing is planned, so the extra
+        // queries below never run and the client draws no button at all.
+        var tallies = TallyCorrections(subs);
+        var remediationOn = await ClassInsightsEnabledAsync(ct);
+        var errors = remediationOn
+            ? await PlanRemediationAsync(user, subs, tallies, ct)
+            : TopErrorPatterns(tallies);
+
         return ClassroomResult<InsightsResponse>.Ok(new InsightsResponse(
             ClassAvg: classAvg,
             ClassLevel: classLevel,
@@ -658,7 +677,9 @@ public sealed class ClassroomService
             ReviewedWeek: subs.Count(s => s.ReviewedAt is { } r && r >= weekStart),
             Skills: skills,
             Week: DailyActivity(subs, now),
-            Errors: TopErrorPatterns(subs)));
+            Errors: errors,
+            RemediationEnabled: remediationOn,
+            RemediationMinStudents: remediationOn ? RemediationMinStudents : 0));
     }
 
     /// <summary>
@@ -742,22 +763,33 @@ public sealed class ClassroomService
         return (projected.Count(a => a.Completed), projected.Count);
     }
 
-    /// <summary>
-    /// "Ko'p uchragan xatolar" — the top 5 correction types across the scoped graded answers.
-    ///
-    /// <para><c>evaluations.corrections</c> is a JSON column holding
-    /// <c>[{original,corrected,type,explanation}]</c>. It is parsed HERE, in memory, rather than
-    /// aggregated in SQL: the set is already bounded by one teacher's roster, and pushing JSON
-    /// unnesting into the query would tie this read to Postgres-specific SQL for no measurable gain.
-    /// A malformed or non-array blob is skipped silently — one bad row written by an older grader
-    /// must not take the whole analytics screen down.</para>
-    ///
-    /// <para>Ties break on the type string so the order is stable between two identical requests.</para>
-    /// </summary>
-    private static IReadOnlyList<InsightsErrorResponse> TopErrorPatterns(List<Submission> subs)
+    /// <summary>Everything one correction type contributed to the scoped answers.</summary>
+    private sealed class ErrorTally
     {
-        var counts = new Dictionary<string, int>(StringComparer.Ordinal);
-        var students = new Dictionary<string, HashSet<Guid>>(StringComparer.Ordinal);
+        /// <summary>How many individual corrections of this type were written.</summary>
+        public int Count;
+        /// <summary>The distinct students who made it — the "12 o'quvchi" half of the row, and the
+        /// exact audience a remediation may target.</summary>
+        public HashSet<Guid> Students { get; } = [];
+        /// <summary>question id → how often this type occurred ON that question. This is the ONLY
+        /// measured link between an error type and a task (see
+        /// <see cref="InsightsRemediationResponse"/>), so it is kept rather than summed away.</summary>
+        public Dictionary<Guid, int> PerQuestion { get; } = [];
+    }
+
+    /// <summary>
+    /// Reads <c>evaluations.corrections</c> across the scoped answers into per-type tallies.
+    ///
+    /// <para><c>corrections</c> is a JSON column holding <c>[{original,corrected,type,explanation}]</c>.
+    /// It is parsed HERE, in memory, rather than aggregated in SQL: the set is already bounded by one
+    /// teacher's roster, and pushing JSON unnesting into the query would tie this read to
+    /// Postgres-specific SQL for no measurable gain. A malformed or non-array blob is skipped
+    /// silently — one bad row written by an older grader must not take the whole analytics screen
+    /// down.</para>
+    /// </summary>
+    private static (Dictionary<string, ErrorTally> ByType, int Total) TallyCorrections(List<Submission> subs)
+    {
+        var byType = new Dictionary<string, ErrorTally>(StringComparer.Ordinal);
         var total = 0;
 
         foreach (var s in subs)
@@ -779,26 +811,226 @@ public sealed class ClassroomService
                     var type = t.GetString();
                     if (string.IsNullOrWhiteSpace(type)) continue;
 
-                    counts[type] = counts.GetValueOrDefault(type) + 1;
-                    if (!students.TryGetValue(type, out var seen))
-                        students[type] = seen = [];
-                    seen.Add(s.StudentId);
+                    if (!byType.TryGetValue(type, out var tally))
+                        byType[type] = tally = new ErrorTally();
+                    tally.Count++;
+                    tally.Students.Add(s.StudentId);
+                    // A free-practice answer has no question, so it counts toward the error but can
+                    // never be the drill — there is no task to re-assign.
+                    if (s.QuestionId is { } qid)
+                        tally.PerQuestion[qid] = tally.PerQuestion.GetValueOrDefault(qid) + 1;
                     total++;
                 }
             }
         }
 
-        if (total == 0) return [];
-        return counts
-            .OrderByDescending(kv => kv.Value)
+        return (byType, total);
+    }
+
+    /// <summary>
+    /// "Ko'p uchragan xatolar" — the top 5 correction types by frequency.
+    ///
+    /// <para>Ties break on the type string so the order is stable between two identical requests.</para>
+    /// </summary>
+    private static List<InsightsErrorResponse> TopErrorPatterns((Dictionary<string, ErrorTally> ByType, int Total) tallies)
+    {
+        if (tallies.Total == 0) return [];
+        return tallies.ByType
+            .OrderByDescending(kv => kv.Value.Count)
             .ThenBy(kv => kv.Key, StringComparer.Ordinal)
             .Take(5)
             .Select(kv => new InsightsErrorResponse(
                 Type: kv.Key,                                    // verbatim — the client owns the label
-                Count: kv.Value,
-                StudentCount: students[kv.Key].Count,
-                Share: Math.Round((double)kv.Value / total, 4, MidpointRounding.ToEven)))
+                Count: kv.Value.Count,
+                StudentCount: kv.Value.Students.Count,
+                Share: Math.Round((double)kv.Value.Count / tallies.Total, 4, MidpointRounding.ToEven)))
             .ToList();
+    }
+
+    // ─── F6 · one-tap remediation ───────────────────────────────────────────
+
+    /// <summary><c>app_settings</c> key that gates the F6 remediation. Faza 6 features ship behind a
+    /// flag and cutover does not wait for them (docs/08 "Deploy ≠ release"), so it defaults to
+    /// <b>off</b>: the analytics screen keeps listing the class's errors, but no "Mashq ber" button
+    /// is offered until someone stores a truthy value (or sets <c>CLASS_INSIGHTS_ENABLED</c>).</summary>
+    public const string ClassInsightsFlagKey = "class_insights_enabled";
+
+    // Env-var default for the flag — the uppercase form of the key, the convention every other
+    // app_settings key follows.
+    private const string ClassInsightsFlagEnvVar = "CLASS_INSIGHTS_ENABLED";
+
+    /// <summary>
+    /// How many DISTINCT students must have made an error before a remediation is offered for it.
+    ///
+    /// <para><b>Why there is a floor at all.</b> F6's promise is "12 students stumbled on the
+    /// genitive → one tap". <b>12</b> is the whole insight. One student stumbling is not a class
+    /// pattern, and offering a live button under it invites a teacher to fan a task out to the whole
+    /// affected set on the strength of a single graded answer. That is noise dressed as an insight,
+    /// and it is the kind of thing that costs a feature its credibility in its first week.</para>
+    ///
+    /// <para><b>Why students, not occurrences.</b> One talkative answer can carry five corrections of
+    /// the same type; counting occurrences would let a single student clear any bar. The unit of a
+    /// CLASS insight is people.</para>
+    ///
+    /// <para><b>Why three.</b> It is the smallest count that cannot be "one person, plus a repeat" —
+    /// the smallest set that describes a pattern ACROSS people rather than one student's habit (which
+    /// calls for a conversation, not a class drill). Measured against the data in hand it lands
+    /// exactly where it should: <c>word_order</c> (5 distinct students on its top questions, 127
+    /// occurrences) is offered, while <c>relevance</c> and <c>style</c> — one student, one occurrence
+    /// each — are not.</para>
+    ///
+    /// <para>A row below the floor still RENDERS. The teacher should know a rare error happened; they
+    /// just do not get a one-tap fan-out for it.</para>
+    /// </summary>
+    public const int RemediationMinStudents = 3;
+
+    // The truthy spellings app_settings uses for boolean-ish keys. Identical to the admin module's
+    // and Engagement's set on purpose: two toggles in one table that disagree about what "on" spells
+    // is a bug waiting to be filed against whichever one the admin typed "yes" into.
+    private static readonly HashSet<string> FlagTrueWords =
+        new(StringComparer.Ordinal) { "true", "1", "yes", "on" };
+
+    /// <summary>
+    /// Whether the F6 one-tap remediation is switched on. Same resolution order as every other
+    /// setting — <c>app_settings</c> override → env default → <c>false</c> — but resolved against the
+    /// table DIRECTLY rather than through <c>AppSettingsService</c>: that service lives in
+    /// <c>Govori.Administration</c>, and a module→module reference is exactly what the §7.2 boundary
+    /// guardrail (and <c>BoundaryRuleTests</c>) forbids. One indexed lookup on a screen a teacher
+    /// opens a handful of times a day is not worth a second cache.
+    /// </summary>
+    public async Task<bool> ClassInsightsEnabledAsync(CancellationToken ct = default)
+    {
+        var raw = await _db.AppSettings
+            .AsNoTracking()
+            .Where(s => s.Key == ClassInsightsFlagKey)
+            .Select(s => s.Value)
+            .FirstOrDefaultAsync(ct);
+
+        // A stored NULL or "" is not an override — it falls through to the env default, matching
+        // AppSettingsService.GetAsync, so clearing the row really does revert the flag.
+        if (string.IsNullOrEmpty(raw)) raw = _config?[ClassInsightsFlagEnvVar];
+
+        return raw is not null && FlagTrueWords.Contains(raw.Trim().ToLowerInvariant());
+    }
+
+    /// <summary>
+    /// The top-5 error rows, each carrying what "Mashq ber" would send (see
+    /// <see cref="InsightsRemediationResponse"/> for WHY the task is chosen this way).
+    ///
+    /// <para>Per row: the candidate task is the still-assignable question this error type occurred on
+    /// most often, and the audience is the students who actually made it — never the whole class.
+    /// Students who already have an OUTSTANDING assignment for that question are dropped: a second
+    /// copy of a task they have not done yet is noise, and a fan-out is the one thing on this screen
+    /// a teacher cannot undo.</para>
+    ///
+    /// <para>Rows under <see cref="RemediationMinStudents"/> are not planned for at all — they are
+    /// returned unchanged, with <c>Remediation</c> null.</para>
+    ///
+    /// <para>Three extra queries for the whole screen, not three per row: every candidate question,
+    /// every relevant assignment and every student name is fetched once for all five rows.</para>
+    /// </summary>
+    private async Task<List<InsightsErrorResponse>> PlanRemediationAsync(
+        User user,
+        List<Submission> subs,
+        (Dictionary<string, ErrorTally> ByType, int Total) tallies,
+        CancellationToken ct)
+    {
+        var rows = TopErrorPatterns(tallies);
+        if (rows.Count == 0) return rows;
+
+        // The floor (see RemediationMinStudents) is applied BEFORE anything is looked up: a row that
+        // cannot be offered a drill must not cost a query, and must not appear in the audience of one.
+        var top = rows
+            .Select(r => (Row: r, Tally: tallies.ByType[r.Type]))
+            .Where(x => x.Tally.Students.Count >= RemediationMinStudents)
+            .ToList();
+        if (top.Count == 0) return rows;
+
+        // Only questions that can still be handed out. A teacher may assign their OWN questions
+        // (admin: any) — the same ownership rule CreateAssignmentsAsync enforces, applied here so the
+        // button is never offered for a task the confirm would then be refused for.
+        var candidateIds = top.SelectMany(x => x.Tally.PerQuestion.Keys).Distinct().ToList();
+        if (candidateIds.Count == 0) return rows;                 // free-practice errors only
+        var isAdmin = user.Role == UserRole.Admin;
+        var assignable = await _db.Questions
+            .Where(q => candidateIds.Contains(q.Id)
+                        && !q.IsDeleted
+                        && q.IsPublished
+                        && (isAdmin || q.TeacherId == user.Id))
+            .ToDictionaryAsync(q => q.Id, ct);
+
+        // Pick each row's task first, so the assignment/name lookups below cover exactly the pairs
+        // that survive.
+        var picked = new Dictionary<string, Question>(StringComparer.Ordinal);
+        foreach (var (row, tally) in top)
+        {
+            var best = tally.PerQuestion
+                .Where(kv => assignable.ContainsKey(kv.Key))
+                .OrderByDescending(kv => kv.Value)
+                .ThenBy(kv => kv.Key)                            // stable between identical requests
+                .Select(kv => (Guid?)kv.Key)
+                .FirstOrDefault();
+            if (best is { } qid) picked[row.Type] = assignable[qid];
+        }
+        if (picked.Count == 0) return rows;
+
+        // The roster filter (S1) applied at PLAN time, so the count the teacher confirms is the count
+        // CreateAssignmentsAsync will actually write — a preview that promises 12 and writes 9 is
+        // worse than no preview.
+        var affected = top.Where(x => picked.ContainsKey(x.Row.Type))
+                          .SelectMany(x => x.Tally.Students)
+                          .Distinct()
+                          .ToList();
+        var onRoster = (await RosterStudentIds(user, affected, ct)).ToHashSet();
+
+        var pickedIds = picked.Values.Select(q => q.Id).Distinct().ToList();
+        var openAssignments = await _db.Assignments
+            .Where(a => pickedIds.Contains(a.QuestionId) && affected.Contains(a.StudentId))
+            .Select(a => new { a.QuestionId, a.StudentId, a.CreatedAt })
+            .ToListAsync(ct);
+
+        var names = await _db.Users
+            .Where(u => affected.Contains(u.Id))
+            .Select(u => new { u.Id, u.FullName })
+            .ToDictionaryAsync(u => u.Id, u => u.FullName, ct);
+
+        var plans = new Dictionary<string, InsightsRemediationResponse>(StringComparer.Ordinal);
+        foreach (var (row, tally) in top)
+        {
+            if (!picked.TryGetValue(row.Type, out var q)) continue;   // nothing assignable
+
+            var students = tally.Students
+                .Where(onRoster.Contains)
+                .Where(sid => !HasOpenAssignment(sid, q.Id))
+                .Select(sid => new InsightsRemediationStudent(sid, names.GetValueOrDefault(sid, "—")))
+                .OrderBy(s => s.FullName, StringComparer.OrdinalIgnoreCase)
+                .ToList();
+
+            plans[row.Type] = new InsightsRemediationResponse(
+                QuestionId: q.Id,
+                QuestionTitle: q.Title,
+                QuestionTopic: q.Topic,
+                QuestionLevel: q.Level,
+                Students: students);
+        }
+
+        // Mapped over ROWS, not over `top`: a row below the floor (or with nothing assignable) keeps
+        // its place in the ranked list with `Remediation` null. Dropping it would hide a real error
+        // from the teacher because the product could not offer them a shortcut for it.
+        return rows
+            .Select(r => plans.TryGetValue(r.Type, out var plan) ? r with { Remediation = plan } : r)
+            .ToList();
+
+        // "Open" by the SAME rule AssignmentResponse.Completed uses — an answer given at or after the
+        // assignment closes it — so this screen and the assignment list can never disagree about who
+        // still owes the task. `subs` already holds every answer for these (student, question) pairs
+        // in scope, so no extra query is needed.
+        bool HasOpenAssignment(Guid studentId, Guid questionId)
+            => openAssignments.Any(a => a.StudentId == studentId
+                                        && a.QuestionId == questionId
+                                        && !subs.Any(s => s.StudentId == studentId
+                                                          && s.QuestionId == questionId
+                                                          && s.CreatedAt >= a.CreatedAt));
     }
 
     /// <summary>

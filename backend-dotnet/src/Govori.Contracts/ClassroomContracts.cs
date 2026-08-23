@@ -216,7 +216,26 @@ public sealed record InsightsResponse(
     /// its axis.</summary>
     IReadOnlyList<InsightsDayPoint> Week,
     /// <summary>Top 5 correction types by frequency; empty when nothing has been corrected.</summary>
-    IReadOnlyList<InsightsErrorResponse> Errors);
+    IReadOnlyList<InsightsErrorResponse> Errors,
+    /// <summary>Whether the F6 one-tap remediation ("Mashq ber") exists in this deployment — the
+    /// <c>class_insights_enabled</c> flag. ADDITIVE (appended last) and <c>false</c> by default, so a
+    /// client that predates the flag sees exactly the payload it always saw.
+    ///
+    /// <para>This is what separates "the feature is not switched on here" (draw no button at all)
+    /// from "the feature is on but this error has no drill" (draw the button DISABLED with a reason).
+    /// Collapsing the two would either advertise a feature that does not exist or hide the fact that
+    /// the class has nothing to practise.</para></summary>
+    bool RemediationEnabled = false,
+    /// <summary>How many DISTINCT students must have made an error before a remediation is offered
+    /// for it — the "12 o'quvchi qoqildi" bar, stated as a number rather than left implicit. <c>0</c>
+    /// while <see cref="RemediationEnabled"/> is false. ADDITIVE (appended last).
+    ///
+    /// <para>It is on the wire so the threshold is defined ONCE, on the server that applies it: a
+    /// client that hard-coded its own copy would eventually disagree about which rows are "rare" and
+    /// disable a button the server was willing to serve. The client compares it against the row's own
+    /// <see cref="InsightsErrorResponse.StudentCount"/> — the very number the row already displays —
+    /// so the explanation ("2 o'quvchi, kamida 3 kerak") always matches what the teacher can see.</para></summary>
+    int RemediationMinStudents = 0);
 
 /// <summary>One month of the class trend. <c>Avg</c> is null for a month with nothing graded — the
 /// chart must draw a GAP there, not a drop to zero.</summary>
@@ -249,4 +268,49 @@ public sealed record InsightsErrorResponse(
     /// <summary>Distinct students who made this error — the "12 o'quvchi" half of the row.</summary>
     int StudentCount,
     /// <summary>This type's share of ALL corrections in scope, 0..1 rounded to 4dp.</summary>
-    double Share);
+    double Share,
+    /// <summary>The one-tap remediation for this row, or <c>null</c> when there is nothing to assign.
+    /// ADDITIVE (appended last). Always <c>null</c> while
+    /// <see cref="InsightsResponse.RemediationEnabled"/> is false, and always <c>null</c> for a row
+    /// below <see cref="InsightsResponse.RemediationMinStudents"/> — the row still SHOWS (the teacher
+    /// should know), it just gets no button.</summary>
+    InsightsRemediationResponse? Remediation = null);
+
+/// <summary>
+/// F6 · what "Mashq ber" would send: ONE task, and exactly the students to send it to.
+///
+/// <para><b>Where the task comes from — the design decision behind F6.</b> Nothing in the data maps
+/// an error TYPE to a task. <c>questions</c> carries <c>topic</c> / <c>level</c> / <c>ru_style</c>,
+/// none of which describes a grammatical phenomenon, and the correction vocabulary the grader
+/// actually writes is a handful of phenomenon names (<c>word_order</c>, <c>grammar</c>,
+/// <c>lexical</c>, <c>pronunciation_hint</c>, <c>style</c>, <c>relevance</c>). A hand-written
+/// type→topic table would be invention: nothing says the "Еда и вкусы" prompt drills word order.</para>
+///
+/// <para>So the mapping is the one the graded answers already MEASURED: the task is the question on
+/// which this error type occurred most often inside the caller's own scope — the prompt this class
+/// demonstrably stumbles on. Re-assigning it is remediation with no invented data, and it composes
+/// with the existing completion rule (<see cref="AssignmentResponse.Completed"/> counts an answer
+/// given AFTER the assignment), so a question a student has already answered once is still a real,
+/// open task the second time it is set.</para>
+///
+/// <para>A <c>question_error_tags</c> table was considered and rejected: filled by hand it stays
+/// empty and the button stays dead forever; derived from the grader it is a CACHE of this very
+/// query over one teacher's bounded roster — not worth a migration. Same reasoning keeps
+/// <c>class_insights</c> unbuilt: every number on this screen is composed from
+/// <c>submissions · evaluations · assignments · group_members</c> in the read that already runs.</para>
+/// </summary>
+public sealed record InsightsRemediationResponse(
+    Guid QuestionId,
+    string QuestionTitle,
+    string? QuestionTopic,
+    string? QuestionLevel,
+    /// <summary>Exactly the roster students who made this error AND do not already have an
+    /// outstanding assignment for this question — i.e. the rows a confirmed "Mashq ber" creates,
+    /// listed by name so the teacher sees WHO before an irreversible fan-out. It can be EMPTY while
+    /// the task itself exists: everyone affected already has it open, which is a reason to disable
+    /// the button, not to hide the task.</summary>
+    IReadOnlyList<InsightsRemediationStudent> Students);
+
+/// <summary>One recipient of a remediation assignment. Roster-scoped, so it exposes nothing the
+/// caller cannot already read from their own group detail.</summary>
+public sealed record InsightsRemediationStudent(Guid Id, string FullName);
