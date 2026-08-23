@@ -118,7 +118,11 @@ public sealed class DailyService
         var offset = TimeSpan.FromMinutes(Math.Clamp(tzOffsetMinutes ?? 0, -MaxOffsetMinutes, MaxOffsetMinutes));
         var localDay = DateOnly.FromDateTime(DateTime.UtcNow + offset);
         // The student's day expressed back in UTC, which is what every timestamp column stores.
-        var dayStartUtc = localDay.ToDateTime(TimeOnly.MinValue) - offset;
+        // The Kind is set EXPLICITLY: DateOnly.ToDateTime yields Unspecified, and Npgsql refuses to
+        // write an Unspecified DateTime to a `timestamptz` column — so without this every query
+        // below throws at the driver, and the route 500s for a purely arithmetic reason.
+        var dayStartUtc = DateTime.SpecifyKind(
+            localDay.ToDateTime(TimeOnly.MinValue) - offset, DateTimeKind.Utc);
         var dayEndUtc = dayStartUtc.AddDays(1);
 
         var steps = new List<DailyStepResponse>(3);

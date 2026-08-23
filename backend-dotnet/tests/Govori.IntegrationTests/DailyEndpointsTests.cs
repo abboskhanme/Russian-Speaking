@@ -263,8 +263,11 @@ public sealed class DailyEndpointsTests : IClassFixture<DailyEndpointsTests.Dail
     private static async Task<JsonDocument> SessionAsync(HttpClient client, string token, int tzOffset)
     {
         var resp = await Get(client, $"/api/daily?tz_offset={tzOffset}", token);
-        Assert.Equal(HttpStatusCode.OK, resp.StatusCode);
-        return JsonDocument.Parse(await resp.Content.ReadAsStringAsync());
+        var body = await resp.Content.ReadAsStringAsync();
+        // The body rides along in the failure message: a bare "expected OK, got 500" sends whoever
+        // reads it hunting through container logs for a detail the response already carried.
+        Assert.True(resp.StatusCode == HttpStatusCode.OK, $"GET /api/daily → {(int)resp.StatusCode}: {body}");
+        return JsonDocument.Parse(body);
     }
 
     private static Task<HttpResponseMessage> Get(HttpClient client, string url, string token)
