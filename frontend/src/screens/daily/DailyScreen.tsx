@@ -94,6 +94,28 @@ export interface DailyScreenProps {
 /* Screen                                                                     */
 /* -------------------------------------------------------------------------- */
 
+/**
+ * A step's length in words. Under a minute it is said in seconds; above it, in
+ * minutes — "180 soniya" is a true statement that nobody reads as three minutes,
+ * and in a feature whose whole name is a duration that matters.
+ *
+ * The number is formatted through `Intl` rather than concatenated, because one of
+ * the steps is a minute and a half and the three locales do not agree on how to
+ * write that ("1,5" vs "1.5"). `count` still carries the raw value so plural
+ * selection stays the library's job.
+ */
+function useDuration() {
+  const { t, i18n } = useTranslation();
+  return (seconds: number) => {
+    if (seconds < 60) return t("daily.seconds", { count: seconds });
+    const minutes = seconds / 60;
+    return t("daily.minutes", {
+      count: minutes,
+      val: new Intl.NumberFormat(i18n.language, { maximumFractionDigits: 1 }).format(minutes),
+    });
+  };
+}
+
 export function DailyScreen({
   day,
   streak,
@@ -189,6 +211,7 @@ function SessionRail({
   totalMinutes: number;
 }) {
   const { t } = useTranslation();
+  const duration = useDuration();
 
   return (
     <section className={styles.rail} aria-label={t("daily.railLabel")}>
@@ -223,7 +246,7 @@ function SessionRail({
                   {t(`daily.steps.${step.kind}.label`)}
                 </Text>
                 <Text variant="label" color="muted">
-                  {t("daily.seconds", { count: step.estSeconds })}
+                  {duration(step.estSeconds)}
                 </Text>
               </span>
             </li>

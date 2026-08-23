@@ -927,6 +927,8 @@
     "seconds_one": "{{count}} soniya",
     "seconds_other": "{{count}} soniya",
     "resumeHint": "Bajarib bo'lgach shu yerga qayting — joyingiz saqlanadi.",
+    "minutes_one": "{{val}} daqiqa",
+    "minutes_other": "{{val}} daqiqa",
     "steps": {
       "warmup": {
         "label": "Isinish",

@@ -959,6 +959,10 @@
     "seconds_few": "{{count}} секунды",
     "seconds_many": "{{count}} секунд",
     "resumeHint": "Закончите — и возвращайтесь сюда, место сохранится.",
+    "minutes_one": "{{val}} минута",
+    "minutes_few": "{{val}} минуты",
+    "minutes_many": "{{val}} минут",
+    "minutes_other": "{{val}} минуты",
     "steps": {
       "warmup": {
         "label": "Разминка",

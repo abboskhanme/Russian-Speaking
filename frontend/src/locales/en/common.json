@@ -927,6 +927,8 @@
     "seconds_one": "{{count}} second",
     "seconds_other": "{{count}} seconds",
     "resumeHint": "Finish it and come back here — your place is kept.",
+    "minutes_one": "{{val}} minute",
+    "minutes_other": "{{val}} minutes",
     "steps": {
       "warmup": {
         "label": "Warm-up",
