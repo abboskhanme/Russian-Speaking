@@ -634,7 +634,19 @@
       "colGrammar": "Gram.",
       "colScore": "Score",
       "colAttempts": "Attempts",
-      "exportCsv": "Export CSV"
+      "exportCsv": "Export CSV",
+      "assignDrill": "Assign drill",
+      "remediationNoTask": "No task matches this error",
+      "remediationTooRare": "Too rare — at least {{min}} students needed",
+      "remediationAllAssigned": "Everyone already has this task open",
+      "remediationConfirmTitle": "Assign this drill?",
+      "remediationConfirmLead": "The task below goes to the students who made the «{{error}}» error.",
+      "remediationConfirmTask": "Task",
+      "remediationConfirmWho": "To — {{count}} students",
+      "remediationConfirmWarn": "An assignment cannot be undone.",
+      "remediationConfirmCta": "Assign",
+      "remediationSent": "Assigned to {{count}} students",
+      "remediationFailed": "Could not assign. Please try again."
     },
     "assignTask": {
       "title": "Assign work",
@@ -903,6 +915,54 @@
       "failed": "Grading failed."
     }
   },
+  "daily": {
+    "title": "Today's {{min}} minutes",
+    "railLabel": "Today's session steps",
+    "progress": "{{done}} of {{total}} steps done",
+    "totalMinutes": "~{{min}} min",
+    "streak_one": "🔥 {{count}} day",
+    "streak_other": "🔥 {{count}} days",
+    "seconds_one": "{{count}} second",
+    "seconds_other": "{{count}} seconds",
+    "resumeHint": "Finish it and come back here — your place is kept.",
+    "steps": {
+      "warmup": {
+        "label": "Warm-up",
+        "title": "Warm up first",
+        "body": "Read three phrases out loud. Nothing is recorded.",
+        "bodyVoice": "Listen, then say it out loud. Nothing is recorded.",
+        "listen": "Listen",
+        "cta": "Done reading"
+      },
+      "task": {
+        "label": "Speak",
+        "title": "Today's task",
+        "body": "One task — record your answer and get a score.",
+        "untitled": "Next task",
+        "cta": "Go and speak"
+      },
+      "drill": {
+        "label": "Fix",
+        "title": "Fix yesterday's mistake",
+        "body_one": "{{count}} question is waiting to be said again. One is enough.",
+        "body_other": "{{count}} questions are waiting to be said again. One is enough.",
+        "cta": "Open the mistake drill"
+      }
+    },
+    "done": {
+      "title": "Today's 5 minutes are done",
+      "body": "See you back here tomorrow.",
+      "streak_one": "{{count}} day in a row. Keep it going tomorrow.",
+      "streak_other": "{{count}} days in a row. Keep it going tomorrow.",
+      "cta": "Back to home",
+      "more": "Practise more"
+    },
+    "empty": {
+      "title": "Nothing to practise today",
+      "body": "Everything is done, or not open yet. Have a look at the modules in Practice.",
+      "cta": "Go to Practice"
+    }
+  },
   "review": {
     "title": "Mistake drill",
     "progress": "{{n}} / {{total}}",
@@ -1141,6 +1201,8 @@
     "reviewDrillHint": "The student redoes a question they struggled with; it returns on a spaced schedule.",
     "roleplay": "AI conversation",
     "roleplayHint": "A scripted-scenario conversation. Every spoken turn costs an AI call.",
+    "classInsights": "Class insights — \"Assign drill\"",
+    "classInsightsHint": "One tap on an error row assigns a drill to the students who made it.",
     "roleplayMaxTurns": "Max turns per conversation",
     "roleplayDailyTurns": "Turns per student per day",
     "roleplayCostHint": "Both limits contain the spend. The daily count resets at UTC midnight.",

@@ -35,6 +35,8 @@ export interface AdminSettings {
   roleplayEnabled: boolean;
   roleplayMaxTurns: number;
   roleplayDailyTurns: number;
+  classInsightsEnabled: boolean;
+  dailyFiveEnabled: boolean;
   llmProvider: string;
   geminiModel: string;
   knownGeminiModels: KnownModel[];
@@ -126,6 +128,8 @@ export interface AdminSettingsProps {
     roleplayEnabled: string;
     roleplayMaxTurns: string;
     roleplayDailyTurns: string;
+    classInsightsEnabled: string;
+    dailyFiveEnabled: string;
   }) => Promise<void>;
 }
 
@@ -234,6 +238,8 @@ export function AdminSettingsScreen({
   const [roleplay, setRoleplay] = useState(settings.roleplayEnabled);
   const [maxTurns, setMaxTurns] = useState(String(settings.roleplayMaxTurns));
   const [dailyTurns, setDailyTurns] = useState(String(settings.roleplayDailyTurns));
+  const [classInsights, setClassInsights] = useState(settings.classInsightsEnabled);
+  const [dailyFive, setDailyFive] = useState(settings.dailyFiveEnabled);
   const [busy, setBusy] = useState(false);
   const [note, setNote] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -328,11 +334,15 @@ export function AdminSettingsScreen({
     setRoleplay(settings.roleplayEnabled);
     setMaxTurns(String(settings.roleplayMaxTurns));
     setDailyTurns(String(settings.roleplayDailyTurns));
+    setClassInsights(settings.classInsightsEnabled);
+    setDailyFive(settings.dailyFiveEnabled);
   }, [
     settings.reviewDrillEnabled,
     settings.roleplayEnabled,
     settings.roleplayMaxTurns,
     settings.roleplayDailyTurns,
+    settings.classInsightsEnabled,
+    settings.dailyFiveEnabled,
   ]);
 
   const saveAi = async () => {
@@ -437,6 +447,8 @@ export function AdminSettingsScreen({
         roleplayEnabled: String(roleplay),
         roleplayMaxTurns: maxTurns.trim(),
         roleplayDailyTurns: dailyTurns.trim(),
+        classInsightsEnabled: String(classInsights),
+        dailyFiveEnabled: String(dailyFive),
       });
       setNote(t("admin.saved"));
     } catch {
@@ -754,6 +766,36 @@ export function AdminSettingsScreen({
                 </Text>
               </span>
               <Switch checked={roleplay} onChange={setRoleplay} aria-label={t("admin.roleplay")} />
+            </div>
+            <div className={styles.switchRow}>
+              <span className={styles.switchText}>
+                <Text as="span" variant="body" weight="semibold">
+                  {t("admin.classInsights")}
+                </Text>
+                <Text as="span" variant="body-s" color="muted">
+                  {t("admin.classInsightsHint")}
+                </Text>
+              </span>
+              <Switch
+                checked={classInsights}
+                onChange={setClassInsights}
+                aria-label={t("admin.classInsights")}
+              />
+            </div>
+            <div className={styles.switchRow}>
+              <span className={styles.switchText}>
+                <Text as="span" variant="body" weight="semibold">
+                  {t("admin.dailyFive")}
+                </Text>
+                <Text as="span" variant="body-s" color="muted">
+                  {t("admin.dailyFiveHint")}
+                </Text>
+              </span>
+              <Switch
+                checked={dailyFive}
+                onChange={setDailyFive}
+                aria-label={t("admin.dailyFive")}
+              />
             </div>
             <Input
               label={t("admin.roleplayMaxTurns")}

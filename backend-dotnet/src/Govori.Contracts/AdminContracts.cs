@@ -158,7 +158,13 @@ public sealed record FeatureFlagsResponse(
     bool ReviewDrillEnabled,
     bool RoleplayEnabled,
     int RoleplayMaxTurns,
-    int RoleplayDailyTurns);
+    int RoleplayDailyTurns,
+    /// <summary>F6 · the teacher's one-tap remediation on Analitika · Insaytlar. ADDITIVE
+    /// (appended last), default off.</summary>
+    bool ClassInsightsEnabled = false,
+    /// <summary>F3 · «Kunlik 5 daqiqa», the daily session on Home. ADDITIVE (appended last),
+    /// default off.</summary>
+    bool DailyFiveEnabled = false);
 
 /// <summary>
 /// Partial update of the feature flags. Same tri-state contract as every other settings write:
@@ -174,7 +180,9 @@ public sealed record FeatureFlagsUpdate(
     string? ReviewDrillEnabled = null,
     string? RoleplayEnabled = null,
     string? RoleplayMaxTurns = null,
-    string? RoleplayDailyTurns = null);
+    string? RoleplayDailyTurns = null,
+    string? ClassInsightsEnabled = null,
+    string? DailyFiveEnabled = null);
 
 // ─── Admin user management ───────────────────────────────────────────────────
 

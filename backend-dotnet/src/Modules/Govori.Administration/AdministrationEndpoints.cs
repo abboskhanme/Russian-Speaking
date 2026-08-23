@@ -210,8 +210,11 @@ public static class AdministrationEndpoints
             Add(vals, "roleplay_enabled", body.RoleplayEnabled);
             Add(vals, "roleplay_max_turns", body.RoleplayMaxTurns);
             Add(vals, "roleplay_daily_turns", body.RoleplayDailyTurns);
+            Add(vals, "class_insights_enabled", body.ClassInsightsEnabled);
+            Add(vals, "daily_five_enabled", body.DailyFiveEnabled);
 
-            foreach (var key in new[] { "review_drill_enabled", "roleplay_enabled" })
+            foreach (var key in new[]
+                     { "review_drill_enabled", "roleplay_enabled", "class_insights_enabled", "daily_five_enabled" })
             {
                 if (!vals.TryGetValue(key, out var v) || v is null || v.Length == 0)
                     continue;                       // "" clears the override — legal, not a value

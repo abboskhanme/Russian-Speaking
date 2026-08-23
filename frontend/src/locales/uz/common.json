@@ -634,7 +634,19 @@
       "colGrammar": "Gram.",
       "colScore": "Ball",
       "colAttempts": "Urinishlar",
-      "exportCsv": "CSV eksport"
+      "exportCsv": "CSV eksport",
+      "assignDrill": "Mashq ber",
+      "remediationNoTask": "Bu xato uchun mos mashq topilmadi",
+      "remediationTooRare": "Kam uchragan — kamida {{min}} o‘quvchi kerak",
+      "remediationAllAssigned": "Bu mashq hammada allaqachon ochiq",
+      "remediationConfirmTitle": "Mashq berilsinmi?",
+      "remediationConfirmLead": "«{{error}}» xatosini qilgan o‘quvchilarga quyidagi topshiriq biriktiriladi.",
+      "remediationConfirmTask": "Topshiriq",
+      "remediationConfirmWho": "Kimga — {{count}} o‘quvchi",
+      "remediationConfirmWarn": "Biriktirishni bekor qilib bo‘lmaydi.",
+      "remediationConfirmCta": "Biriktirish",
+      "remediationSent": "{{count}} o‘quvchiga biriktirildi",
+      "remediationFailed": "Biriktirib bo‘lmadi. Qayta urinib ko‘ring."
     },
     "assignTask": {
       "title": "Topshiriq berish",
@@ -903,6 +915,54 @@
       "failed": "Baholab bo'lmadi."
     }
   },
+  "daily": {
+    "title": "Bugungi {{min}} daqiqa",
+    "railLabel": "Bugungi sessiya bosqichlari",
+    "progress": "{{total}} bosqichdan {{done}} tasi bajarildi",
+    "totalMinutes": "~{{min}} daqiqa",
+    "streak_one": "🔥 {{count}} kun",
+    "streak_other": "🔥 {{count}} kun",
+    "seconds_one": "{{count}} soniya",
+    "seconds_other": "{{count}} soniya",
+    "resumeHint": "Bajarib bo'lgach shu yerga qayting — joyingiz saqlanadi.",
+    "steps": {
+      "warmup": {
+        "label": "Isinish",
+        "title": "Avval tilni isit",
+        "body": "Uchta iborani ovoz chiqarib o'qing. Hech narsa yozib olinmaydi.",
+        "bodyVoice": "Eshiting va ovoz chiqarib takrorlang. Hech narsa yozib olinmaydi.",
+        "listen": "Tinglash",
+        "cta": "O'qib bo'ldim"
+      },
+      "task": {
+        "label": "Gapirish",
+        "title": "Bugungi vazifa",
+        "body": "Bitta vazifa — javobingizni yozib yuboring va baho oling.",
+        "untitled": "Keyingi vazifa",
+        "cta": "Gapirishga o'tish"
+      },
+      "drill": {
+        "label": "Tuzatish",
+        "title": "Kechagi xatoni tuzat",
+        "body_one": "{{count}} ta savol qaytadan aytishni kutmoqda. Bittasi yetarli.",
+        "body_other": "{{count}} ta savol qaytadan aytishni kutmoqda. Bittasi yetarli.",
+        "cta": "Xatolar ustida ishlash"
+      }
+    },
+    "done": {
+      "title": "Bugungi 5 daqiqa bajarildi",
+      "body": "Ertaga yana shu yerda kutamiz.",
+      "streak_one": "{{count}} kun ketma-ket. Ertaga ham davom eting.",
+      "streak_other": "{{count}} kun ketma-ket. Ertaga ham davom eting.",
+      "cta": "Bosh sahifaga",
+      "more": "Yana mashq qilish"
+    },
+    "empty": {
+      "title": "Bugun uchun mashq yo'q",
+      "body": "Hamma vazifalar bajarilgan yoki hali ochilmagan. Mashq bo'limida modullarni ko'rib chiqing.",
+      "cta": "Mashqqa o'tish"
+    }
+  },
   "review": {
     "title": "Xatolar ustida",
     "progress": "{{n}} / {{total}}",
@@ -1141,6 +1201,8 @@
     "reviewDrillHint": "O'quvchi qiynalgan savolni qayta ishlaydi va interval bo'yicha qaytadi.",
     "roleplay": "AI Suhbat",
     "roleplayHint": "Ssenariy bo'yicha jonli suhbat. Har bir gapirish turi AI'ga pul turadi.",
+    "classInsights": "Sinf insaytlari — «Mashq ber»",
+    "classInsightsHint": "Analitikada xato qatoridan bir tegishda shu xatoni qilgan o\u2018quvchilarga mashq biriktirish.",
     "roleplayMaxTurns": "Bitta suhbatdagi eng ko'p tur",
     "roleplayDailyTurns": "Bir o'quvchiga kunlik tur",
     "roleplayCostHint": "Ikkala chegara ham xarajatni ushlab turadi. Kunlik hisob UTC yarim tunda yangilanadi.",

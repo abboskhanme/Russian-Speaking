@@ -601,6 +601,37 @@ export interface InsightsErrorPattern {
   count: number;
   student_count: number;
   share: number;
+  /** F6 · what one tap of "Mashq ber" would send for this row, or `null` when
+   * there is nothing to send (no assignable task, or the row is under
+   * {@link InsightsResponse.remediation_min_students}). Always null while
+   * `remediation_enabled` is false. */
+  remediation: InsightsRemediation | null;
+}
+
+/** One recipient of a remediation assignment. */
+export interface InsightsRemediationStudent {
+  id: string;
+  full_name: string;
+}
+
+/**
+ * F6 · the server's remediation plan for one error row: ONE task, and exactly the
+ * students to send it to.
+ *
+ * The task is not guessed from the topic — nothing in the data maps an error type
+ * to a topic. It is the question this error type actually occurred on most often
+ * in the caller's scope, which is the only measured link between the two.
+ *
+ * `students` can be EMPTY while the task exists: everyone affected already has it
+ * open. That disables the button with "they all have it", which is a different
+ * message from "there is no drill for this".
+ */
+export interface InsightsRemediation {
+  question_id: string;
+  question_title: string;
+  question_topic: string | null;
+  question_level: string | null;
+  students: InsightsRemediationStudent[];
 }
 
 /**
@@ -634,6 +665,15 @@ export interface InsightsResponse {
   week: InsightsWeekDay[];
   /** Top 5, most frequent first. */
   errors: InsightsErrorPattern[];
+  /** Whether F6's one-tap remediation exists in this deployment
+   * (`class_insights_enabled`). False ⇒ draw no "Mashq ber" button at all; an
+   * absent feature must not present itself as a broken one. */
+  remediation_enabled: boolean;
+  /** How many DISTINCT students must have made an error before a drill is offered
+   * for it — the "12 o'quvchi qoqildi" bar. `0` when the feature is off. It comes
+   * from the server so the threshold has ONE definition; the client uses it only
+   * to explain a disabled button, never to decide one. */
+  remediation_min_students: number;
 }
 
 /** GET /api/assignments/mine → the caller's assignments. The Home screen shows
@@ -692,6 +732,8 @@ export interface FeatureFlagsResponse {
   roleplay_enabled: boolean;
   roleplay_max_turns: number;
   roleplay_daily_turns: number;
+  /** F6 · the teacher's one-tap remediation on Analitika · Insaytlar. */
+  class_insights_enabled: boolean;
 }
 
 /** PATCH body. Everything is a string, booleans included — the tri-state needs
@@ -702,11 +744,64 @@ export interface FeatureFlagsUpdateArgs {
   roleplay_enabled?: string;
   roleplay_max_turns?: string;
   roleplay_daily_turns?: string;
+  class_insights_enabled?: string;
 }
 
 export interface LinksResponse {
   tg_support_url: string;
   tg_channel_url: string;
+}
+
+/* ── Kunlik 5 daqiqa (DailyContracts.cs — docs/08 Faza 6.3) ───────────────── */
+
+/** One warm-up line to read aloud. `level` is a free-text CEFR label the content
+ * owner typed ("A1–A2") — a label, not a scale, so it is shown as-is. */
+export interface DailyPhraseResponse {
+  id: string;
+  text: string;
+  level: string;
+}
+
+/** One step of today's session.
+ *
+ * A step the student cannot do today is ABSENT from `steps`, never present with
+ * a zero in it: a drill step reporting "0 ta element" would turn a two-minute
+ * session into a screen mostly reporting its own emptiness.
+ *
+ * `done` is OBSERVED, not asserted — derived from rows the student's own actions
+ * wrote inside today's local day (a submission for `task`, an answered review for
+ * `drill`). The warm-up leaves no server-side trace and therefore always arrives
+ * `false`; the client remembers that one locally. */
+export interface DailyStepResponse {
+  kind: "warmup" | "task" | "drill";
+  done: boolean;
+  est_seconds: number;
+  phrases: DailyPhraseResponse[];
+  task_id: string | null;
+  task_title: string | null;
+  module_name: string | null;
+  level: string | null;
+  due_count: number | null;
+}
+
+/** GET /api/daily → today's session, in order.
+ *
+ * `day` is the STUDENT's local day (`yyyy-MM-dd`, resolved from the `tz_offset`
+ * the client sends), not the server's UTC day — a session that rolled over at UTC
+ * midnight would end someone's evening practice mid-sentence.
+ *
+ * The session is stable for that day: asking twice returns the same exercises. A
+ * refresh that reshuffled them would turn the one screen built to remove choice
+ * back into a chooser.
+ *
+ * A **404** from this route means the `daily_five_enabled` flag is off in this
+ * deployment — the documented "not shipped here" signal (docs/08 Faza 6, deploy ≠
+ * release), not an error: callers hide the entry point. */
+export interface DailySessionResponse {
+  day: string;
+  streak: number;
+  completed: boolean;
+  steps: DailyStepResponse[];
 }
 
 /* ── Xato-replay drill (EngagementContracts.cs — docs/08 Faza 6.1) ────────── */
