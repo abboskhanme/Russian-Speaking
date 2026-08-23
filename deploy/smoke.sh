@@ -213,18 +213,31 @@ DB_CTR="$(dc ps -q "$DB_SERVICE" 2>/dev/null || true)"
 if [ -z "$DB_CTR" ]; then
   bad "the ${DB_SERVICE} service is not running"
 else
-  DBQ() { docker exec -e PGPASSWORD="$(docker exec "$DB_CTR" printenv POSTGRES_PASSWORD)" "$DB_CTR" \
-            psql -U "$(docker exec "$DB_CTR" printenv POSTGRES_USER)" \
-                 -d "$(docker exec "$DB_CTR" printenv POSTGRES_DB)" -A -t -c "$1" 2>/dev/null | tr -d '[:space:]'; }
-  MIGS="$(DBQ 'SELECT count(*) FROM "__EFMigrationsHistory"' || true)"
-  [ -n "$MIGS" ] && ok "${MIGS} EF migration(s) applied" \
-                 || bad "no __EFMigrationsHistory table — the schema was never applied. Run: bash deploy/migrate.sh"
-  ADM="$(DBQ "SELECT count(*) FROM users WHERE role = 'admin'" || true)"
-  case "${ADM:-x}" in
-    x) bad "cannot read the users table" ;;
-    0) bad "ZERO admin accounts — /admin is unreachable by anyone. Run: bash deploy/bootstrap-admin.sh --phone '+998…' --name '…'" ;;
-    *) ok "${ADM} admin account(s)" ;;
-  esac
+  # Credentials resolved ONCE and checked. Nesting `docker exec printenv` inside
+  # the query would turn a failed exec into `psql -U "" -d ""`, whose error is
+  # swallowed by 2>/dev/null and reads as "no schema" — reporting a problem with
+  # the database when the problem was that we never reached it.
+  PG_U="$(docker exec "$DB_CTR" printenv POSTGRES_USER 2>/dev/null | tr -d '\r\n' || true)"
+  PG_D="$(docker exec "$DB_CTR" printenv POSTGRES_DB   2>/dev/null | tr -d '\r\n' || true)"
+  PG_P="$(docker exec "$DB_CTR" printenv POSTGRES_PASSWORD 2>/dev/null | tr -d '\r\n' || true)"
+  if [ -z "$PG_U" ] || [ -z "$PG_D" ]; then
+    bad "could not read POSTGRES_USER/POSTGRES_DB out of the ${DB_SERVICE} container"
+  else
+    DBQ() { docker exec -e PGPASSWORD="$PG_P" "$DB_CTR" \
+              psql -U "$PG_U" -d "$PG_D" -A -t -c "$1" 2>/dev/null | tr -d '[:space:]'; }
+    MIGS="$(DBQ 'SELECT count(*) FROM "__EFMigrationsHistory"' || true)"
+    if [ -n "$MIGS" ]; then
+      ok "${MIGS} EF migration(s) applied"
+    else
+      bad "no __EFMigrationsHistory table — the schema was never applied. Run: bash deploy/migrate.sh"
+    fi
+    ADM="$(DBQ "SELECT count(*) FROM users WHERE role = 'admin'" || true)"
+    case "${ADM:-x}" in
+      x) bad "cannot read the users table" ;;
+      0) bad "ZERO admin accounts — /admin is unreachable by anyone. Run: bash deploy/bootstrap-admin.sh --phone '+998…' --name '…'" ;;
+      *) ok "${ADM} admin account(s)" ;;
+    esac
+  fi
 fi
 # The audio proxy. A 403/404 FROM MINIO is the healthy answer for a bucket root
 # with no anonymous policy; 502 means nginx cannot reach MinIO at all, which is

@@ -276,11 +276,26 @@ DB_CTR="$(docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" ps -q "$DB_SE
 if [ -z "$DB_CTR" ]; then
   ok "the '${DB_SERVICE}' service is not running yet — nothing to check (that is normal before the first start)"
 else
-  DBQ() { docker exec -e PGPASSWORD="$(docker exec "$DB_CTR" printenv POSTGRES_PASSWORD)" "$DB_CTR" \
-            psql -U "$(docker exec "$DB_CTR" printenv POSTGRES_USER)" \
-                 -d "$(docker exec "$DB_CTR" printenv POSTGRES_DB)" -A -t -c "$1" 2>/dev/null | tr -d '[:space:]'; }
-  MIGS="$(DBQ 'SELECT count(*) FROM "__EFMigrationsHistory"' || true)"
-  if [ -z "$MIGS" ]; then
+  # Resolve the credentials ONCE and check them, rather than nesting three
+  # unchecked `docker exec printenv` calls inside every query. If an exec fails,
+  # its output is empty and the query would silently become `psql -U "" -d ""` —
+  # which fails, gets swallowed by 2>/dev/null, and reads as "no schema". The
+  # difference between "there is no schema" and "I could not ask" is the entire
+  # value of this section.
+  PG_U="$(docker exec "$DB_CTR" printenv POSTGRES_USER 2>/dev/null | tr -d '\r\n' || true)"
+  PG_D="$(docker exec "$DB_CTR" printenv POSTGRES_DB   2>/dev/null | tr -d '\r\n' || true)"
+  PG_P="$(docker exec "$DB_CTR" printenv POSTGRES_PASSWORD 2>/dev/null | tr -d '\r\n' || true)"
+  DBQ() { docker exec -e PGPASSWORD="$PG_P" "$DB_CTR" \
+            psql -U "$PG_U" -d "$PG_D" -A -t -c "$1" 2>/dev/null | tr -d '[:space:]'; }
+  if [ -z "$PG_U" ] || [ -z "$PG_D" ]; then
+    warn "could not read POSTGRES_USER/POSTGRES_DB out of the ${DB_SERVICE} container — skipping the schema and admin checks rather than guessing at them"
+    MIGS="skip"
+  else
+    MIGS="$(DBQ 'SELECT count(*) FROM "__EFMigrationsHistory"' || true)"
+  fi
+  if [ "$MIGS" = skip ]; then
+    :
+  elif [ -z "$MIGS" ]; then
     if [ "$MODE" = install ]; then
       warn "no schema yet (no __EFMigrationsHistory). That is expected before INSTALL.md step 5 — apply it with: bash deploy/migrate.sh"
     else
@@ -300,18 +315,28 @@ fi
 # ── 5. TLS ───────────────────────────────────────────────────────────────────
 sec "5. TLS"
 if [ -f nginx/certs/fullchain.pem ] && [ -f nginx/certs/privkey.pem ]; then
+  # Guarded on openssl being present, because the failure without it is not
+  # "cannot tell" — it is a PASS. Every read below would return empty, the
+  # subject == issuer test would be false, and the script would report "issued
+  # by ?, not self-signed" about a file it never managed to open.
+  if ! command -v openssl >/dev/null 2>&1; then
+    warn "certificate present, but there is no openssl on this host to inspect it — apt-get install -y openssl, or check it from a browser"
+  else
   END="$(openssl x509 -enddate -noout -in nginx/certs/fullchain.pem 2>/dev/null | cut -d= -f2 || true)"
-  ok "certificate present, valid until ${END:-?}"
   # Self-signed means subject == issuer. Compared that way rather than by grepping
   # for a CN, because openssl prints the DN differently on every platform
   # ("issuer= /CN=x" on LibreSSL, "issuer=CN = x" on OpenSSL 3) — a string match
   # that works on the laptop silently never fires on the droplet.
   C_SUBJ="$(openssl x509 -noout -subject -in nginx/certs/fullchain.pem 2>/dev/null | sed 's/^subject=[= ]*//' || true)"
   C_ISS="$(openssl x509 -noout -issuer -in nginx/certs/fullchain.pem 2>/dev/null | sed 's/^issuer=[= ]*//' || true)"
-  if [ -n "$C_SUBJ" ] && [ "$C_SUBJ" = "$C_ISS" ]; then
+  if [ -z "$C_SUBJ" ] || [ -z "$C_ISS" ]; then
+    bad "nginx/certs/fullchain.pem exists but openssl cannot parse it as a certificate"
+  elif [ "$C_SUBJ" = "$C_ISS" ]; then
+    ok "certificate present, valid until ${END:-?}"
     warn "the certificate is SELF-SIGNED (${C_SUBJ}) — that is the bootstrap placeholder, browsers will reject it. Run deploy/setup-domain.sh for a real one."
   else
-    ok "certificate is issued by ${C_ISS:-?}, not self-signed"
+    ok "certificate present, valid until ${END:-?}, issued by ${C_ISS} (not self-signed)"
+  fi
   fi
 else
   warn "no cert at nginx/certs/ — deploy/setup-domain.sh creates a temporary self-signed one so nginx can start, then requests the real one"
