@@ -34,6 +34,11 @@ public interface ISttBackend
 
     bool IsConfigured(AiRuntimeConfig config);
 
+    /// <summary><paramref name="mode"/> is LAST and defaults to
+    /// <see cref="SttRecognitionMode.Unscripted"/> so that a call site which says nothing about it
+    /// gets the faithful behaviour — see the enum for why this is deliberately not derived from
+    /// <paramref name="referenceText"/>.</summary>
     Task<SttResult> TranscribeAsync(
-        byte[] audio, string filename, string? referenceText, AiRuntimeConfig config, CancellationToken ct);
+        byte[] audio, string filename, string? referenceText, AiRuntimeConfig config, CancellationToken ct,
+        SttRecognitionMode mode = SttRecognitionMode.Unscripted);
 }

@@ -29,7 +29,13 @@ public interface ISttProvider
     /// pronunciation, model, duration). <paramref name="referenceText"/> is the shadowing target,
     /// honoured by Azure (still recognised UNSCRIPTED — compared in our own code) and ignored by
     /// Whisper.
+    ///
+    /// <para><paramref name="mode"/> is the ONE way to ask for scripted recognition, and it defaults
+    /// to <see cref="SttRecognitionMode.Unscripted"/>. Passing a <paramref name="referenceText"/>
+    /// does NOT and must never imply scripted — see <see cref="SttRecognitionMode"/> for the
+    /// shadowing regression that separation exists to prevent.</para>
     /// </summary>
     Task<SttResult> TranscribeAsync(
-        byte[] audio, string filename, string? referenceText, CancellationToken ct = default);
+        byte[] audio, string filename, string? referenceText, CancellationToken ct = default,
+        SttRecognitionMode mode = SttRecognitionMode.Unscripted);
 }

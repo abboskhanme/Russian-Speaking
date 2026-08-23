@@ -78,7 +78,8 @@ public sealed class ProviderChainTests
         public bool IsConfigured(AiRuntimeConfig config) => _configured;
 
         public Task<SttResult> TranscribeAsync(
-            byte[] audio, string filename, string? referenceText, AiRuntimeConfig config, CancellationToken ct)
+            byte[] audio, string filename, string? referenceText, AiRuntimeConfig config, CancellationToken ct,
+            SttRecognitionMode mode = SttRecognitionMode.Unscripted)
         {
             Calls++;
             ct.ThrowIfCancellationRequested();

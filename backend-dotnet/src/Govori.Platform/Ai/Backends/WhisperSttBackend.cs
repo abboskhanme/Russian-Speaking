@@ -52,8 +52,13 @@ public sealed class WhisperSttBackend : ISttBackend
 
     public bool IsConfigured(AiRuntimeConfig config) => !string.IsNullOrWhiteSpace(config.OpenAiApiKey);
 
+    /// <summary><paramref name="mode"/> is accepted and ignored: Whisper has no scripted-recognition
+    /// concept and no pronunciation assessment at all, so there is nothing for it to change. A drill
+    /// that falls through to this backend therefore gets a transcript and no phoneme detail — which
+    /// is exactly how the drill is built to degrade.</summary>
     public async Task<SttResult> TranscribeAsync(
-        byte[] audio, string filename, string? referenceText, AiRuntimeConfig config, CancellationToken ct)
+        byte[] audio, string filename, string? referenceText, AiRuntimeConfig config, CancellationToken ct,
+        SttRecognitionMode mode = SttRecognitionMode.Unscripted)
     {
         var model = string.IsNullOrWhiteSpace(config.WhisperModel) ? "whisper-1" : config.WhisperModel.Trim();
         var verbose = SupportsVerboseJson(model);

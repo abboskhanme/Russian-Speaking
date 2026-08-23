@@ -36,7 +36,8 @@ public sealed class FakeSttProvider : ISttProvider
     public ValueTask<bool> IsConfiguredAsync(CancellationToken ct = default) => ValueTask.FromResult(true);
 
     public Task<SttResult> TranscribeAsync(
-        byte[] audio, string filename, string? referenceText, CancellationToken ct = default)
+        byte[] audio, string filename, string? referenceText, CancellationToken ct = default,
+        SttRecognitionMode mode = SttRecognitionMode.Unscripted)
     {
         Interlocked.Increment(ref _calls);
 

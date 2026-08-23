@@ -11,12 +11,20 @@ namespace Govori.Platform.Ai.Backends;
 /// It is first in the chain because it is the ONLY backend that returns a pronunciation score, and
 /// pronunciation is a fifth of the grade (docs/07 §7.7, the C5 blend).
 ///
-/// <para><b>Recognition is UNSCRIPTED — always, including shadowing.</b> The
+/// <para><b>Recognition is UNSCRIPTED by default — including shadowing.</b> The
 /// <c>Pronunciation-Assessment</c> header below carries an EMPTY <c>ReferenceText</c> and
 /// <c>EnableMiscue: false</c>. Handing Azure the target sentence would make the recogniser "hear"
 /// that sentence: it biases decoding toward the script and quietly repairs exactly the mispronounced
 /// and missing words this app exists to show the learner. The reference is compared afterwards, in
 /// our own code (<see cref="ComputeReferenceMatch"/>).</para>
+///
+/// <para><b>The ONE exception is an explicit opt-in:</b> a caller passing
+/// <see cref="SttRecognitionMode.Scripted"/> — today only the phoneme drill (docs/01 F2), where the
+/// learner was handed one specific word and asked to say exactly that. Note carefully that the
+/// switch is the MODE, never the presence of <paramref name="referenceText"/>: shadowing and the
+/// guest demo both pass a reference and both must stay unscripted. See
+/// <see cref="SttRecognitionMode"/> for why that distinction is written into the type system rather
+/// than left to a convention.</para>
 ///
 /// <para><b>The transcript is read from <c>Lexical</c>, never <c>Display</c>.</b> <c>Display</c> is
 /// the post-processed form — punctuation restored, capitalisation applied, inverse text
@@ -58,12 +66,52 @@ public sealed class AzureSpeechSttBackend : ISttBackend
     /// and switching it on would require supplying one. <c>Granularity: Phoneme</c> is what produces
     /// the per-sound accuracy the learner sees on a word; <c>EnableProsodyAssessment</c> adds the
     /// intonation/stress score, which for Russian is not a nicety — stress placement changes meaning.</para>
+    ///
+    /// <para><b>Measured 2026-08-23:</b> Azure ignores <c>EnableProsodyAssessment</c> for
+    /// <c>ru-RU</c> — no <c>ProsodyScore</c>, and no <c>PronunciationAssessment</c> aggregate at all,
+    /// in either recognition mode. Prosody is documented as <c>en-US</c>-only. The flag is left on
+    /// because it costs nothing and starts working the day Azure ships Russian support; nothing here
+    /// may assume the field arrives.</para>
     /// </summary>
     private const string AssessmentParameters =
         """{"ReferenceText":"","GradingSystem":"HundredMark","Granularity":"Phoneme","EnableMiscue":false,"EnableProsodyAssessment":true}""";
 
     private static readonly string AssessmentHeader =
         Convert.ToBase64String(Encoding.UTF8.GetBytes(AssessmentParameters));
+
+    /// <summary>
+    /// The SCRIPTED variant — used only when a caller explicitly passes
+    /// <see cref="SttRecognitionMode.Scripted"/>, which today is the phoneme drill alone.
+    ///
+    /// <para><c>EnableMiscue</c> flips to <c>true</c> here because against a real script it finally
+    /// means something: Azure can distinguish a word that was mispronounced from one that was
+    /// omitted or inserted, and the drill wants to tell "you said the other twin" apart from "you
+    /// said nothing".</para>
+    ///
+    /// <para><b>What this does NOT buy, measured against the live vendor:</b> named phonemes. For
+    /// <c>ru-RU</c> every <c>Phoneme</c> field comes back as an empty string in scripted mode too,
+    /// under IPA and SAPI alike — Azure documents phoneme names for <c>en-US</c>/<c>zh-CN</c> only,
+    /// and an identical request against <c>en-US</c> returns 14/14 named IPA symbols where
+    /// <c>ru-RU</c> returns 0/11. What scripted mode DOES buy is that the per-position scores become
+    /// a comparison against the intended word. The drill supplies the names itself, from its own
+    /// curated content, aligned by position.</para>
+    /// </summary>
+    private static string ScriptedAssessmentHeader(string referenceText)
+    {
+        // Serialized rather than interpolated: a reference word is authored content that can contain
+        // a quote or a backslash, and a hand-built JSON string would send Azure a malformed header
+        // (a 400 that looks like an outage) or, worse, let content alter the other parameters.
+        var json = JsonSerializer.Serialize(new
+        {
+            ReferenceText = referenceText,
+            GradingSystem = "HundredMark",
+            Granularity = "Phoneme",
+            EnableMiscue = true,
+            EnableProsodyAssessment = true,
+        });
+
+        return Convert.ToBase64String(Encoding.UTF8.GetBytes(json));
+    }
 
     private static readonly JsonSerializerOptions Json = new()
     {
@@ -86,8 +134,15 @@ public sealed class AzureSpeechSttBackend : ISttBackend
            && !string.IsNullOrWhiteSpace(config.AzureSpeechRegion);
 
     public async Task<SttResult> TranscribeAsync(
-        byte[] audio, string filename, string? referenceText, AiRuntimeConfig config, CancellationToken ct)
+        byte[] audio, string filename, string? referenceText, AiRuntimeConfig config, CancellationToken ct,
+        SttRecognitionMode mode = SttRecognitionMode.Unscripted)
     {
+        // Scripted recognition needs BOTH the explicit opt-in and something to script against. A
+        // caller asking for Scripted with no reference falls back to unscripted rather than sending
+        // Azure an empty ReferenceText with EnableMiscue on, which scores every word as an omission.
+        var scripted = mode == SttRecognitionMode.Scripted && !string.IsNullOrWhiteSpace(referenceText);
+        var assessmentHeader = scripted ? ScriptedAssessmentHeader(referenceText!.Trim()) : AssessmentHeader;
+
         // Azure's short-audio endpoint decodes nothing: it reads the PCM we declare in Content-Type.
         // Browser recordings are webm/opus, so this is not an optimisation, it is the only way in.
         var wav = await AudioTranscode.ToAzurePcmWavAsync(audio, ct).ConfigureAwait(false);
@@ -98,7 +153,7 @@ public sealed class AzureSpeechSttBackend : ISttBackend
 
         using var request = new HttpRequestMessage(HttpMethod.Post, url);
         request.Headers.TryAddWithoutValidation("Ocp-Apim-Subscription-Key", config.AzureSpeechKey);
-        request.Headers.TryAddWithoutValidation("Pronunciation-Assessment", AssessmentHeader);
+        request.Headers.TryAddWithoutValidation("Pronunciation-Assessment", assessmentHeader);
         request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
 
         var content = new ByteArrayContent(wav);

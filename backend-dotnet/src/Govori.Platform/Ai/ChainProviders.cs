@@ -120,7 +120,8 @@ public sealed class ChainSttProvider : ISttProvider
     }
 
     public async Task<SttResult> TranscribeAsync(
-        byte[] audio, string filename, string? referenceText, CancellationToken ct = default)
+        byte[] audio, string filename, string? referenceText, CancellationToken ct = default,
+        SttRecognitionMode mode = SttRecognitionMode.Unscripted)
     {
         var config = await _config.GetAsync(ct);
         var usable = Usable(config).ToList();
@@ -134,7 +135,7 @@ public sealed class ChainSttProvider : ISttProvider
         {
             try
             {
-                var result = await backend.TranscribeAsync(audio, filename, referenceText, config, ct);
+                var result = await backend.TranscribeAsync(audio, filename, referenceText, config, ct, mode);
                 if (failures is not null)
                     _logger.LogInformation(
                         "stt {Backend} served the request after {Failed} failure(s)", backend.Name, failures.Count);
