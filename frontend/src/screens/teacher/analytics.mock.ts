@@ -41,12 +41,47 @@ export const mockAnalytics: AnalyticsScreenProps = {
       { key: "d6", label: "Sh", attempts: 8 },
       { key: "d7", label: "Ya", attempts: 6, today: true },
     ],
+    // Deliberately one row per F6 state, so the demo shows all four at once:
+    // live · everyone already has it · nothing assignable · under the floor.
+    remediationMinStudents: 3,
     errors: [
-      { type: "word_order", label: "So'z tartibi", count: 24, studentCount: 12, share: 0.22 },
-      { type: "grammar", label: "Grammatika", count: 19, studentCount: 9, share: 0.17 },
-      { type: "vocabulary", label: "Lug'at", count: 14, studentCount: 7, share: 0.13 },
+      {
+        type: "word_order",
+        label: "So'z tartibi",
+        count: 24,
+        studentCount: 12,
+        share: 0.22,
+        remediation: {
+          questionId: "q-word-order",
+          questionTitle: "Мой обычный день",
+          questionTopic: "Kundalik hayot",
+          questionLevel: "A2",
+          students: [
+            { id: "s1", fullName: "Kamola A." },
+            { id: "s3", fullName: "Bekzod M." },
+            { id: "s4", fullName: "Dilfuza R." },
+          ],
+        },
+      },
+      {
+        type: "grammar",
+        label: "Grammatika",
+        count: 19,
+        studentCount: 9,
+        share: 0.17,
+        remediation: {
+          questionId: "q-grammar",
+          questionTitle: "Планы на выходные",
+          questionTopic: null,
+          questionLevel: "B1",
+          students: [],
+        },
+      },
+      { type: "vocabulary", label: "Lug'at", count: 14, studentCount: 7, share: 0.13, remediation: null },
+      { type: "style", label: "Uslub", count: 2, studentCount: 2, share: 0.02, remediation: null },
     ],
   },
+  onAssignRemediation: (_row, plan) => Promise.resolve(plan.students.length),
   gradebook: [
     { id: "s1", fullName: "Kamola A.", fluency: 88, grammar: 80, pronunciation: 82, lexical: 85, attempts: 14, score: 84 },
     { id: "s2", fullName: "Nigora S.", fluency: 80, grammar: 74, pronunciation: 77, lexical: 79, attempts: 11, score: 78 },

@@ -109,6 +109,8 @@ export type {
   AnalyticsSkill,
   AnalyticsWeekDay,
   AnalyticsErrorRow,
+  AnalyticsRemediation,
+  AnalyticsRemediationStudent,
   AnalyticsGroupOption,
   GradebookStudent,
 } from "./AnalyticsScreen";

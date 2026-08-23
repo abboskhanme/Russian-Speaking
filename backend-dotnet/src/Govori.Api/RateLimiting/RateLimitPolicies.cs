@@ -79,6 +79,20 @@ internal static class RateLimitPolicies
         // notification away would lose money we have already taken. The security control here is the
         // signature check, never this number.
         (RateLimitPolicyNames.BillingWebhook, 600, TimeSpan.FromSeconds(3600)),
+
+        // One phoneme-drill attempt — one Azure call, and a second one when the learner missed.
+        //
+        // 120/hour, derived the same way submit_audio's 60 was. A drill utterance is a single word:
+        // record, listen, retry takes maybe fifteen seconds, so an unusually determined learner
+        // lands near 60–90 an hour once you allow for reading the result. 120 sits just past the
+        // most energetic real session, which is the property that matters — no real student should
+        // ever meet it. The per-student DAILY budget (DrillService, 40/day) is the product ceiling;
+        // this one exists for the retry loop and the script, which is why it is higher than the
+        // daily number rather than a fraction of it.
+        //
+        // Partitioned by USER id — the route is authenticated — so a class on one school IP each get
+        // their own budget.
+        (RateLimitPolicyNames.DrillAttempt, 120, TimeSpan.FromSeconds(3600)),
     };
 
     private const string TooManyRequestsBody = "{\"detail\":\"Too many requests. Please try again later.\"}";

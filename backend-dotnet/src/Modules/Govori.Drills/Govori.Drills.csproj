@@ -1,0 +1,27 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\Govori.Contracts\Govori.Contracts.csproj" />
+    <ProjectReference Include="..\..\Govori.Infrastructure\Govori.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\Govori.Platform\Govori.Platform.csproj" />
+    <!-- NOTE (Drills boundary): no module→module edge. The drill needs the STT seam and its own two
+         tables and nothing else — it deliberately does NOT reach into Practice (whose submit flow,
+         freemium gate and attempt budget are about graded answers, none of which apply to a one-word
+         pronunciation check) or Engagement (a drill awards no XP today; making it do so is a product
+         decision, not a refactor). -->
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- This module defines its own minimal-API endpoint group (MapDrillEndpoints) and uses
+         ClaimsPrincipal / Results / rate-limiting extensions — the shared ASP.NET Core framework
+         provides those types to a class library. Same modular-endpoint pattern as the other domains. -->
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <TargetFramework>net9.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+</Project>

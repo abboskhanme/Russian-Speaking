@@ -25,8 +25,10 @@ import { useSearchParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { AnalyticsScreen } from "../../screens/teacher";
 import type {
+  AnalyticsErrorRow,
   AnalyticsGroupOption,
   AnalyticsInsights,
+  AnalyticsRemediation,
   AnalyticsTabKey,
   GradebookStudent,
 } from "../../screens/teacher";
@@ -169,6 +171,7 @@ export default function AnalyticsPage() {
           today: i === lastDay,
         };
       }),
+      remediationMinStudents: insights.remediation_min_students ?? 0,
       errors: insights.errors.map((e) => ({
         type: e.type,
         // An error type the frontend has not learned yet falls through to its raw
@@ -177,6 +180,24 @@ export default function AnalyticsPage() {
         count: e.count,
         studentCount: e.student_count,
         share: e.share,
+        // The flag collapses into ONE signal the screen can act on: `undefined`
+        // when the feature does not exist here (no button at all), `null` when it
+        // exists but this row has nothing to drill (a disabled button with a
+        // reason). Passing the flag separately would let the two drift apart.
+        remediation: !insights.remediation_enabled
+          ? undefined
+          : e.remediation
+            ? {
+                questionId: e.remediation.question_id,
+                questionTitle: e.remediation.question_title,
+                questionTopic: e.remediation.question_topic,
+                questionLevel: e.remediation.question_level,
+                students: e.remediation.students.map((s) => ({
+                  id: s.id,
+                  fullName: s.full_name,
+                })),
+              }
+            : null,
       })),
     };
   }, [insights, t]);
@@ -212,6 +233,25 @@ export default function AnalyticsPage() {
     [params, setParams],
   );
 
+  /**
+   * F6 · send the remediation. It goes through the SAME `POST /api/assignments`
+   * the D3 assign screen uses — F6 adds no second way to create an assignment, so
+   * the roster filter that endpoint enforces keeps covering this path too.
+   *
+   * The ids come from the server's own plan, untouched: the screen decides
+   * nothing about who receives work.
+   */
+  const assignRemediation = useCallback(
+    async (_row: AnalyticsErrorRow, plan: AnalyticsRemediation) => {
+      const created = await endpoints.createAssignments({
+        question_id: plan.questionId,
+        student_ids: plan.students.map((s) => s.id),
+      });
+      return created.length;
+    },
+    [],
+  );
+
   const setGroup = useCallback(
     (id: string | null) => {
       const next = new URLSearchParams(params);
@@ -237,6 +277,7 @@ export default function AnalyticsPage() {
       activeNavKey="analytics"
       onNavigate={onNavigate}
       queuedCount={queued}
+      onAssignRemediation={assignRemediation}
     />
   );
 }

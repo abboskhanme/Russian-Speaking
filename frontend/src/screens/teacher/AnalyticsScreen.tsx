@@ -1,6 +1,6 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Button, Card, StatTile, Tabs, Text, VisuallyHidden, cx } from "../../shared/ui";
+import { Badge, Button, Card, Modal, StatTile, Tabs, Text, VisuallyHidden, cx } from "../../shared/ui";
 import type { TabItem } from "../../shared/ui";
 import { AppShell, Brand, NotificationsBell, teacherNavItems } from "../../widgets";
 import type { NavItem } from "../../widgets";
@@ -37,6 +37,28 @@ export interface AnalyticsWeekDay {
   today?: boolean;
 }
 
+/** One recipient of a remediation assignment. */
+export interface AnalyticsRemediationStudent {
+  id: string;
+  fullName: string;
+}
+
+/**
+ * F6 · exactly what "Mashq ber" would send for one error row: ONE task, and the
+ * students who actually made that error. Composed server-side (see
+ * `InsightsRemediationResponse`), never guessed here.
+ *
+ * `students` can be EMPTY while the task exists — everyone affected already has
+ * it open. That is a reason to disable the button, not to hide the task.
+ */
+export interface AnalyticsRemediation {
+  questionId: string;
+  questionTitle: string;
+  questionTopic?: string | null;
+  questionLevel?: string | null;
+  students: AnalyticsRemediationStudent[];
+}
+
 /** One row of "Ko'p uchragan xatolar". `share` is 0–1. */
 export interface AnalyticsErrorRow {
   type: string;
@@ -45,6 +67,18 @@ export interface AnalyticsErrorRow {
   count: number;
   studentCount: number;
   share: number;
+  /**
+   * The row's one-tap remediation. THREE distinct values, and the screen renders
+   * each differently — collapsing any two of them tells the teacher a lie:
+   *
+   *  - `undefined` — the feature is not switched on in this deployment
+   *    (`class_insights_enabled`). No button is drawn at all.
+   *  - `null` — the feature is on but this row has nothing to assign: either it
+   *    is under {@link AnalyticsInsights.remediationMinStudents}, or no
+   *    assignable question carries the error. Button DISABLED, reason written out.
+   *  - an object — the plan. Button live, but only through a confirm step.
+   */
+  remediation?: AnalyticsRemediation | null;
 }
 
 /** Everything D1 draws. Null throughout = "no data yet", never zero. */
@@ -70,6 +104,12 @@ export interface AnalyticsInsights {
   skills: AnalyticsSkill[];
   week: AnalyticsWeekDay[];
   errors: AnalyticsErrorRow[];
+  /** How many DISTINCT students must have made an error before a remediation is
+   * offered for it — the "12 o'quvchi qoqildi" bar. Comes from the server so the
+   * threshold has one definition; `0` when the feature is off. It is only used to
+   * EXPLAIN a disabled button ("2 o'quvchi, kamida 3 kerak"), never to decide one
+   * — the server already decided by sending `remediation: null`. */
+  remediationMinStudents?: number;
 }
 
 /** One row of D2 Jurnal. Every score is optional — a student with no graded
@@ -107,6 +147,15 @@ export interface AnalyticsScreenProps {
   activeNavKey?: string;
   onNavigate?: (key: string, item: NavItem) => void;
   queuedCount?: number;
+  /**
+   * F6 · send the remediation. Resolves with how many assignments were actually
+   * created; rejects to surface a failure inside the confirm dialog.
+   *
+   * The screen never calls this from the row itself — only from the confirm
+   * dialog's primary action. Omit it and every "Mashq ber" button is inert, which
+   * is what the flagged-off deployment gets anyway.
+   */
+  onAssignRemediation?: (row: AnalyticsErrorRow, plan: AnalyticsRemediation) => Promise<number>;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -147,6 +196,7 @@ export function AnalyticsScreen({
   activeNavKey = "analytics",
   onNavigate,
   queuedCount = 0,
+  onAssignRemediation,
 }: AnalyticsScreenProps) {
   const { t } = useTranslation();
 
@@ -204,7 +254,7 @@ export function AnalyticsScreen({
         )}
 
         {activeTab === "insights" ? (
-          <InsightsTab insights={insights} />
+          <InsightsTab insights={insights} onAssignRemediation={onAssignRemediation} />
         ) : (
           <GradesTab rows={gradebook} />
         )}
@@ -217,7 +267,13 @@ export function AnalyticsScreen({
 /* D1 — Insaytlar                                                             */
 /* -------------------------------------------------------------------------- */
 
-function InsightsTab({ insights }: { insights: AnalyticsInsights | null }) {
+function InsightsTab({
+  insights,
+  onAssignRemediation,
+}: {
+  insights: AnalyticsInsights | null;
+  onAssignRemediation?: AnalyticsScreenProps["onAssignRemediation"];
+}) {
   const { t } = useTranslation();
 
   if (!insights) {
@@ -236,7 +292,11 @@ function InsightsTab({ insights }: { insights: AnalyticsInsights | null }) {
       <KpiTiles insights={insights} />
       <SkillsSection skills={insights.skills} />
       <WeekSection week={insights.week} />
-      <ErrorsSection errors={insights.errors} />
+      <ErrorsSection
+        errors={insights.errors}
+        minStudents={insights.remediationMinStudents ?? 0}
+        onAssignRemediation={onAssignRemediation}
+      />
     </>
   );
 }
@@ -612,8 +672,29 @@ function WeekSection({ week }: { week: AnalyticsWeekDay[] }) {
 
 /* ---- Ko'p uchragan xatolar ----------------------------------------------- */
 
-function ErrorsSection({ errors }: { errors: AnalyticsErrorRow[] }) {
+/**
+ * "Ko'p uchragan xatolar" — and, behind `class_insights_enabled`, **F6**: the
+ * one-tap remediation the product strategy names ("12 o'quvchi родительный
+ * падеж da qoqildi → 1 tap bilan remediation topshiriq").
+ *
+ * `sent` is deliberately LOCAL and not a refetch. Once a row's remediation has
+ * gone out, the server would answer the next read with an empty audience anyway
+ * (everyone now has the task open); re-fetching the whole screen to learn that
+ * would blank the charts and throw away the confirmation the teacher just earned.
+ * The row states what happened and its button stays down.
+ */
+function ErrorsSection({
+  errors,
+  minStudents,
+  onAssignRemediation,
+}: {
+  errors: AnalyticsErrorRow[];
+  minStudents: number;
+  onAssignRemediation?: AnalyticsScreenProps["onAssignRemediation"];
+}) {
   const { t } = useTranslation();
+  const [pending, setPending] = useState<AnalyticsErrorRow | null>(null);
+  const [sent, setSent] = useState<Record<string, number>>({});
 
   return (
     <section className={styles.section} aria-label={t("teacher.analytics.errorsTitle")}>
@@ -630,19 +711,53 @@ function ErrorsSection({ errors }: { errors: AnalyticsErrorRow[] }) {
         <ul className={styles.errorList}>
           {errors.map((e, i) => (
             <li key={e.type}>
-              <ErrorRow row={e} rank={i + 1} />
+              <ErrorRow
+                row={e}
+                rank={i + 1}
+                minStudents={minStudents}
+                sentCount={sent[e.type]}
+                onAssign={onAssignRemediation ? () => setPending(e) : undefined}
+              />
             </li>
           ))}
         </ul>
       )}
+
+      <RemediationDialog
+        row={pending}
+        onClose={() => setPending(null)}
+        onConfirm={async (row, plan) => {
+          const created = await onAssignRemediation!(row, plan);
+          setSent((s) => ({ ...s, [row.type]: created }));
+          setPending(null);
+        }}
+      />
     </section>
   );
 }
 
-function ErrorRow({ row, rank }: { row: AnalyticsErrorRow; rank: number }) {
+function ErrorRow({
+  row,
+  rank,
+  minStudents,
+  sentCount,
+  onAssign,
+}: {
+  row: AnalyticsErrorRow;
+  rank: number;
+  minStudents: number;
+  sentCount?: number;
+  onAssign?: () => void;
+}) {
   const { t } = useTranslation();
   const tone: ScoreTone | "neutral" = rank === 1 ? "danger" : rank === 2 ? "warn" : "neutral";
   const pct = Math.round(clamp(row.share * 100));
+
+  // `undefined` = the deployment has the feature switched off. No action area at
+  // all — an absent feature must not advertise itself as a broken one.
+  const showAction = row.remediation !== undefined && onAssign !== undefined;
+  const block = showAction ? remediationBlock(row, minStudents) : null;
+  const blocked = block ? t(block.key, { min: block.min }) : null;
 
   return (
     <Card variant="outline" padding="md" className={styles.errorCard}>
@@ -675,7 +790,172 @@ function ErrorRow({ row, rank }: { row: AnalyticsErrorRow; rank: number }) {
           style={{ width: `${pct}%` }}
         />
       </div>
+
+      {showAction && (
+        <div className={styles.errorAction}>
+          {/* The reason is VISIBLE text, not a `title` tooltip: a disabled button
+              takes no focus and shows no tooltip on touch, so a tooltip would
+              leave the teacher with a dead control and no explanation. */}
+          {sentCount != null ? (
+            <Text as="p" variant="body-s" className={styles.errorSent} role="status">
+              {t("teacher.analytics.remediationSent", { count: sentCount })}
+            </Text>
+          ) : (
+            blocked && (
+              <Text as="p" variant="body-s" color="muted" className={styles.errorReason}>
+                {blocked}
+              </Text>
+            )
+          )}
+          <Button
+            variant="secondary"
+            size="sm"
+            className={styles.errorCta}
+            disabled={blocked != null || sentCount != null}
+            onClick={onAssign}
+          >
+            {t("teacher.analytics.assignDrill")}
+          </Button>
+        </div>
+      )}
     </Card>
+  );
+}
+
+/**
+ * Which i18n key explains a dead "Mashq ber", or `null` when the button is live.
+ *
+ * Three different dead ends deserve three different sentences: "this error is too
+ * rare to drill", "no task carries this error" and "everyone already has this
+ * task" call for opposite next moves from a teacher, and one generic "unavailable"
+ * would hide which one they are in.
+ */
+function remediationBlock(
+  row: AnalyticsErrorRow,
+  minStudents: number,
+): { key: string; min?: number } | null {
+  if (row.remediation === undefined) return null; // no action area is rendered at all
+  if (row.remediation === null) {
+    // The server already decided by sending null; `minStudents` only picks which
+    // sentence describes that decision.
+    return minStudents > 0 && row.studentCount < minStudents
+      ? { key: "teacher.analytics.remediationTooRare", min: minStudents }
+      : { key: "teacher.analytics.remediationNoTask" };
+  }
+  return row.remediation.students.length === 0
+    ? { key: "teacher.analytics.remediationAllAssigned" }
+    : null;
+}
+
+/**
+ * The confirm step. **Not optional.** One tap sending a task to thirty people is
+ * irreversible — there is no unassign — so the dialog spells out all three
+ * unknowns before the write: WHICH task, HOW MANY students, and WHO by name.
+ *
+ * Nothing is sent until the primary action here is pressed; the row's button only
+ * ever opens this. A failed write keeps the dialog open with the reason, because
+ * closing on failure would leave the teacher unable to tell a refusal from a
+ * success.
+ */
+function RemediationDialog({
+  row,
+  onClose,
+  onConfirm,
+}: {
+  row: AnalyticsErrorRow | null;
+  onClose: () => void;
+  onConfirm: (row: AnalyticsErrorRow, plan: AnalyticsRemediation) => Promise<void>;
+}) {
+  const { t } = useTranslation();
+  const [busy, setBusy] = useState(false);
+  const [failed, setFailed] = useState(false);
+
+  const plan = row?.remediation ?? null;
+
+  const close = () => {
+    if (busy) return; // never abandon an in-flight write
+    setFailed(false);
+    onClose();
+  };
+
+  const confirm = async () => {
+    if (!row || !plan) return;
+    setBusy(true);
+    setFailed(false);
+    try {
+      await onConfirm(row, plan);
+    } catch {
+      setFailed(true);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <Modal
+      open={row != null && plan != null}
+      onClose={close}
+      title={t("teacher.analytics.remediationConfirmTitle")}
+      closeLabel={t("common.close")}
+    >
+      {row && plan && (
+        <div className={styles.confirm}>
+          <Text as="p" variant="body-s" color="muted">
+            {t("teacher.analytics.remediationConfirmLead", { error: row.label })}
+          </Text>
+
+          <div className={styles.confirmBlock}>
+            <Text as="h4" variant="label" color="muted">
+              {t("teacher.analytics.remediationConfirmTask")}
+            </Text>
+            <Text as="p" variant="body" weight="semibold">
+              {plan.questionTitle}
+            </Text>
+            {(plan.questionTopic || plan.questionLevel) && (
+              <div className={styles.confirmTags}>
+                {plan.questionTopic && <Badge variant="neutral">{plan.questionTopic}</Badge>}
+                {plan.questionLevel && <Badge variant="neutral">{plan.questionLevel}</Badge>}
+              </div>
+            )}
+          </div>
+
+          <div className={styles.confirmBlock}>
+            <Text as="h4" variant="label" color="muted">
+              {t("teacher.analytics.remediationConfirmWho", { count: plan.students.length })}
+            </Text>
+            {/* Every name, not a "+7 more": the teacher is about to act on this
+                exact list and cannot inspect it afterwards. Long rosters scroll
+                inside the block rather than pushing the buttons off-screen. */}
+            <ul className={styles.confirmNames}>
+              {plan.students.map((s) => (
+                <Text as="li" key={s.id} variant="body-s">
+                  {s.fullName}
+                </Text>
+              ))}
+            </ul>
+          </div>
+
+          <Text as="p" variant="body-s" color="muted">
+            {t("teacher.analytics.remediationConfirmWarn")}
+          </Text>
+
+          {failed && (
+            <Text as="p" variant="body-s" className={styles.confirmError} role="alert">
+              {t("teacher.analytics.remediationFailed")}
+            </Text>
+          )}
+
+          <div className={styles.confirmActions}>
+            <Button variant="ghost" onClick={close} disabled={busy}>
+              {t("common.cancel")}
+            </Button>
+            <Button variant="primary" onClick={confirm} loading={busy}>
+              {t("teacher.analytics.remediationConfirmCta")}
+            </Button>
+          </div>
+        </div>
+      )}
+    </Modal>
   );
 }
 

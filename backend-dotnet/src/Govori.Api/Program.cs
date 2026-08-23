@@ -23,6 +23,7 @@ using Govori.Platform.Grader;
 using Govori.Platform.Storage;
 using Govori.Platform.Stt;
 using Govori.Platform.Telegram;
+using Govori.Drills;
 using Govori.Practice;
 using Govori.Realtime;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -190,6 +191,13 @@ try
     builder.Services.AddScoped<PracticeService>();
     builder.Services.AddScoped<RoleplayService>();   // F1 · AI Suhbat (docs/08 Faza 6.5), flag-gated
     builder.Services.AddScoped<DailyService>();      // F3 · Kunlik 5 daqiqa (docs/08 Faza 6.3), flag-gated
+
+    // ── Phoneme drill (docs/01 F2), flag-gated ──────────────────────────────
+    // Its own module rather than a Practice route: it shares no part of the submit flow — no grading,
+    // no freemium gate, no attempt budget — and it is the ONLY caller allowed to ask the STT seam for
+    // scripted recognition (SttRecognitionMode.Scripted), which is a capability worth keeping to one
+    // reviewable place.
+    builder.Services.AddScoped<DrillService>();
 
     // ── Assessment / grading pipeline (docs/07 §7.7, Faza 3.4) ──────────────
     // STT + Grader behind interfaces, served by an ordered chain of vendor backends whose order and
@@ -571,6 +579,12 @@ try
     // verifies the callback's signature — an unverified webhook is a self-service premium button —
     // and the stub adapter verifies nothing, so today it rejects every callback.
     app.MapBillingEndpoints();
+
+    // ── Phoneme drill endpoints (docs/01 F2) ────────────────────────────────
+    // GET /api/drills/pairs (the hub grid) + POST /api/drills/attempts (one spoken word) live in the
+    // Drills module's MapDrillEndpoints extension, one call per domain. Behind the
+    // `phoneme_drill_enabled` flag, which is OFF by default — the attempt route spends Azure calls.
+    app.MapDrillEndpoints();
 
     // ── Real-time attempt-progress hub (docs/08 Faza 3.10) ──────────────────
     // Clients connect with their JWT and call SubscribeToAttempt(id) to stream grading progress.

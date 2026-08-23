@@ -116,4 +116,19 @@ public static class RateLimitPolicyNames
     /// already taken.</para>
     /// </summary>
     public const string BillingWebhook = "billing_webhook";
+
+    /// <summary>
+    /// One phoneme-drill attempt (<c>POST /api/drills/attempts</c>).
+    ///
+    /// <para>Deliberately NOT <see cref="SubmitAudio"/>, even though both spend Azure calls. A drill
+    /// utterance is one word and takes a few seconds, so a learner legitimately runs through them
+    /// many times faster than they submit graded answers; sharing the submit scope would mean a
+    /// student who drilled for five minutes could no longer record a real answer, which is the
+    /// feature getting in the way of the product.</para>
+    ///
+    /// <para>This is the burst ceiling. The per-student DAILY budget lives in
+    /// <c>DrillService</c> — the two are separate because a daily count cannot stop a burst and a
+    /// rate limit cannot express "forty a day".</para>
+    /// </summary>
+    public const string DrillAttempt = "drill_attempt";
 }

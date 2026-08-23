@@ -395,6 +395,77 @@
   background: var(--muted);
 }
 
+/* --- F6 · "Mashq ber" (behind class_insights_enabled) --------------------- */
+/* Reason on the left, action on the right. It wraps rather than truncating:
+   the reason is the whole point of a disabled button, so it must never be the
+   part that gets cut off. */
+.errorAction {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--s-2);
+}
+.errorReason {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+.errorSent {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  color: var(--success-ink);
+  font-weight: var(--fw-semibold);
+}
+/* Pushed to the right on its own when there is no reason beside it. */
+.errorCta {
+  margin-inline-start: auto;
+  flex: none;
+}
+
+/* --- F6 · confirm dialog -------------------------------------------------- */
+.confirm {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-4);
+}
+.confirmBlock {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+}
+.confirmTags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-2);
+}
+/* A class of thirty must not push the confirm/cancel buttons out of reach, so
+   the name list — and only the name list — scrolls. */
+.confirmNames {
+  list-style: none;
+  margin: 0;
+  padding: var(--s-3);
+  max-height: 180px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-1);
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+}
+.confirmError {
+  margin: 0;
+  color: var(--danger);
+}
+.confirmActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--s-3);
+}
+
 /* ==========================================================================
    D2 — Jurnal
    ========================================================================== */
