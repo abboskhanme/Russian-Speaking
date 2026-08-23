@@ -734,6 +734,8 @@ export interface FeatureFlagsResponse {
   roleplay_daily_turns: number;
   /** F6 · the teacher's one-tap remediation on Analitika · Insaytlar. */
   class_insights_enabled: boolean;
+  /** F3 · «Kunlik 5 daqiqa» — the daily session and its Home entry point. */
+  daily_five_enabled: boolean;
 }
 
 /** PATCH body. Everything is a string, booleans included — the tri-state needs
@@ -745,6 +747,7 @@ export interface FeatureFlagsUpdateArgs {
   roleplay_max_turns?: string;
   roleplay_daily_turns?: string;
   class_insights_enabled?: string;
+  daily_five_enabled?: string;
 }
 
 export interface LinksResponse {

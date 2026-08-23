@@ -9,7 +9,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { HomeScreen } from "../../screens/home";
-import type { HomeGroup, HomeStats, HomeToday, HomeUser } from "../../screens/home";
+import type { HomeDaily, HomeGroup, HomeStats, HomeToday, HomeUser } from "../../screens/home";
 import { endpoints } from "../../shared/api";
 import { useAuth } from "../../shared/auth";
 import { firstName } from "../adapters";
@@ -30,6 +30,10 @@ export default function HomePage() {
    * `pendingGroupName`. Only meaningful while `group` is null. */
   const [pendingGroupName, setPendingGroupName] = useState<string | null>(null);
   const [stats, setStats] = useState<HomeStats>({ level: null, weekMinutes: 0, currentStreak: 0 });
+  /** Today's F3 session — null while `daily_five_enabled` is off (the probe 404s)
+   * and null on any other failure. Both draw Home exactly as it was before F3, so
+   * a switched-off feature leaves no mark here at all. */
+  const [daily, setDaily] = useState<HomeDaily | null>(null);
   const [loading, setLoading] = useState(true);
   const [reloadKey, setReloadKey] = useState(0);
 
@@ -38,14 +42,31 @@ export default function HomePage() {
     setLoading(true);
 
     // allSettled, not all: one dead section must not blank the page.
+    // The daily probe rides along on the same allSettled rule and rejects with a
+    // 404 whenever `daily_five_enabled` is off — which is exactly how a
+    // flagged-off feature should read here: its entry simply never appears.
     Promise.allSettled([
       endpoints.profileStats(),
       endpoints.myGroups(),
       endpoints.assignmentsMine().catch(() => []),
       endpoints.myJoinRequests().catch(() => []),
+      endpoints.dailySession(),
     ])
-      .then(([s, g, a, r]) => {
+      .then(([s, g, a, r, d]) => {
         if (!alive) return;
+
+        setDaily(
+          d.status === "fulfilled"
+            ? {
+                total: d.value.steps.length,
+                // The warm-up leaves no server-side trace, so the server always
+                // reports it undone. Counting only what the server can observe
+                // keeps Home from claiming a step it cannot see.
+                done: d.value.steps.filter((step) => step.done).length,
+                completed: d.value.completed,
+              }
+            : null,
+        );
 
         if (s.status === "fulfilled") {
           setStats({
@@ -98,7 +119,12 @@ export default function HomePage() {
     [user],
   );
 
-  const onStart = useCallback(() => navigate("/practice"), [navigate]);
+  // With F3 on, "Boshlash" opens the session it now describes; with it off the CTA
+  // keeps going where it has always gone.
+  const onStart = useCallback(
+    () => navigate(daily ? "/daily" : "/practice"),
+    [daily, navigate],
+  );
 
   // Join a group by code, then refetch so the "O'QITUVCHINGIZ" block replaces the
   // join form. Errors propagate to NoGroupCard, which surfaces them inline.
@@ -116,6 +142,7 @@ export default function HomePage() {
       today={today}
       group={group}
       stats={stats}
+      daily={daily}
       onStart={onStart}
       onJoinGroup={onJoinGroup}
       pendingGroupName={pendingGroupName}

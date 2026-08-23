@@ -14,6 +14,7 @@ export type {
   HomeGroup,
   HomeAssignment,
   HomeStats,
+  HomeDaily,
 } from "./HomeScreen";
 export {
   mockHomeUser,

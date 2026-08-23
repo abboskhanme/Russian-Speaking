@@ -79,6 +79,31 @@
   transition: width var(--m-base);
 }
 
+/* F3 · the daily session's steps (docs/04 §4.5: ● ○ ○  3 qadam). The dots sit
+ * beside the sentence that says the same thing, so nothing here is carried by
+ * shape or colour alone. */
+.stepRow {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  margin-top: var(--s-3);
+}
+.stepDots {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+}
+.stepDot {
+  inline-size: 10px;
+  block-size: 10px;
+  border-radius: var(--r-pill);
+  background: var(--line-2);
+  transition: background var(--m-base);
+}
+.stepDotOn {
+  background: var(--primary);
+}
+
 /* ---- Teacher + group ---- */
 .teacherCard {
   display: flex;

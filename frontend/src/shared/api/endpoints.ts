@@ -23,6 +23,7 @@ import type {
   CreateModuleAssignmentArgs,
   AttemptDetailResponse,
   AuthConfigResponse,
+  DailySessionResponse,
   GroupResponse,
   GroupDetailResponse,
   GradebookRowResponse,
@@ -485,6 +486,24 @@ export function teacherInsights(groupId?: string): Promise<InsightsResponse> {
  * the "Yordam markazi" modal. Auth required (it rides the normal session). */
 export function settingsLinks(): Promise<LinksResponse> {
   return apiClient.get<LinksResponse>("/settings/links");
+}
+
+/* ── Kunlik 5 daqiqa (docs/08 Faza 6.3, behind `daily_five_enabled`) ───────── */
+
+/** GET /api/daily → today's session (warm-up → one task → one drill), stable for
+ * the student's whole day. Auth required; the owner comes from the bearer token.
+ *
+ * `tz_offset` is minutes to ADD to UTC to reach the caller's local time, so the
+ * day boundary is theirs and not the server's. It is derived here rather than
+ * asked of every caller — `getTimezoneOffset()` returns minutes BEHIND UTC, and
+ * flipping that sign once, at the edge, is how it stays flipped exactly once.
+ *
+ * Throws a 404 {@link ApiError} when the deployment has the flag OFF. That is the
+ * feature's "not here" answer, not a failure — callers catch it and hide the
+ * entry point rather than showing an error for something never switched on. */
+export function dailySession(signal?: AbortSignal): Promise<DailySessionResponse> {
+  const tzOffset = -new Date().getTimezoneOffset();
+  return apiClient.get<DailySessionResponse>(`/daily?tz_offset=${tzOffset}`, { signal });
 }
 
 /* ── Xato-replay drill (docs/08 Faza 6.1, behind `review_drill_enabled`) ───── */

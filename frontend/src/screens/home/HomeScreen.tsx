@@ -29,6 +29,25 @@ export interface HomeToday {
   doneSeconds: number;
 }
 
+/**
+ * F3 · today's daily session, when the deployment has `daily_five_enabled` on.
+ *
+ * Null is the FLAG-OFF answer as well as the "not loaded" one, and both mean the
+ * same thing to this screen: draw the card exactly as it was drawn before F3
+ * existed. A flagged-off feature must leave no trace on Home — not a greyed
+ * entry, not an empty rail — because a person who can never switch it on should
+ * never learn it exists.
+ */
+export interface HomeDaily {
+  /** How many steps today's session has (2 or 3 — the drill is skipped when the
+   * SRS queue is clear). */
+  total: number;
+  /** How many of them are finished. */
+  done: number;
+  /** Every observable step is done. The card says so and stops nagging. */
+  completed: boolean;
+}
+
 /** The next incomplete assignment, or null when there is none. */
 export interface HomeAssignment {
   title: string;
@@ -60,6 +79,8 @@ export interface HomeScreenProps {
   /** Null → the "O'QITUVCHINGIZ" block is replaced by a quiet independent state. */
   group: HomeGroup | null;
   stats: HomeStats;
+  /** Today's F3 session, or null when the flag is off (see {@link HomeDaily}). */
+  daily?: HomeDaily | null;
   /** Start today's practice (the "Boshlash" CTA). */
   onStart?: () => void;
   /** Message the teacher (the "Yozish" action). Hidden when absent. */
@@ -100,6 +121,7 @@ export function HomeScreen({
   today,
   group,
   stats,
+  daily = null,
   onStart,
   onMessageTeacher,
   onJoinGroup,
@@ -126,7 +148,7 @@ export function HomeScreen({
       headerEnd={<NotificationsBell />}
     >
       <div className={styles.page}>
-        <TodayCard today={today} onStart={onStart} />
+        <TodayCard today={today} daily={daily} onStart={onStart} />
 
         {group ? (
           <TeacherSection
@@ -163,7 +185,15 @@ export function HomeScreen({
 /* Today's practice — the hero card                                           */
 /* -------------------------------------------------------------------------- */
 
-function TodayCard({ today, onStart }: { today: HomeToday; onStart?: () => void }) {
+function TodayCard({
+  today,
+  daily,
+  onStart,
+}: {
+  today: HomeToday;
+  daily: HomeDaily | null;
+  onStart?: () => void;
+}) {
   const { t } = useTranslation();
   const goalSec = Math.max(today.goalMinutes, 1) * 60;
   const fraction = Math.min(today.doneSeconds / goalSec, 1);
@@ -171,7 +201,7 @@ function TodayCard({ today, onStart }: { today: HomeToday; onStart?: () => void 
   return (
     <Card variant="raised" padding="lg" className={styles.todayCard}>
       <span className={styles.todayMascot} aria-hidden>
-        <Mascot mood="idle" size={72} label="Govo" />
+        <Mascot mood={daily?.completed ? "proud" : "idle"} size={72} label="Govo" />
       </span>
 
       <div className={styles.todayBody}>
@@ -182,19 +212,52 @@ function TodayCard({ today, onStart }: { today: HomeToday; onStart?: () => void 
           {t("home.todayTitle", { min: today.goalMinutes })}
         </Text>
         <Text as="p" variant="body" color="muted">
-          {t("home.todayTagline")}
+          {daily?.completed ? t("home.dailyDone") : t("home.todayTagline")}
         </Text>
 
-        <SegmentBar fraction={fraction} />
+        {/* With F3 on, the session IS today's practice, so the card counts steps
+            rather than seconds-toward-a-goal — a truer number, and the only one
+            the student can act on. With it off the seconds bar stays exactly as
+            it was: the flag must leave no trace on this card. */}
+        {daily ? (
+          <StepDots done={daily.done} total={daily.total} />
+        ) : (
+          <SegmentBar fraction={fraction} />
+        )}
 
         <div className={styles.todayActions}>
           <Button variant="primary" size="lg" onClick={onStart}>
-            {t("home.start")}
+            {daily
+              ? daily.completed
+                ? t("home.dailyReview")
+                : daily.done > 0
+                  ? t("common.continue")
+                  : t("home.start")
+              : t("home.start")}
             <ArrowGlyph />
           </Button>
         </div>
       </div>
     </Card>
+  );
+}
+
+/** The session's steps as ● ○ ○ plus the count in words (docs/04 §4.5). The dots
+ * are decorative — the text beside them carries the same fact, so the progress is
+ * never colour-or-shape only. */
+function StepDots({ done, total }: { done: number; total: number }) {
+  const { t } = useTranslation();
+  return (
+    <div className={styles.stepRow}>
+      <span className={styles.stepDots} aria-hidden>
+        {Array.from({ length: total }, (_, i) => (
+          <span key={i} className={cx(styles.stepDot, i < done && styles.stepDotOn)} />
+        ))}
+      </span>
+      <Text as="span" variant="body-s" color="muted">
+        {t("home.stepsValueText", { done, total })}
+      </Text>
+    </div>
   );
 }
 

@@ -17,6 +17,7 @@
  *   /task?task=:id           → the task recording screen
  *   /chat/:scenarioId        → AI conversation (E3 chat + E4 summary, stubbed)
  *   /review                  → Xatolar ustida — the xato-replay drill (flagged)
+ *   /daily                   → Bugungi 5 daqiqa — the daily session (flagged)
  *   /progress                → Progress
  *   /profile                 → Profile
  *   /teacher                 → teacher A1 Obzor (its own nav: Bosh · Klasslar ·
@@ -48,6 +49,7 @@ const PracticePage = lazy(() => import("./app/routes/PracticePage"));
 const ConversationHubPage = lazy(() => import("./app/routes/ConversationHubPage"));
 const ConversationPage = lazy(() => import("./app/routes/ConversationPage"));
 const ReviewDrillPage = lazy(() => import("./app/routes/ReviewDrillPage"));
+const DailyPage = lazy(() => import("./app/routes/DailyPage"));
 const ProgressPage = lazy(() => import("./app/routes/ProgressPage"));
 const GroupPage = lazy(() => import("./app/routes/GroupPage"));
 const AllResultsPage = lazy(() => import("./app/routes/AllResultsPage"));
@@ -170,6 +172,11 @@ export default function App() {
                     itself back to /practice when the deployment has it off). This is
                     the path `review_added` notifications have always linked to. */}
                 <Route path="/review" element={<ReviewDrillPage />} />
+                {/* Bugungi 5 daqiqa — the F3 daily session (flagged; the route
+                    404s itself back to Home when the deployment has it off). It
+                    keeps `activeNavKey="home"`: it is the shape of today's
+                    practice, not a sixth destination, and the bar stays 5 items. */}
+                <Route path="/daily" element={<DailyPage />} />
                 <Route path="/progress" element={<ProgressPage />} />
                 {/* Group view (classmates + group leaderboard), reached from Home. */}
                 <Route path="/group" element={<GroupPage />} />

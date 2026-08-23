@@ -36,6 +36,7 @@ export const mockAdminSettings: AdminSettings = {
   roleplayMaxTurns: 8,
   roleplayDailyTurns: 24,
   classInsightsEnabled: false,
+  dailyFiveEnabled: false,
   llmProvider: "auto",
   geminiModel: "gemini-2.0-flash",
   knownGeminiModels: [
