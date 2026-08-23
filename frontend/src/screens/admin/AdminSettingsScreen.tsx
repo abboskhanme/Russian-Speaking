@@ -37,6 +37,7 @@ export interface AdminSettings {
   roleplayDailyTurns: number;
   classInsightsEnabled: boolean;
   dailyFiveEnabled: boolean;
+  paymentsEnabled: boolean;
   llmProvider: string;
   geminiModel: string;
   knownGeminiModels: KnownModel[];
@@ -130,6 +131,7 @@ export interface AdminSettingsProps {
     roleplayDailyTurns: string;
     classInsightsEnabled: string;
     dailyFiveEnabled: string;
+    paymentsEnabled: string;
   }) => Promise<void>;
 }
 
@@ -240,6 +242,7 @@ export function AdminSettingsScreen({
   const [dailyTurns, setDailyTurns] = useState(String(settings.roleplayDailyTurns));
   const [classInsights, setClassInsights] = useState(settings.classInsightsEnabled);
   const [dailyFive, setDailyFive] = useState(settings.dailyFiveEnabled);
+  const [payments, setPayments] = useState(settings.paymentsEnabled);
   const [busy, setBusy] = useState(false);
   const [note, setNote] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -336,6 +339,7 @@ export function AdminSettingsScreen({
     setDailyTurns(String(settings.roleplayDailyTurns));
     setClassInsights(settings.classInsightsEnabled);
     setDailyFive(settings.dailyFiveEnabled);
+    setPayments(settings.paymentsEnabled);
   }, [
     settings.reviewDrillEnabled,
     settings.roleplayEnabled,
@@ -343,6 +347,7 @@ export function AdminSettingsScreen({
     settings.roleplayDailyTurns,
     settings.classInsightsEnabled,
     settings.dailyFiveEnabled,
+    settings.paymentsEnabled,
   ]);
 
   const saveAi = async () => {
@@ -449,6 +454,7 @@ export function AdminSettingsScreen({
         roleplayDailyTurns: dailyTurns.trim(),
         classInsightsEnabled: String(classInsights),
         dailyFiveEnabled: String(dailyFive),
+        paymentsEnabled: String(payments),
       });
       setNote(t("admin.saved"));
     } catch {
@@ -795,6 +801,24 @@ export function AdminSettingsScreen({
                 checked={dailyFive}
                 onChange={setDailyFive}
                 aria-label={t("admin.dailyFive")}
+              />
+            </div>
+            <div className={styles.switchRow}>
+              <span className={styles.switchText}>
+                <Text as="span" variant="body" weight="semibold">
+                  {t("admin.payments")}
+                </Text>
+                {/* The hint says the part that is easy to get wrong: this switch alone does
+                    not make anything purchasable. Without it an admin turns payments "on",
+                    sees nothing change, and reasonably concludes the panel is broken. */}
+                <Text as="span" variant="body-s" color="muted">
+                  {t("admin.paymentsHint")}
+                </Text>
+              </span>
+              <Switch
+                checked={payments}
+                onChange={setPayments}
+                aria-label={t("admin.payments")}
               />
             </div>
             <Input

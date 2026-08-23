@@ -21,6 +21,7 @@
  *   /drill                   → Tovushlar mashqi — minimal-pair drill (flagged)
  *   /progress                → Progress
  *   /profile                 → Profile
+ *   /premium                 → Premium (obuna holati + tariflar)
  *   /teacher                 → teacher A1 Obzor (its own nav: Bosh · Klasslar ·
  *                              Navbat · Kontent · Analitika)
  */
@@ -44,6 +45,7 @@ const AdminDashboardPage = lazy(() => import("./app/routes/AdminDashboardPage"))
 const AdminTeachersPage = lazy(() => import("./app/routes/AdminTeachersPage"));
 const AdminStudentsPage = lazy(() => import("./app/routes/AdminStudentsPage"));
 const AdminSettingsPage = lazy(() => import("./app/routes/AdminSettingsPage"));
+const AdminBillingPage = lazy(() => import("./app/routes/AdminBillingPage"));
 const PracticeHubPage = lazy(() => import("./app/routes/PracticeHubPage"));
 const ModuleDetailPage = lazy(() => import("./app/routes/ModuleDetailPage"));
 const PracticePage = lazy(() => import("./app/routes/PracticePage"));
@@ -57,6 +59,7 @@ const GroupPage = lazy(() => import("./app/routes/GroupPage"));
 const AllResultsPage = lazy(() => import("./app/routes/AllResultsPage"));
 const AttemptDetailPage = lazy(() => import("./app/routes/AttemptDetailPage"));
 const ProfilePage = lazy(() => import("./app/routes/ProfilePage"));
+const PremiumPage = lazy(() => import("./app/routes/PremiumPage"));
 const LoginPage = lazy(() => import("./app/routes/LoginPage"));
 const RegisterPage = lazy(() => import("./app/routes/RegisterPage"));
 const PlacementPage = lazy(() => import("./app/routes/PlacementPage"));
@@ -155,6 +158,8 @@ export default function App() {
                 <Route path="/admin/teachers" element={<AdminTeachersPage />} />
                 <Route path="/admin/students" element={<AdminStudentsPage />} />
                 <Route path="/admin/settings" element={<AdminSettingsPage />} />
+                {/* Tariflar — the plan editor + who holds a subscription. */}
+                <Route path="/admin/billing" element={<AdminBillingPage />} />
               </Route>
 
               {/* Student app (students only). */}
@@ -191,6 +196,9 @@ export default function App() {
                 <Route path="/results" element={<AllResultsPage />} />
                 <Route path="/results/:id" element={<AttemptDetailPage />} />
                 <Route path="/profile" element={<ProfilePage />} />
+                {/* Premium — obuna holati + tariflar. Reached from the profile's PRO
+                    card and from the paywall a 402 raises. */}
+                <Route path="/premium" element={<PremiumPage />} />
               </Route>
             </Route>
 

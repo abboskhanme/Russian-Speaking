@@ -10,6 +10,7 @@ import {
   ProgressIcon,
   QueueIcon,
   SettingsIcon,
+  TariffIcon,
   TeachersIcon,
 } from "./icons";
 
@@ -84,13 +85,14 @@ export function teacherNavItems(t: TFunction, pendingReviews = 0): NavItem[] {
   ];
 }
 
-/** Stable keys for the 4 admin destinations (`Govorim - Admin.dc.html`). */
-export type AdminNavKey = "home" | "teachers" | "students" | "settings";
+/** Stable keys for the admin destinations (`Govorim - Admin.dc.html`, plus Tariflar
+ *  from Faza 6.6). */
+export type AdminNavKey = "home" | "teachers" | "students" | "billing" | "settings";
 
 /**
- * The admin nav model: **Boshqaruv · O'qituvchilar · O'quvchilar · Sozlamalar**.
+ * The admin nav model: **Boshqaruv · O'qituvchilar · O'quvchilar · Tariflar · Sozlamalar**.
  *
- * Four items and **no raised centre FAB**, unlike the other two bars. That is a
+ * Five items and **no raised centre FAB**, unlike the other two bars. That is a
  * judgement, not an oversight: the student's FAB is "record", the teacher's is
  * "grade the queue" — each panel has one dominant, repeated action. Administration
  * has no such action; promoting one of these four would invent an emphasis the
@@ -104,6 +106,10 @@ export function adminNavItems(t: TFunction): NavItem[] {
     { key: "home", label: t("nav.adminHome"), icon: <HomeIcon /> },
     { key: "teachers", label: t("nav.adminTeachers"), icon: <TeachersIcon /> },
     { key: "students", label: t("nav.adminStudents"), icon: <GroupsIcon /> },
+    // Tariflar sits before Sozlamalar because it is a place with content, and
+    // Sozlamalar is the drawer everything configuration-shaped ends up in — a nav
+    // bar reads better when the settings item stays last.
+    { key: "billing", label: t("nav.adminBilling"), icon: <TariffIcon /> },
     { key: "settings", label: t("nav.adminSettings"), icon: <SettingsIcon /> },
   ];
 }

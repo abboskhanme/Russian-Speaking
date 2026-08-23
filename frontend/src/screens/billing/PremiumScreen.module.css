@@ -1,0 +1,124 @@
+/* PremiumScreen — «Premium». Every value is a token. */
+
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-5);
+  width: 100%;
+}
+
+.statusCard {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--s-2);
+}
+
+/* The "payments are not connected" card. `--warn-tint`, not `--danger-tint`: nothing has
+   failed and nothing the student did is wrong — a capability simply does not exist yet, and
+   painting that red teaches people to ignore the colour that should mean trouble. */
+.notice {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+  background: var(--warn-tint);
+  border-color: var(--warn);
+}
+.supportLink {
+  align-self: flex-start;
+  margin-top: var(--s-1);
+  color: var(--primary-ink);
+  font-size: var(--t-body-s-size);
+  font-weight: var(--fw-semibold);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  border-radius: var(--r-xs);
+}
+.supportLink:focus-visible {
+  outline: var(--focus-ring-width) solid var(--focus-ring);
+  outline-offset: var(--focus-ring-offset);
+}
+
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+}
+.legend {
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+/* Tariff cards, edge to edge. `auto-fit` with a `min()` floor rather than a fixed column
+   count: the owner decides how many tariffs exist, so any hard count is wrong eventually, and
+   the floor keeps a 390px phone from gaining the sideways scroll the full-width rule forbids. */
+.planList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(17rem, 100%), 1fr));
+  gap: var(--s-3);
+}
+.planCard {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+  height: 100%;
+}
+/* The price is what the eye lands on, so it carries the one strong colour on the card.
+   `--primary-ink` and not `--primary`: the latter is a FILL token. */
+.price {
+  color: var(--primary-ink);
+  line-height: 1.1;
+}
+.buy {
+  margin-top: auto;
+}
+/* Text, not a disabled button — a greyed-out "Sotib olish" reads as "try later" and gets
+   tapped at. It sits where the button would, so the card's height does not jump between the
+   two states. */
+.unavailable {
+  margin-top: auto;
+  padding-top: var(--s-2);
+}
+
+.meta {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-1);
+  margin: var(--s-2) 0 0;
+  width: 100%;
+}
+.metaRow {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--s-3);
+}
+.metaRow dd {
+  margin: 0;
+}
+
+.perks {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+}
+.perks li {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--s-2);
+}
+/* The tick is decoration beside a label that already says everything. The `/ ""` gives it an
+   EMPTY alternative text, so a screen reader announces the perk once instead of prefixing every
+   line with "check mark" — the CSS equivalent of aria-hidden, which a pseudo-element cannot take. */
+.perks li::before {
+  content: "✓" / "";
+  color: var(--success);
+  font-weight: var(--fw-bold);
+  line-height: 1.5;
+}

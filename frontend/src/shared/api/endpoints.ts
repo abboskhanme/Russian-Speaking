@@ -66,6 +66,12 @@ import type {
   TokenResponse,
   UnreadCountResponse,
   UpdateProfileArgs,
+  AdminSubscriptionResponse,
+  CheckoutArgs,
+  CheckoutResponse,
+  PlanResponse,
+  PlanUpsertArgs,
+  SubscriptionStatusResponse,
 } from "./types";
 
 /* ── Auth (phone + Telegram-bot OTP) ─────────────────────────────────────── */
@@ -880,4 +886,71 @@ export function submitDrillAttempt(
     form.append("audio_duration_sec", String(durationSec));
   }
   return apiClient.post<DrillResultResponse>("/drills/attempts", form);
+}
+
+
+/* ── Billing (docs/08 Faza 6.6) ──────────────────────────────────────────── */
+
+/** GET /api/billing/plans → the tariffs on offer, cheapest-first by the admin's
+ * order. Retired tariffs are absent: they still exist (old subscriptions point at
+ * them) but are never sold again. */
+export function billingPlans(): Promise<PlanResponse[]> {
+  return apiClient.get<PlanResponse[]>("/billing/plans");
+}
+
+/** GET /api/billing/subscription → the caller's premium state, where it comes
+ * from, and BOTH gate flags in one read.
+ *
+ * `is_premium` here is the same boolean the 402 paywall computes, so a screen
+ * built on this can never promise access the gate will refuse. */
+export function subscriptionStatus(): Promise<SubscriptionStatusResponse> {
+  return apiClient.get<SubscriptionStatusResponse>("/billing/subscription");
+}
+
+/** POST /api/billing/checkout → start a purchase.
+ *
+ * **503 is the normal answer today**, not an error: `payments_disabled` (the flag
+ * is off) or `provider_not_configured` (no merchant account yet). Callers render
+ * that as a state — "to'lov tizimi hali ulanmagan" — and must never present it as
+ * a failed payment, because nothing was attempted and nothing was charged.
+ *
+ * `idempotency_key` must be minted ONCE PER ATTEMPT and resent verbatim by any
+ * retry; that is the only thing that makes the server's guard prevent a second
+ * charge. Rate-limited server-side (`billing_checkout`). */
+export function billingCheckout(args: CheckoutArgs): Promise<CheckoutResponse> {
+  return apiClient.post<CheckoutResponse>("/billing/checkout", args);
+}
+
+/** GET /api/admin/billing/plans → every tariff, retired ones included. */
+export function adminPlans(): Promise<PlanResponse[]> {
+  return apiClient.get<PlanResponse[]>("/admin/billing/plans");
+}
+
+/** POST /api/admin/billing/plans → create a tariff. `price_minor` is TIYIN. */
+export function adminCreatePlan(args: PlanUpsertArgs): Promise<PlanResponse> {
+  return apiClient.post<PlanResponse>("/admin/billing/plans", args);
+}
+
+/** PATCH /api/admin/billing/plans/{id} → partial update; absent fields are left
+ * alone. Editing a price does NOT change any subscription already sold: the end
+ * date and the charged amount were frozen at purchase. */
+export function adminUpdatePlan(id: string, args: PlanUpsertArgs): Promise<PlanResponse> {
+  return apiClient.patch<PlanResponse>(`/admin/billing/plans/${encodeURIComponent(id)}`, args);
+}
+
+/** DELETE /api/admin/billing/plans/{id} → 204.
+ *
+ * REFUSED (400 `plan_in_use`) for a tariff any subscription or payment attempt
+ * references — those rows say what a person bought and for how much, and a delete
+ * would leave them unable to say it. Retiring a price is `is_active: false`. */
+export function adminDeletePlan(id: string): Promise<void> {
+  return apiClient.del<void>(`/admin/billing/plans/${encodeURIComponent(id)}`);
+}
+
+/** GET /api/admin/billing/subscriptions → who holds what, newest first.
+ * Read-only: an admin grants premium through the student's `is_premium` switch,
+ * which is deliberately a different, visible act from "this person paid". */
+export function adminSubscriptions(limit?: number): Promise<AdminSubscriptionResponse[]> {
+  const q = limit ? `?limit=${limit}` : "";
+  return apiClient.get<AdminSubscriptionResponse[]>(`/admin/billing/subscriptions${q}`);
 }

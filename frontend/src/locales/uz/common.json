@@ -18,7 +18,8 @@
     "adminHome": "Boshqaruv",
     "adminTeachers": "O‘qituvchilar",
     "adminStudents": "O‘quvchilar",
-    "adminSettings": "Sozlamalar"
+    "adminSettings": "Sozlamalar",
+    "adminBilling": "Tariflar"
   },
   "common": {
     "continue": "Davom etish",
@@ -1269,6 +1270,85 @@
     "roleplayMaxTurns": "Bitta suhbatdagi eng ko'p tur",
     "roleplayDailyTurns": "Bir o'quvchiga kunlik tur",
     "roleplayCostHint": "Ikkala chegara ham xarajatni ushlab turadi. Kunlik hisob UTC yarim tunda yangilanadi.",
-    "saveFeatures": "Funksiyalarni saqlash"
+    "saveFeatures": "Funksiyalarni saqlash",
+    "payments": "To'lovlar",
+    "paymentsHint": "O'quvchilar uchun Premium sotib olish oqimi. Yoqilgan bo'lsa ham, to'lov provayderi ulanmaguncha hech kim sotib ololmaydi.",
+    "billing": {
+      "title": "Tariflar",
+      "plans": "Tariflar",
+      "subscriptions": "Obunalar",
+      "newPlan": "Yangi tarif",
+      "editPlan": "Tarifni tahrirlash",
+      "noPlans": "Hali tarif yo'q. Provayder ulanmasidan oldin ham tayyorlab qo'yish mumkin.",
+      "noSubscriptions": "Hali hech kim obuna sotib olmagan.",
+      "grantHint": "Premiumni hozircha o'qituvchi beradi — O'quvchilar bo'limidagi tugma orqali.",
+      "notConnectedBody": "Tariflarni hozir yaratib qo'yish mumkin, lekin o'quvchilar ularni sotib ololmaydi. Merchant hisobi ulangach, bu yerda o'zgarish shart emas.",
+      "flagState": "Bayroq: {{state}}",
+      "providerState": "Provayder: {{state}}",
+      "notConnectedShort": "ulanmagan",
+      "on": "yoqilgan",
+      "off": "o'chirilgan",
+      "duration": "{{days}} kun",
+      "edit": "Tahrirlash",
+      "delete": "O'chirish",
+      "alsoGranted": "O'qituvchi ham bergan",
+      "saveFailed": "Saqlab bo'lmadi.",
+      "deleteRefused": "Bu tarif bo'yicha to'lov yoki obuna bor — o'chirib bo'lmaydi. Uni faolsizlantiring.",
+      "name": "Nomi",
+      "code": "Kod",
+      "codeHint": "URL va so'rovlarda ishlatiladi. Keyin o'zgartirmang.",
+      "price": "Narxi (so'm)",
+      "priceHint": "Butun son, so'mda. Masalan: 49900.",
+      "durationDays": "Muddati (kun)",
+      "description": "Izoh",
+      "activeLabel": "Faol",
+      "activeHint": "Faolsiz tarif ro'yxatda ko'rinmaydi, lekin eski obunalar unga bog'liq qoladi.",
+      "badPrice": "Narx faqat butun son bo'lishi kerak.",
+      "badDuration": "Muddat 1 dan 366 kungacha bo'lsin.",
+      "badName": "Nom va kod bo'sh bo'lmasin."
+    }
+  },
+  "billing": {
+    "title": "Premium",
+    "plans": "Tariflar",
+    "included": "Nima kiradi",
+    "buy": "Sotib olish",
+    "perDays": "{{days}} kunga",
+    "planLabel": "Tarif",
+    "endsLabel": "Tugaydi",
+    "expiredOn": "Obuna {{date}} da tugagan.",
+    "checkoutPending": "To'lov boshlandi. Hech narsa yechilmadi — tasdiq kutilmoqda.",
+    "checkoutFailed": "So'rovni yuborib bo'lmadi. Birozdan keyin qayta urinib ko'ring.",
+    "notConnected": {
+      "title": "To'lov tizimi hali ulanmagan",
+      "body": "Premiumni hozircha sotib bo'lmaydi. To'lov provayderi ulangach, shu yerda sotib olish tugmasi paydo bo'ladi.",
+      "meanwhile": "Shu paytgacha Premiumni o'qituvchingiz berishi mumkin.",
+      "contact": "O'qituvchi bilan bog'lanish",
+      "short": "To'lov tizimi hali ulanmagan."
+    },
+    "status": {
+      "free": "Bepul",
+      "active": "Premium",
+      "pending": "Kutilmoqda",
+      "expired": "Tugagan",
+      "cancelled": "Bekor qilingan"
+    },
+    "free": {
+      "title": "Siz bepul rejadasiz",
+      "body": "Har modulning dastlabki uchta topshirig'i bepul. Keyingilari uchun Premium kerak."
+    },
+    "byTeacher": {
+      "title": "Premium — o'qituvchingiz bergan",
+      "body": "Barcha topshiriqlar ochiq. Bu obuna emas, shuning uchun tugash sanasi yo'q."
+    },
+    "paid": {
+      "title": "Premium faol",
+      "body": "Barcha topshiriqlar ochiq."
+    },
+    "perk": {
+      "allTasks": "Har moduldagi barcha topshiriqlar",
+      "allModules": "Yangi modullar chiqishi bilan",
+      "feedback": "Har javob uchun to'liq tahlil"
+    }
   }
 }

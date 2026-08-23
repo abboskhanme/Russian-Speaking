@@ -1,0 +1,156 @@
+/* AdminBillingScreen — Tariflar. Every value is a token. */
+
+.page {
+  --density-scale: 0.75;
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--s-5) * var(--density-scale));
+  width: 100%;
+}
+
+/* The "payments are not connected" card. `--warn-tint` and not `--danger-tint`:
+   nothing is broken, a capability simply does not exist yet, and painting it red
+   would train an admin to ignore a colour that should mean something is wrong. */
+.notice {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+  background: var(--warn-tint);
+  border-color: var(--warn);
+}
+.gates {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-2);
+  margin-top: var(--s-1);
+}
+
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--s-2) * var(--density-scale));
+}
+.sectionHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-2);
+}
+.legend {
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+/* Tariff cards, edge to edge. `auto-fit` with a `min()` floor rather than a fixed
+   column count: the number of tariffs is whatever the owner creates, so any hard
+   count is wrong at some point, and the `min()` keeps a 375px phone from gaining a
+   sideways scroll the full-width rule forbids. */
+.planList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(18rem, 100%), 1fr));
+  gap: var(--s-3);
+}
+.planCard {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+  height: 100%;
+}
+.planHead {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--s-2);
+}
+.planName {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+/* The price is the number the eye goes to, so it gets the one strong colour on the
+   card. `--primary-ink` and not `--primary`: the latter is a FILL token. */
+.price {
+  color: var(--primary-ink);
+}
+.planActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--s-1);
+  margin-top: auto;
+}
+
+/* Subscriptions — a scannable list, not a grid. One row per person. */
+.subList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.subRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-3);
+  padding: var(--s-3) var(--s-4);
+  border-bottom: 1px solid var(--line);
+}
+.subRow:last-child {
+  border-bottom: none;
+}
+.subWho {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+.subMeta {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  flex-shrink: 0;
+}
+.emptySubs {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-1);
+  padding: var(--s-5) var(--s-4);
+}
+
+/* The create/edit sheet. */
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-4);
+}
+.switchRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-3);
+}
+.switchText {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+.formActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--s-2);
+}
+
+/* Under ~420px the metadata column stops fitting beside the name, so the row stacks
+   instead of squeezing both into an unreadable width. */
+@media (max-width: 420px) {
+  .subRow {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  .subMeta {
+    flex-wrap: wrap;
+  }
+}

@@ -736,6 +736,10 @@ export interface FeatureFlagsResponse {
   class_insights_enabled: boolean;
   /** F3 · «Kunlik 5 daqiqa» — the daily session and its Home entry point. */
   daily_five_enabled: boolean;
+  /** Faza 6.6 · the payment surface. Off by default, and NOT the only gate: a checkout is
+   *  still refused while no provider is configured, so turning this on cannot open a flow
+   *  that takes money nothing can collect. */
+  payments_enabled: boolean;
 }
 
 /** PATCH body. Everything is a string, booleans included — the tri-state needs
@@ -748,6 +752,7 @@ export interface FeatureFlagsUpdateArgs {
   roleplay_daily_turns?: string;
   class_insights_enabled?: string;
   daily_five_enabled?: string;
+  payments_enabled?: string;
 }
 
 export interface LinksResponse {
@@ -1268,4 +1273,101 @@ export interface DrillResultResponse {
   accuracy: number | null;
   phonemes: DrillPhonemeResponse[];
   daily_left: number;
+}
+
+/* ── Billing (BillingContracts.cs — docs/08 Faza 6.6) ─────────────────────── */
+
+/** One tariff.
+ *
+ * `price_minor` is the price in MINOR units — TIYIN, a whole number, never so'm and never a
+ * float. Both Uzbek payment providers speak minor units on the wire, and money is the one
+ * number where a rounding error is unacceptable, so the ÷100 happens once at display time
+ * (`shared/money`). Never do arithmetic on a converted copy of it. */
+export interface PlanResponse {
+  id: string;
+  code: string;
+  name: string;
+  description: string | null;
+  price_minor: number;
+  currency: string;
+  duration_days: number;
+  is_active: boolean;
+  sort_order: number;
+}
+
+/** POST/PATCH /api/admin/billing/plans — partial on update; an omitted field is left alone. */
+export interface PlanUpsertArgs {
+  code?: string;
+  name?: string;
+  description?: string;
+  price_minor?: number;
+  duration_days?: number;
+  is_active?: boolean;
+  sort_order?: number;
+}
+
+/** Where the caller's premium comes from. `teacher` — granted by their teacher (does not
+ *  lapse); `subscription` — paid for; `none` — neither. */
+export type PremiumSourceWire = "teacher" | "subscription" | "none";
+
+/** GET /api/billing/subscription — the caller's billing state in one read.
+ *
+ * `is_premium` is resolved from the SAME rule the 402 paywall uses (a teacher grant OR an
+ * active subscription), so this screen can never claim access the gate will refuse.
+ *
+ * The two flags at the end are separate on purpose: `payments_enabled` is the admin switch and
+ * `provider_configured` is whether an adapter exists at all. They fail for different reasons
+ * and have different fixes, and a UI that collapses them sends the operator to the wrong one. */
+export interface SubscriptionStatusResponse {
+  is_premium: boolean;
+  source: PremiumSourceWire;
+  /** The subscription row's status (`pending` · `active` · `expired` · `cancelled`), or
+   *  `"none"` when there has never been one. */
+  status: string;
+  plan: PlanResponse | null;
+  starts_at: string | null;
+  ends_at: string | null;
+  payments_enabled: boolean;
+  provider_configured: boolean;
+  provider: string;
+}
+
+/** POST /api/billing/checkout.
+ *
+ * `idempotency_key` must be minted ONCE PER PURCHASE ATTEMPT and resent verbatim by every
+ * retry — that is the only thing that makes the server's de-duplication do anything. A key
+ * generated per REQUEST protects nobody from a double charge. */
+export interface CheckoutArgs {
+  plan_id: string;
+  idempotency_key?: string;
+}
+
+/** The result of a purchase attempt. `status` is the intent's state — while no provider is
+ *  configured it is `failed`, never `succeeded`. `reason` is a MACHINE CODE
+ *  (`provider_not_configured`, `payments_disabled`) the client translates. */
+export interface CheckoutResponse {
+  intent_id: string;
+  status: string;
+  provider: string;
+  amount_minor: number;
+  currency: string;
+  reason: string | null;
+  redirect_url: string | null;
+}
+
+/** GET /api/admin/billing/subscriptions — one row of the admin's read-only view.
+ *  `teacher_granted` is the OTHER premium source, shown beside this one because the two are
+ *  independent and revoking either leaves the other in place. */
+export interface AdminSubscriptionResponse {
+  id: string;
+  user_id: string;
+  user_name: string;
+  user_email: string | null;
+  plan_code: string;
+  plan_name: string;
+  status: string;
+  starts_at: string;
+  ends_at: string | null;
+  provider: string | null;
+  teacher_granted: boolean;
 }

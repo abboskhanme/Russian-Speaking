@@ -81,6 +81,7 @@ const FLAGS: FeatureFlagsResponse = {
   review_drill_enabled: false,
   class_insights_enabled: false,
   daily_five_enabled: false,
+  payments_enabled: false,
   roleplay_enabled: false,
   roleplay_max_turns: 8,
   roleplay_daily_turns: 24,

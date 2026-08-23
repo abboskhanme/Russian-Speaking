@@ -142,8 +142,15 @@ export default function PracticePage() {
         if (!alive.current) return;
         let msg = t("practice.submitFailed");
         if (isApiError(err)) {
-          if (err.status === 402) msg = t("practice.paywall");
-          else if (err.status === 403) msg = err.detail || t("practice.forbidden");
+          if (err.status === 402) {
+            // The paywall is not a failure to report and move on from — it is a dead end for
+            // this task until something changes. Send them where that can change, carrying the
+            // reason so the destination says WHY it opened rather than appearing out of
+            // nowhere. Nothing was stored: the gate runs before the upload.
+            navigate("/premium", { state: { reason: "paywall" } });
+            return;
+          }
+          if (err.status === 403) msg = err.detail || t("practice.forbidden");
           else if (err.status === 0) msg = t("auth.errors.network");
           else if (err.detail) msg = err.detail;
         }
@@ -151,7 +158,7 @@ export default function PracticePage() {
         setPhase("idle"); // back to the recorder to retry
       }
     },
-    [target, pollUntilDone, showToast, load, t],
+    [target, pollUntilDone, showToast, load, navigate, t],
   );
 
   const onRetry = useCallback(() => setPhase("idle"), []);

@@ -18,7 +18,8 @@
     "adminHome": "Overview",
     "adminTeachers": "Teachers",
     "adminStudents": "Students",
-    "adminSettings": "Settings"
+    "adminSettings": "Settings",
+    "adminBilling": "Plans"
   },
   "common": {
     "continue": "Continue",
@@ -1269,6 +1270,85 @@
     "roleplayMaxTurns": "Max turns per conversation",
     "roleplayDailyTurns": "Turns per student per day",
     "roleplayCostHint": "Both limits contain the spend. The daily count resets at UTC midnight.",
-    "saveFeatures": "Save features"
+    "saveFeatures": "Save features",
+    "payments": "Payments",
+    "paymentsHint": "The Premium purchase flow for students. Even when on, nobody can buy until a payment provider is connected.",
+    "billing": {
+      "title": "Plans",
+      "plans": "Plans",
+      "subscriptions": "Subscriptions",
+      "newPlan": "New plan",
+      "editPlan": "Edit plan",
+      "noPlans": "No plans yet. You can prepare them before a provider is connected.",
+      "noSubscriptions": "Nobody has subscribed yet.",
+      "grantHint": "For now premium is granted by a teacher — from the Students screen.",
+      "notConnectedBody": "You can create plans now, but students cannot buy them. Once a merchant account is connected, nothing here needs to change.",
+      "flagState": "Flag: {{state}}",
+      "providerState": "Provider: {{state}}",
+      "notConnectedShort": "not connected",
+      "on": "on",
+      "off": "off",
+      "duration": "{{days}} days",
+      "edit": "Edit",
+      "delete": "Delete",
+      "alsoGranted": "Also granted by teacher",
+      "saveFailed": "Could not save.",
+      "deleteRefused": "This plan has payments or subscriptions against it and cannot be deleted. Deactivate it instead.",
+      "name": "Name",
+      "code": "Code",
+      "codeHint": "Used in URLs and requests. Do not rename it later.",
+      "price": "Price (so'm)",
+      "priceHint": "A whole number of so'm. For example: 49900.",
+      "durationDays": "Duration (days)",
+      "description": "Description",
+      "activeLabel": "Active",
+      "activeHint": "An inactive plan is hidden from the list, but old subscriptions stay attached to it.",
+      "badPrice": "The price must be a whole number.",
+      "badDuration": "The duration must be between 1 and 366 days.",
+      "badName": "Name and code cannot be empty."
+    }
+  },
+  "billing": {
+    "title": "Premium",
+    "plans": "Plans",
+    "included": "What you get",
+    "buy": "Buy",
+    "perDays": "for {{days}} days",
+    "planLabel": "Plan",
+    "endsLabel": "Ends",
+    "expiredOn": "Your subscription ended on {{date}}.",
+    "checkoutPending": "Payment started. Nothing has been charged — waiting for confirmation.",
+    "checkoutFailed": "Could not send the request. Please try again later.",
+    "notConnected": {
+      "title": "Payments are not connected yet",
+      "body": "Premium cannot be bought yet. A purchase button will appear here once a payment provider is connected.",
+      "meanwhile": "In the meantime your teacher can grant you Premium.",
+      "contact": "Contact your teacher",
+      "short": "Payments are not connected yet."
+    },
+    "status": {
+      "free": "Free",
+      "active": "Premium",
+      "pending": "Pending",
+      "expired": "Expired",
+      "cancelled": "Cancelled"
+    },
+    "free": {
+      "title": "You are on the free plan",
+      "body": "The first three tasks of every module are free. Premium unlocks the rest."
+    },
+    "byTeacher": {
+      "title": "Premium granted by your teacher",
+      "body": "Every task is unlocked. This is not a subscription, so there is no end date."
+    },
+    "paid": {
+      "title": "Premium is active",
+      "body": "Every task is unlocked."
+    },
+    "perk": {
+      "allTasks": "Every task in every module",
+      "allModules": "New modules as soon as they ship",
+      "feedback": "Full feedback on every answer"
+    }
   }
 }

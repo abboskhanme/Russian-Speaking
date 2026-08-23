@@ -261,3 +261,20 @@ export function TeachersIcon(props: IconProps) {
     </svg>
   );
 }
+
+/** Tariflar — a price tag, not a coin or a card. A card would say "pay here" on a
+ *  destination where nobody pays, and a coin reads as "balance"; a tag is the
+ *  thing a price is written on, which is what this screen edits. */
+export function TariffIcon(props: IconProps) {
+  return (
+    <svg {...base(props)}>
+      <path
+        d="M11.2 3.5H19a1.5 1.5 0 0 1 1.5 1.5v7.8a1.5 1.5 0 0 1-.44 1.06l-6.7 6.7a1.5 1.5 0 0 1-2.12 0l-7.3-7.3a1.5 1.5 0 0 1 0-2.12l6.7-6.7a1.5 1.5 0 0 1 1.06-.44Z"
+        stroke="currentColor"
+        strokeWidth={1.8}
+        strokeLinejoin="round"
+      />
+      <circle cx="16" cy="8" r="1.6" stroke="currentColor" strokeWidth={1.8} />
+    </svg>
+  );
+}

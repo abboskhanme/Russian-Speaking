@@ -50,6 +50,10 @@ export default function ProfilePage() {
   const [achievements, setAchievements] = useState<ProfileAchievement[]>([]);
   const [group, setGroup] = useState<ProfileGroup | null>(null);
   const [links, setLinks] = useState<ProfileLinks | null>(null);
+  // The RESOLVED premium state — a teacher grant OR an active subscription. `user.is_premium`
+  // carries only the first of the two, so a paying student would otherwise still be shown the
+  // upsell card, which is the one place this screen can be plainly wrong about money.
+  const [premium, setPremium] = useState<boolean | null>(null);
   const [loading, setLoading] = useState(true);
   const [reloadKey, setReloadKey] = useState(0);
 
@@ -70,8 +74,9 @@ export default function ProfilePage() {
       endpoints.profileAchievements(),
       endpoints.myGroups(),
       endpoints.settingsLinks(),
+      endpoints.subscriptionStatus(),
     ])
-      .then(([s, r, a, g, l]) => {
+      .then(([s, r, a, g, l, b]) => {
         if (!alive) return;
 
         setStats(
@@ -129,6 +134,12 @@ export default function ProfilePage() {
               }
             : null,
         );
+
+        // A failed read leaves this null, and the render below then falls back to
+        // `user.is_premium`. Falling back to `false` would upsell a subscriber whenever the
+        // billing read hiccuped; falling back to the grant flag is never worse than the
+        // behaviour before this call existed.
+        setPremium(b.status === "fulfilled" ? b.value.is_premium : null);
       })
       .finally(() => alive && setLoading(false));
 
@@ -294,7 +305,7 @@ export default function ProfilePage() {
       language={language}
       theme={theme}
       notifications={notifications}
-      isPremium={user.is_premium}
+      isPremium={premium ?? user.is_premium}
       links={links}
       onLeaveGroup={handleLeaveGroup}
       onSaveInfo={handleSaveInfo}
@@ -305,7 +316,7 @@ export default function ProfilePage() {
       onChangeLanguage={changeLanguage}
       onChangeTheme={changeTheme}
       onChangeNotifications={changeNotifications}
-      onUpgrade={() => undefined}
+      onUpgrade={() => navigate("/premium")}
       onLogout={handleLogout}
       activeNavKey="profile"
       onNavigate={onNavigate}

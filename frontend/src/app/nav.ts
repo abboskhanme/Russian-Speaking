@@ -108,6 +108,7 @@ export const ADMIN_NAV_PATH: Record<AdminNavKey, string> = {
   home: "/admin",
   teachers: "/admin/teachers",
   students: "/admin/students",
+  billing: "/admin/billing",
   settings: "/admin/settings",
 };
 

@@ -58,6 +58,7 @@ export default function AdminSettingsPage() {
                 roleplay_daily_turns: 24,
                 class_insights_enabled: false,
                 daily_five_enabled: false,
+                payments_enabled: false,
               },
         );
       })
@@ -77,6 +78,7 @@ export default function AdminSettingsPage() {
       roleplayDailyTurns: flags.roleplay_daily_turns,
       classInsightsEnabled: flags.class_insights_enabled,
       dailyFiveEnabled: flags.daily_five_enabled,
+      paymentsEnabled: flags.payments_enabled,
       llmProvider: ai.llm_provider,
       geminiModel: ai.gemini_model,
       knownGeminiModels: ai.known_gemini_models,
@@ -197,6 +199,7 @@ export default function AdminSettingsPage() {
       roleplayDailyTurns: string;
       classInsightsEnabled: string;
       dailyFiveEnabled: string;
+      paymentsEnabled: string;
     }) => {
       setFlags(
         await endpoints.adminUpdateFeatureFlags({
@@ -206,6 +209,7 @@ export default function AdminSettingsPage() {
           roleplay_daily_turns: patch.roleplayDailyTurns,
           class_insights_enabled: patch.classInsightsEnabled,
           daily_five_enabled: patch.dailyFiveEnabled,
+          payments_enabled: patch.paymentsEnabled,
         }),
       );
     },
