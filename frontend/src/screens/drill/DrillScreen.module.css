@@ -1,0 +1,319 @@
+/* DrillScreen — «Tovushlar mashqi», the F2 minimal-pair drill (docs/01 F2).
+ * Composed from shared/ui + widgets; every colour / space / radius / shadow /
+ * motion value is a token, so light and dark both come from tokens.css.
+ * Full-width per docs/04 §4.10 — the page root spans its column with no
+ * max-width + auto-margin centring. */
+
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-5);
+  width: 100%;
+}
+
+/* ---- Hub ---- */
+
+.hubHead {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--s-4);
+  flex-wrap: wrap;
+}
+.lede {
+  max-width: 60ch;   /* a reading measure on ONE paragraph — not a page constraint */
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--s-4);
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+@media (min-width: 700px) {
+  .grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@media (min-width: 1200px) {
+  .grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+.tile {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-3);
+  height: 100%;
+}
+.tileHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-3);
+}
+/* The contrast is the tile's identity, so it is set in Russian letters at title
+ * weight rather than as a quiet caption. */
+.contrast {
+  letter-spacing: 0.02em;
+}
+.why {
+  /* The teaching sentence. Clamped on the tile so a long explanation cannot make
+   * one card twice the height of its neighbours; the drill card shows it whole. */
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.twins {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--s-2);
+  margin-top: auto;   /* pin the choice to the bottom so tiles align */
+}
+/* Picking a word IS starting the drill — so the word itself is the control, with
+ * a real hit area rather than a link beside a label. */
+.twin {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  align-items: flex-start;
+  padding: var(--s-3);
+  border: 1px solid var(--line-2);
+  border-radius: var(--r-sm);
+  background: var(--surface-2);
+  color: var(--ink);
+  cursor: pointer;
+  text-align: left;
+  transition:
+    background var(--m-fast),
+    border-color var(--m-fast);
+}
+.twin:hover:not(:disabled) {
+  background: var(--primary-tint);
+  border-color: var(--primary-tint-2);
+}
+.twin:focus-visible {
+  outline: var(--focus-ring-width) solid var(--focus-ring);
+  outline-offset: var(--focus-ring-offset);
+}
+.twin:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+.twinWord {
+  font-size: var(--t-title-s-size);
+  line-height: var(--t-title-s-line);
+  font-weight: var(--fw-bold);
+  letter-spacing: var(--t-title-s-tracking);
+}
+.twinGloss {
+  font-size: var(--t-body-s-size);
+  line-height: var(--t-body-s-line);
+  color: var(--muted);
+}
+
+.tileFoot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-3);
+  padding-top: var(--s-2);
+  border-top: 1px solid var(--line);
+}
+
+/* ---- One drill ---- */
+
+/* Two columns from md up: the word and its teaching on the left, the speaking
+ * and the verdict on the right. Below that they stack in reading order. */
+.card {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--s-5);
+  width: 100%;
+}
+@media (min-width: 900px) {
+  .card {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: var(--s-8);
+    align-items: start;
+  }
+}
+.col {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-3);
+  min-width: 0;
+}
+.cardHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-3);
+}
+
+/* The word to say. Deliberately the largest thing on the screen — everything
+ * else on this card is support for producing it. */
+.target {
+  margin: 0;
+  font-size: var(--t-display-size);
+  line-height: var(--t-display-line);
+  font-weight: var(--t-display-weight);
+  letter-spacing: var(--t-display-tracking);
+  color: var(--ink);
+}
+.listen {
+  align-self: flex-start;
+}
+
+/* The twin, named before they speak. Warn-tinted rather than danger: it is a
+ * thing to avoid, not a mistake that has happened yet. */
+.trap {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: var(--s-3);
+  border: 1px solid var(--warn-tint);
+  border-radius: var(--r-sm);
+  background: var(--warn-tint);
+}
+.trapWord {
+  color: var(--warn-ink);
+}
+.trapGloss {
+  font-weight: var(--fw-medium);
+  color: var(--ink-soft);
+}
+
+.speak {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-3);
+  align-items: stretch;
+}
+
+/* ---- The verdict ---- */
+
+.verdict {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-4);
+  padding: var(--s-4);
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  background: var(--surface-2);
+}
+.verdict[data-tone="good"] {
+  border-color: var(--success-tint);
+  background: var(--success-tint);
+}
+.verdict[data-tone="low"] {
+  border-color: var(--line-2);
+}
+
+/* Said → meant, stacked. The two rows are deliberately the same size: this is a
+ * substitution, not a score, and making one of them smaller would rank them. */
+.swap {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+}
+.swapRow {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: var(--s-3);
+  border-radius: var(--r-sm);
+  border-inline-start: 3px solid var(--line-2);
+  background: var(--surface);
+}
+.swapRow[data-side="said"] {
+  border-inline-start-color: var(--danger);
+}
+.swapRow[data-side="meant"] {
+  border-inline-start-color: var(--success);
+}
+.swapWord {
+  letter-spacing: -0.01em;
+}
+
+/* ---- Per-sound chips (decoration — absent whenever unverified) ---- */
+
+.sounds {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+}
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.chip {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  min-width: 46px;
+  padding: var(--s-2) var(--s-3);
+  border: 1px solid var(--line-2);
+  border-radius: var(--r-sm);
+  background: var(--surface);
+}
+/* The score band colours the NUMBER, not the tile: a fully tinted chip at this
+ * size reads as a status pill, and the sound itself has to stay legible. */
+.chip[data-band="good"] .chipScore {
+  color: var(--success-ink);
+}
+.chip[data-band="mid"] .chipScore {
+  color: var(--warn-ink);
+}
+.chip[data-band="low"] .chipScore {
+  color: var(--danger);
+}
+.chip[data-band="neutral"] .chipScore {
+  color: var(--muted);
+}
+/* The one sound the pair is about. An outline rather than a fill, so the focus
+ * marker and the score band can both be read at once. */
+.chip[data-focus="true"] {
+  border-color: var(--primary);
+  box-shadow: inset 0 0 0 1px var(--primary);
+}
+.chipIpa {
+  font-family: var(--font-mono);
+  font-size: var(--t-body-l-size);
+  line-height: var(--t-body-l-line);
+  font-weight: var(--fw-medium);
+  color: var(--ink);
+}
+.chipScore {
+  font-size: var(--t-body-s-size);
+  line-height: var(--t-body-s-line);
+  font-weight: var(--fw-bold);
+  font-variant-numeric: tabular-nums;
+}
+
+.verdictActions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s-3);
+}
+
+/* ---- Blocked ---- */
+
+.blocked {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+}

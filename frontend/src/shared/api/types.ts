@@ -1193,3 +1193,79 @@ export interface LinksUpdateArgs {
   tg_support_url?: string;
   tg_channel_url?: string;
 }
+
+/* ── F2 · Fonema drill / minimal juftliklar (docs/01 F2, behind
+ *    `phoneme_drill_enabled`) ──────────────────────────────────────────────── */
+
+/** Why the drill cannot run. Carried as a value on a normal 200 body, never as a
+ * status code: "not shipped here", "no STT key is wired" and "you have used
+ * today's attempts" send a person in three different directions, and one shared
+ * error state would hide which one they are in. */
+export type DrillStateWire =
+  | "Ready"
+  | "Disabled"
+  | "Unconfigured"
+  | "BudgetSpent";
+
+/** What the learner did on one attempt.
+ *
+ * `Twin` is the teachable failure and the reason this feature exists: it means
+ * the recogniser heard the OTHER half of the pair, which for a minimal pair is a
+ * precise statement about one sound — expressed as a consequence the learner can
+ * act on rather than as a score. */
+export type DrillOutcomeWire = "Correct" | "Twin" | "Other" | "Silent";
+
+/** One authored minimal pair. `ipa_*` are OUR phoneme names, not the vendor's:
+ * Azure returns no phoneme names for Russian, so the drill supplies them from
+ * curated content and the server aligns them to Azure's positional scores. */
+export interface DrillPairResponse {
+  slug: string;
+  contrast_ru: string;
+  why_uz: string;
+  level: string;
+  word_a: string;
+  word_b: string;
+  gloss_a_uz: string;
+  gloss_b_uz: string;
+  ipa_a: string[];
+  ipa_b: string[];
+  focus_index_a: number;
+  focus_index_b: number;
+  attempts: number;
+  correct: number;
+}
+
+/** GET /api/drills/pairs → the hub grid plus whether speaking is possible now. */
+export interface DrillCatalogResponse {
+  state: DrillStateWire;
+  pairs: DrillPairResponse[];
+  daily_left: number;
+}
+
+/** One sound of the target word. `score` is null when Azure said nothing about
+ * that position. */
+export interface DrillPhonemeResponse {
+  ipa: string;
+  score: number | null;
+  /** The one sound the pair is about — what the UI highlights. */
+  focus: boolean;
+}
+
+/** POST /api/drills/attempts → the verdict.
+ *
+ * `heard_text` is verbatim from the UNSCRIPTED recognition pass and is the
+ * evidence behind `outcome`. `phonemes` is DECORATION and is routinely EMPTY —
+ * the server drops it whenever Azure returned no detail, the vendor failed, or
+ * our IPA spelling disagreed with Azure's segmentation. A caller must render a
+ * complete result without it and must never treat `[]` as an error. */
+export interface DrillResultResponse {
+  state: DrillStateWire;
+  outcome: DrillOutcomeWire;
+  target_word: string;
+  heard_text: string | null;
+  /** The twin they said instead — set only when `outcome === "Twin"`. */
+  heard_word: string | null;
+  accuracy: number | null;
+  phonemes: DrillPhonemeResponse[];
+  daily_left: number;
+}

@@ -18,6 +18,7 @@
  *   /chat/:scenarioId        → AI conversation (E3 chat + E4 summary, stubbed)
  *   /review                  → Xatolar ustida — the xato-replay drill (flagged)
  *   /daily                   → Bugungi 5 daqiqa — the daily session (flagged)
+ *   /drill                   → Tovushlar mashqi — minimal-pair drill (flagged)
  *   /progress                → Progress
  *   /profile                 → Profile
  *   /teacher                 → teacher A1 Obzor (its own nav: Bosh · Klasslar ·
@@ -50,6 +51,7 @@ const ConversationHubPage = lazy(() => import("./app/routes/ConversationHubPage"
 const ConversationPage = lazy(() => import("./app/routes/ConversationPage"));
 const ReviewDrillPage = lazy(() => import("./app/routes/ReviewDrillPage"));
 const DailyPage = lazy(() => import("./app/routes/DailyPage"));
+const DrillPage = lazy(() => import("./app/routes/DrillPage"));
 const ProgressPage = lazy(() => import("./app/routes/ProgressPage"));
 const GroupPage = lazy(() => import("./app/routes/GroupPage"));
 const AllResultsPage = lazy(() => import("./app/routes/AllResultsPage"));
@@ -177,6 +179,11 @@ export default function App() {
                     keeps `activeNavKey="home"`: it is the shape of today's
                     practice, not a sixth destination, and the bar stays 5 items. */}
                 <Route path="/daily" element={<DailyPage />} />
+                {/* Tovushlar mashqi — the F2 minimal-pair drill (flagged). Unlike
+                    the two above it does NOT bounce when the flag is off: the
+                    screen distinguishes "not enabled here" from "no speech key is
+                    wired" from "today's attempts are used", and each needs saying. */}
+                <Route path="/drill" element={<DrillPage />} />
                 <Route path="/progress" element={<ProgressPage />} />
                 {/* Group view (classmates + group leaderboard), reached from Home. */}
                 <Route path="/group" element={<GroupPage />} />

@@ -1012,6 +1012,59 @@
       "cta": "Boshlash"
     }
   },
+  "drill": {
+    "title": "Tovushlar mashqi",
+    "lede": "Rus tilida bitta tovush so'zning ma'nosini butunlay o'zgartiradi. Quyidagi juftliklarda aynan shu farq mashq qilinadi.",
+    "dailyLeft": "Bugun {{count}} ta urinish qoldi",
+    "budgetSpentShort": "Bugungi urinishlar tugadi",
+    "noPairs": "Hozircha juftliklar qo'shilmagan.",
+    "tileProgress": "{{correct}} / {{total}} to'g'ri",
+    "tileFresh": "Hali boshlanmagan",
+    "listenBoth": "Ikkalasini eshitish",
+    "listen": "Eshitish",
+    "back": "Orqaga",
+    "sayThis": "Shu so'zni ayting",
+    "notThis": "Bu so'z emas:",
+    "recordHint": "Tayyor bo'lsangiz, so'zni ayting.",
+    "checking": "Tekshirilmoqda…",
+    "submitError": "Yuborib bo'lmadi. Qaytadan urinib ko'ring.",
+    "again": "Yana urinish",
+    "pickAnother": "Boshqa juftlik",
+    "youSaid": "Siz aytdingiz",
+    "youMeant": "Aytmoqchi edingiz",
+    "heardInstead": "Buning o'rniga «{{text}}» eshitildi.",
+    "soundsLabel": "Tovushlar bo'yicha",
+    "soundsHint": "Rangli belgi — chegaralangan ma'lumot; asosiysi yuqoridagi so'z farqi.",
+    "outcome": {
+      "correct": {
+        "title": "To'g'ri — aynan shu so'z eshitildi."
+      },
+      "twin": {
+        "title": "Boshqa so'z chiqdi."
+      },
+      "other": {
+        "title": "So'z tanilmadi."
+      },
+      "silent": {
+        "title": "Ovoz eshitilmadi.",
+        "hint": "Mikrofonni tekshiring va biroz balandroq ayting."
+      }
+    },
+    "blocked": {
+      "disabled": {
+        "title": "Bu mashq hozircha yoqilmagan",
+        "hint": "Administrator uni Funksiyalar bo'limidan yoqishi mumkin."
+      },
+      "unconfigured": {
+        "title": "Nutqni tanish sozlanmagan",
+        "hint": "Talaffuzni tekshirish uchun Azure Speech kaliti kerak. Bu administrator hal qiladigan masala."
+      },
+      "budget_spent": {
+        "title": "Bugungi urinishlar tugadi",
+        "hint": "Ertaga yangi urinishlar ochiladi."
+      }
+    }
+  },
   "groupBoard": {
     "meta": "{{teacher}} · {{count}} o'quvchi",
     "classmates": "GURUHDOSHLAR",
@@ -1210,6 +1263,9 @@
     "classInsightsHint": "Analitikada xato qatoridan bir tegishda shu xatoni qilgan o\u2018quvchilarga mashq biriktirish.",
     "dailyFive": "Kunlik 5 daqiqa",
     "dailyFiveHint": "Bosh sahifada bitta yaxlit kunlik sessiya: isinish → 1 vazifa → 1 drill.",
+    "phonemeDrill": "Tovushlar mashqi (minimal juftliklar)",
+    "phonemeDrillHint": "Har bir urinish nutqni tanish xizmatiga bitta so'rov yuboradi — o'quvchi xato qilsa ikkita. Kunlik chegara quyida.",
+    "phonemeDrillDailyAttempts": "Tovushlar mashqi — kunlik urinishlar",
     "roleplayMaxTurns": "Bitta suhbatdagi eng ko'p tur",
     "roleplayDailyTurns": "Bir o'quvchiga kunlik tur",
     "roleplayCostHint": "Ikkala chegara ham xarajatni ushlab turadi. Kunlik hisob UTC yarim tunda yangilanadi.",

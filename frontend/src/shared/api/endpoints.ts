@@ -24,6 +24,8 @@ import type {
   AttemptDetailResponse,
   AuthConfigResponse,
   DailySessionResponse,
+  DrillCatalogResponse,
+  DrillResultResponse,
   GroupResponse,
   GroupDetailResponse,
   GradebookRowResponse,
@@ -830,4 +832,52 @@ export function adminLinks(): Promise<LinksResponse> {
 /** PATCH /api/admin/settings/links → tri-state update of the outbound links. */
 export function adminUpdateLinks(args: LinksUpdateArgs): Promise<LinksResponse> {
   return apiClient.patch<LinksResponse>("/admin/settings/links", args);
+}
+
+/* ── F2 · Fonema drill / minimal juftliklar (docs/01 F2, behind
+ *    `phoneme_drill_enabled`) ──────────────────────────────────────────────── */
+
+/** GET /api/drills/pairs → the curated minimal pairs plus whether speaking is
+ * possible right now. Auth required; the owner comes from the bearer token.
+ *
+ * Unlike the review drill this does NOT 404 when the flag is off — it answers
+ * `state: "Disabled"` on a normal body. The difference is deliberate: this screen
+ * has something true to say about each blocked state ("not enabled here", "no
+ * speech key is wired", "you have used today's attempts"), and collapsing all
+ * three into a 404 would send a person to the same dead end for three unrelated
+ * reasons. */
+export function drillPairs(signal?: AbortSignal): Promise<DrillCatalogResponse> {
+  return apiClient.get<DrillCatalogResponse>("/drills/pairs", { signal });
+}
+
+/** POST /api/drills/attempts — one spoken word, judged against the pair.
+ *
+ * `targetWord` MUST be one of that pair's two twins; anything else is a 400.
+ * That is a real constraint rather than defensive validation — the target
+ * becomes the reference text sent to the vendor, and a caller free to choose it
+ * could have the drill score against a word it has no phoneme spelling for.
+ *
+ * The response's `phonemes` array is DECORATION and is routinely empty; render
+ * the verdict without it. See {@link DrillResultResponse}.
+ *
+ * Rate-limited server-side (`drill_attempt`), because every attempt costs a
+ * vendor call — and two when the learner missed. */
+export function submitDrillAttempt(
+  pairSlug: string,
+  targetWord: string,
+  audio: Blob,
+  durationSec?: number,
+): Promise<DrillResultResponse> {
+  const form = new FormData();
+  form.append("pair_slug", pairSlug);
+  form.append("target_word", targetWord);
+  const ct = audio.type || "audio/webm";
+  // Give the file a name + extension: the server's content-type sniff and the
+  // transcoder both route on it (mirrors `submitAudio`).
+  const ext = ct.includes("mp4") ? "mp4" : ct.includes("ogg") ? "ogg" : "webm";
+  form.append("audio", audio, `drill.${ext}`);
+  if (durationSec !== undefined) {
+    form.append("audio_duration_sec", String(durationSec));
+  }
+  return apiClient.post<DrillResultResponse>("/drills/attempts", form);
 }

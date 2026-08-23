@@ -1012,6 +1012,59 @@
       "cta": "Start"
     }
   },
+  "drill": {
+    "title": "Sound drill",
+    "lede": "In Russian a single sound changes what a word means. These pairs drill exactly that difference.",
+    "dailyLeft": "{{count}} attempts left today",
+    "budgetSpentShort": "Today's attempts are used up",
+    "noPairs": "No pairs have been added yet.",
+    "tileProgress": "{{correct}} / {{total}} correct",
+    "tileFresh": "Not started yet",
+    "listenBoth": "Hear both",
+    "listen": "Listen",
+    "back": "Back",
+    "sayThis": "Say this word",
+    "notThis": "Not this word:",
+    "recordHint": "When you're ready, say the word.",
+    "checking": "Checking…",
+    "submitError": "Could not send that. Please try again.",
+    "again": "Try again",
+    "pickAnother": "Another pair",
+    "youSaid": "You said",
+    "youMeant": "You meant",
+    "heardInstead": "It heard “{{text}}” instead.",
+    "soundsLabel": "By sound",
+    "soundsHint": "The colour marks limited data; the word difference above is the point.",
+    "outcome": {
+      "correct": {
+        "title": "Correct — that is the word it heard."
+      },
+      "twin": {
+        "title": "That came out as the other word."
+      },
+      "other": {
+        "title": "The word wasn't recognised."
+      },
+      "silent": {
+        "title": "Nothing was heard.",
+        "hint": "Check the microphone and say it a little louder."
+      }
+    },
+    "blocked": {
+      "disabled": {
+        "title": "This drill isn't switched on",
+        "hint": "An administrator can enable it under Features."
+      },
+      "unconfigured": {
+        "title": "Speech recognition isn't configured",
+        "hint": "Checking pronunciation needs an Azure Speech key. That's one for an administrator."
+      },
+      "budget_spent": {
+        "title": "Today's attempts are used up",
+        "hint": "New attempts open up tomorrow."
+      }
+    }
+  },
   "groupBoard": {
     "meta": "{{teacher}} · {{count}} students",
     "classmates": "CLASSMATES",
@@ -1210,6 +1263,9 @@
     "classInsightsHint": "One tap on an error row assigns a drill to the students who made it.",
     "dailyFive": "Daily 5 minutes",
     "dailyFiveHint": "One whole session on Home: warm-up → 1 task → 1 drill.",
+    "phonemeDrill": "Sound drill (minimal pairs)",
+    "phonemeDrillHint": "Every attempt costs one speech-recognition call — two when the learner missed. The daily cap is below.",
+    "phonemeDrillDailyAttempts": "Sound drill — attempts per day",
     "roleplayMaxTurns": "Max turns per conversation",
     "roleplayDailyTurns": "Turns per student per day",
     "roleplayCostHint": "Both limits contain the spend. The daily count resets at UTC midnight.",
