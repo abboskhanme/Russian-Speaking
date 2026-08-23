@@ -170,7 +170,11 @@ public sealed record FeatureFlagsResponse(
     bool PhonemeDrillEnabled = false,
     /// <summary>F2 · attempts per student per UTC day. Mirrors <c>DrillService</c>'s default of
     /// 40.</summary>
-    int PhonemeDrillDailyAttempts = 40);
+    int PhonemeDrillDailyAttempts = 40,
+    /// <summary>Faza 6.6 · the payment surface. ADDITIVE (appended last), default OFF — and OFF is
+    /// not the only gate: with no configured provider a checkout is refused even when this is on,
+    /// so switching it up cannot open a flow that takes money nothing can collect.</summary>
+    bool PaymentsEnabled = false);
 
 /// <summary>
 /// Partial update of the feature flags. Same tri-state contract as every other settings write:
@@ -190,7 +194,8 @@ public sealed record FeatureFlagsUpdate(
     string? ClassInsightsEnabled = null,
     string? DailyFiveEnabled = null,
     string? PhonemeDrillEnabled = null,
-    string? PhonemeDrillDailyAttempts = null);
+    string? PhonemeDrillDailyAttempts = null,
+    string? PaymentsEnabled = null);
 
 // ─── Admin user management ───────────────────────────────────────────────────
 

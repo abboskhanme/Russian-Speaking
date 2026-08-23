@@ -88,6 +88,10 @@ public sealed class AppSettingsService
             ["daily_five_enabled"] = ("DAILY_FIVE_ENABLED", false),
             ["phoneme_drill_enabled"] = ("PHONEME_DRILL_ENABLED", false),
             ["phoneme_drill_daily_attempts"] = ("PHONEME_DRILL_DAILY_ATTEMPTS", false),
+            // Faza 6.6 · the payment surface. Listed here for the same reason as the switches
+            // above: SetManyAsync silently drops a key it cannot find in this map, so without this
+            // row the admin panel would show a toggle that saves nothing.
+            ["payments_enabled"] = ("PAYMENTS_ENABLED", false),
             ["tg_support_url"] = ("TG_SUPPORT_URL", false),
             ["tg_channel_url"] = ("TG_CHANNEL_URL", false),
             // Ordered-chain routing + the Anthropic backend. These four MUST be listed here
@@ -372,7 +376,8 @@ public sealed class AppSettingsService
             ClassInsightsEnabled: TrueWords.Contains((await GetAsync("class_insights_enabled", "false", ct)).Trim().ToLowerInvariant()),
             DailyFiveEnabled: TrueWords.Contains((await GetAsync("daily_five_enabled", "false", ct)).Trim().ToLowerInvariant()),
             PhonemeDrillEnabled: TrueWords.Contains((await GetAsync("phoneme_drill_enabled", "false", ct)).Trim().ToLowerInvariant()),
-            PhonemeDrillDailyAttempts: Clamp(await GetAsync("phoneme_drill_daily_attempts", "", ct), 40, 1, 500));
+            PhonemeDrillDailyAttempts: Clamp(await GetAsync("phoneme_drill_daily_attempts", "", ct), 40, 1, 500),
+            PaymentsEnabled: TrueWords.Contains((await GetAsync("payments_enabled", "false", ct)).Trim().ToLowerInvariant()));
 
     // A malformed or out-of-range stored value falls back to the default rather than throwing: the
     // settings row is admin-editable text, and one bad character must not take the panel down.
