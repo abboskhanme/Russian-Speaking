@@ -121,6 +121,84 @@ namespace Govori.Infrastructure.Migrations
                     b.ToTable("assignments", (string)null);
                 });
 
+            modelBuilder.Entity("Govori.Infrastructure.Entities.Drill", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<double?>("Accuracy")
+                        .HasColumnType("double precision")
+                        .HasColumnName("accuracy");
+
+                    b.Property<double?>("AudioDurationSec")
+                        .HasColumnType("double precision")
+                        .HasColumnName("audio_duration_sec");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at")
+                        .HasDefaultValueSql("now()");
+
+                    b.Property<double?>("FocusScore")
+                        .HasColumnType("double precision")
+                        .HasColumnName("focus_score");
+
+                    b.Property<string>("HeardText")
+                        .HasColumnType("text")
+                        .HasColumnName("heard_text");
+
+                    b.Property<string>("Outcome")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)")
+                        .HasColumnName("outcome");
+
+                    b.Property<Guid>("PairId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("pair_id");
+
+                    b.Property<string>("Phonemes")
+                        .HasColumnType("jsonb")
+                        .HasColumnName("phonemes");
+
+                    b.Property<string>("SttModel")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("stt_model");
+
+                    b.Property<Guid>("StudentId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("student_id");
+
+                    b.Property<string>("TargetWord")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("target_word");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at")
+                        .HasDefaultValueSql("now()");
+
+                    b.HasKey("Id")
+                        .HasName("drills_pkey");
+
+                    b.HasIndex("PairId")
+                        .HasDatabaseName("ix_drills_pair_id");
+
+                    b.HasIndex("StudentId", "CreatedAt")
+                        .HasDatabaseName("ix_drills_student_created");
+
+                    b.HasIndex("StudentId", "PairId")
+                        .HasDatabaseName("ix_drills_student_pair");
+
+                    b.ToTable("drills", (string)null);
+                });
+
             modelBuilder.Entity("Govori.Infrastructure.Entities.Evaluation", b =>
                 {
                     b.Property<Guid>("Id")
@@ -363,6 +441,111 @@ namespace Govori.Infrastructure.Migrations
                         .HasDatabaseName("ix_group_members_group_id_student_id");
 
                     b.ToTable("group_members", (string)null);
+                });
+
+            modelBuilder.Entity("Govori.Infrastructure.Entities.MinimalPair", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<string>("ContrastRu")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)")
+                        .HasColumnName("contrast_ru");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at")
+                        .HasDefaultValueSql("now()");
+
+                    b.Property<int>("FocusIndexA")
+                        .HasColumnType("integer")
+                        .HasColumnName("focus_index_a");
+
+                    b.Property<int>("FocusIndexB")
+                        .HasColumnType("integer")
+                        .HasColumnName("focus_index_b");
+
+                    b.Property<string>("GlossAUz")
+                        .IsRequired()
+                        .HasMaxLength(160)
+                        .HasColumnType("character varying(160)")
+                        .HasColumnName("gloss_a_uz");
+
+                    b.Property<string>("GlossBUz")
+                        .IsRequired()
+                        .HasMaxLength(160)
+                        .HasColumnType("character varying(160)")
+                        .HasColumnName("gloss_b_uz");
+
+                    b.Property<string>("IpaA")
+                        .IsRequired()
+                        .HasColumnType("jsonb")
+                        .HasColumnName("ipa_a");
+
+                    b.Property<string>("IpaB")
+                        .IsRequired()
+                        .HasColumnType("jsonb")
+                        .HasColumnName("ipa_b");
+
+                    b.Property<bool>("IsActive")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(true)
+                        .HasColumnName("is_active");
+
+                    b.Property<string>("Level")
+                        .IsRequired()
+                        .HasMaxLength(8)
+                        .HasColumnType("character varying(8)")
+                        .HasColumnName("level");
+
+                    b.Property<string>("Slug")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("slug");
+
+                    b.Property<int>("SortOrder")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(0)
+                        .HasColumnName("sort_order");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at")
+                        .HasDefaultValueSql("now()");
+
+                    b.Property<string>("WhyUz")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("why_uz");
+
+                    b.Property<string>("WordA")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("word_a");
+
+                    b.Property<string>("WordB")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("word_b");
+
+                    b.HasKey("Id")
+                        .HasName("minimal_pairs_pkey");
+
+                    b.HasIndex("Slug")
+                        .IsUnique()
+                        .HasDatabaseName("uq_minimal_pairs_slug");
+
+                    b.ToTable("minimal_pairs", (string)null);
                 });
 
             modelBuilder.Entity("Govori.Infrastructure.Entities.Notification", b =>
@@ -1662,6 +1845,27 @@ namespace Govori.Infrastructure.Migrations
                     b.Navigation("Student");
 
                     b.Navigation("Teacher");
+                });
+
+            modelBuilder.Entity("Govori.Infrastructure.Entities.Drill", b =>
+                {
+                    b.HasOne("Govori.Infrastructure.Entities.MinimalPair", "Pair")
+                        .WithMany()
+                        .HasForeignKey("PairId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("drills_pair_id_fkey");
+
+                    b.HasOne("Govori.Infrastructure.Entities.User", "Student")
+                        .WithMany()
+                        .HasForeignKey("StudentId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("drills_student_id_fkey");
+
+                    b.Navigation("Pair");
+
+                    b.Navigation("Student");
                 });
 
             modelBuilder.Entity("Govori.Infrastructure.Entities.Evaluation", b =>
