@@ -77,8 +77,8 @@
   display: flex;
   align-items: center;
   gap: var(--s-3);
-  /* Wraps so the actions drop to their own line on a phone. Without this the media
-     control competed with the title and truncated "Еда и вкусы" to "Еда и вк…" —
+  /* Wraps so the actions drop to their own line on a phone. Without this the row's
+     controls competed with the title and truncated "Еда и вкусы" to "Еда и вк…" —
      the row's actions are secondary, its name is not. */
   flex-wrap: wrap;
 }
@@ -86,7 +86,7 @@
 .taskActions {
   display: inline-flex;
   align-items: center;
-  gap: var(--s-1);
+  gap: var(--s-2);
   flex: none;
 }
 .ordinal {
@@ -172,27 +172,6 @@
   min-width: 0;
 }
 
-.field {
-  display: flex;
-  flex-direction: column;
-  gap: var(--s-2);
-}
-.textarea {
-  width: 100%;
-  padding: var(--s-3);
-  font: inherit;
-  color: var(--ink);
-  background: var(--surface);
-  border: 1.5px solid var(--line-2);
-  border-radius: var(--r-md);
-  resize: vertical;
-}
-.textarea:focus-visible {
-  outline: none;
-  border-color: var(--primary);
-  box-shadow: 0 0 0 3px var(--primary-tint);
-}
-
 .sheetActions {
   display: flex;
   justify-content: flex-end;
@@ -206,18 +185,17 @@
   padding-block: var(--s-6);
 }
 
-/* ---- Per-task media control (C2 cover, set/replaced from the row) ---- */
-.mediaCell {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--s-1);
-  flex: none;
+/* A failed publish toggle says so on its own line, under the row it belongs to. */
+.rowError {
+  flex-basis: 100%;
 }
-/* The real input is driven by the buttons beside it — a bare file input cannot be
-   styled to match, and its "Choose file / no file selected" text is browser copy
-   in the browser's own language, which would sit untranslated next to ours. */
-.fileInput {
-  display: none;
+
+/* ---- Module delete ---- */
+.dangerRow {
+  display: flex;
+}
+.dangerBtn {
+  color: var(--danger);
 }
 
 /* Under 430px the actions take their own line, leaving the title the full width of

@@ -1,5 +1,6 @@
+import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Badge, Button, Card, Text, cx } from "../../shared/ui";
+import { Badge, Button, Card, Switch, Text, cx } from "../../shared/ui";
 import { AppShell, Brand, NotificationsBell, teacherNavItems } from "../../widgets";
 import type { NavItem } from "../../widgets";
 import { mockStudentProfile } from "./classes.mock";
@@ -54,10 +55,19 @@ export interface TeacherStudentProfileProps {
   onNavigate?: (key: string, item: NavItem) => void;
   queuedCount?: number;
   onBack?: () => void;
-  /** "Topshiriq berish" for this one student (D3 — Phase 6). */
+  /** "Topshiriq berish" for this one student (D3 with `?student=`). */
   onAssign?: () => void;
-  /** Open one attempt (B2 answer detail — Phase 4). */
+  /** Open one attempt (B2 answer detail). */
   onOpenAttempt?: (id: string, attempt: StudentAttempt) => void;
+  /**
+   * The premium the teacher can grant, as the SERVER last reported it. `granted`
+   * is the switch (`is_premium`); `effective` is what the student actually has —
+   * the grant OR a paid subscription. Null/absent hides the control (the student
+   * read failed, or this deployment has no such route yet).
+   */
+  premium?: { granted: boolean; effective: boolean } | null;
+  /** Rejects on failure; the host owns the optimistic value and the read-back. */
+  onSetPremium?: (next: boolean) => Promise<void>;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -76,6 +86,10 @@ export interface TeacherStudentProfileProps {
  * `/submissions/{id}/detail`, so a screen like this would have needed one request
  * per attempt just to draw a number.
  *
+ * **The teacher grants Premium here** ("Premiumni o'qituvchingiz berishi mumkin"):
+ * a switch under the assign button, bound to what the server stored — see
+ * {@link PremiumCard}.
+ *
  * Presentational and prop-driven. Full-width (docs/04 §4.10), compact density
  * (docs/03 §3.5). Teacher panel design — not a student screen restyled.
  */
@@ -92,6 +106,8 @@ export function TeacherStudentProfileScreen({
   onBack,
   onAssign,
   onOpenAttempt,
+  premium,
+  onSetPremium,
 }: TeacherStudentProfileProps) {
   const { t } = useTranslation();
 
@@ -148,6 +164,8 @@ export function TeacherStudentProfileScreen({
         <Button variant="primary" onClick={onAssign}>
           {t("teacher.assignToStudent")}
         </Button>
+
+        {premium && <PremiumCard premium={premium} onSetPremium={onSetPremium} />}
 
         {skills.length > 0 && (
           <Card variant="outline" padding="md" className={styles.skills}>
@@ -214,6 +232,74 @@ function TrendChip({ trend }: { trend?: number | null }) {
       {dir === "up" ? "↑ " : dir === "down" ? "↓ " : "→ "}
       {t(`teacher.trend.${dir}`, { points })}
     </Badge>
+  );
+}
+
+/**
+ * The teacher's Premium grant.
+ *
+ * The switch reads `premium.granted` from the HOST, which flips it optimistically
+ * and then replaces it with the value the server returns — never a copy this
+ * component took when it rendered. The admin panel shipped exactly that bug once:
+ * its sheet held a snapshot, so a grant saved to the database while the switch
+ * under the finger stayed off, inviting the operator to flip it back.
+ *
+ * A student who pays for themselves has premium with the switch OFF; the note says
+ * so, otherwise the off switch would read as "this student has no premium".
+ */
+function PremiumCard({
+  premium,
+  onSetPremium,
+}: {
+  premium: { granted: boolean; effective: boolean };
+  onSetPremium?: (next: boolean) => Promise<void>;
+}) {
+  const { t } = useTranslation();
+  const [busy, setBusy] = useState(false);
+  const [failed, setFailed] = useState(false);
+
+  const change = async (next: boolean) => {
+    if (!onSetPremium || busy) return;
+    setBusy(true);
+    setFailed(false);
+    try {
+      await onSetPremium(next);
+    } catch {
+      setFailed(true);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <Card variant="outline" padding="md" className={styles.premium}>
+      <div className={styles.premiumRow}>
+        <span className={styles.premiumText}>
+          <Text as="span" variant="body" weight="semibold">
+            {t("teacher.premium.label")}
+          </Text>
+          <Text as="span" variant="body-s" color="muted">
+            {t("teacher.premium.hint")}
+          </Text>
+        </span>
+        <Switch
+          checked={premium.granted}
+          disabled={busy || !onSetPremium}
+          onChange={(next) => void change(next)}
+          aria-label={t("teacher.premium.label")}
+        />
+      </div>
+      {premium.effective && !premium.granted && (
+        <Text as="p" variant="body-s" color="ink-soft">
+          {t("teacher.premium.selfPaid")}
+        </Text>
+      )}
+      {failed && (
+        <Text as="p" variant="body-s" color="danger" role="alert">
+          {t("teacher.saveFailed")}
+        </Text>
+      )}
+    </Card>
   );
 }
 

@@ -40,7 +40,10 @@ namespace Govori.Engagement;
 /// SERVER date — <c>DateOnly.FromDateTime(DateTime.UtcNow)</c> — and NOT the user's timezone
 /// (docs/07 §7.8 bug S6), so a student's day rolls over at UTC midnight rather than their local one.
 /// The award methods expose an optional <c>today</c> seam so the worker (and deterministic tests) can
-/// supply the date explicitly; a TZ-correct fix is deferred to when user-timezone plumbing lands.</para>
+/// supply the date explicitly; a TZ-correct fix is deferred to when user-timezone plumbing lands.
+/// Every READ of the streak (both leaderboards here, plus Profile and Daily in other modules) reports
+/// <see cref="StreakRules.Effective"/> on the same UTC day rather than the stored column, which only
+/// changes on the next award and so would otherwise show a long-broken streak as live.</para>
 ///
 /// <para>Role/auth: the leaderboard, the review list and every notification route accept any active
 /// user (null ⇒ 401). <see cref="CreateReviewsAsync"/> requires teacher OR admin (403 otherwise).
@@ -156,6 +159,12 @@ public sealed class EngagementService
 
     // Daily streak: bridge missed days with earned freezes, and earn a new freeze every Nth day.
     // Mutates `user` in place; the caller owns the commit.
+    //
+    // This is the ONLY writer, and it runs only when the student earns XP — so between practices the
+    // stored streak goes stale rather than decaying. Every read path reports
+    // StreakRules.Effective(...) instead of the column, and the "can the gap be bridged" test below
+    // is StreakRules.SurvivesGap, the same one the readers use, so what a student is SHOWN is always
+    // what this method would do if they practised right now.
     private static void UpdateStreak(User user, DateOnly today)
     {
         var last = user.LastPracticeDate;
@@ -175,7 +184,7 @@ public sealed class EngagementService
             else if (gap > 1)
             {
                 var missed = gap - 1;
-                if (user.StreakFreezes >= missed)
+                if (StreakRules.SurvivesGap(gap, user.StreakFreezes))   // freezes >= missed
                 {
                     user.StreakFreezes -= missed;                   // spend freezes to bridge
                     user.CurrentStreak += 1;
@@ -201,7 +210,13 @@ public sealed class EngagementService
     /// single weakest skill dimension below <see cref="ReviewThreshold"/>.
     /// Dimensions are considered in the order fluency → lexical → grammar → relevance; the lowest wins
     /// and a tie resolves to the FIRST dimension in that order, so the order is part of the contract —
-    /// do not reorder it. Only real students accrue reviews.
+    /// do not reorder it. Only real students accrue reviews. A port of legacy
+    /// <c>gamification.schedule_review</c> (same 0–100 threshold, same first interval); pronunciation is
+    /// deliberately not one of the four, as it was not there.
+    ///
+    /// <para>Called once per answered, graded submission by <see cref="SubmissionRewarder"/>, which
+    /// also holds its idempotency guard: this method is NOT safe to repeat for one submission (a second
+    /// call would complete the item the first created and enqueue a copy).</para>
     /// </summary>
     public async Task ScheduleReviewAsync(Submission sub, Evaluation evaluation, CancellationToken ct = default)
     {
@@ -271,6 +286,7 @@ public sealed class EngagementService
 
         var allTime = period == "all";                              // anything else ⇒ weekly
         var weekAgo = DateTime.UtcNow.AddDays(-7);                  // rolling 7 days, not a calendar week
+        var today = StreakRules.Today();                            // streaks are shown as of today (UTC)
 
         // ── Group/class board: scored from this group's ASSIGNED tasks only ──
         if (groupId is not null)
@@ -322,7 +338,7 @@ public sealed class EngagementService
                 FullName: s.FullName,
                 Xp: (int)total.GetValueOrDefault(s.Id),
                 WeeklyXp: (int)weekly.GetValueOrDefault(s.Id),
-                CurrentStreak: s.CurrentStreak,
+                CurrentStreak: ShownStreak(s, today),
                 IsMe: s.Id == user.Id)).ToList();
             return EngagementResult<IReadOnlyList<LeaderboardEntryResponse>>.Ok(groupList);
         }
@@ -341,6 +357,8 @@ public sealed class EngagementService
                 u.FullName,
                 Xp = (long)u.Xp,
                 u.CurrentStreak,
+                u.LastPracticeDate,
+                u.StreakFreezes,
                 WeeklyXp = weeklyByStudent
                     .Where(w => w.StudentId == u.Id)
                     .Select(w => (long?)w.WeeklyXp)
@@ -359,7 +377,7 @@ public sealed class EngagementService
             FullName: r.FullName,
             Xp: (int)r.Xp,
             WeeklyXp: (int)r.WeeklyXp,
-            CurrentStreak: r.CurrentStreak,
+            CurrentStreak: StreakRules.Effective(r.CurrentStreak, r.LastPracticeDate, r.StreakFreezes, today),
             IsMe: r.Id == user.Id)).ToList();
 
         // A student who fell outside the top 50 gets their true rank appended, so they always see
@@ -392,7 +410,7 @@ public sealed class EngagementService
                 FullName: user.FullName,
                 Xp: (int)myXp,
                 WeeklyXp: (int)myWeekly,
-                CurrentStreak: user.CurrentStreak,
+                CurrentStreak: ShownStreak(user, today),
                 IsMe: true));
         }
 
@@ -622,7 +640,7 @@ public sealed class EngagementService
             TotalStudents: total,
             Percentile: percentile,
             MyXp: (int)myPeriodXp,
-            CurrentStreak: user.CurrentStreak,
+            CurrentStreak: ShownStreak(user, StreakRules.Today()),
             RankDelta: rankDelta,
             Neighbors: neighbors));
     }
@@ -909,9 +927,10 @@ public sealed class EngagementService
     /// supersedes every open review for that (student, question) on each graded attempt — the ladder
     /// could then never climb past its first rung, and <see cref="ReviewIntervalsDays"/> would stay the
     /// dead constant it has been. So the two own different questions: the drill owns "how long until I
-    /// see this again", the grader keeps owning "is this still a weakness" and re-enqueues at index 0
-    /// when the student answers it for real in Mashq and is still below
-    /// <see cref="ReviewThreshold"/>.</para>
+    /// see this again", the grader keeps owning "is this still a weakness" — every answered, graded
+    /// attempt in Mashq runs <see cref="ScheduleReviewAsync"/> (through <see cref="SubmissionRewarder"/>),
+    /// which retires the question's open reviews and re-enqueues at index 0 only if the student is
+    /// still below <see cref="ReviewThreshold"/>.</para>
     /// </summary>
     public async Task<EngagementResult<ReviewAnswerResponse>> AnswerReviewAsync(
         Guid userId, Guid reviewId, ReviewAnswerRequest? payload, CancellationToken ct = default)
@@ -1105,6 +1124,12 @@ public sealed class EngagementService
         => await _db.Users.FirstOrDefaultAsync(u => u.Id == userId && u.IsActive, ct);
 
     private static bool IsTeacher(User u) => u.Role is UserRole.Teacher or UserRole.Admin;
+
+    // The streak a student is SHOWN — never the raw column, which only moves on the next award and
+    // so keeps a long-broken streak alive on screen. Reads nothing extra and writes nothing: no
+    // freeze is spent by looking. See StreakRules.
+    private static int ShownStreak(User u, DateOnly today)
+        => StreakRules.Effective(u.CurrentStreak, u.LastPracticeDate, u.StreakFreezes, today);
 
     // Targets = explicit ids ∪ a whole group's members.
     private async Task<List<Guid>> ResolveTargetsAsync(List<Guid>? studentIds, Guid? groupId, CancellationToken ct)

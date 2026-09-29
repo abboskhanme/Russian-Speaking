@@ -1,0 +1,41 @@
+/* ChoiceChips — the teacher panel's single-choice chip row (D3's «Urinish» chips,
+ * generalised). Every value is a token. */
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+}
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-2);
+}
+.chip {
+  padding: var(--s-2) var(--s-4);
+  border: 1.5px solid var(--line-2);
+  border-radius: var(--r-pill);
+  background: var(--surface);
+  color: var(--ink);
+  font: inherit;
+  cursor: pointer;
+  transition: border-color var(--m-fast), background var(--m-fast), color var(--m-fast);
+}
+.chip:hover {
+  background: var(--surface-2);
+}
+.chip:focus-visible {
+  outline: var(--focus-ring-width) solid var(--focus-ring);
+  outline-offset: var(--focus-ring-offset);
+}
+.chip:disabled {
+  cursor: default;
+  opacity: 0.55;
+}
+/* Selected is a filled chip, and aria-pressed carries the same fact for a screen
+ * reader — never colour alone. */
+.chipOn {
+  border-color: var(--primary);
+  background: var(--primary);
+  color: var(--primary-on);
+}

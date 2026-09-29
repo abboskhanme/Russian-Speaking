@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { Fragment, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Button, Card, Modal, Text, cx } from "../../shared/ui";
 import { AppShell, Brand, NotificationsBell, teacherNavItems } from "../../widgets";
@@ -55,11 +55,13 @@ export interface AttemptReviewProps {
   queuedCount?: number;
   onBack?: () => void;
   /**
-   * Save the verdict. `band` undefined ⇒ leave the AI's score, comment only.
-   * Rejects on failure so the form can surface it and keep the text.
+   * Save the verdict — ONLY the parts the teacher changed. `band` is present only
+   * when the slider was moved (absent ⇒ the AI's score stands), `comment` only when
+   * the note was edited. Rejects on failure so the form can surface it and keep
+   * the text.
    */
   onSave?: (args: { band?: number; comment?: string }) => Promise<void>;
-  /** "Tasdiqlash ✓" — accept the AI's score with no changes. */
+  /** "Tasdiqlash ✓" — accept the AI's score as it stands. Writes no comment. */
   onConfirm?: () => Promise<void>;
 }
 
@@ -357,15 +359,21 @@ function TranscriptCard({
       {hasWords ? (
         <p className={styles.transcript}>
           {words.map((w, i) => (
-            <span
-              key={`${i}-${w.word}`}
-              className={cx(styles.word, styles[`pron-${pronTier(w.accuracy)}` as const])}
-              // The number stays available to assistive tech and on hover, so the
-              // colour/underline is a cue rather than the only carrier.
-              title={w.accuracy != null ? `${w.word} · ${Math.round(w.accuracy)}` : w.word}
-            >
-              {w.word}
-            </span>
+            <Fragment key={`${i}-${w.word}`}>
+              {/* A REAL space between words, not a margin. Spans with nothing
+                  between them form one unbreakable run: the line never wrapped
+                  (585px of text in a 356px card on a phone) and a copied
+                  transcript came out as one glued word. */}
+              {i > 0 && " "}
+              <span
+                className={cx(styles.word, styles[`pron-${pronTier(w.accuracy)}` as const])}
+                // The number stays available to assistive tech and on hover, so the
+                // colour/underline is a cue rather than the only carrier.
+                title={w.accuracy != null ? `${w.word} · ${Math.round(w.accuracy)}` : w.word}
+              >
+                {w.word}
+              </span>
+            </Fragment>
           ))}
         </p>
       ) : (
@@ -435,12 +443,23 @@ function ManualGradeSheet({
     firstOpen.current = !open;
   }, [open, initialBand, initialComment]);
 
+  // Only what the teacher actually changed goes out. The slider always HAS a value
+  // (it starts on the AI's band), so sending it unconditionally turned every
+  // "comment only" save into a rounded manual override of the AI's score — the
+  // gradebook then showed the teacher's 72 where the AI had said 71.6.
+  const bandMoved = band !== Math.round(initialBand);
+  const commentChanged = comment.trim() !== initialComment.trim();
+  const changed = bandMoved || commentChanged;
+
   const save = async () => {
-    if (busy) return;
+    if (busy || !changed) return;
     setBusy(true);
     setError(null);
     try {
-      await onSave?.({ band, comment });
+      await onSave?.({
+        ...(bandMoved ? { band } : {}),
+        ...(commentChanged ? { comment: comment.trim() } : {}),
+      });
       onClose();
     } catch {
       setError(t("teacher.saveFailed"));
@@ -533,7 +552,7 @@ function ManualGradeSheet({
           <Button variant="ghost" onClick={onClose} disabled={busy}>
             {t("common.cancel")}
           </Button>
-          <Button variant="primary" loading={busy} onClick={() => void save()}>
+          <Button variant="primary" loading={busy} disabled={!changed} onClick={() => void save()}>
             {t("teacher.saveReview")}
           </Button>
         </div>

@@ -26,9 +26,13 @@ namespace Govori.IntegrationTests;
 /// </list>
 /// Every seeded row / touched setting key is cleaned in a finally so the run is idempotent. No
 /// setting key outside the ones under test is touched.
+///
+/// <para>PARTIAL: account management (create teacher, role changes, admins list, phone search,
+/// link validation, queue counters) lives in AdministrationEndpointsTests.Accounts.cs — same class,
+/// so it shares this class's one <see cref="AdminApiFactory"/> instead of booting another host.</para>
 /// </summary>
 [Collection(PerRunDatabaseFixture.CollectionName)]
-public sealed class AdministrationEndpointsTests
+public sealed partial class AdministrationEndpointsTests
     : IClassFixture<AdministrationEndpointsTests.AdminApiFactory>, IDisposable
 {
     private readonly AdminApiFactory _factory;

@@ -540,6 +540,104 @@ export interface JoinGroupResponse extends GroupResponse {
   pending: boolean;
 }
 
+/* ── Classroom · group + assignment management (A5 "Sozlama", "Faol topshiriqlar") ──
+ * Every 400 these routes produce carries a machine `code` beside the human `detail`
+ * ({ detail, code }); the UI branches on the code and never prints the detail. */
+
+/** The error body of a refusal that carries a machine reason — `due_in_past`,
+ * `name_too_long`, `question_not_published`, `confirm_with_band`, … It arrives on
+ * a non-2xx response, so it is read off `ApiError.body` (see `apiErrorCode` in
+ * app/teacherAdapters), never returned from an endpoint function. `detail` is
+ * developer prose and is never rendered; `code` is mapped to i18n. */
+export interface CodedErrorResponse {
+  detail: string;
+  code: string;
+}
+
+/** PATCH /api/groups/{id} body → {@link GroupResponse}. An absent field is left
+ * alone. `name` is trimmed; blank → 400 `name_required`, >128 chars → 400
+ * `name_too_long`.
+ *
+ * `level` exists on the wire and is REFUSED (400 `level_not_supported`): `groups`
+ * has no level column — a group card's CEFR badge is derived from its students'
+ * scores. The UI therefore never sends it; it is mirrored here only so the
+ * contract gate sees the same shape the server declares. */
+export interface UpdateGroupArgs {
+  name?: string | null;
+  level?: string | null;
+}
+
+/** POST /api/assignments/cancel body — take one task back from one group: every
+ * row of the caller's for `question_id` that was assigned THROUGH `group_id`.
+ * Students' answers and grades are untouched. */
+export interface CancelGroupAssignmentsArgs {
+  question_id: string;
+  group_id: string;
+}
+
+/** POST /api/assignments/cancel → how many assignment rows were removed. 0 is a
+ * normal answer (idempotent), not an error — e.g. the task reached the students
+ * through A6's single-student assign, not through the group. */
+export interface CancelGroupAssignmentsResponse {
+  cancelled: number;
+}
+
+/** PATCH /api/assignments/group body — move one task's deadline across one group.
+ * `due_at` is REQUIRED and may be null: an ISO instant sets the deadline, an
+ * explicit `null` removes it ("muddatsiz"). Omitting the key is a 400
+ * `due_at_required` — the server will not read a forgotten field as "no
+ * deadline" for a whole group. A past instant is 400 `due_in_past`. */
+export interface UpdateGroupAssignmentsArgs {
+  question_id: string;
+  group_id: string;
+  due_at: string | null;
+}
+
+/** PATCH /api/assignments/group → how many rows now carry the new deadline. */
+export interface UpdateGroupAssignmentsResponse {
+  updated: number;
+}
+
+/** PATCH /api/classroom/students/{id}/premium body. `is_premium` is required — a
+ * body without it is a 400 `is_premium_required`, never a silent revoke. */
+export interface SetStudentPremiumArgs {
+  is_premium: boolean;
+}
+
+/** PATCH /api/classroom/students/{id}/premium → the stored grant AND what the
+ * student actually has. `is_premium` is the grant this route writes — the
+ * switch's state. `has_premium` is the grant OR an active paid subscription, so it
+ * can be true with the switch off (the student pays for themselves). The A6 switch
+ * reads `is_premium` back from HERE after every write, never from its own guess. */
+export interface StudentPremiumResponse {
+  id: string;
+  is_premium: boolean;
+  has_premium: boolean;
+}
+
+/** One of the caller's groups a student sits in (A6 header). */
+export interface ClassroomStudentGroupResponse {
+  id: string;
+  name: string;
+  joined_at: string;
+}
+
+/** GET /api/classroom/students/{id} → the A6 header: who the student is, the
+ * premium grant (so the screen can draw the switch) and which of the caller's
+ * groups they are in. A teacher reads only their own roster — anyone else is a
+ * 404, which is also how "this route is not deployed yet" looks, so a failure
+ * simply leaves the premium switch out. */
+export interface ClassroomStudentResponse {
+  id: string;
+  full_name: string;
+  email: string;
+  /** The teacher/admin grant — the switch's state. */
+  is_premium: boolean;
+  /** Effective premium: the grant OR an active subscription. */
+  has_premium: boolean;
+  groups: ClassroomStudentGroupResponse[];
+}
+
 /** A pending join request. Used by BOTH sides: the teacher's "So'rovlar" tab
  * (`GET /api/groups/requests`, their own groups only) and the student's own waiting state
  * (`GET /api/groups/requests/mine`). Carries the group name + code so a row reads standalone. */
@@ -937,15 +1035,16 @@ export interface TeacherBlockResponse {
   /** `public` (an official module — every student sees it; set by an admin only) ·
    * `group` (the author's own students) · `private` (the author alone). */
   visibility: string;
-  /** The author's name. An admin's list holds EVERY teacher's modules, so without it
-   * the admin could not tell the official catalog from someone's class material. */
-  owner_name?: string | null;
   is_published: boolean;
   sort_order: number;
   task_count: number;
   student_count: number;
   created_at: string;
   updated_at: string;
+  /** Full name of the module's owner. Additive: an admin's list holds every
+   * teacher's modules and needs it to tell them apart; a teacher's list is all
+   * their own. Optional so an older API image still type-checks. */
+  owner_name?: string;
 }
 
 /** GET /api/blocks/{id} → the module plus its ordered tasks (the C4 editor). */
@@ -1060,7 +1159,7 @@ export interface AdminStatsResponse {
 }
 
 /** GET /api/admin/teachers (?search) → one row per teacher. `?search=` matches the
- * name, the email AND the phone digits. Also the row shape of `GET /api/admin/admins`. */
+ * name, the email AND the phone digits. */
 export interface AdminTeacherResponse {
   id: string;
   email: string;
@@ -1072,43 +1171,61 @@ export interface AdminTeacherResponse {
   created_at: string;
   /** Tasks they authored — also what a deletion would destroy. */
   question_count: number;
-  /** Only on `GET /api/admin/admins`: true for the caller's own row, which is the one
-   * row that offers no role change (the server refuses `cannot_change_own_role`). */
-  is_self?: boolean;
+}
+
+/** GET /api/admin/admins → one row per admin: the teacher row plus `is_self`. */
+export interface AdminUserResponse extends AdminTeacherResponse {
+  /** True for the caller's own row — the one row that offers no role change (the
+   * server refuses `cannot_change_own_role`). */
+  is_self: boolean;
 }
 
 /** POST /api/admin/teachers — create a teacher account up front. The teacher then
- * signs in with this phone through the usual Telegram code; there is no password. */
-export interface AdminCreateTeacherArgs {
+ * signs in with this phone through the usual Telegram code; there is no password.
+ * Refusals: 409 {@link PhoneTakenByStudentResponse} · 409 `phone_taken` · 400
+ * `invalid_phone` · 400 `invalid_full_name`. */
+export interface CreateTeacherArgs {
   /** E.164, `+998…`. */
   phone: string;
   full_name: string;
 }
 
-/** PATCH /api/admin/users/{id}/role. */
-export interface AdminRoleChangeArgs {
+/** PATCH /api/admin/users/{id}/role. Refusals: 400 `cannot_change_own_role` ·
+ * 400 `invalid_role` · 409 `last_admin` · 409 {@link TeacherOwnsGroupsResponse}. */
+export interface UserRoleUpdateArgs {
   role: UserRole;
 }
 
-export interface AdminRoleChangeResponse {
+export interface UserRoleResponse {
   id: string;
   role: UserRole;
 }
 
-/** The error body the Administration endpoints answer with. `detail` is the API's
- * usual human sentence and is NEVER shown; `code` is what the UI branches on, and the
- * extra fields ride along with the codes that need them:
- *   • `phone_taken_by_student` → `user_id` + `full_name` (offer the promotion)
- *   • `teacher_owns_groups`    → `group_count`
- *   • `invalid_link`           → `field` (which link was refused) */
-export interface AdminErrorBody {
-  detail?: string;
-  code?: string;
-  user_id?: string;
-  full_name?: string;
-  group_count?: number;
-  field?: string;
+/** 409 `phone_taken_by_student` — the number is a STUDENT's; the add sheet names them
+ * and offers the promotion instead of dead-ending on "taken". */
+export interface PhoneTakenByStudentResponse extends CodedErrorResponse {
+  user_id: string;
+  full_name: string;
 }
+
+/** 409 `teacher_owns_groups` — the count is what the refusal sentence names. */
+export interface TeacherOwnsGroupsResponse extends CodedErrorResponse {
+  group_count: number;
+}
+
+/** 400 `invalid_link` on PATCH /api/admin/settings/links — `field` is the refused
+ * link, so the message lands on that input. */
+export interface InvalidLinkResponse extends CodedErrorResponse {
+  field: string;
+}
+
+/** Any Administration refusal as it arrives on `ApiError.body`: the shared
+ * {@link CodedErrorResponse} plus whichever extra the code carries. Everything is
+ * optional because the body is read off an unknown error, never trusted. `detail`
+ * is developer prose and is never rendered. */
+export type AdminErrorBody = Partial<
+  PhoneTakenByStudentResponse & TeacherOwnsGroupsResponse & InvalidLinkResponse
+>;
 
 /** PATCH /api/admin/teachers/{id}. Null/omitted = leave unchanged. There is no
  * password field: setting one needs the frozen auth hasher, which the

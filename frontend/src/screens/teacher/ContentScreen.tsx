@@ -6,6 +6,8 @@ import type { TabItem } from "../../shared/ui";
 import { AppShell, Brand, NotificationsBell, teacherNavItems } from "../../widgets";
 import type { NavItem } from "../../widgets";
 import { mockContentModules, mockContentTasks } from "./content.mock";
+import { TaskEditorSheet } from "./TaskEditorSheet";
+import type { EditableTask, NewTaskDraft, TaskModuleOption, TaskPatch } from "./TaskEditorSheet";
 import styles from "./ContentScreen.module.css";
 
 /* -------------------------------------------------------------------------- */
@@ -23,16 +25,9 @@ export interface ContentModule {
   published: boolean;
 }
 
-export interface ContentTask {
-  id: string;
-  title: string;
-  /** The Russian prompt, shown truncated as the row's second line. */
-  prompt: string;
-  level?: string;
-  /** Module it belongs to; absent when unattached. */
-  moduleName?: string;
-  published: boolean;
-}
+/** One row of the Vazifalar tab — the editor's own shape, so a tap opens the task
+ * editor with nothing refetched. `prompt` is the row's truncated second line. */
+export type ContentTask = EditableTask;
 
 export type ContentTabKey = "modules" | "tasks";
 
@@ -51,10 +46,19 @@ export interface ContentScreenProps {
   /** Replaces the Modullar tab's empty line. */
   modulesEmpty?: ReactNode;
   queuedCount?: number;
-  /** "+ Yaratish" — creates whatever the active tab holds. */
+  /** "+ Yaratish" on the Modullar tab — a new draft module. */
   onCreate?: () => void;
   onOpenModule?: (id: string, m: ContentModule) => void;
-  onOpenTask?: (id: string, t: ContentTask) => void;
+  /** "+ Yaratish" on the Vazifalar tab — a new TASK, into the module the teacher
+   * picks in the sheet (or none). Omit and that tab's create button is hidden. */
+  onCreateTask?: (draft: NewTaskDraft) => Promise<void>;
+  onUpdateTask?: (taskId: string, patch: TaskPatch) => Promise<void>;
+  onToggleTaskPublished?: (taskId: string, next: boolean) => Promise<void>;
+  onDeleteTask?: (taskId: string) => Promise<void>;
+  onSetTaskMedia?: (taskId: string, file: File) => Promise<void>;
+  onRemoveTaskMedia?: (taskId: string) => Promise<void>;
+  /** A partial-success message (the task saved, its cover did not upload). */
+  notice?: string | null;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -65,12 +69,19 @@ export interface ContentScreenProps {
  * ContentScreen — **C1 «Kontent»** (`Govorim - Teacher.dc.html`).
  *
  * The mockup's segmented control is `Modullar | Vazifalar | Ssenariylar`;
- * **Ssenariylar is not rendered.** There is no scenario table anywhere in the
- * schema, and the student's own `/chat` scenario grid is static frontend data the
- * app never fetches — so a teacher-authored scenario is a whole feature (new
- * table + authoring surface + rewiring the student hub), not a tab. It also needs
- * a product call first: do teacher scenarios REPLACE the curated set or
- * supplement it? An empty third tab would imply the feature exists.
+ * **Ssenariylar is not rendered.** The curated roleplay scenarios live in a
+ * `scenarios` table served by `/api/roleplay/scenarios`, but there is no teacher
+ * AUTHORING surface for them, and the owner has deferred teacher-authored
+ * scenarios (C3 · C6) until after launch (2026-09-29). An empty third tab would
+ * imply the feature exists.
+ *
+ * **"+ Yaratish" creates what the active tab holds.** On Modullar a draft module;
+ * on Vazifalar a TASK, in a sheet that lets the teacher pick its module (or none) —
+ * it used to create a "Yangi modul" draft from either tab, so a teacher trying to
+ * add a task collected empty modules instead.
+ *
+ * Tapping a task opens the same editor the module screen uses, so an unattached
+ * task — which has no module screen — can still be edited, published or deleted.
  *
  * Presentational and prop-driven. Full-width, compact density.
  */
@@ -87,10 +98,32 @@ export function ContentScreen({
   queuedCount = 0,
   onCreate,
   onOpenModule,
-  onOpenTask,
+  onCreateTask,
+  onUpdateTask,
+  onToggleTaskPublished,
+  onDeleteTask,
+  onSetTaskMedia,
+  onRemoveTaskMedia,
+  notice,
 }: ContentScreenProps) {
   const { t } = useTranslation();
   const [query, setQuery] = useState("");
+  const [creatingTask, setCreatingTask] = useState(false);
+  // An id, never a copy: the list refetches after a publish toggle or a media
+  // change, and the open editor must show what the server now holds.
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const editing = useMemo(() => tasks.find((x) => x.id === editingId) ?? null, [tasks, editingId]);
+
+  const moduleOptions = useMemo<TaskModuleOption[]>(
+    () => modules.map((m) => ({ id: m.id, name: m.name, published: m.published })),
+    [modules],
+  );
+
+  const onTasksTab = activeTab === "tasks";
+  const create = () => {
+    if (onTasksTab) setCreatingTask(true);
+    else onCreate?.();
+  };
 
   const tabs: TabItem[] = [
     { key: "modules", label: t("teacher.tabModules") },
@@ -127,8 +160,8 @@ export function ContentScreen({
           <Text as="h2" variant="title-l" className={styles.grow}>
             {t("nav.content")}
           </Text>
-          <Button variant="primary" size="sm" onClick={onCreate}>
-            {t("teacher.create")}
+          <Button variant="primary" size="sm" onClick={create}>
+            {onTasksTab ? t("teacher.createTask") : t("teacher.create")}
           </Button>
         </header>
 
@@ -184,6 +217,11 @@ export function ContentScreen({
               placeholder={t("teacher.searchTask")}
               aria-label={t("teacher.searchTask")}
             />
+            {notice && (
+              <Text as="p" variant="body-s" color="warn" role="status">
+                {notice}
+              </Text>
+            )}
             {shownTasks.length === 0 ? (
               <EmptyCard text={tasks.length === 0 ? t("teacher.noTasks") : t("teacher.noMatches")} />
             ) : (
@@ -193,7 +231,7 @@ export function ContentScreen({
                     <button
                       type="button"
                       className={styles.row}
-                      onClick={() => onOpenTask?.(x.id, x)}
+                      onClick={() => setEditingId(x.id)}
                     >
                       <span className={styles.rowBody}>
                         <span className={styles.titleRow}>
@@ -226,6 +264,24 @@ export function ContentScreen({
           </>
         )}
       </div>
+
+      <TaskEditorSheet
+        open={creatingTask}
+        onClose={() => setCreatingTask(false)}
+        modules={moduleOptions}
+        onCreate={onCreateTask}
+      />
+
+      <TaskEditorSheet
+        open={editing !== null}
+        onClose={() => setEditingId(null)}
+        task={editing}
+        onSave={onUpdateTask}
+        onTogglePublished={onToggleTaskPublished}
+        onDelete={onDeleteTask}
+        onSetMedia={onSetTaskMedia}
+        onRemoveMedia={onRemoveTaskMedia}
+      />
     </AppShell>
   );
 }

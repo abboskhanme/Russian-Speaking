@@ -20,7 +20,7 @@ import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router-dom";
 import i18n from "../../shared/i18n";
-import type { AdminCreateTeacherArgs, AdminTeacherResponse } from "../../shared/api";
+import type { CreateTeacherArgs, AdminTeacherResponse } from "../../shared/api";
 import AdminTeachersPage from "./AdminTeachersPage";
 import { newestFirst } from "./adminPeople";
 
@@ -51,7 +51,7 @@ vi.mock("../../shared/api", async (importOriginal) => {
         listCalls(search);
         return Promise.resolve(listed);
       },
-      adminCreateTeacher: (args: AdminCreateTeacherArgs) => {
+      adminCreateTeacher: (args: CreateTeacherArgs) => {
         created(args);
         return Promise.resolve(
           row({

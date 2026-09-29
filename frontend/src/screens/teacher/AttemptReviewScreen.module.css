@@ -103,10 +103,14 @@
   font-size: 15px;
   line-height: 1.9;
   margin: 0;
+  /* Words are separated by real spaces (see the component), so the paragraph
+     wraps at them; `anywhere` only breaks a single word longer than the card. */
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 .word {
-  /* Each word is its own inline box so the underline hugs the word, not the line. */
-  margin-inline-end: 0.35em;
+  /* Each word is its own inline box so the underline hugs the word, not the line.
+     No margin: the text space between spans is the separator. */
   text-underline-offset: 4px;
 }
 

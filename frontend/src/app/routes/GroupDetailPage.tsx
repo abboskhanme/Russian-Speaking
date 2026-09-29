@@ -6,31 +6,44 @@
  *   • `GET /api/assignments`       → the teacher's assignment rows, grouped BY QUESTION
  *                                    into "11/18 completed" progress lines
  *   • `GET /api/groups/requests`   → how many are waiting (badges "A'zo qo'shish")
+ *   • `GET /api/reports/insights?group_id` → "Guruh xatolari" (D1's error rows, this group)
  *   • `GET /api/submissions`       → only for the Navbat FAB badge
+ *
+ * Writes (the row menu and «Sozlama»):
+ *   • `PATCH /api/assignments/group` · `POST /api/assignments/cancel`
+ *   • `PATCH /api/groups/{id}` (name) · `POST …/regenerate-code`
+ *   • `DELETE /api/groups/{id}/members/{studentId}` · `DELETE /api/groups/{id}`
  *
  * The assignments endpoint returns ONE ROW PER STUDENT, so the group-level
  * "Faol topshiriqlar" view has to fold them: group by question, count completed
  * over total, and keep only questions actually assigned to THIS group's members.
+ *
+ * A refetch keeps the screen mounted (only the first load shows the spinner), so
+ * the settings sheet survives its own writes and shows the new name / code.
  */
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import type { TFunction } from "i18next";
 import { TeacherGroupDetailScreen } from "../../screens/teacher";
 import type {
+  AnalyticsRemediation,
+  AnalyticsErrorRow,
   GroupActiveAssignment,
   GroupRosterStudent,
 } from "../../screens/teacher";
+import type { DueChangeResult } from "../../screens/teacher";
 import { endpoints } from "../../shared/api";
 import type {
   AssignmentResponse,
   GradebookRowResponse,
   GroupDetailResponse,
+  InsightsResponse,
 } from "../../shared/api";
 import { PageError, PageLoading } from "../PageState";
 import { TEACHER_NAV_PATH, useTeacherNavHandler } from "../nav";
 import { dateParts } from "../adapters";
-import { levelFromBand } from "../teacherAdapters";
+import { apiErrorCode, errorRowsFromInsights, levelFromBand } from "../teacherAdapters";
 
 export default function GroupDetailPage() {
   const { groupId = "" } = useParams();
@@ -41,11 +54,14 @@ export default function GroupDetailPage() {
   const [detail, setDetail] = useState<GroupDetailResponse | null>(null);
   const [gradebook, setGradebook] = useState<GradebookRowResponse[]>([]);
   const [assignments, setAssignments] = useState<AssignmentResponse[]>([]);
+  const [insights, setInsights] = useState<InsightsResponse | null>(null);
   const [pendingCount, setPendingCount] = useState(0);
   const [queued, setQueued] = useState(0);
   const [loading, setLoading] = useState(true);
   const [failed, setFailed] = useState(false);
   const [reloadKey, setReloadKey] = useState(0);
+
+  const refetch = useCallback(() => setReloadKey((k) => k + 1), []);
 
   useEffect(() => {
     let alive = true;
@@ -58,8 +74,9 @@ export default function GroupDetailPage() {
       endpoints.teacherAssignments(),
       endpoints.teacherJoinRequests(),
       endpoints.teacherSubmissions(),
+      endpoints.teacherInsights(groupId),
     ])
-      .then(([d, gb, asg, req, subs]) => {
+      .then(([d, gb, asg, req, subs, ins]) => {
         if (!alive) return;
         // The group detail is load-bearing: a 404 here means "not your group".
         if (d.status !== "fulfilled") {
@@ -69,6 +86,8 @@ export default function GroupDetailPage() {
         setDetail(d.value);
         setGradebook(gb.status === "fulfilled" ? gb.value : []);
         setAssignments(asg.status === "fulfilled" ? asg.value : []);
+        // A failed insights read hides the card; it never blanks the page.
+        setInsights(ins.status === "fulfilled" ? ins.value : null);
         setPendingCount(
           req.status === "fulfilled"
             ? req.value.filter((r) => r.group_id === groupId).length
@@ -148,6 +167,7 @@ export default function GroupDetailPage() {
           id: questionId,
           title: agg.title,
           due: agg.dueAt ? formatDue(agg.dueAt, t) : null,
+          dueAt: agg.dueAt,
           // Urgent = already past, or inside the next 24h.
           dueUrgent: dueMs != null && dueMs - now < 86_400_000,
           completed: agg.completed,
@@ -156,12 +176,95 @@ export default function GroupDetailPage() {
       });
   }, [assignments, detail, t]);
 
-  if (loading) return <PageLoading />;
-  if (failed || !detail) return <PageError onRetry={() => setReloadKey((k) => k + 1)} />;
+  const groupErrors = useMemo<AnalyticsErrorRow[] | null>(
+    () =>
+      insights
+        ? errorRowsFromInsights(insights, (type) =>
+            t(`teacher.errorType.${type}`, { defaultValue: type }),
+          )
+        : null,
+    [insights, t],
+  );
+
+  /* ---- Row menu ---- */
+
+  const changeDue = useCallback(
+    async (questionId: string, dueAt: string | null): Promise<DueChangeResult> => {
+      try {
+        const res = await endpoints.updateGroupAssignmentsDue({
+          question_id: questionId,
+          group_id: groupId,
+          due_at: dueAt,
+        });
+        refetch();
+        return { ok: true, updated: res.updated };
+      } catch (e) {
+        return { ok: false, reason: apiErrorCode(e) === "due_in_past" ? "due_in_past" : "failed" };
+      }
+    },
+    [groupId, refetch],
+  );
+
+  const cancelAssignment = useCallback(
+    async (questionId: string) => {
+      const res = await endpoints.cancelGroupAssignments({ question_id: questionId, group_id: groupId });
+      if (res.cancelled > 0) refetch();
+      return res.cancelled;
+    },
+    [groupId, refetch],
+  );
+
+  /* ---- «Sozlama» ---- */
+
+  const rename = useCallback(
+    async (name: string) => {
+      const updated = await endpoints.updateGroup(groupId, { name });
+      // The response is the stored group — show THAT, then refresh the rest.
+      setDetail((d) => (d ? { ...d, name: updated.name, join_code: updated.join_code } : d));
+      refetch();
+    },
+    [groupId, refetch],
+  );
+
+  const regenerateCode = useCallback(async () => {
+    const updated = await endpoints.regenerateGroupCode(groupId);
+    setDetail((d) => (d ? { ...d, join_code: updated.join_code } : d));
+  }, [groupId]);
+
+  const removeMember = useCallback(
+    async (studentId: string) => {
+      await endpoints.removeGroupMember(groupId, studentId);
+      refetch();
+    },
+    [groupId, refetch],
+  );
+
+  const deleteGroup = useCallback(async () => {
+    await endpoints.deleteGroup(groupId);
+    navigate(TEACHER_NAV_PATH.classes, { replace: true });
+  }, [groupId, navigate]);
+
+  /** F6 from the group card — the SAME endpoint and the server's own plan, exactly
+   * as Analitika sends it. */
+  const assignRemediation = useCallback(
+    async (_row: AnalyticsErrorRow, plan: AnalyticsRemediation) => {
+      const created = await endpoints.createAssignments({
+        question_id: plan.questionId,
+        student_ids: plan.students.map((s) => s.id),
+      });
+      refetch();
+      return created.length;
+    },
+    [refetch],
+  );
+
+  if (loading && !detail) return <PageLoading />;
+  if (failed || !detail) return <PageError onRetry={refetch} />;
 
   return (
     <TeacherGroupDetailScreen
       groupName={detail.name}
+      joinCode={detail.join_code}
       level={avgScore != null ? levelFromBand(avgScore) : undefined}
       memberCount={detail.member_count}
       avgScore={avgScore}
@@ -179,6 +282,15 @@ export default function GroupDetailPage() {
       onOpenStudent={(id) =>
         navigate(`/teacher/students/${encodeURIComponent(id)}?group=${encodeURIComponent(groupId)}`)
       }
+      onChangeDue={changeDue}
+      onCancelAssignment={cancelAssignment}
+      groupErrors={groupErrors}
+      errorsMinStudents={insights?.remediation_min_students ?? 0}
+      onAssignRemediation={assignRemediation}
+      onRename={rename}
+      onRegenerateCode={regenerateCode}
+      onRemoveMember={removeMember}
+      onDeleteGroup={deleteGroup}
     />
   );
 }

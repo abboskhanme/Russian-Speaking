@@ -226,6 +226,162 @@ public sealed class AuthEndpointsTests : IClassFixture<AuthEndpointsTests.AuthAp
         }
     }
 
+    // ─── Per-phone OTP brakes, through HTTP and the REAL Redis store ─────────────
+    //
+    // Each of these sends its own X-Forwarded-For. The host has no proxy in front of it, so that
+    // header is simply the rate-limit partition (RateLimitIdentity reads its last hop), and a private
+    // one keeps the per-IP email_code limit (5/600, shared by every anonymous request in this class)
+    // from answering 429 in place of the brake under test. The two are told apart by body as well.
+
+    private const string CooldownDetail = "Kod yaqinda yuborilgan. Birozdan so'ng qayta urinib ko'ring.";
+    private const string LockedDetail = "Juda ko'p noto'g'ri urinish. Keyinroq qayta urinib ko'ring.";
+
+    private static Task<HttpResponseMessage> PostFrom(HttpClient client, string forwardedFor, string url, object body)
+    {
+        var request = new HttpRequestMessage(HttpMethod.Post, url) { Content = JsonContent.Create(body) };
+        request.Headers.Add("X-Forwarded-For", forwardedFor);
+        return client.SendAsync(request);
+    }
+
+    [Fact]
+    public async Task A_second_code_inside_the_cooldown_is_429_alike_for_registered_and_unregistered_phones()
+    {
+        var userId = Guid.NewGuid();
+        var registered = "+99893" + Random.Shared.Next(0, 10_000_000).ToString("D7");
+        var unregistered = "+99894" + Random.Shared.Next(0, 10_000_000).ToString("D7");
+
+        await using (var ctx = CreateContext())
+        {
+            ctx.Users.Add(new User
+            {
+                Id = userId, Email = $"cooldown-{userId:N}@example.test", Phone = registered, FullName = "Cooldown",
+                Role = UserRole.Student, IsActive = true, IsPremium = false, PreferredLanguage = "uz",
+                CreatedAt = DateTime.UtcNow, UpdatedAt = DateTime.UtcNow,
+            });
+            await ctx.SaveChangesAsync();
+        }
+
+        try
+        {
+            var client = _factory.CreateClient();
+            const string from = "198.51.100.11";
+            var bodies = new List<string>();
+
+            foreach (var phone in new[] { registered, unregistered })
+            {
+                Assert.Equal(HttpStatusCode.OK,
+                    (await PostFrom(client, from, "/api/auth/otp/request", new { phone })).StatusCode);
+
+                var again = await PostFrom(client, from, "/api/auth/otp/request", new { phone });
+                Assert.Equal(HttpStatusCode.TooManyRequests, again.StatusCode);
+                var retryAfter = again.Headers.RetryAfter?.Delta;
+                Assert.NotNull(retryAfter);
+                Assert.InRange(retryAfter!.Value, TimeSpan.FromSeconds(1), TimeSpan.FromSeconds(60));
+
+                var body = await again.Content.ReadAsStringAsync();
+                using (var doc = JsonDocument.Parse(body))
+                    Assert.Equal(CooldownDetail, doc.RootElement.GetProperty("detail").GetString());
+                bodies.Add(body);
+            }
+
+            // "Never reveal whether the phone has an account": the refusal is byte-for-byte the same.
+            Assert.Equal(bodies[0], bodies[1]);
+        }
+        finally
+        {
+            await using var ctx = CreateContext();
+            await ctx.Users.Where(u => u.Id == userId).ExecuteDeleteAsync();
+        }
+    }
+
+    [Fact]
+    public async Task A_locked_out_phone_is_429_on_verify_even_with_a_live_code()
+    {
+        var phone = "+99895" + Random.Shared.Next(0, 10_000_000).ToString("D7");
+        var redisOptions = StackExchange.Redis.ConfigurationOptions.Parse(
+            Environment.GetEnvironmentVariable("GOVORI_REDIS") ?? "govori-redis:6379");
+        redisOptions.AbortOnConnectFail = false;
+        await using var redis = await StackExchange.Redis.ConnectionMultiplexer.ConnectAsync(redisOptions);
+        var db = redis.GetDatabase();
+
+        try
+        {
+            var client = _factory.CreateClient();
+            const string from = "198.51.100.12";
+
+            // A live code exists…
+            Assert.Equal(HttpStatusCode.OK,
+                (await PostFrom(client, from, "/api/auth/otp/request", new { phone })).StatusCode);
+            // …but this phone already spent its 10 wrong guesses in the current window.
+            await db.StringSetAsync(Govori.Platform.Otp.OtpRedisKeys.Failures(phone), 10, TimeSpan.FromHours(1));
+
+            // Not the dev bypass code, so the real store decides.
+            var response = await PostFrom(client, from, "/api/auth/otp/verify", new { phone, code = "123456" });
+
+            Assert.Equal(HttpStatusCode.TooManyRequests, response.StatusCode);
+            Assert.InRange(response.Headers.RetryAfter!.Delta!.Value, TimeSpan.FromSeconds(1), TimeSpan.FromHours(1));
+            using var doc = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+            Assert.Equal(LockedDetail, doc.RootElement.GetProperty("detail").GetString());
+        }
+        finally
+        {
+            await db.KeyDeleteAsync(new StackExchange.Redis.RedisKey[]
+            {
+                Govori.Platform.Otp.OtpRedisKeys.Code(phone), Govori.Platform.Otp.OtpRedisKeys.Attempts(phone),
+                Govori.Platform.Otp.OtpRedisKeys.RequestCooldown(phone), Govori.Platform.Otp.OtpRedisKeys.Failures(phone),
+            });
+        }
+    }
+
+    [Fact]
+    public async Task A_phone_change_inside_the_new_numbers_cooldown_is_429()
+    {
+        // Same code key as login, so the same cooldown — and it is checked BEFORE the pending change
+        // is written, so the refused request leaves nothing behind.
+        var userId = Guid.NewGuid();
+        var newPhone = "+99891" + Random.Shared.Next(0, 10_000_000).ToString("D7");
+
+        await using (var ctx = CreateContext())
+        {
+            ctx.Users.Add(new User
+            {
+                Id = userId, Email = $"phonechange-{userId:N}@example.test", FullName = "Phone Change",
+                Role = UserRole.Student, IsActive = true, IsPremium = false, PreferredLanguage = "uz",
+                CreatedAt = DateTime.UtcNow, UpdatedAt = DateTime.UtcNow,
+            });
+            await ctx.SaveChangesAsync();
+        }
+
+        try
+        {
+            var client = _factory.CreateClient();
+            var token = new Govori.Identity.Security.TokenService(
+                    new Govori.Identity.Security.IdentityAuthOptions { SecretKey = AuthApiFactory.TestSecretKey })
+                .CreateAccessToken(userId.ToString());
+
+            async Task<HttpResponseMessage> RequestChange()
+            {
+                var request = new HttpRequestMessage(HttpMethod.Post, "/api/auth/phone/change/request")
+                {
+                    Content = JsonContent.Create(new { new_phone = newPhone }),
+                };
+                request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
+                return await client.SendAsync(request);
+            }
+
+            Assert.Equal(HttpStatusCode.OK, (await RequestChange()).StatusCode);
+
+            var again = await RequestChange();
+            Assert.Equal(HttpStatusCode.TooManyRequests, again.StatusCode);
+            Assert.NotNull(again.Headers.RetryAfter?.Delta);
+        }
+        finally
+        {
+            await using var ctx = CreateContext();
+            await ctx.Users.Where(u => u.Id == userId).ExecuteDeleteAsync();
+        }
+    }
+
     public void Dispose() => _dataSource.Dispose();
 
     /// <summary>
@@ -242,7 +398,7 @@ public sealed class AuthEndpointsTests : IClassFixture<AuthEndpointsTests.AuthAp
         // The per-run throwaway database (see TestDatabase) — never the shared dev one.
         public string ConnectionString { get; } = TestDatabase.ConnectionString;
 
-        private const string TestSecretKey =
+        internal const string TestSecretKey =
             "tracer-bullet-integration-test-secret-key-do-not-use-in-prod";
 
         public AuthApiFactory()

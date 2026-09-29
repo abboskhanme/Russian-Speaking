@@ -81,4 +81,39 @@ public sealed class ObjectStorageTests
         // ---- Exists → false ----
         Assert.False(await storage.ExistsAsync(key, ct));
     }
+
+    /// <summary>
+    /// The Chrome/Android P0: MediaRecorder's type <c>audio/webm;codecs=opus</c> went into PutObject
+    /// verbatim, MinIO rejected the signature ("The request signature we calculated does not match"),
+    /// and every answer recorded in those browsers failed at <c>POST /api/submissions</c> with a 500.
+    /// Against the real MinIO: the upload succeeds, and the object is stored under the bare type.
+    /// </summary>
+    [Theory]
+    [InlineData("audio/webm;codecs=opus")]
+    [InlineData("audio/webm; codecs=opus")]
+    [InlineData("AUDIO/WEBM")]
+    public async Task A_content_type_with_parameters_uploads_and_is_stored_bare(string sentByBrowser)
+    {
+        var ct = CancellationToken.None;
+        using var storage = new MinioObjectStorage(BuildOptions());
+        var key = storage.NewKey("integration-test", "webm");
+        var payload = Encoding.UTF8.GetBytes($"govori-codecs-{Guid.NewGuid():N}");
+
+        try
+        {
+            using (var body = new MemoryStream(payload))
+                await storage.PutAsync(key, body, sentByBrowser, ct);   // threw before the fix
+
+            var url = await storage.GetPresignedUrlAsync(key, TimeSpan.FromMinutes(5), ct);
+            using var http = new HttpClient();
+            using var response = await http.GetAsync(url, ct);
+            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+            Assert.Equal("audio/webm", response.Content.Headers.ContentType?.ToString());
+            Assert.Equal(payload, await response.Content.ReadAsByteArrayAsync(ct));
+        }
+        finally
+        {
+            await storage.DeleteAsync(key, ct);
+        }
+    }
 }

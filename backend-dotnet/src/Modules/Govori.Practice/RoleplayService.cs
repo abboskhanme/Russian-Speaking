@@ -12,9 +12,10 @@ namespace Govori.Practice;
 
 /// <summary>HTTP-shaped outcome of a roleplay call. Everything a student can legitimately run into —
 /// the flag being off, no AI key, a spent budget, a closed conversation — is NOT here: those are
-/// <see cref="RoleplayState"/> values on a 200 body. This enum only carries the two answers that
-/// really are errors.</summary>
-public enum RoleplayStatus { Ok, NotFound, BadRequest }
+/// <see cref="RoleplayState"/> values on a 200 body. This enum only carries the answers that really
+/// are errors, including <c>Unauthorized</c> for a missing or DEACTIVATED account (see
+/// <c>RoleplayService.IsActiveAsync</c>).</summary>
+public enum RoleplayStatus { Ok, NotFound, BadRequest, Unauthorized }
 
 /// <summary>The three numbers and one boolean that decide whether a turn may run at all.</summary>
 /// <param name="Enabled">The <c>roleplay_enabled</c> flag.</param>
@@ -132,12 +133,16 @@ public sealed class RoleplayService
 
     /// <summary>The scenario grid plus the state the hub needs to tell the truth on the tile the
     /// student is about to tap, rather than after they have recorded themselves.</summary>
-    public async Task<RoleplayCatalogResponse> CatalogAsync(Guid userId, CancellationToken ct = default)
+    public async Task<(RoleplayStatus Status, RoleplayCatalogResponse? Body)> CatalogAsync(
+        Guid userId, CancellationToken ct = default)
     {
+        if (!await IsActiveAsync(userId, ct))
+            return (RoleplayStatus.Unauthorized, null);
+
         var limits = await LimitsAsync(ct);
         if (!limits.Enabled)
-            return new RoleplayCatalogResponse(
-                RoleplayState.Disabled, Array.Empty<RoleplayScenarioResponse>(), limits.MaxTurns, 0);
+            return (RoleplayStatus.Ok, new RoleplayCatalogResponse(
+                RoleplayState.Disabled, Array.Empty<RoleplayScenarioResponse>(), limits.MaxTurns, 0));
 
         await EnsureSeededAsync(ct);
 
@@ -152,8 +157,8 @@ public sealed class RoleplayService
             : left <= 0 ? RoleplayState.BudgetSpent
             : RoleplayState.Ready;
 
-        return new RoleplayCatalogResponse(
-            state, scenarios.Select(Tile).ToList(), limits.MaxTurns, Math.Max(0, left));
+        return (RoleplayStatus.Ok, new RoleplayCatalogResponse(
+            state, scenarios.Select(Tile).ToList(), limits.MaxTurns, Math.Max(0, left)));
     }
 
     // ─── Start ──────────────────────────────────────────────────────────────
@@ -168,6 +173,8 @@ public sealed class RoleplayService
     public async Task<(RoleplayStatus Status, RoleplayStartResponse? Body)> StartAsync(
         Guid userId, string? slug, CancellationToken ct = default)
     {
+        if (!await IsActiveAsync(userId, ct))
+            return (RoleplayStatus.Unauthorized, null);
         if (string.IsNullOrWhiteSpace(slug))
             return (RoleplayStatus.BadRequest, null);
 
@@ -230,6 +237,12 @@ public sealed class RoleplayService
         Guid userId, Guid conversationId, Stream audio, string filename, double? clientDurationSec,
         CancellationToken ct = default)
     {
+        // First, before a ceiling is read or a byte of audio reaches a vendor: this is the route that
+        // spends money, and a suspended account must stop spending the moment it is suspended, not
+        // when its access token happens to expire.
+        if (!await IsActiveAsync(userId, ct))
+            return (RoleplayStatus.Unauthorized, null);
+
         var limits = await LimitsAsync(ct);
         var turns = await ConversationAsync(userId, conversationId, ct);
         if (turns.Count == 0)
@@ -365,6 +378,9 @@ public sealed class RoleplayService
     public async Task<(RoleplayStatus Status, RoleplaySummaryResponse? Body)> EndAsync(
         Guid userId, Guid conversationId, CancellationToken ct = default)
     {
+        if (!await IsActiveAsync(userId, ct))
+            return (RoleplayStatus.Unauthorized, null);
+
         var turns = await ConversationAsync(userId, conversationId, ct);
         if (turns.Count == 0)
             return (RoleplayStatus.NotFound, null);
@@ -463,6 +479,16 @@ public sealed class RoleplayService
             .AsNoTracking()
             .CountAsync(t => t.StudentId == userId && t.CreatedAt >= since && t.StudentText != null, ct);
     }
+
+    /// <summary>
+    /// Is the caller an existing, ACTIVE account? Read from the database on every call, never from
+    /// the token — the same rule every other module applies (§7.5): an access token outlives the
+    /// moment an admin suspends an account, and without this check a suspended student kept opening
+    /// conversations and spending STT + grader calls until it expired. Missing or inactive is a 401,
+    /// exactly as it is on the submit route.
+    /// </summary>
+    private Task<bool> IsActiveAsync(Guid userId, CancellationToken ct)
+        => _db.Users.AnyAsync(u => u.Id == userId && u.IsActive, ct);
 
     /// <summary>Both seams must be live: a conversation with no ears is not a conversation, and one
     /// with no judgement cannot advance a beat.</summary>

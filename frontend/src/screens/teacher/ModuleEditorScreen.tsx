@@ -1,34 +1,25 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { ReactNode } from "react";
 import { useTranslation } from "react-i18next";
-import { Badge, Button, Card, Input, Modal, Text } from "../../shared/ui";
+import { Badge, Button, Card, Input, Modal, Switch, Text } from "../../shared/ui";
 import { AppShell, Brand, NotificationsBell, teacherNavItems } from "../../widgets";
 import type { NavItem } from "../../widgets";
 import { mockModuleEditor } from "./content.mock";
 import { BackGlyph } from "./TeacherGroupDetailScreen";
+import { LevelChips } from "./ChoiceChips";
+import { TaskEditorSheet } from "./TaskEditorSheet";
+import type { EditableTask, NewTaskDraft, TaskPatch } from "./TaskEditorSheet";
 import styles from "./ModuleEditorScreen.module.css";
 
 /* -------------------------------------------------------------------------- */
 /* Public contract                                                            */
 /* -------------------------------------------------------------------------- */
 
-/** A task row inside the editor's ordered list. */
-export interface EditorTask {
-  id: string;
-  title: string;
-  level?: string;
-  published: boolean;
-  /** Attempts already recorded — an edit here changes what students answered. */
-  submissionCount: number;
-  /** Presigned url of the task's image / short video, or null when it has none. */
-  mediaUrl?: string | null;
-}
+/** A task row inside the editor's ordered list — the same shape the task editor
+ * sheet edits, so a tap on the row opens it with nothing refetched. */
+export type EditorTask = EditableTask;
 
-/** Mirrors the server's allow-list exactly. `image/svg+xml` is absent on both
- * sides: an SVG can carry script and would be a stored-XSS vector once its
- * presigned url is opened. This only filters the OS picker — the server re-checks
- * everything, because an accept attribute is a hint, not a control. */
-const MEDIA_ACCEPT = "image/jpeg,image/png,image/webp,video/mp4,video/webm";
+export type { NewTaskDraft, TaskPatch } from "./TaskEditorSheet";
 
 /** A library row offered by the C5 picker (unattached tasks only). */
 export interface LibraryTask {
@@ -38,20 +29,10 @@ export interface LibraryTask {
   level?: string;
 }
 
-/** The C2 "new task" form's payload. */
-export interface NewTaskDraft {
-  title: string;
-  prompt: string;
-  level?: string;
-  ruStyle?: string;
-  /**
-   * Optional cover, picked in the create sheet. The task does not exist yet when
-   * the teacher chooses it, so there is no id to upload against — the PAGE creates
-   * the task first and then uploads. A failure there leaves a real, saved task
-   * with no media, which the page reports rather than pretending the save failed.
-   */
-  media?: File | null;
-}
+/** Why a module delete did not happen. `conflict` is the server's 409 — it judged
+ * the delete unsafe — and is worded differently from a plain failure, because
+ * retrying will not help and the teacher needs the alternative instead. */
+export type ModuleDeleteResult = { ok: true } | { ok: false; reason: "conflict" | "failed" };
 
 export interface ModuleEditorProps {
   /** Module name; empty on a brand-new module. */
@@ -75,7 +56,7 @@ export interface ModuleEditorProps {
   onBack?: () => void;
   /** Save name/topic/level. Rejects on failure so the form can surface it. */
   onSaveMeta?: (args: { name: string; topic?: string; level?: string }) => Promise<void>;
-  /** Publish ↔ draft. */
+  /** Publish ↔ draft. Publishing a module also publishes its draft tasks (server). */
   onTogglePublished?: (next: boolean) => Promise<void>;
   /** C5 — attach an existing task to this module. */
   onAttachTask?: (taskId: string) => Promise<void>;
@@ -83,105 +64,24 @@ export interface ModuleEditorProps {
   onDetachTask?: (taskId: string) => Promise<void>;
   /** C2 — create a task directly into this module. */
   onCreateTask?: (draft: NewTaskDraft) => Promise<void>;
-  /** Set or REPLACE an existing task's media. Omit and the row's media control is
-   * not rendered, so a read-only host stays read-only. */
+  /** Save an edit from the task editor sheet — only the changed fields. */
+  onUpdateTask?: (taskId: string, patch: TaskPatch) => Promise<void>;
+  /** One task's own publish switch (`PATCH /api/questions/{id} {is_published}`). */
+  onToggleTaskPublished?: (taskId: string, next: boolean) => Promise<void>;
+  /** Soft-delete a task. Omit and the editor offers no delete. */
+  onDeleteTask?: (taskId: string) => Promise<void>;
+  /** Set or REPLACE an existing task's media. Omit and the editor's media control
+   * is not rendered, so a read-only host stays read-only. */
   onSetTaskMedia?: (taskId: string, file: File) => Promise<void>;
   /** Clear an existing task's media. */
   onRemoveTaskMedia?: (taskId: string) => Promise<void>;
+  /** Delete the whole module. Omit and the control is not rendered. */
+  onDeleteModule?: () => Promise<ModuleDeleteResult>;
   /** A partial-success message from the host (e.g. the task saved but its cover
    * did not upload). Shown above the task list; null hides it. */
   notice?: string | null;
   /** Library search, debounced by the caller. */
   onSearchLibrary?: (term: string) => void;
-  onOpenTask?: (taskId: string) => void;
-}
-
-/**
- * Per-row media control. There is no task-editor screen — the row's own click is a
- * no-op today — so this is the only place an EXISTING task's cover can be set,
- * replaced or cleared. Without it a teacher who picked the wrong file while
- * creating the task would be stuck with it.
- *
- * Renders nothing at all when the host supplies no `onSetTaskMedia`, keeping a
- * read-only host read-only.
- */
-function TaskMediaControl({
-  task,
-  onSetTaskMedia,
-  onRemoveTaskMedia,
-}: {
-  task: EditorTask;
-  onSetTaskMedia?: (taskId: string, file: File) => Promise<void>;
-  onRemoveTaskMedia?: (taskId: string) => Promise<void>;
-}) {
-  const { t } = useTranslation();
-  const inputRef = useRef<HTMLInputElement>(null);
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  if (!onSetTaskMedia) return null;
-  const has = Boolean(task.mediaUrl);
-
-  const pick = async (file: File | null) => {
-    if (!file || busy) return;
-    setBusy(true);
-    setError(null);
-    try {
-      await onSetTaskMedia(task.id, file);
-    } catch (e) {
-      // The server's own detail says WHICH rule was broken (type vs size), which
-      // is the difference between a fixable mistake and a mystery.
-      setError(e instanceof Error && e.message ? e.message : t("teacher.saveFailed"));
-    } finally {
-      setBusy(false);
-      // Let the same file be re-picked after a failure.
-      if (inputRef.current) inputRef.current.value = "";
-    }
-  };
-
-  const clear = async () => {
-    if (busy) return;
-    setBusy(true);
-    setError(null);
-    try {
-      await onRemoveTaskMedia?.(task.id);
-    } catch {
-      setError(t("teacher.saveFailed"));
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  return (
-    <span className={styles.mediaCell}>
-      <input
-        ref={inputRef}
-        type="file"
-        accept={MEDIA_ACCEPT}
-        className={styles.fileInput}
-        onChange={(e) => void pick(e.currentTarget.files?.[0] ?? null)}
-        aria-label={t(has ? "teacher.mediaReplace" : "teacher.mediaAdd", { task: task.title })}
-      />
-      <Button
-        variant="ghost"
-        size="sm"
-        disabled={busy}
-        onClick={() => inputRef.current?.click()}
-      >
-        {has ? t("teacher.mediaReplaceShort") : t("teacher.mediaAddShort")}
-      </Button>
-      {has && onRemoveTaskMedia && (
-        <Button variant="ghost" size="sm" disabled={busy} onClick={() => void clear()}>
-          {t("teacher.mediaRemove")}
-        </Button>
-      )}
-      {error && (
-        <Text as="span" variant="body-s" color="danger" role="alert">
-          {error}
-        </Text>
-      )}
-    </span>
-  );
 }
 
 /* -------------------------------------------------------------------------- */
@@ -195,13 +95,24 @@ function TaskMediaControl({
  * Mockup order: back + title → name / description / level fields → the ordered
  * task list → "Mavjuddan tanlash" + "+ Yangi vazifa" → Qoralama / Saqlash.
  *
+ * **What students see is TWO switches, and both are on screen.** A student sees a
+ * task only when its module is published AND the task itself is. Each row
+ * therefore states its own Faol / Qoralama and carries its own switch, and the
+ * status line under the list reports the real reach — it says "your students see
+ * this module" only when at least one published task is actually in it, and
+ * otherwise says why not. Before this the line promised reach for a published
+ * module whose every task was still a draft.
+ *
+ * **Tapping a row opens the task editor** (the C2 form, extended): every field,
+ * media, the publish switch and a soft delete.
+ *
  * **The picker offers only UNATTACHED tasks.** A task belongs to at most one
  * module (`questions.block_id` is a single column), so listing already-attached
  * tasks would invite a silent move out of another module.
  *
- * **Detach keeps the task.** Removing a task from a module unsets its module link
- * rather than deleting it — the work returns to the library, where it can be
- * reused. Deleting content is not something this screen does by accident.
+ * **Detach keeps the task.** "Olib tashlash" unsets its module link rather than
+ * deleting it — the work returns to the library. Deleting is a separate, confirmed
+ * action inside the task editor.
  */
 export function ModuleEditorScreen({
   name,
@@ -222,28 +133,37 @@ export function ModuleEditorScreen({
   onAttachTask,
   onDetachTask,
   onCreateTask,
+  onUpdateTask,
+  onToggleTaskPublished,
+  onDeleteTask,
   onSetTaskMedia,
   onRemoveTaskMedia,
+  onDeleteModule,
   notice,
   onSearchLibrary,
-  onOpenTask,
 }: ModuleEditorProps) {
   const { t } = useTranslation();
 
   const [draftName, setDraftName] = useState(name);
   const [draftTopic, setDraftTopic] = useState(topic ?? "");
-  const [draftLevel, setDraftLevel] = useState(level ?? "");
+  const [draftLevel, setDraftLevel] = useState(level?.trim() ?? "");
   const [savingMeta, setSavingMeta] = useState(false);
   const [metaError, setMetaError] = useState<string | null>(null);
 
   const [picking, setPicking] = useState(false);
   const [creating, setCreating] = useState(false);
+  // An id, not a copy of the row: after a publish toggle or a media change the
+  // host refetches, and the open editor must show the NEW state, not the one it
+  // opened with (the admin sheet once held a snapshot and lied about premium).
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const editing = useMemo(() => tasks.find((x) => x.id === editingId) ?? null, [tasks, editingId]);
+  const [deletingModule, setDeletingModule] = useState(false);
 
   // Re-seed when the loaded module changes (a fresh fetch after save/publish).
   useEffect(() => {
     setDraftName(name);
     setDraftTopic(topic ?? "");
-    setDraftLevel(level ?? "");
+    setDraftLevel(level?.trim() ?? "");
   }, [name, topic, level]);
 
   const dirty =
@@ -264,6 +184,9 @@ export function ModuleEditorScreen({
       setSavingMeta(false);
     }
   };
+
+  const liveCount = tasks.filter((x) => x.published).length;
+  const draftCount = tasks.length - liveCount;
 
   return (
     <AppShell
@@ -313,11 +236,11 @@ export function ModuleEditorScreen({
             onChange={(e) => setDraftTopic(e.target.value)}
             placeholder={t("teacher.moduleTopicPlaceholder")}
           />
-          <Input
+          <LevelChips
             label={t("teacher.moduleLevel")}
             value={draftLevel}
-            onChange={(e) => setDraftLevel(e.target.value)}
-            placeholder="A1–A2"
+            stored={level}
+            onChange={setDraftLevel}
           />
           <div className={styles.formActions}>
             <Button
@@ -354,49 +277,13 @@ export function ModuleEditorScreen({
             <ol className={styles.taskList}>
               {tasks.map((task, i) => (
                 <li key={task.id}>
-                  <Card variant="outline" padding="sm" className={styles.taskRow}>
-                    <span className={styles.ordinal} aria-hidden>
-                      <Text as="span" variant="body-s" weight="bold" numeric>
-                        {i + 1}
-                      </Text>
-                    </span>
-                    <button
-                      type="button"
-                      className={styles.taskBody}
-                      onClick={() => onOpenTask?.(task.id)}
-                    >
-                      <Text as="span" variant="body" weight="semibold" truncate>
-                        {task.title}
-                      </Text>
-                      <Text as="span" variant="body-s" color="muted">
-                        {[
-                          task.level,
-                          task.published ? t("teacher.statusActive") : t("teacher.statusDraft"),
-                          // Warn when students have already answered it.
-                          task.submissionCount > 0
-                            ? t("teacher.answered", { count: task.submissionCount })
-                            : null,
-                        ]
-                          .filter(Boolean)
-                          .join(" · ")}
-                      </Text>
-                    </button>
-                    <span className={styles.taskActions}>
-                      <TaskMediaControl
-                        task={task}
-                        onSetTaskMedia={onSetTaskMedia}
-                        onRemoveTaskMedia={onRemoveTaskMedia}
-                      />
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className={styles.detachBtn}
-                        onClick={() => void onDetachTask?.(task.id)}
-                      >
-                        {t("teacher.removeFromModule")}
-                      </Button>
-                    </span>
-                  </Card>
+                  <TaskRow
+                    task={task}
+                    ordinal={i + 1}
+                    onOpen={() => setEditingId(task.id)}
+                    onTogglePublished={onToggleTaskPublished}
+                    onDetach={onDetachTask}
+                  />
                 </li>
               ))}
             </ol>
@@ -425,10 +312,21 @@ export function ModuleEditorScreen({
           >
             {published ? t("teacher.unpublish") : t("teacher.publish")}
           </Button>
-          <Text as="p" variant="body-s" color="muted">
-            {published ? t("teacher.publishedHint") : t("teacher.draftHint")}
-          </Text>
+          <ReachLine published={published} total={tasks.length} live={liveCount} drafts={draftCount} />
         </div>
+
+        {onDeleteModule && (
+          <div className={styles.dangerRow}>
+            <Button
+              variant="ghost"
+              size="sm"
+              className={styles.dangerBtn}
+              onClick={() => setDeletingModule(true)}
+            >
+              {t("teacher.module.delete")}
+            </Button>
+          </div>
+        )}
       </div>
 
       <LibrarySheet
@@ -440,8 +338,247 @@ export function ModuleEditorScreen({
         onAttach={onAttachTask}
       />
 
-      <NewTaskSheet open={creating} onClose={() => setCreating(false)} onCreate={onCreateTask} />
+      <TaskEditorSheet
+        open={creating}
+        onClose={() => setCreating(false)}
+        fixedModule={{ name: name || t("teacher.newModule"), published }}
+        onCreate={onCreateTask}
+      />
+
+      <TaskEditorSheet
+        open={editing !== null}
+        onClose={() => setEditingId(null)}
+        task={editing}
+        onSave={onUpdateTask}
+        onTogglePublished={onToggleTaskPublished}
+        onDelete={onDeleteTask}
+        onSetMedia={onSetTaskMedia}
+        onRemoveMedia={onRemoveTaskMedia}
+      />
+
+      {onDeleteModule && (
+        <DeleteModuleDialog
+          open={deletingModule}
+          name={name || t("teacher.newModule")}
+          taskCount={tasks.length}
+          onClose={() => setDeletingModule(false)}
+          onDelete={onDeleteModule}
+        />
+      )}
     </AppShell>
+  );
+}
+
+/* -------------------------------------------------------------------------- */
+/* Parts                                                                      */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * One task in the module. The title opens the editor; the state is BOTH a labelled
+ * badge and a switch, so the row says "Qoralama" in words (colour is never the
+ * only signal) and changes it in one tap. No press-scale on the row: it holds its
+ * own edge controls, and a row that shrinks under the pointer moves them out from
+ * under the click.
+ */
+function TaskRow({
+  task,
+  ordinal,
+  onOpen,
+  onTogglePublished,
+  onDetach,
+}: {
+  task: EditorTask;
+  ordinal: number;
+  onOpen: () => void;
+  onTogglePublished?: (taskId: string, next: boolean) => Promise<void>;
+  onDetach?: (taskId: string) => Promise<void>;
+}) {
+  const { t } = useTranslation();
+  const [busy, setBusy] = useState(false);
+  const [failed, setFailed] = useState(false);
+
+  const toggle = async (next: boolean) => {
+    if (!onTogglePublished || busy) return;
+    setBusy(true);
+    setFailed(false);
+    try {
+      await onTogglePublished(task.id, next);
+    } catch {
+      setFailed(true);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const meta = [
+    task.level,
+    // Warn when students have already answered it.
+    task.submissionCount > 0 ? t("teacher.answered", { count: task.submissionCount }) : null,
+  ]
+    .filter(Boolean)
+    .join(" · ");
+
+  return (
+    <Card variant="outline" padding="sm" className={styles.taskRow}>
+      <span className={styles.ordinal} aria-hidden>
+        <Text as="span" variant="body-s" weight="bold" numeric>
+          {ordinal}
+        </Text>
+      </span>
+      <button type="button" className={styles.taskBody} onClick={onOpen}>
+        <Text as="span" variant="body" weight="semibold" truncate>
+          {task.title}
+        </Text>
+        {meta && (
+          <Text as="span" variant="body-s" color="muted">
+            {meta}
+          </Text>
+        )}
+      </button>
+      <span className={styles.taskActions}>
+        <Badge variant={task.published ? "success" : "neutral"} size="sm">
+          {task.published ? t("teacher.statusActive") : t("teacher.statusDraft")}
+        </Badge>
+        {onTogglePublished && (
+          <Switch
+            checked={task.published}
+            disabled={busy}
+            onChange={(next) => void toggle(next)}
+            aria-label={t("teacher.task.publishAria", { task: task.title })}
+          />
+        )}
+        {onDetach && (
+          <Button
+            variant="ghost"
+            size="sm"
+            className={styles.detachBtn}
+            onClick={() => void onDetach(task.id)}
+          >
+            {t("teacher.removeFromModule")}
+          </Button>
+        )}
+      </span>
+      {failed && (
+        <Text as="p" variant="body-s" color="danger" role="alert" className={styles.rowError}>
+          {t("teacher.saveFailed")}
+        </Text>
+      )}
+    </Card>
+  );
+}
+
+/**
+ * The line under the publish button — who actually sees this module right now.
+ *
+ * It only claims reach when there is reach: a published module with zero
+ * published tasks shows students an empty module, and "O'quvchilaringiz bu modulni
+ * ko'rmoqda" there was a promise the data did not keep.
+ */
+function ReachLine({
+  published,
+  total,
+  live,
+  drafts,
+}: {
+  published: boolean;
+  total: number;
+  live: number;
+  drafts: number;
+}) {
+  const { t } = useTranslation();
+  let text: string;
+  let tone: "muted" | "warn" = "muted";
+  if (!published) {
+    text = drafts > 0 ? t("teacher.module.draftWithTasks") : t("teacher.draftHint");
+  } else if (total === 0) {
+    text = t("teacher.module.liveEmpty");
+    tone = "warn";
+  } else if (live === 0) {
+    text = t("teacher.module.liveNoPublished");
+    tone = "warn";
+  } else if (drafts > 0) {
+    text = t("teacher.module.liveSomeDrafts", { live, drafts });
+  } else {
+    text = t("teacher.publishedHint");
+  }
+  return (
+    <Text as="p" variant="body-s" color={tone} role="status">
+      {text}
+    </Text>
+  );
+}
+
+/**
+ * Module delete. The module goes; its tasks are soft-deleted with it, and every
+ * answer and grade students already have is kept — the dialog says both before the
+ * tap, not after. A 409 means the server judged it unsafe: that reads as a reason
+ * and an alternative (take it back to a draft), not as "try again".
+ */
+function DeleteModuleDialog({
+  open,
+  name,
+  taskCount,
+  onClose,
+  onDelete,
+}: {
+  open: boolean;
+  name: string;
+  taskCount: number;
+  onClose: () => void;
+  onDelete: () => Promise<ModuleDeleteResult>;
+}) {
+  const { t } = useTranslation();
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const close = () => {
+    if (busy) return;
+    setError(null);
+    onClose();
+  };
+
+  const confirm = async () => {
+    if (busy) return;
+    setBusy(true);
+    setError(null);
+    const result = await onDelete();
+    setBusy(false);
+    if (result.ok) {
+      onClose();
+      return;
+    }
+    setError(
+      result.reason === "conflict" ? t("teacher.module.deleteConflict") : t("teacher.module.deleteFailed"),
+    );
+  };
+
+  return (
+    <Modal open={open} onClose={close} title={t("teacher.module.deleteTitle")} closeLabel={t("common.close")}>
+      <div className={styles.sheet}>
+        <Text as="p" variant="body" weight="semibold">
+          {t("teacher.module.deleteConfirm", { module: name })}
+        </Text>
+        <Text as="p" variant="body-s" color="ink-soft">
+          {t("teacher.module.deleteTasks", { count: taskCount })}
+        </Text>
+        <Text as="p" variant="body-s" color="ink-soft">
+          {t("teacher.task.deleteKeeps")}
+        </Text>
+        {error && (
+          <Text as="p" variant="body-s" color="danger" role="alert">
+            {error}
+          </Text>
+        )}
+        <div className={styles.sheetActions}>
+          <Button variant="ghost" onClick={close} disabled={busy}>
+            {t("common.cancel")}
+          </Button>
+          <Button variant="danger" loading={busy} onClick={() => void confirm()}>
+            {t("teacher.task.deleteCta")}
+          </Button>
+        </div>
+      </div>
+    </Modal>
   );
 }
 
@@ -548,131 +685,6 @@ function LibrarySheet({
         <div className={styles.sheetActions}>
           <Button variant="primary" onClick={onClose}>
             {t("teacher.done")}
-          </Button>
-        </div>
-      </div>
-    </Modal>
-  );
-}
-
-/* -------------------------------------------------------------------------- */
-/* C2 — Yangi vazifa                                                          */
-/* -------------------------------------------------------------------------- */
-
-function NewTaskSheet({
-  open,
-  onClose,
-  onCreate,
-}: {
-  open: boolean;
-  onClose: () => void;
-  onCreate?: (draft: NewTaskDraft) => Promise<void>;
-}) {
-  const { t } = useTranslation();
-  const [title, setTitle] = useState("");
-  const [prompt, setPrompt] = useState("");
-  const [level, setLevel] = useState("");
-  const [media, setMedia] = useState<File | null>(null);
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  const reset = () => {
-    setTitle("");
-    setPrompt("");
-    setLevel("");
-    setMedia(null);
-    setError(null);
-  };
-
-  const create = async () => {
-    if (!title.trim() || !prompt.trim() || busy) return;
-    setBusy(true);
-    setError(null);
-    try {
-      await onCreate?.({ title: title.trim(), prompt: prompt.trim(), level: level.trim(), media });
-      reset();
-      onClose();
-    } catch {
-      setError(t("teacher.saveFailed"));
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  return (
-    <Modal
-      open={open}
-      onClose={() => !busy && onClose()}
-      title={t("teacher.newTaskTitle")}
-      closeLabel={t("common.close")}
-      size="full"
-    >
-      <div className={styles.sheet}>
-        <Input
-          label={t("teacher.taskTitle")}
-          value={title}
-          onChange={(e) => setTitle(e.target.value)}
-          placeholder={t("teacher.taskTitlePlaceholder")}
-          autoFocus
-        />
-
-        <div className={styles.field}>
-          <Text as="label" variant="body-s" weight="semibold">
-            {t("teacher.taskPrompt")}
-          </Text>
-          {/* The prompt is Russian and can run to several sentences, so it needs a
-              textarea rather than a single-line input. */}
-          <textarea
-            className={styles.textarea}
-            rows={4}
-            value={prompt}
-            onChange={(e) => setPrompt(e.target.value)}
-            placeholder={t("teacher.taskPromptPlaceholder")}
-            aria-label={t("teacher.taskPrompt")}
-          />
-        </div>
-
-        <Input
-          label={t("teacher.taskLevel")}
-          value={level}
-          onChange={(e) => setLevel(e.target.value)}
-          placeholder="A2"
-        />
-
-        <div className={styles.field}>
-          <Text as="label" variant="body-s" weight="semibold">
-            {t("teacher.media")}
-          </Text>
-          {/* The file is held, not uploaded: the task has no id yet. The page
-              uploads it immediately after the create succeeds. */}
-          <input
-            type="file"
-            accept={MEDIA_ACCEPT}
-            onChange={(e) => setMedia(e.currentTarget.files?.[0] ?? null)}
-            aria-label={t("teacher.media")}
-          />
-          <Text as="p" variant="body-s" color="muted">
-            {media ? media.name : t("teacher.mediaHint")}
-          </Text>
-        </div>
-
-        {error && (
-          <Text as="p" variant="body-s" color="danger" role="alert">
-            {error}
-          </Text>
-        )}
-
-        <div className={styles.sheetActions}>
-          <Button variant="ghost" onClick={onClose} disabled={busy}>
-            {t("common.cancel")}
-          </Button>
-          <Button
-            variant="primary"
-            loading={busy}
-            disabled={!title.trim() || !prompt.trim()}
-            onClick={() => void create()}
-          >
-            {t("teacher.saveDraft")}
           </Button>
         </div>
       </div>

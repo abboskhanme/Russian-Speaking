@@ -8,8 +8,9 @@
          and the C4/C9-frozen NeedsPremiumAsync that Practice reuses. Classroom needs the
          INVERSE (teacher→their students, the "roster") plus the C3 progress score — both are
          plain, domain-owned queries with no characterized fixture to share, so re-using Catalog
-         would add a module→module edge for no reuse. If a shared roster/scoring helper is ever
-         extracted, this is where the edge would land. -->
+         would add a module→module edge for no reuse. The roster rule Classroom and Practice BOTH
+         apply was extracted to Govori.Infrastructure (TeacherScope, beside PremiumAccess) precisely
+         so that sharing it needs no module→module edge at all. -->
   </ItemGroup>
 
   <ItemGroup>

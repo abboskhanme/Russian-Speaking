@@ -13,9 +13,9 @@ namespace Govori.Catalog;
 /// composition root calls, keeping <c>Program.cs</c> free of per-domain route wiring.
 ///
 /// <para>Endpoints are thin by design (§7.2 — no <c>DbContext</c> here): parse claims →
-/// <see cref="CatalogService"/> → serialize. This slice ships the STUDENT READ PATH only;
-/// teacher/admin module &amp; task CRUD (create/update/delete, the <c>/questions</c> surface,
-/// topics) is deferred to later Catalog work.</para>
+/// <see cref="CatalogService"/> → serialize. Two surfaces: the STUDENT READ PATH
+/// (<c>GET /api/blocks/student</c>) and the teacher/admin AUTHORING surface over modules and tasks
+/// (see <see cref="MapAuthoring"/>). Topics are not part of either.</para>
 ///
 /// <para>Path note: routes are mounted at <c>/api/blocks/...</c> with no <c>/v1</c> segment, to
 /// match the sibling Identity module's <c>/api/auth</c> convention. Versioning is
@@ -51,21 +51,24 @@ public static class CatalogEndpoints
     /// The TEACHER authoring surface (Kontent board C1 · C2 · C4 · C5) over the existing
     /// question_blocks / questions tables. Thin like the rest: parse the token's <c>sub</c> →
     /// service → map the outcome. Every ownership decision lives in the service, and a row the
-    /// caller does not own answers <b>404, not 403</b>, so module/task ids cannot be probed.
+    /// caller does not own answers <b>404, not 403</b>, so module/task ids cannot be probed. An admin
+    /// is the exception that owns everything: they see and edit every module, and only they can make
+    /// one an official <c>public</c> module.
     /// </summary>
     private static void MapAuthoring(IEndpointRouteBuilder app)
     {
         var blocks = app.MapGroup("/api/blocks");
         var questions = app.MapGroup("/api/questions");
 
-        // GET /api/blocks — the caller's own modules (teacher/admin).
+        // GET /api/blocks — the caller's own modules (teacher); EVERY module with its owner_name (admin).
         blocks.MapGet("", async (ClaimsPrincipal principal, CatalogService svc, CancellationToken ct) =>
         {
             if (!TryUserId(principal, out var userId)) return Results.Unauthorized();
             return Map(await svc.ListBlocksAsync(userId, ct));
         }).RequireAuthorization();
 
-        // POST /api/blocks — create a module → 201. Starts as a DRAFT.
+        // POST /api/blocks — create a module → 201. Starts as a DRAFT. visibility "public" is
+        // admin-only: a teacher gets 403 public_requires_admin.
         blocks.MapPost("", async (CreateBlockRequest body, ClaimsPrincipal principal, CatalogService svc, CancellationToken ct) =>
         {
             if (!TryUserId(principal, out var userId)) return Results.Unauthorized();
@@ -79,11 +82,22 @@ public static class CatalogEndpoints
             return Map(await svc.GetBlockAsync(userId, id, ct));
         }).RequireAuthorization();
 
-        // PATCH /api/blocks/{id} — partial update (rename, publish↔draft, reorder).
+        // PATCH /api/blocks/{id} — partial update (rename, publish↔draft, reorder, visibility).
+        // Publishing a draft module publishes its draft tasks in the same save; visibility "public"
+        // is admin-only (403 public_requires_admin for a teacher).
         blocks.MapPatch("/{id:guid}", async (Guid id, UpdateBlockRequest body, ClaimsPrincipal principal, CatalogService svc, CancellationToken ct) =>
         {
             if (!TryUserId(principal, out var userId)) return Results.Unauthorized();
             return Map(await svc.UpdateBlockAsync(userId, id, body, ct));
+        }).RequireAuthorization();
+
+        // DELETE /api/blocks/{id} → 204. The module's tasks are SOFT-deleted (student history keeps
+        // pointing at them) and the module row itself is removed. Owner or admin; another teacher
+        // gets 404.
+        blocks.MapDelete("/{id:guid}", async (Guid id, ClaimsPrincipal principal, CatalogService svc, CancellationToken ct) =>
+        {
+            if (!TryUserId(principal, out var userId)) return Results.Unauthorized();
+            return MapNoContent(await svc.DeleteBlockAsync(userId, id, ct));
         }).RequireAuthorization();
 
         // GET /api/questions (?q= search, ?block_id, ?unassigned, ?limit=1..200) — the Vazifalar
@@ -97,7 +111,8 @@ public static class CatalogEndpoints
             return Map(await svc.ListQuestionsAsync(userId, q, block_id, unassigned == true, limit ?? 100, ct));
         }).RequireAuthorization();
 
-        // POST /api/questions — create a task → 201. Starts as a DRAFT.
+        // POST /api/questions — create a task → 201. Inside a module it inherits the module's
+        // is_published; otherwise it starts as a DRAFT.
         questions.MapPost("", async (CreateQuestionRequest body, ClaimsPrincipal principal, CatalogService svc, CancellationToken ct) =>
         {
             if (!TryUserId(principal, out var userId)) return Results.Unauthorized();
@@ -109,6 +124,15 @@ public static class CatalogEndpoints
         {
             if (!TryUserId(principal, out var userId)) return Results.Unauthorized();
             return Map(await svc.UpdateQuestionAsync(userId, id, body, ct));
+        }).RequireAuthorization();
+
+        // DELETE /api/questions/{id} → 204. SOFT delete: the row stays so submissions, evaluations and
+        // assignments that point at it keep working; it disappears from every catalog listing.
+        // Owner or admin; another teacher gets 404, and so does a task that is already deleted.
+        questions.MapDelete("/{id:guid}", async (Guid id, ClaimsPrincipal principal, CatalogService svc, CancellationToken ct) =>
+        {
+            if (!TryUserId(principal, out var userId)) return Results.Unauthorized();
+            return MapNoContent(await svc.DeleteQuestionAsync(userId, id, ct));
         }).RequireAuthorization();
 
         // POST /api/questions/{id}/media — set/replace the task's image or short video
@@ -159,7 +183,21 @@ public static class CatalogEndpoints
         => r.Outcome switch
         {
             CatalogOutcome.Ok => Results.Json(r.Value, statusCode: okStatus),
+            _ => Failure(r),
+        };
+
+    // 204 for the deletes: success has no body; every failure maps exactly as Map does.
+    private static IResult MapNoContent<T>(CatalogResult<T> r)
+        => r.Outcome == CatalogOutcome.Ok ? Results.NoContent() : Failure(r);
+
+    // A Forbidden that carries a code (e.g. public_requires_admin) is a caller who IS a teacher but
+    // asked for something only an admin may do — so it must not say "Teacher role required".
+    private static IResult Failure<T>(CatalogResult<T> r)
+        => r.Outcome switch
+        {
             CatalogOutcome.Unauthorized => Results.Unauthorized(),
+            CatalogOutcome.Forbidden when r.Code is not null => Results.Json(
+                new CodedErrorResponse(r.Detail ?? "Forbidden", r.Code), statusCode: StatusCodes.Status403Forbidden),
             CatalogOutcome.Forbidden => Detail("Teacher role required", StatusCodes.Status403Forbidden),
             CatalogOutcome.NotFound => Detail("Not found", StatusCodes.Status404NotFound),
             CatalogOutcome.BadRequest => Detail(r.Detail ?? "Bad request", StatusCodes.Status400BadRequest),

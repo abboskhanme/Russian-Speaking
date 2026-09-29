@@ -232,7 +232,7 @@ export default function ClassesPage() {
       queuedCount={queued}
       onCreateGroup={createGroup}
       onDecideRequest={decideRequest}
-      // A5 / A6 / D3 land in later phases; until then they resolve back here.
+      // A5 group detail · D3 assign (`?group=`) · A6 student profile.
       onOpenGroup={(id) => navigate(`${TEACHER_NAV_PATH.classes}/${encodeURIComponent(id)}`)}
       onAssignGroup={(id) => navigate(`/teacher/assign?group=${encodeURIComponent(id)}`)}
       onOpenStudent={(id) => navigate(`/teacher/students/${encodeURIComponent(id)}`)}

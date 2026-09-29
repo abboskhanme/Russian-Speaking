@@ -174,7 +174,11 @@ student's Home shows the teacher block with the roster at 7. Test rows removed.
 **Three honest omissions (no backing data — do NOT fake):**
 - A5's **Davomat 92%** tile — no attendance model exists at all, so the tile row
   is two-up, not three-up.
-- A5's **"Guruh xatolari"** card — no error-pattern aggregation (Phase 6/D1).
+- ~~A5's **"Guruh xatolari"** card — no error-pattern aggregation (Phase 6/D1).~~
+  **Shipped** (fix round, 2026-09-29): `GET /api/reports/insights?group_id=` gives
+  per-group error rows, and A5 renders D1's own "Ko'p uchragan xatolar" section
+  over them (same mapper, same "Mashq ber"), so the card and Analitika filtered to
+  the group can never disagree.
 - A7's **`HAVOLA` / `KOD` source chips** — the invite link resolves to the same
   join-by-code flow, so every request has one provenance. A `HAVOLA` chip would
   be a guess presented as a fact.
@@ -290,13 +294,18 @@ new HTTP surface over existing tables — **no migration**.
 - **New content starts as a DRAFT.** Both `POST` routes force
   `is_published = false`; publishing is a separate, explicit `PATCH`. Nothing
   reaches a student because a teacher happened to save a half-written task.
+  *Revised in the fix round (2026-09-29):* a task created INSIDE a module now
+  inherits the module's state, and publishing a module publishes its draft tasks —
+  teacher-authored tasks used to stay drafts forever inside a live module, so
+  students never saw them. An unattached task still starts as a draft.
 - **A draft's `student_count` is 0**, not the roster size — a draft reaches nobody,
   and "38 o'quvchi" on an unpublished module would be a lie.
 - **The picker offers only UNATTACHED tasks** (`?unassigned=true`).
   `questions.block_id` is a single column, so a task belongs to at most one
   module; offering attached ones would invite a silent move out of another module.
 - **Detach ≠ delete.** "Olib tashlash" clears `block_id` and the task returns to
-  the library. This screen never deletes content.
+  the library. Deleting is a separate, confirmed action in the task editor (fix
+  round) — a SOFT delete that keeps every student's answers and grades.
 - **`detach_block` is its own flag** because over JSON an absent `block_id` and an
   explicit `null` are indistinguishable — without it, "leave the module alone" and
   "remove from the module" would be the same request.
@@ -316,20 +325,19 @@ ownership test); the full authoring flow in the browser — create draft module 
 rename → add a task via C2 → C5 picker correctly empty when everything is
 attached; student routes error-free. Test content removed.
 
-### Deferred — C3 · C6 Ssenariylar (AI roleplay) — *needs a product decision*
-There is **no scenario table** anywhere in the schema, and the student's `/chat`
-scenario grid is **static frontend data** (`screens/conversation`) that the app
-never fetches. So teacher-authored scenarios are not a wiring job — they need a
-new table, an authoring surface, AND the student hub rewired to read from the API.
+### Deferred — C3 · C6 Ssenariylar (AI roleplay) — *decided: deferred until after launch (owner, 2026-09-29)*
+The curated scenarios now live in a **`scenarios` table** (5 curated rows) served by
+`GET /api/roleplay/scenarios`, which the student hub reads. What does NOT exist is a
+teacher AUTHORING surface — no owner/visibility on a scenario, no create/edit
+routes — so teacher-authored scenarios are still a feature, not a tab.
 
-**Decision needed first:** do teacher-authored scenarios REPLACE the curated
-static set, or supplement it (curated ones stay, teachers add their own)? That
-answer changes the schema (does a scenario need an owner? a visibility?) and what
-students see, so it should not be guessed at.
+**Owner decision (2026-09-29): teacher-authored scenarios are post-launch.** C1 keeps
+its two tabs (`Modullar | Vazifalar`); no empty "Ssenariylar" tab is shown. When the
+work is picked up, the open design question is whether teacher scenarios REPLACE
+the curated set or supplement it — that changes the schema (owner? visibility?).
 
-**Media upload** (C2's "Rasm yoki video yuklash", marked optional in the mockup) is
-also deferred: `Question.MediaKey` and object storage both exist, but there is no
-multipart upload endpoint for it yet.
+**Media upload** (C2's "Rasm yoki video yuklash") — **shipped since**, see the
+follow-ups below.
 
 ## Phase 6 — Analitika (D1 · D2 · D3)
 
@@ -392,10 +400,12 @@ backend is **one composed read over existing rows — no migration**.
   and an empty module 400s server-side anyway.
 
 **Omitted for want of data (do NOT fake):**
-- D1's **"Mashq ber"** button on each error row — nothing maps an error type to a
-  task, so the button would have nowhere honest to go. Same for the **"Hammasi"**
-  link beside that heading: the endpoint returns the top 5 and there is no
-  all-errors destination.
+- ~~D1's **"Mashq ber"** button on each error row~~ — **shipped since** as F6
+  (behind `class_insights_enabled`): the server maps each error type to the task it
+  actually occurred on most often and names the students to send it to, so the
+  button has an honest destination. The **"Hammasi"** link beside that heading is
+  still absent: the endpoint returns the top 5 and there is no all-errors
+  destination.
 - ~~D3's **"Urinish · 3 ta"** (max attempts)~~ — **shipped since** (see the
   follow-ups). `assignments.max_attempts` exists and submit refuses past it, so
   the control now keeps the rule it shows.
@@ -570,6 +580,33 @@ ask".
 > image. It resolves fine from the host browser — an artifact of the screenshot
 > setup, not a product bug.
 
+## Fix round (2026-09-29) — the audit's teacher findings
+- **Kontent:** tapping a task opens an editor sheet (title, Russian prompt,
+  instruction, model answer, CEFR chips, topic, prep/answer-time chips, media,
+  publish switch, soft delete). Each row in C4 shows Faol/Qoralama with its own
+  switch, and the status line claims reach only when a published task is in a
+  published module. Modules can be deleted (409 = refused as unsafe, said so).
+  "+ Yaratish" on Vazifalar creates a TASK (module picked in the sheet, or none).
+  `ru_style` is not offered: its vocabulary is unsettled (`regular|live` in docs,
+  `living|formal` in seed data) and nothing student-side reads it.
+- **D3:** `?student=` assigns to one student; the button goes inert after a
+  success; the result says "N ta o'quvchiga berildi, M tasida allaqachon bor edi";
+  a module with no published task is listed disabled with a localized reason.
+- **A5:** row menu on "Faol topshiriqlar" (re-date incl. muddatsiz, cancel);
+  «Sozlama» as a sheet (rename, new join code, remove a student, type-the-name
+  delete); "Guruh xatolari". Group LEVEL is not editable — `groups` has no level
+  column and the server refuses one (`level_not_supported`).
+- **A6:** Premium switch bound to the server's stored grant, with a note when the
+  student pays for themselves.
+- **B1/B2:** "▶ Audio" plays; the transcript wraps (real spaces between words);
+  "✓ Tasdiqlash" sends `{confirm:true}` and writes no comment; the manual sheet
+  sends the band only when moved. The queue copy no longer claims an AI-confidence
+  signal: it is every graded answer not yet reviewed, and nothing is auto-approved.
+- **A1:** the O'quvchi tile counts distinct students across groups.
+- **Notifications:** per-type icons + fallback links for `assignment_new`,
+  `review_done`, `join_approved`, `join_rejected`, `join_request`; unknown types
+  render as a generic row, never a raw type string.
+
 ## Guard added — `npm run check:tokens`
 `var(--nope)` is not an error anywhere in the toolchain: the declaration is
 invalid at computed-value time and the property silently falls back. Nothing
@@ -623,9 +660,9 @@ host config. Prod (`govorim.uz`) does **not** have the teacher panel yet.
 > collision a write error instead of a silent "oldest match wins" at login.
 
 ## When everything is done
-Every phase (1 · 2 · 2b · 3 · 4 · 5 · 6 · 6b · 7) is shipped. What is left is NOT
-build-out — it is one product decision and a short list of follow-ups, so the file
-stays until those are closed.
+Every phase (1 · 2 · 2b · 3 · 4 · 5 · 6 · 6b · 7) is shipped. The one product
+decision (C3 · C6) is made — post-launch — so what is left is a short list of
+follow-ups, and the file stays until those are closed.
 
 ## Admin panel ✅ — `/admin/*`
 The one whole panel that was missing. The backend had 12 endpoints and there was a
@@ -736,10 +773,10 @@ student rows printed "Javoblar" with no number because the reused key had no
 guard, the delete guard and a real premium round-trip driven in a browser; the two
 test grants reverted.
 
-**Blocked on a product decision (see Phase 5's deferred section):**
-- [ ] C3 · C6 Ssenariylar. Do teacher-authored scenarios REPLACE the curated
-  static set or supplement it? The answer changes the schema (owner? visibility?)
-  and what students see, so it must not be guessed.
+**Decided (see Phase 5's deferred section):**
+- [x] C3 · C6 Ssenariylar — **deferred until after launch (owner, 2026-09-29).**
+  Not an open question for launch; the replace-vs-supplement design call is made
+  when the work is picked up.
 
 **Follow-ups, in rough value order:**
 - [x] Wire `users.preferred_language` — **done**. No migration: the column has
@@ -787,9 +824,9 @@ test grants reverted.
   - Frontend: the C2 create sheet takes an optional file, and because the task has
     no id until it is created, the PAGE creates first and then uploads. If that
     second request fails the task is still saved, so the screen says exactly that
-    instead of reporting a failed save and tempting a duplicate. Existing tasks get
-    a per-row Media / Almashtirish / O'chirish control — there is no task-editor
-    screen, so without it a wrong file would be unfixable.
+    instead of reporting a failed save and tempting a duplicate. Existing tasks'
+    media is set / replaced / cleared in the task editor sheet (fix round); it was a
+    per-row control while no task editor existed.
 - [x] Attempt limits on assignments (D3's omitted "Urinish") — **done**.
   `assignments.max_attempts int NULL`, where **null = unlimited**, which is what
   every row written before the column existed already meant. Nobody's assignment

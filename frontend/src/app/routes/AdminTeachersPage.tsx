@@ -21,7 +21,7 @@ import { useTranslation } from "react-i18next";
 import { AdminPeopleScreen } from "../../screens/admin";
 import type { AdminAccount, AdminPerson, AdminStaffTab } from "../../screens/admin";
 import { endpoints } from "../../shared/api";
-import type { AdminTeacherResponse } from "../../shared/api";
+import type { AdminTeacherResponse, AdminUserResponse } from "../../shared/api";
 import { PageError, PageLoading } from "../PageState";
 import { useAdminNavHandler } from "../nav";
 import { newestFirst } from "./adminPeople";
@@ -43,7 +43,7 @@ export default function AdminTeachersPage() {
   const [loaded, setLoaded] = useState(false);
   const [failed, setFailed] = useState(false);
   const [reloadKey, setReloadKey] = useState(0);
-  const [admins, setAdmins] = useState<AdminTeacherResponse[] | null>(null);
+  const [admins, setAdmins] = useState<AdminUserResponse[] | null>(null);
   const [adminsFailed, setAdminsFailed] = useState(false);
   const [adminsKey, setAdminsKey] = useState(0);
   const timer = useRef<number | undefined>(undefined);
@@ -124,7 +124,7 @@ export default function AdminTeachersPage() {
             id: a.id,
             fullName: a.full_name,
             phone: a.phone,
-            isSelf: a.is_self === true,
+            isSelf: a.is_self,
           })),
     [admins],
   );

@@ -44,9 +44,10 @@ public static class GradingMetrics
         "govori.grading.stage.duration", unit: "s",
         description: "Duration of one pipeline stage.");
 
-    /// <summary>How runs ended, tagged <c>outcome</c> (<c>done</c> / <c>failed</c> / <c>deferred</c> /
-    /// <c>not_found</c>). Latency without an outcome mix is misleading: a pipeline that fails fast
-    /// posts an excellent p95.</summary>
+    /// <summary>How runs ended, tagged <c>outcome</c> (<c>done</c> / <c>shadowing</c> / <c>failed</c> /
+    /// <c>deferred</c> / <c>not_found</c> / <c>interrupted</c> — the last is a run cut short by a worker
+    /// shutdown and left queued for a re-run, so it is not an end state of the ATTEMPT). Latency
+    /// without an outcome mix is misleading: a pipeline that fails fast posts an excellent p95.</summary>
     private static readonly Counter<long> Outcomes = Meter.CreateCounter<long>(
         "govori.grading.outcome",
         description: "Grading runs by terminal outcome.");

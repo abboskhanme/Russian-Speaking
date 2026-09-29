@@ -9,14 +9,18 @@ namespace Govori.Assessment;
 /// Hangfire-AGNOSTIC on purpose: it carries
 /// no Hangfire attributes and takes no Hangfire types, so it is trivially invokable directly (unit /
 /// integration tests, or an in-process fallback) as well as from a Hangfire worker. The durable
-/// enqueue + retry policy lives one layer out in <c>Govori.Realtime.HangfireGradingQueue</c>.
+/// enqueue + retry policy lives one layer out in <c>Govori.Realtime.HangfireGradingQueue</c>, and
+/// <see cref="InlineGradingQueue"/> runs this same job in-process, so both paths grade AND reward.
 ///
 /// <para>It opens its OWN DI scope (fresh scoped <c>GovoriDbContext</c>, decoupled from any request
-/// context) exactly like <see cref="InlineGradingQueue"/>, so it resolves cleanly whether Hangfire
-/// hands it a per-job scope or a test resolves it from the root provider.</para>
+/// context), so it resolves cleanly whether Hangfire hands it a per-job scope or a test resolves it
+/// from the root provider.</para>
 ///
-/// <para><b>At-least-once delivery / idempotency (docs/07 §7.7):</b> Hangfire re-runs the job on a
-/// worker crash (invisibility timeout) and on transient failure (automatic retry). That is safe because
+/// <para><b>When it runs again (docs/07 §7.7).</b> A grading FAILURE is terminal and never re-runs
+/// the job: <see cref="AssessmentService"/> marks the attempt failed and returns normally. What does
+/// re-run it is the worker stopping mid-grade — the service rethrows the cancellation, Hangfire leaves
+/// the job queued, and the next worker start picks it up — or an exception escaping before the
+/// pipeline's own handling (Hangfire's bounded automatic retry). Both are safe because
 /// <see cref="AssessmentService"/> is idempotent — a persisted <c>Transcript</c> is reused (STT is
 /// skipped, Azure is not re-billed) and the <c>Evaluation</c> is DELETE-then-INSERT — so a re-run
 /// resumes from where it left off and converges on the same result.</para>
@@ -41,12 +45,13 @@ public sealed class GradingJob
         _logger.LogInformation(
             "grading job outcome {Outcome} (submission {SubmissionId})", outcome, submissionId);
 
-        // Gamification side-effect (Stage 6): award XP + roll the streak once grading succeeds. Runs
-        // through IGradingRewarder (Govori.Contracts) whose implementation lives in the Engagement
-        // module, so grading never compile-references Engagement. The reward is idempotent, so a
-        // Hangfire re-run never double-awards; and it is BEST-EFFORT — grading is already durably
-        // committed, so a reward failure is logged and swallowed rather than failing (and re-queuing)
-        // the whole job. A later grade of the same submission re-attempts the (idempotent) award.
+        // Engagement side-effect (Stage 6): XP + the streak roll, and for a graded answer the
+        // spaced-repetition review of its weakest skill, once grading succeeds. Runs through
+        // IGradingRewarder (Govori.Contracts) whose implementation lives in the Engagement module, so
+        // grading never compile-references Engagement. The reward is idempotent, so a job re-run never
+        // double-awards; and it is BEST-EFFORT — grading is already durably committed, so a reward
+        // failure is logged and swallowed rather than failing (and re-running) the whole job, which
+        // would re-bill the grader for a score the student already has.
         try
         {
             var rewarder = scope.ServiceProvider.GetRequiredService<IGradingRewarder>();
@@ -63,7 +68,7 @@ public sealed class GradingJob
         catch (Exception ex)
         {
             _logger.LogWarning(ex,
-                "XP reward failed for submission {SubmissionId} (grading already committed; will retry on re-grade)",
+                "engagement reward failed for submission {SubmissionId} (grading already committed; not retried)",
                 submissionId);
         }
     }

@@ -45,7 +45,7 @@ namespace Govori.IntegrationTests;
 /// Every seeded row is removed in a finally so the run is idempotent.
 /// </summary>
 [Collection(PerRunDatabaseFixture.CollectionName)]
-public sealed class ClassroomEndpointsTests : IClassFixture<ClassroomEndpointsTests.ClassroomApiFactory>, IDisposable
+public sealed partial class ClassroomEndpointsTests : IClassFixture<ClassroomEndpointsTests.ClassroomApiFactory>, IDisposable
 {
     private readonly ClassroomApiFactory _factory;
     private readonly NpgsqlDataSource _dataSource;

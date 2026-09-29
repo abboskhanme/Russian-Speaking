@@ -12,7 +12,9 @@ namespace Govori.Contracts;
 /// One ranked row of the leaderboard. <c>Rank</c> is the
 /// 1-based position within the chosen scope (or, for the current user when they fall outside the
 /// top 50, the count of students strictly ahead + 1). <c>Xp</c> is all-time; <c>WeeklyXp</c> is the
-/// last-7-day sum used as the primary sort in "weekly" mode.
+/// last-7-day sum used as the primary sort in "weekly" mode. <c>CurrentStreak</c> is the EFFECTIVE
+/// streak as of today (<see cref="StreakRules.Effective"/>), not the stored column — that one only
+/// resets on the student's next practice, so it would show a broken streak as live.
 /// </summary>
 public sealed record LeaderboardEntryResponse(
     int Rank,

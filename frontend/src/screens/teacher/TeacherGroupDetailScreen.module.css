@@ -42,6 +42,36 @@
   flex: 1;
   min-width: 0;
 }
+.settingsBtn {
+  flex: none;
+  gap: var(--s-1);
+}
+
+/* The "Faol topshiriqlar" row menu. A plain button, not a press-scaled row: the
+   card holds it at its edge, and a card that shrank under the pointer would move
+   the button out from under the click. */
+.menuBtn {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  flex: none;
+  align-self: center;
+  padding: 0;
+  border: 0;
+  border-radius: var(--r-pill);
+  background: transparent;
+  color: var(--ink-soft);
+  cursor: pointer;
+  transition: background var(--m-fast);
+}
+.menuBtn:hover {
+  background: var(--surface-2);
+}
+.menuBtn:focus-visible {
+  outline: var(--focus-ring-width) solid var(--focus-ring);
+  outline-offset: var(--focus-ring-offset);
+}
 
 /* ---- Stat tiles (two-up: Davomat has no data source) ---- */
 .stats {

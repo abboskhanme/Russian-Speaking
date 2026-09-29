@@ -15,7 +15,7 @@ export const mockReviewQueue: QueueItem[] = [
     level: "A2",
     score: 58,
     when: "2 soat oldin",
-    hasAudio: true,
+    audioUrl: "/demo/answer-1.webm",
   },
   {
     id: "q-2",
@@ -24,7 +24,7 @@ export const mockReviewQueue: QueueItem[] = [
     level: "B1",
     score: 71,
     when: "bugun",
-    hasAudio: true,
+    audioUrl: "/demo/answer-2.webm",
   },
   {
     id: "q-3",
@@ -34,7 +34,7 @@ export const mockReviewQueue: QueueItem[] = [
     score: 84,
     when: "kecha",
     // The retention job has purged this one's recording.
-    hasAudio: false,
+    audioUrl: null,
   },
 ];
 

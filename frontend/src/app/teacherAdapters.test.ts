@@ -14,8 +14,15 @@
  *     the truth is "never measured" — the two call for opposite interventions.
  */
 import { describe, expect, it } from "vitest";
-import type { SubmissionResponse } from "../shared/api";
-import { averageBand, levelFromBand, skillAverages } from "./teacherAdapters";
+import type { GroupDetailResponse, GroupResponse, SubmissionResponse } from "../shared/api";
+import {
+  apiErrorCode,
+  averageBand,
+  distinctStudentCount,
+  levelFromBand,
+  questionPatchArgs,
+  skillAverages,
+} from "./teacherAdapters";
 
 function submission(scores: Partial<SubmissionResponse> = {}): SubmissionResponse {
   return {
@@ -107,5 +114,66 @@ describe("averageBand", () => {
   it("is null — not 0 — when nothing is graded", () => {
     expect(averageBand([])).toBeNull();
     expect(averageBand([submission()])).toBeNull();
+  });
+});
+
+/* A1's O'quvchi tile summed `member_count`, so a student in two of the same
+ * teacher's groups counted twice. */
+describe("distinctStudentCount", () => {
+  const group = (id: string, member_count: number): GroupResponse => ({
+    id,
+    name: id,
+    join_code: "X",
+    member_count,
+    teacher_id: null,
+    teacher_name: null,
+    created_at: "2026-01-01T00:00:00Z",
+  });
+  const roster = (id: string, ids: string[]): GroupDetailResponse => ({
+    ...group(id, ids.length),
+    members: ids.map((m) => ({
+      id: m,
+      full_name: m,
+      email: `${m}@x`,
+      is_premium: false,
+      submission_count: 0,
+      joined_at: "2026-01-01T00:00:00Z",
+    })),
+  });
+
+  it("counts a student in two groups once", () => {
+    const groups = [group("g1", 3), group("g2", 2)];
+    expect(distinctStudentCount(groups, [roster("g1", ["a", "b", "c"]), roster("g2", ["c", "d"])])).toBe(4);
+  });
+
+  it("falls back to a group's own count when its roster did not load", () => {
+    const groups = [group("g1", 2), group("g2", 5)];
+    expect(distinctStudentCount(groups, [roster("g1", ["a", "b"])])).toBe(7);
+  });
+});
+
+describe("apiErrorCode", () => {
+  it("reads the machine code from an ApiError body and nothing else", () => {
+    const err = Object.assign(new Error("due_at is in the past"), {
+      name: "ApiError",
+      status: 400,
+      detail: "due_at is in the past",
+      body: { detail: "due_at is in the past", code: "due_in_past" },
+    });
+    expect(apiErrorCode(err)).toBe("due_in_past");
+    expect(apiErrorCode(new Error("plain"))).toBeNull();
+    const uncoded = Object.assign(new Error("x"), { name: "ApiError", status: 400, detail: "x", body: { detail: "x" } });
+    expect(apiErrorCode(uncoded)).toBeNull();
+  });
+});
+
+describe("questionPatchArgs", () => {
+  it("sends only the changed fields, and passes a blank through (it clears)", () => {
+    expect(questionPatchArgs({ title: "Yangi" })).toEqual({ title: "Yangi" });
+    expect(questionPatchArgs({ modelAnswer: "", answerTimeLimitSec: 180 })).toEqual({
+      model_answer_text: "",
+      answer_time_limit_sec: 180,
+    });
+    expect(questionPatchArgs({})).toEqual({});
   });
 });

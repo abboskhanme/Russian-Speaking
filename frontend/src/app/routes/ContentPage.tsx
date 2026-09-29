@@ -3,22 +3,34 @@
  *
  *   • `GET /api/blocks`    → the Modullar tab
  *   • `GET /api/questions` → the Vazifalar tab
+ *   • `POST /api/blocks`   ← "+ Yaratish" on Modullar (a draft module, then its editor)
+ *   • `POST /api/questions` · `PATCH` · `DELETE /api/questions/{id}` ← the task editor
  *
  * "+ Yaratish" creates whatever the ACTIVE tab holds: on Modullar it POSTs a new
- * draft module and opens its editor; on Vazifalar it opens the editor of a
- * throwaway-free path — a task always belongs somewhere, so a bare task is
- * created from inside a module's editor instead (see ModuleEditorPage).
+ * draft module and opens its editor; on Vazifalar it opens the task sheet, where
+ * the teacher picks the module the task goes into (or none — a task does not have
+ * to belong to a module; an unattached one reaches students by assignment).
+ *
+ * Like the module editor, a refetch keeps the screen mounted — only the first load
+ * shows the full-page spinner — so the task editor survives its own saves.
  */
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { ContentScreen } from "../../screens/teacher";
-import type { ContentModule, ContentTabKey, ContentTask } from "../../screens/teacher";
+import type {
+  ContentModule,
+  ContentTabKey,
+  ContentTask,
+  NewTaskDraft,
+  TaskPatch,
+} from "../../screens/teacher";
 import { endpoints } from "../../shared/api";
 import type { TeacherBlockResponse, TeacherQuestionResponse } from "../../shared/api";
 import { PageError, PageLoading } from "../PageState";
 import { useTeacherNavHandler } from "../nav";
 import { useContentPanel } from "../contentPanel";
+import { createQuestionArgs, editableTaskFromQuestion, questionPatchArgs } from "../teacherAdapters";
 
 const TABS: ContentTabKey[] = ["modules", "tasks"];
 
@@ -40,13 +52,15 @@ export default function ContentPage() {
   const [blocks, setBlocks] = useState<TeacherBlockResponse[]>([]);
   const [questions, setQuestions] = useState<TeacherQuestionResponse[]>([]);
   const [queued, setQueued] = useState(0);
-  const [loading, setLoading] = useState(true);
+  const [loaded, setLoaded] = useState(false);
   const [failed, setFailed] = useState(false);
+  const [notice, setNotice] = useState<string | null>(null);
   const [reloadKey, setReloadKey] = useState(0);
+
+  const refetch = useCallback(() => setReloadKey((k) => k + 1), []);
 
   useEffect(() => {
     let alive = true;
-    setLoading(true);
     setFailed(false);
 
     Promise.allSettled([
@@ -64,7 +78,7 @@ export default function ContentPage() {
         setQuestions(q.status === "fulfilled" ? q.value : []);
         setQueued(r.status === "fulfilled" ? r.value.length : 0);
       })
-      .finally(() => alive && setLoading(false));
+      .finally(() => alive && setLoaded(true));
 
     return () => {
       alive = false;
@@ -84,18 +98,7 @@ export default function ContentPage() {
     [blocks],
   );
 
-  const tasks = useMemo<ContentTask[]>(
-    () =>
-      questions.map((q) => ({
-        id: q.id,
-        title: q.title,
-        prompt: q.prompt_text,
-        level: q.level ?? undefined,
-        moduleName: q.block_name ?? undefined,
-        published: q.is_published,
-      })),
-    [questions],
-  );
+  const tasks = useMemo<ContentTask[]>(() => questions.map(editableTaskFromQuestion), [questions]);
 
   const setTab = useCallback(
     (k: ContentTabKey) => {
@@ -110,13 +113,74 @@ export default function ContentPage() {
   /** Create a draft module and go straight to its editor — a module with no name
    * would be unidentifiable, so it is seeded with a localized placeholder the
    * teacher immediately renames in the field that has focus. */
-  const create = useCallback(async () => {
+  const createModule = useCallback(async () => {
     const created = await endpoints.createBlock({ name: t("teacher.newModule"), ...panel.createDefaults });
     navigate(`${panel.basePath}/${encodeURIComponent(created.id)}`);
   }, [navigate, t, panel]);
 
-  if (loading) return <PageLoading />;
-  if (failed) return <PageError onRetry={() => setReloadKey((k) => k + 1)} />;
+  const createTask = useCallback(
+    async (draft: NewTaskDraft) => {
+      setNotice(null);
+      const created = await endpoints.createQuestion(createQuestionArgs(draft, draft.moduleId ?? null));
+      // Same two-step as the module editor: the cover needs the new id. A failed
+      // upload leaves a saved task, which the notice says, rather than a "failed"
+      // that would invite a duplicate.
+      if (draft.media) {
+        try {
+          await endpoints.setQuestionMedia(created.id, draft.media);
+        } catch {
+          setNotice(t("teacher.mediaUploadFailed"));
+        }
+      }
+      refetch();
+    },
+    [refetch, t],
+  );
+
+  const updateTask = useCallback(
+    async (taskId: string, patch: TaskPatch) => {
+      await endpoints.updateQuestion(taskId, questionPatchArgs(patch));
+      refetch();
+    },
+    [refetch],
+  );
+
+  const toggleTaskPublished = useCallback(
+    async (taskId: string, next: boolean) => {
+      await endpoints.updateQuestion(taskId, { is_published: next });
+      refetch();
+    },
+    [refetch],
+  );
+
+  const deleteTask = useCallback(
+    async (taskId: string) => {
+      await endpoints.deleteQuestion(taskId);
+      refetch();
+    },
+    [refetch],
+  );
+
+  const setTaskMedia = useCallback(
+    async (taskId: string, file: File) => {
+      setNotice(null);
+      await endpoints.setQuestionMedia(taskId, file);
+      refetch();
+    },
+    [refetch],
+  );
+
+  const removeTaskMedia = useCallback(
+    async (taskId: string) => {
+      setNotice(null);
+      await endpoints.removeQuestionMedia(taskId);
+      refetch();
+    },
+    [refetch],
+  );
+
+  if (!loaded) return <PageLoading />;
+  if (failed) return <PageError onRetry={refetch} />;
 
   return (
     <ContentScreen
@@ -135,18 +199,17 @@ export default function ContentPage() {
             }
           : undefined
       }
-      modulesEmpty={panel.renderModulesEmpty?.(() => void create())}
+      modulesEmpty={panel.renderModulesEmpty?.(() => void createModule())}
       queuedCount={queued}
-      onCreate={() => void create()}
+      onCreate={() => void createModule()}
       onOpenModule={(id) => navigate(`${panel.basePath}/${encodeURIComponent(id)}`)}
-      // A task's home is its module; opening one from the flat list goes to the
-      // module editor when it has one, and otherwise there is nowhere better yet.
-      onOpenTask={(id) => {
-        const q = questions.find((x) => x.id === id);
-        if (q?.block_id) {
-          navigate(`${panel.basePath}/${encodeURIComponent(q.block_id)}`);
-        }
-      }}
+      onCreateTask={createTask}
+      onUpdateTask={updateTask}
+      onToggleTaskPublished={toggleTaskPublished}
+      onDeleteTask={deleteTask}
+      onSetTaskMedia={setTaskMedia}
+      onRemoveTaskMedia={removeTaskMedia}
+      notice={notice}
     />
   );
 }

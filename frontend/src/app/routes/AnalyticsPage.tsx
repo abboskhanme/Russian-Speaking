@@ -40,6 +40,7 @@ import type {
 } from "../../shared/api";
 import { PageError, PageLoading } from "../PageState";
 import { useTeacherNavHandler } from "../nav";
+import { errorRowsFromInsights } from "../teacherAdapters";
 
 const TABS: AnalyticsTabKey[] = ["insights", "grades"];
 
@@ -172,33 +173,13 @@ export default function AnalyticsPage() {
         };
       }),
       remediationMinStudents: insights.remediation_min_students ?? 0,
-      errors: insights.errors.map((e) => ({
-        type: e.type,
-        // An error type the frontend has not learned yet falls through to its raw
-        // key rather than to a blank row — the data stays visible either way.
-        label: t(`teacher.errorType.${e.type}`, { defaultValue: e.type }),
-        count: e.count,
-        studentCount: e.student_count,
-        share: e.share,
-        // The flag collapses into ONE signal the screen can act on: `undefined`
-        // when the feature does not exist here (no button at all), `null` when it
-        // exists but this row has nothing to drill (a disabled button with a
-        // reason). Passing the flag separately would let the two drift apart.
-        remediation: !insights.remediation_enabled
-          ? undefined
-          : e.remediation
-            ? {
-                questionId: e.remediation.question_id,
-                questionTitle: e.remediation.question_title,
-                questionTopic: e.remediation.question_topic,
-                questionLevel: e.remediation.question_level,
-                students: e.remediation.students.map((s) => ({
-                  id: s.id,
-                  fullName: s.full_name,
-                })),
-              }
-            : null,
-      })),
+      // An error type the frontend has not learned yet falls through to its raw
+      // key rather than to a blank row — the data stays visible either way. The
+      // mapping (incl. how the F6 flag collapses into `remediation`) is shared with
+      // A5's "Guruh xatolari" card, so the two can never describe a row differently.
+      errors: errorRowsFromInsights(insights, (type) =>
+        t(`teacher.errorType.${type}`, { defaultValue: type }),
+      ),
     };
   }, [insights, t]);
 

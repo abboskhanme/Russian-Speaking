@@ -14,8 +14,9 @@ namespace Govori.Drills;
 ///
 /// <para><b>Availability is a 200, not a status code.</b> The flag being off, no STT key and a spent
 /// daily budget all come back as a <see cref="DrillState"/> on a normal body, because the screen has
-/// to say something true about each. Only a pair that does not exist is a 404, and only a malformed
-/// request is a 400.</para>
+/// to say something true about each. Only a pair that does not exist is a 404, only a malformed
+/// request is a 400, and a missing or DEACTIVATED account is a 401 — checked against the database
+/// before the flag or a vendor, so suspending an account stops its spend at once.</para>
 /// </summary>
 public static class DrillEndpoints
 {
@@ -29,7 +30,8 @@ public static class DrillEndpoints
         {
             if (!TryGetUserId(principal, out var userId))
                 return Results.Unauthorized();
-            return Results.Ok(await svc.CatalogAsync(userId, ct));
+            var (status, body) = await svc.CatalogAsync(userId, ct);
+            return status == DrillStatus.Unauthorized ? Results.Unauthorized() : Results.Ok(body);
         }).RequireAuthorization();
 
         // POST /api/drills/attempts — one spoken word (multipart: audio, pair_slug, target_word).
@@ -64,6 +66,7 @@ public static class DrillEndpoints
 
             return status switch
             {
+                DrillStatus.Unauthorized => Results.Unauthorized(),
                 DrillStatus.NotFound => Detail("Pair not found", StatusCodes.Status404NotFound),
                 DrillStatus.BadRequest => Detail(
                     "pair_slug and a target_word from that pair are required, and the recording must "
