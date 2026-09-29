@@ -90,7 +90,9 @@ public sealed record DailyStepResponse(
 /// deploy ≠ release), not an error. Callers hide the entry point.</para>
 /// </summary>
 /// <param name="Day">The student's local day, <c>yyyy-MM-dd</c>. The session is stable for it.</param>
-/// <param name="Streak">The student's current streak, so the card can show 🔥 without a second call.</param>
+/// <param name="Streak">The student's current streak, so the card can show 🔥 without a second call.
+/// The EFFECTIVE streak (<see cref="StreakRules.Effective"/>, UTC day): 0 once the missed days
+/// outrun the student's freezes, even though the stored column only resets on their next practice.</param>
 /// <param name="Completed">True when every step the server can observe is already done today.
 /// A session whose only step is the warm-up is never "completed" — nothing observable was asked.</param>
 /// <param name="Steps">The steps in the order they are meant to be done. 1–3 of them; never empty

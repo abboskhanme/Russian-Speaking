@@ -9,7 +9,9 @@ namespace Govori.Contracts;
 //
 // NO SCHEMA CHANGE (docs/07 §7.4 rule 3): every field is COMPUTED from columns that already exist —
 // Evaluation.{FluencyScore,PronunciationScore,LexicalScore,GrammarScore,OverallBand},
-// Submission.{StudentId,CreatedAt}, User.{Xp,CurrentStreak} and XpEvent.{StudentId,Amount,CreatedAt}.
+// Submission.{StudentId,CreatedAt}, User.{Xp,CurrentStreak,LastPracticeDate,StreakFreezes} (the last
+// three only through StreakRules.Effective — the streak reported is the one alive TODAY) and
+// XpEvent.{StudentId,Amount,CreatedAt}.
 // There is no stored `level` column: Level/LevelLabel derive from the student's average
 // Evaluation.OverallBand through the shared <see cref="CefrScale"/> (never duplicated here).
 //

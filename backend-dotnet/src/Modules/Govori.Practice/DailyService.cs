@@ -147,7 +147,11 @@ public sealed class DailyService
 
         return new DailySessionResponse(
             Day: localDay.ToString("yyyy-MM-dd"),
-            Streak: user.CurrentStreak,
+            // The streak as it stands today — and today in UTC, NOT the student's local day used
+            // above: the streak's writer counts UTC days (S6), and judging "did they miss a day" on a
+            // different calendar than the one that recorded it would disagree with it twice a day.
+            Streak: StreakRules.Effective(
+                user.CurrentStreak, user.LastPracticeDate, user.StreakFreezes, StreakRules.Today()),
             Completed: completed,
             Steps: steps);
     }
@@ -272,8 +276,10 @@ public sealed class DailyService
         Guid userId, DateTime dayStartUtc, DateTime dayEndUtc, CancellationToken ct)
     {
         // `UpdatedAt > CreatedAt` is what tells an ANSWERED review apart from a freshly enqueued
-        // one. Only AnswerReviewAsync moves UpdatedAt; the grader's re-scheduling completes prior
-        // items without touching it, so grading a task during the session cannot fake a drill.
+        // one. Only AnswerReviewAsync moves UpdatedAt. The grader's re-scheduling — every answered,
+        // graded attempt runs Engagement's ScheduleReviewAsync from the grading job — completes the
+        // question's prior items without touching UpdatedAt and inserts new ones with
+        // UpdatedAt == CreatedAt, so grading a task during the session cannot fake a drill.
         var answeredToday = await _db.ReviewItems
             .AsNoTracking()
             .AnyAsync(r => r.StudentId == userId

@@ -597,7 +597,10 @@ public sealed class CatalogService
         Guid userId, Guid questionId, Stream content, string? contentType, long length,
         CancellationToken ct = default)
     {
-        if (contentType is null || !MediaTypes.TryGetValue(contentType.Split(';')[0].Trim(), out var ext))
+        // Checked and stored as the BARE media type, so `video/webm;codecs=vp9` passes the allow-list
+        // exactly like `video/webm` and never reaches storage with parameters (see ContentTypes).
+        var mediaType = ContentTypes.Essence(contentType);
+        if (!MediaTypes.TryGetValue(mediaType, out var ext))
             return CatalogResult<TeacherQuestionResponse>.BadRequest(
                 "Faqat rasm (JPEG/PNG/WebP) yoki video (MP4/WebM) yuklash mumkin");
         if (length <= 0)
@@ -616,7 +619,7 @@ public sealed class CatalogService
 
         var oldKey = q.MediaKey;
         var newKey = _storage.NewKey("questions", ext);
-        await _storage.PutAsync(newKey, content, contentType, ct);
+        await _storage.PutAsync(newKey, content, mediaType, ct);
 
         q.MediaKey = newKey;
         q.UpdatedAt = DateTime.UtcNow;

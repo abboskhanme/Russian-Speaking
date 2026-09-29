@@ -9,7 +9,9 @@ namespace Govori.Contracts;
 ///
 /// <para><c>Status</c> is the lowercase PG enum label ("pending"/"processing"/"done"/"failed") —
 /// stringified in the service the same way Catalog stringifies <c>question_type</c>, so it never
-/// serializes as an int.</para>
+/// serializes as an int. On a <c>failed</c> attempt <c>ErrorMessage</c> is a
+/// <see cref="SubmissionErrorCodes">machine code</see> for the client to translate, not text to
+/// display; rows that failed before the codes existed may still hold free text.</para>
 ///
 /// <para><c>AudioUrl</c> is a presigned GET URL minted via <c>Govori.Platform.Storage</c>. The
 /// DENORMALIZED <c>student_name</c>/<c>question_*</c> labels are not columns on the submission —

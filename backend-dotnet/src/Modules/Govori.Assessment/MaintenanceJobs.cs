@@ -1,3 +1,4 @@
+using Govori.Contracts;
 using Govori.Infrastructure;
 using Govori.Infrastructure.Entities;
 using Govori.Platform.Storage;
@@ -61,8 +62,11 @@ public sealed class MaintenanceJobs
     /// <summary>
     /// Recover submissions a worker never finished: stuck in <c>processing</c>
     /// for &gt;15 min (worker crashed mid-task) or in <c>pending</c> for &gt;20 min (task lost before
-    /// pickup) → <c>failed</c> with a friendly message. Without this, such an attempt would spin
-    /// forever in the student's UI. Returns the number recovered.
+    /// pickup, or deferred because no AI provider was configured) → <c>failed</c> with the
+    /// <see cref="SubmissionErrorCodes.GradingTimeout"/> code, which the client turns
+    /// into a message in the student's language (it used to store an English sentence the UI printed
+    /// verbatim). Without this, such an attempt would spin forever in the student's UI. Returns the
+    /// number recovered.
     /// </summary>
     public async Task<int> FailStuckSubmissionsAsync(CancellationToken ct = default)
     {
@@ -80,7 +84,7 @@ public sealed class MaintenanceJobs
                      || (s.Status == SubmissionStatus.Pending && s.UpdatedAt < pendingCutoff))
             .ExecuteUpdateAsync(set => set
                 .SetProperty(s => s.Status, SubmissionStatus.Failed)
-                .SetProperty(s => s.ErrorMessage, "Processing timed out — please try again.")
+                .SetProperty(s => s.ErrorMessage, SubmissionErrorCodes.GradingTimeout)
                 .SetProperty(s => s.UpdatedAt, now), ct);
 
         if (recovered > 0)

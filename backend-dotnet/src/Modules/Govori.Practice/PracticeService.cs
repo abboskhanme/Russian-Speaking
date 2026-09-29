@@ -42,7 +42,10 @@ public sealed class PracticeService
         _grading = grading;
     }
 
-    // Storage-key extension for a recorded answer's content type; anything unknown → "webm".
+    // Storage-key extension for a recorded answer's content type; anything unknown → "webm". The
+    // input is already the bare media type (see SubmitAsync): browsers send MediaRecorder's
+    // `audio/ogg;codecs=opus` and friends, which would otherwise all miss these arms and be keyed
+    // as .webm.
     private static string ExtForContentType(string? contentType) => contentType switch
     {
         "audio/webm" => "webm",
@@ -119,9 +122,12 @@ public sealed class PracticeService
         }
 
         // Store the audio only once the gates have passed, under the "answers" key prefix.
-        // A gated student never reaches this line.
-        var key = _storage.NewKey("answers", ExtForContentType(audio.ContentType));
-        await _storage.PutAsync(key, audio.Content, audio.ContentType, ct);
+        // A gated student never reaches this line. The bare media type drives both the key's
+        // extension and the stored object's type, so `audio/webm;codecs=opus` (Chrome/Android) and
+        // `audio/webm` land identically.
+        var contentType = ContentTypes.Essence(audio.ContentType);
+        var key = _storage.NewKey("answers", ExtForContentType(contentType));
+        await _storage.PutAsync(key, audio.Content, contentType, ct);
 
         var submission = new Submission
         {
@@ -138,10 +144,10 @@ public sealed class PracticeService
         _db.Submissions.Add(submission);
         await _db.SaveChangesAsync(ct);
 
-        // Hand the new attempt to the grading pipeline (Faza 3.4). The default in-process queue
-        // runs the STT + analysis pipeline in its OWN scope, and short-circuits (leaving the
-        // attempt pending) until real STT/Grader providers are wired — so submit stays fast.
-        // TODO(Hangfire, Faza 3.9): swap in the durable background queue so grading is off-request.
+        // Hand the new attempt to the grading pipeline. In production this only ENQUEUES a durable
+        // Hangfire job (HangfireGradingQueue) that the Worker grades off-request, so submit returns
+        // at once; with GOVORI_HANGFIRE=false the in-process queue grades right here instead, which
+        // is what the integration suites use to assert results inline.
         await _grading.EnqueueAsync(submission.Id, ct);
 
         var response = await ToResponseAsync(submission, student, question, ct);
