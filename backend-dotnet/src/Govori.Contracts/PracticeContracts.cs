@@ -128,18 +128,83 @@ public sealed record TranscriptWordResponse(
 /// <summary>
 /// Body of PATCH /api/submissions/{id}/review — a teacher's manual verdict on one attempt.
 ///
-/// <para>Both fields are optional so the two real gestures are expressible: "confirm the AI's score
-/// but add a note" (comment only) and "override the score" (band only). Sending neither is a
-/// 400 — an empty review would still stamp <c>ReviewedAt</c> and silently clear the queue row
-/// without recording any decision.</para>
+/// <para><b>Every field is a three-way switch, and the three ways are explicit.</b> A key that is
+/// ABSENT leaves the stored value alone; a key sent as <c>null</c> CLEARS it (a cleared
+/// <c>teacher_band</c> hands the grade back to the AI's; a cleared comment removes the note); a value
+/// sets it. A blank <c>teacher_comment</c> also clears, as it always has. Before this, <c>null</c>
+/// and absent were the same thing on the wire, so an override could never be withdrawn.</para>
+///
+/// <para><b><c>confirm: true</c> is the "✓ Tasdiqlash" gesture</b> — "I accept the AI's score".
+/// It stamps the review without touching the band, and a <c>teacher_comment</c> sent with it is
+/// written ONLY when the attempt has no comment yet. That is the fix for the review leak: the
+/// confirm button used to send its canned note as an ordinary comment, which overwrote whatever the
+/// teacher had actually written while the teacher's band stayed — a stored verdict that
+/// contradicted itself. <c>confirm</c> together with a <c>teacher_band</c> key is a 400
+/// <c>confirm_with_band</c>: accepting the AI's number and replacing it in one request is not a
+/// decision the server can record.</para>
+///
+/// <para>A body that changes nothing — no <c>teacher_band</c>, no <c>teacher_comment</c>, no
+/// <c>confirm: true</c> — is a 400 <c>empty_review</c>: it would still stamp <c>ReviewedAt</c> and
+/// silently clear the queue row without recording any decision. A band outside 0..100 is a 400
+/// <c>band_out_of_range</c>.</para>
 ///
 /// <para><b>Only ONE band.</b> The mockup's B3 screen has three per-criterion sliders, but
 /// <c>submissions</c> carries a single <c>teacher_band</c>. Making the criteria individually
 /// overridable needs three more columns plus a rule for how they roll up into the overall band,
 /// so this endpoint deliberately writes the one field that exists rather than inventing storage.</para>
+///
+/// <para>Backward compatible: every body the client sends today (<c>{teacher_band}</c>,
+/// <c>{teacher_comment}</c>, both) means exactly what it meant. Presence is tracked through the init
+/// accessors (System.Text.Json only calls them for keys present in the body), which is why this is
+/// no longer a positional record.</para>
 /// </summary>
-public sealed record ReviewSubmissionRequest(
-    /// <summary>Teacher's overall band 0..100. Rejected outside that range.</summary>
-    double? TeacherBand,
-    /// <summary>"Izoh o'quvchiga" — free text shown to the student. Blank clears it.</summary>
-    string? TeacherComment);
+public sealed record ReviewSubmissionRequest
+{
+    private readonly double? _teacherBand;
+    private readonly string? _teacherComment;
+
+    /// <summary>Teacher's overall band 0..100. Absent = unchanged, <c>null</c> = withdraw the
+    /// override. Rejected outside the range.</summary>
+    public double? TeacherBand
+    {
+        get => _teacherBand;
+        init { _teacherBand = value; HasTeacherBand = true; }
+    }
+
+    /// <summary>"Izoh o'quvchiga" — free text shown to the student. Absent = unchanged,
+    /// <c>null</c> or blank = clear.</summary>
+    public string? TeacherComment
+    {
+        get => _teacherComment;
+        init { _teacherComment = value; HasTeacherComment = true; }
+    }
+
+    /// <summary>"✓ Tasdiqlash" — accept the AI's score. Never overwrites an existing comment.</summary>
+    public bool? Confirm { get; init; }
+
+    /// <summary>Whether <c>teacher_band</c> was in the body (explicit <c>null</c> included).
+    /// Server-side only — never on the wire.</summary>
+    [System.Text.Json.Serialization.JsonIgnore]
+    public bool HasTeacherBand { get; private init; }
+
+    /// <summary>Whether <c>teacher_comment</c> was in the body (explicit <c>null</c> included).
+    /// Server-side only — never on the wire.</summary>
+    [System.Text.Json.Serialization.JsonIgnore]
+    public bool HasTeacherComment { get; private init; }
+}
+
+/// <summary>
+/// The <c>code</c> values PATCH /api/submissions/{id}/review puts in a
+/// <see cref="CodedErrorResponse"/> (all 400s). Wire contract: renaming one is a breaking change.
+/// </summary>
+public static class ReviewErrorCodes
+{
+    /// <summary>No <c>teacher_band</c>, no <c>teacher_comment</c>, no <c>confirm: true</c>.</summary>
+    public const string EmptyReview = "empty_review";
+
+    /// <summary><c>confirm</c> sent together with a <c>teacher_band</c> key.</summary>
+    public const string ConfirmWithBand = "confirm_with_band";
+
+    /// <summary><c>teacher_band</c> outside 0..100.</summary>
+    public const string BandOutOfRange = "band_out_of_range";
+}

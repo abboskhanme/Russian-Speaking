@@ -16,6 +16,7 @@ namespace Govori.Contracts;
 
 /// <summary>
 /// The <c>{ "detail": ..., "code": ... }</c> error body. <c>Code</c> is one of the constants in
-/// <see cref="AdminErrorCodes"/> or <see cref="CatalogErrorCodes"/>; <c>Detail</c> is display text.
+/// <see cref="AdminErrorCodes"/>, <see cref="CatalogErrorCodes"/>, <see cref="ClassroomErrorCodes"/>
+/// or <see cref="ReviewErrorCodes"/>; <c>Detail</c> is display text.
 /// </summary>
 public sealed record CodedErrorResponse(string Detail, string Code);

@@ -17,9 +17,9 @@ namespace Govori.Classroom;
 /// decisions live in the service. Error bodies use the <c>{ "detail": ... }</c> shape used across the
 /// API.</para>
 ///
-/// <para>Path note: these routes are <c>/api/groups</c>, <c>/api/assignments</c> and
-/// <c>/api/reports/gradebook</c> — no <c>/v1</c> segment, matching the sibling modules'
-/// <c>/api/…</c> convention (reconciled at the gateway during cutover).</para>
+/// <para>Path note: these routes are <c>/api/groups</c>, <c>/api/assignments</c>,
+/// <c>/api/reports/…</c> and <c>/api/classroom/students</c> — no <c>/v1</c> segment, matching the
+/// sibling modules' <c>/api/…</c> convention (reconciled at the gateway during cutover).</para>
 /// </summary>
 public static class ClassroomEndpoints
 {
@@ -28,6 +28,7 @@ public static class ClassroomEndpoints
         MapGroups(app);
         MapAssignments(app);
         MapReports(app);
+        MapStudents(app);
         return app;
     }
 
@@ -123,13 +124,54 @@ public static class ClassroomEndpoints
             var r = await svc.GroupDetailAsync(userId, id, ct);
             return Map(r, StatusCodes.Status200OK, notFound: "Group not found", forbidden: "Teacher role required");
         }).RequireAuthorization();
+
+        // ── Owner management. Same rule on every route: 401 anonymous/inactive, 403 student,
+        // 404 for a group the caller does not own (never 403 — ids cannot be probed), admin any. ──
+
+        // PATCH /api/groups/{id} { name?, level? } → 200 GroupResponse. 400 { detail, code }:
+        // name_required / name_too_long / level_not_supported.
+        groups.MapPatch("/{id:guid}", async (Guid id, UpdateGroupRequest body, ClaimsPrincipal principal, ClassroomService svc, CancellationToken ct) =>
+        {
+            if (!TryGetUserId(principal, out var userId)) return Results.Unauthorized();
+            var r = await svc.UpdateGroupAsync(userId, id, body, ct);
+            return Map(r, StatusCodes.Status200OK, notFound: "Group not found", forbidden: "Teacher role required");
+        }).RequireAuthorization();
+
+        // POST /api/groups/{id}/regenerate-code → 200 GroupResponse carrying the NEW join code; the
+        // old one stops working immediately.
+        groups.MapPost("/{id:guid}/regenerate-code", async (Guid id, ClaimsPrincipal principal, ClassroomService svc, CancellationToken ct) =>
+        {
+            if (!TryGetUserId(principal, out var userId)) return Results.Unauthorized();
+            var r = await svc.RegenerateCodeAsync(userId, id, ct);
+            return Map(r, StatusCodes.Status200OK, notFound: "Group not found", forbidden: "Teacher role required");
+        }).RequireAuthorization();
+
+        // DELETE /api/groups/{id}/members/{studentId} → 204. 404 also when the student is not a
+        // member. Their answers stay; their unanswered assignments from this group go.
+        groups.MapDelete("/{id:guid}/members/{studentId:guid}", async (Guid id, Guid studentId, ClaimsPrincipal principal, ClassroomService svc, CancellationToken ct) =>
+        {
+            if (!TryGetUserId(principal, out var userId)) return Results.Unauthorized();
+            var outcome = await svc.RemoveMemberAsync(userId, id, studentId, ct);
+            return MapNoContent(outcome, notFound: "Member not found", forbidden: "Teacher role required");
+        }).RequireAuthorization();
+
+        // DELETE /api/groups/{id} → 204. Memberships, join requests and unanswered assignments go;
+        // submissions, grades and answered assignments survive (see DeleteGroupAsync).
+        groups.MapDelete("/{id:guid}", async (Guid id, ClaimsPrincipal principal, ClassroomService svc, CancellationToken ct) =>
+        {
+            if (!TryGetUserId(principal, out var userId)) return Results.Unauthorized();
+            var outcome = await svc.DeleteGroupAsync(userId, id, ct);
+            return MapNoContent(outcome, notFound: "Group not found", forbidden: "Teacher role required");
+        }).RequireAuthorization();
     }
 
     private static void MapAssignments(IEndpointRouteBuilder app)
     {
         var assignments = app.MapGroup("/api/assignments");
 
-        // POST /api/assignments — assign a task to students/a group → 201 (S1 roster fix in service).
+        // POST /api/assignments — assign a task to students/a group → 201 listing only the rows
+        // created (students who still owe the task are skipped). S1 roster fix in the service.
+        // 404 missing/deleted/not-theirs; 400 { detail, code: "question_not_published" }.
         assignments.MapPost("", async (CreateAssignmentRequest body, ClaimsPrincipal principal, ClassroomService svc, CancellationToken ct) =>
         {
             if (!TryGetUserId(principal, out var userId)) return Results.Unauthorized();
@@ -161,6 +203,34 @@ public static class ClassroomEndpoints
             var r = await svc.ListAssignmentsTeacherAsync(userId, ct);
             return Map(r, StatusCodes.Status200OK, forbidden: "Teacher role required");
         }).RequireAuthorization();
+
+        // ── Taking work back / moving deadlines: 401 anonymous/inactive, 403 student, 404 for an
+        // assignment or group that is not the caller's (never 403), admin any. ──
+
+        // DELETE /api/assignments/{id} → 204. The student's answers and grades survive.
+        assignments.MapDelete("/{id:guid}", async (Guid id, ClaimsPrincipal principal, ClassroomService svc, CancellationToken ct) =>
+        {
+            if (!TryGetUserId(principal, out var userId)) return Results.Unauthorized();
+            var outcome = await svc.DeleteAssignmentAsync(userId, id, ct);
+            return MapNoContent(outcome, notFound: "Assignment not found", forbidden: "Teacher role required");
+        }).RequireAuthorization();
+
+        // POST /api/assignments/cancel { question_id, group_id } → 200 { cancelled }. Idempotent.
+        assignments.MapPost("/cancel", async (CancelGroupAssignmentsRequest body, ClaimsPrincipal principal, ClassroomService svc, CancellationToken ct) =>
+        {
+            if (!TryGetUserId(principal, out var userId)) return Results.Unauthorized();
+            var r = await svc.CancelGroupAssignmentsAsync(userId, body, ct);
+            return Map(r, StatusCodes.Status200OK, notFound: "Group not found", forbidden: "Teacher role required");
+        }).RequireAuthorization();
+
+        // PATCH /api/assignments/group { question_id, group_id, due_at } → 200 { updated }.
+        // due_at: ISO-8601 or null (no deadline); absent → 400 due_at_required, past → 400 due_in_past.
+        assignments.MapPatch("/group", async (UpdateGroupAssignmentsRequest body, ClaimsPrincipal principal, ClassroomService svc, CancellationToken ct) =>
+        {
+            if (!TryGetUserId(principal, out var userId)) return Results.Unauthorized();
+            var r = await svc.UpdateGroupAssignmentsDueAsync(userId, body, ct);
+            return Map(r, StatusCodes.Status200OK, notFound: "Group not found", forbidden: "Teacher role required");
+        }).RequireAuthorization();
     }
 
     private static void MapReports(IEndpointRouteBuilder app)
@@ -186,6 +256,31 @@ public static class ClassroomEndpoints
         }).RequireAuthorization();
     }
 
+    private static void MapStudents(IEndpointRouteBuilder app)
+    {
+        // /api/classroom/students — one roster student, as their teacher sees them. A teacher reaches
+        // only a student in one of their own groups (404 otherwise — never 403); admin any student;
+        // a student caller 403; anonymous 401.
+        var students = app.MapGroup("/api/classroom/students");
+
+        // GET /api/classroom/students/{id} → 200 ClassroomStudentResponse (the A6 header).
+        students.MapGet("/{id:guid}", async (Guid id, ClaimsPrincipal principal, ClassroomService svc, CancellationToken ct) =>
+        {
+            if (!TryGetUserId(principal, out var userId)) return Results.Unauthorized();
+            var r = await svc.StudentAsync(userId, id, ct);
+            return Map(r, StatusCodes.Status200OK, notFound: "Student not found", forbidden: "Teacher role required");
+        }).RequireAuthorization();
+
+        // PATCH /api/classroom/students/{id}/premium { is_premium } → 200 { id, is_premium, has_premium }.
+        // 400 is_premium_required when the field is missing.
+        students.MapPatch("/{id:guid}/premium", async (Guid id, SetStudentPremiumRequest body, ClaimsPrincipal principal, ClassroomService svc, CancellationToken ct) =>
+        {
+            if (!TryGetUserId(principal, out var userId)) return Results.Unauthorized();
+            var r = await svc.SetStudentPremiumAsync(userId, id, body, ct);
+            return Map(r, StatusCodes.Status200OK, notFound: "Student not found", forbidden: "Teacher role required");
+        }).RequireAuthorization();
+    }
+
     // A valid *access* token carrying a parseable `sub`; a refresh token is deliberately rejected
     // here. role/is_active are read from the DB in the service, never trusted from the token.
     private static bool TryGetUserId(ClaimsPrincipal principal, out Guid userId)
@@ -204,7 +299,12 @@ public static class ClassroomEndpoints
             ClassroomOutcome.Unauthorized => Results.Unauthorized(),
             ClassroomOutcome.Forbidden => Detail(forbidden ?? "Forbidden", StatusCodes.Status403Forbidden),
             ClassroomOutcome.NotFound => Detail(notFound ?? "Not found", StatusCodes.Status404NotFound),
-            ClassroomOutcome.BadRequest => Detail(r.Detail ?? "Bad request", StatusCodes.Status400BadRequest),
+            // A CodedErrorResponse { detail, code } when the service named a ClassroomErrorCodes
+            // value; the older 400s have none and keep their exact { detail } body.
+            ClassroomOutcome.BadRequest => r.Code is null
+                ? Detail(r.Detail ?? "Bad request", StatusCodes.Status400BadRequest)
+                : Results.Json(new CodedErrorResponse(r.Detail ?? "Bad request", r.Code),
+                    statusCode: StatusCodes.Status400BadRequest),
             _ => Results.StatusCode(StatusCodes.Status500InternalServerError),
         };
 

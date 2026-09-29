@@ -12,10 +12,21 @@ namespace Govori.Classroom;
 /// Application service for the Classroom vertical slice (docs/07 §3.5, Faza 3.5) — teacher groups,
 /// assignments and the gradebook. Its responsibilities:
 /// <list type="bullet">
-///   <item>groups: create / join / leave / mine / list / detail-with-roster;</item>
-///   <item>assignments: single-task and whole-module creation, plus the teacher and student lists;</item>
-///   <item>gradebook: choosing which submissions a viewer may see, then one scored row per student.</item>
+///   <item>groups: create / join / leave / mine / list / detail-with-roster, and the owner's
+///     management — rename, fresh join code, remove one member, delete the group;</item>
+///   <item>assignments: single-task and whole-module creation, the teacher and student lists, and
+///     taking work back (one row, or one task across a group) or moving a group's deadline;</item>
+///   <item>gradebook: choosing which submissions a viewer may see (<see cref="TeacherScope"/>),
+///     then one scored row per student;</item>
+///   <item>the teacher's view of one roster student — the A6 header and the premium grant.</item>
 /// </list>
+///
+/// <para><b>Removing things never removes student history.</b> Submissions, their evaluations and
+/// XP are the student's record and survive every delete here. Only rows that describe an
+/// arrangement — a membership, a pending request, an assignment nobody has answered — go, and an
+/// answer's <c>assignment_id</c> is nulled before its assignment row is removed (the FK is
+/// <c>ON DELETE SET NULL</c> already; nulling first keeps that guarantee in code, not only in a
+/// constraint someone could change).</para>
 ///
 /// <para><b>S1 SECURITY FIX (docs/07 §7.8, docs/08 Faza 3.5).</b> Both assignment-creation paths
 /// (<see cref="CreateAssignmentsAsync"/> / <see cref="CreateModuleAssignmentsAsync"/>) resolve their
@@ -29,25 +40,30 @@ namespace Govori.Classroom;
 /// accept any active user (401 if missing/inactive). role/is_active are read from the DB, never
 /// trusted from the token — the endpoint only supplies the <c>sub</c>.</para>
 ///
-/// <para>Deferred (documented, not silently dropped): teacher/student NOTIFICATIONS on join/assign
-/// (the notifications module is not wired into this slice — they are side effects that would ride on
-/// the same transaction, not part of the core write); and the many non-core group endpoints
-/// (overview, add/remove member, regenerate, rename, delete, task due/delete, admin
-/// (re)assign-teacher) + CSV/analytics — out of this slice's scope.</para>
+/// <para><b>Notifications</b> (<see cref="IClassroomNotifier"/>, implemented in Engagement): a join
+/// request pings the group's teacher, a decision pings the student, new assignments ping each
+/// student once per action. They are sent AFTER the write commits and are best-effort — a ping that
+/// fails never fails the action it reports.</para>
+///
+/// <para>Still deferred (documented, not silently dropped): the admin (re)assign-teacher routes and a
+/// group overview endpoint.</para>
 /// </summary>
 public sealed class ClassroomService
 {
     private readonly GovoriDbContext _db;
     private readonly IConfiguration? _config;
+    private readonly IClassroomNotifier _notifier;
 
-    // The configuration is OPTIONAL (nullable, default null) so every test that constructs this
-    // service directly — `new ClassroomService(ctx)` — keeps compiling; DI supplies it in the host.
-    // It carries only the env-var half of the class-insights feature flag
-    // (see ClassInsightsEnabledAsync); nothing else in this service reads configuration.
-    public ClassroomService(GovoriDbContext db, IConfiguration? config = null)
+    // Both extras are OPTIONAL (default null) so every test that constructs this service directly —
+    // `new ClassroomService(ctx)` — keeps compiling; DI supplies them in the host. The configuration
+    // carries only the env-var half of the class-insights feature flag (see
+    // ClassInsightsEnabledAsync); the notifier falls back to a no-op.
+    public ClassroomService(
+        GovoriDbContext db, IConfiguration? config = null, IClassroomNotifier? notifier = null)
     {
         _db = db;
         _config = config;
+        _notifier = notifier ?? new NullClassroomNotifier();
     }
 
     // Unambiguous join-code alphabet — no 0/O/1/I, so a code read aloud cannot be mistyped.
@@ -111,7 +127,7 @@ public sealed class ClassroomService
         if (!pendingAlready)                                                   // idempotent: re-asking is a no-op
         {
             var now = DateTime.UtcNow;
-            _db.GroupJoinRequests.Add(new GroupJoinRequest
+            var request = new GroupJoinRequest
             {
                 Id = Guid.NewGuid(),
                 GroupId = group.Id,
@@ -119,9 +135,12 @@ public sealed class ClassroomService
                 Status = GroupJoinRequest.StatusPending,
                 CreatedAt = now,
                 UpdatedAt = now,
-            });
-            // (Deferred) notifying the group's teacher — the notifications module is not wired in here.
+            };
+            _db.GroupJoinRequests.Add(request);
             await _db.SaveChangesAsync(ct);
+
+            // Only a NEW request pings the teacher; re-asking while one waits is not news.
+            await _notifier.SendBestEffortAsync(n => n.JoinRequestFiledAsync(request.Id, ct), ct);
         }
         return ClassroomResult<JoinGroupResponse>.Ok(await JoinOutAsync(group, pending: true, ct));
     }
@@ -214,6 +233,10 @@ public sealed class ClassroomService
         }
 
         await _db.SaveChangesAsync(ct);
+
+        // The student learns the answer either way (join_approved / join_rejected) — silence after
+        // a rejection reads as "still waiting", indefinitely.
+        await _notifier.SendBestEffortAsync(n => n.JoinRequestDecidedAsync(request.Id, ct), ct);
         return ClassroomOutcome.Ok;
     }
 
@@ -377,11 +400,174 @@ public sealed class ClassroomService
             Members: members));
     }
 
+    // ─── Group management (owner / admin) ───────────────────────────────────
+    // Every route here resolves the group through OwnedGroupAsync: a teacher who does not own it
+    // gets NotFound — never Forbidden — exactly like GroupDetailAsync, so a group id cannot be
+    // probed. A student is Forbidden before any lookup.
+
+    /// <summary>Longest group name the column holds (<c>groups.name varchar(128)</c>).</summary>
+    private const int GroupNameMax = 128;
+
+    /// <summary>
+    /// PATCH /groups/{id} — rename. See <see cref="UpdateGroupRequest"/> for the field rules: an
+    /// absent name is left alone, a blank one is <c>name_required</c>, an over-long one
+    /// <c>name_too_long</c>, and any <c>level</c> is <c>level_not_supported</c> (no column holds
+    /// it). Validation runs before the ownership lookup, so a refused body costs no query and says
+    /// nothing about whether the group exists.
+    /// </summary>
+    public async Task<ClassroomResult<GroupResponse>> UpdateGroupAsync(
+        Guid userId, Guid groupId, UpdateGroupRequest payload, CancellationToken ct = default)
+    {
+        var user = await ActiveUserAsync(userId, ct);
+        if (user is null) return ClassroomResult<GroupResponse>.Unauthorized();
+        if (!IsTeacher(user)) return ClassroomResult<GroupResponse>.Forbidden();
+
+        if (payload.Level is not null)
+            return ClassroomResult<GroupResponse>.BadRequest(
+                "A group has no stored level — its CEFR badge is derived from its students' scores",
+                ClassroomErrorCodes.LevelNotSupported);
+
+        string? name = null;
+        if (payload.Name is not null)
+        {
+            name = payload.Name.Trim();
+            if (name.Length == 0)
+                return ClassroomResult<GroupResponse>.BadRequest("name must not be blank", ClassroomErrorCodes.NameRequired);
+            if (name.Length > GroupNameMax)
+                return ClassroomResult<GroupResponse>.BadRequest(
+                    $"name must be at most {GroupNameMax} characters", ClassroomErrorCodes.NameTooLong);
+        }
+
+        var group = await OwnedGroupAsync(user, groupId, ct);
+        if (group is null) return ClassroomResult<GroupResponse>.NotFound();
+
+        if (name is not null && name != group.Name)
+        {
+            group.Name = name;
+            group.UpdatedAt = DateTime.UtcNow;
+            await _db.SaveChangesAsync(ct);
+        }
+        return ClassroomResult<GroupResponse>.Ok(await GroupOutAsync(group, ct));
+    }
+
+    /// <summary>
+    /// POST /groups/{id}/regenerate-code — replace the join code, e.g. after it leaked into the wrong
+    /// chat. The old code stops working at once; members and PENDING requests are untouched (a
+    /// request belongs to the group, not to the code it was filed with). Minted by the same
+    /// <see cref="GenerateCodeAsync"/> creation uses, whose uniqueness check covers this group's own
+    /// current code, so the new code is always a different one.
+    /// </summary>
+    public async Task<ClassroomResult<GroupResponse>> RegenerateCodeAsync(
+        Guid userId, Guid groupId, CancellationToken ct = default)
+    {
+        var user = await ActiveUserAsync(userId, ct);
+        if (user is null) return ClassroomResult<GroupResponse>.Unauthorized();
+        if (!IsTeacher(user)) return ClassroomResult<GroupResponse>.Forbidden();
+
+        var group = await OwnedGroupAsync(user, groupId, ct);
+        if (group is null) return ClassroomResult<GroupResponse>.NotFound();
+
+        group.JoinCode = await GenerateCodeAsync(ct);
+        group.UpdatedAt = DateTime.UtcNow;
+        await _db.SaveChangesAsync(ct);
+        return ClassroomResult<GroupResponse>.Ok(await GroupOutAsync(group, ct));
+    }
+
+    /// <summary>
+    /// DELETE /groups/{id}/members/{studentId} — take one student out of the group. NotFound when
+    /// the group is not the caller's OR the student is not a member of it.
+    ///
+    /// <para>Removed in one transaction: the membership, and that student's UNANSWERED assignments
+    /// that came from this group (<see cref="Unanswered"/> — overdue ones too: an obligation to a
+    /// class you are no longer in is not history, it is clutter). Everything the student actually
+    /// did stays — their submissions and grades, and every assignment they answered, which is the
+    /// record of that work. Assignments given to them individually (not through this group) are not
+    /// this group's to remove.</para>
+    /// </summary>
+    public async Task<ClassroomOutcome> RemoveMemberAsync(
+        Guid userId, Guid groupId, Guid studentId, CancellationToken ct = default)
+    {
+        var user = await ActiveUserAsync(userId, ct);
+        if (user is null) return ClassroomOutcome.Unauthorized;
+        if (!IsTeacher(user)) return ClassroomOutcome.Forbidden;
+
+        var group = await OwnedGroupAsync(user, groupId, ct);
+        if (group is null) return ClassroomOutcome.NotFound;
+
+        var memberships = await _db.GroupMembers
+            .Where(gm => gm.GroupId == group.Id && gm.StudentId == studentId)
+            .ToListAsync(ct);
+        if (memberships.Count == 0) return ClassroomOutcome.NotFound;
+
+        await using var tx = await _db.Database.BeginTransactionAsync(ct);
+        await DeleteAssignmentsAsync(
+            Unanswered().Where(a => a.GroupId == group.Id && a.StudentId == studentId), ct);
+        _db.GroupMembers.RemoveRange(memberships);
+        await _db.SaveChangesAsync(ct);
+        await tx.CommitAsync(ct);
+        return ClassroomOutcome.Ok;
+    }
+
+    /// <summary>
+    /// DELETE /groups/{id} — delete the group. Every foreign key into <c>groups</c> is handled
+    /// explicitly, in one transaction, rather than left to whatever the constraints happen to say:
+    /// <list type="bullet">
+    ///   <item><c>assignments.group_id</c> (ON DELETE SET NULL): the group's UNANSWERED assignments
+    ///     are removed; the answered ones stay as the record of that work, with <c>group_id</c>
+    ///     nulled;</item>
+    ///   <item><c>group_join_requests.group_id</c> (NOT NULL, CASCADE): every request goes — a
+    ///     request to join a group that no longer exists has nothing left to mean;</item>
+    ///   <item><c>group_members.group_id</c> (CASCADE): every membership goes.</item>
+    /// </list>
+    /// Nothing references a group from <c>submissions</c>, <c>evaluations</c> or <c>xp_events</c>,
+    /// so the students' answers, grades and XP are untouched by construction.
+    /// </summary>
+    public async Task<ClassroomOutcome> DeleteGroupAsync(Guid userId, Guid groupId, CancellationToken ct = default)
+    {
+        var user = await ActiveUserAsync(userId, ct);
+        if (user is null) return ClassroomOutcome.Unauthorized;
+        if (!IsTeacher(user)) return ClassroomOutcome.Forbidden;
+
+        var group = await OwnedGroupAsync(user, groupId, ct);
+        if (group is null) return ClassroomOutcome.NotFound;
+
+        await using var tx = await _db.Database.BeginTransactionAsync(ct);
+        await DeleteAssignmentsAsync(Unanswered().Where(a => a.GroupId == group.Id), ct);
+        await _db.Assignments
+            .Where(a => a.GroupId == group.Id)
+            .ExecuteUpdateAsync(s => s.SetProperty(a => a.GroupId, (Guid?)null), ct);
+        await _db.GroupJoinRequests.Where(r => r.GroupId == group.Id).ExecuteDeleteAsync(ct);
+        await _db.GroupMembers.Where(gm => gm.GroupId == group.Id).ExecuteDeleteAsync(ct);
+        await _db.Groups.Where(g => g.Id == group.Id).ExecuteDeleteAsync(ct);
+        await tx.CommitAsync(ct);
+
+        // The tracked entity was deleted behind the change tracker's back; detach it so nothing
+        // later in this request tries to save it.
+        _db.Entry(group).State = EntityState.Detached;
+        return ClassroomOutcome.Ok;
+    }
+
     // ─── Assignments ────────────────────────────────────────────────────────
 
-    /// <summary>POST /assignments — assign one task, with a deadline, to explicit students and/or a
-    /// whole group. A teacher may only assign their OWN question (admin: any).
-    /// <b>S1 fix</b>: targets are filtered through the teacher's roster before rows are written.</summary>
+    /// <summary>
+    /// POST /assignments — assign one task, with a deadline, to explicit students and/or a whole
+    /// group. A teacher may only assign their OWN question (admin: any).
+    /// <b>S1 fix</b>: targets are filtered through the teacher's roster before rows are written.
+    ///
+    /// <para><b>No second copy of a task a student still owes.</b> A target who already has an
+    /// <see cref="OpenAssignments">OPEN</see> assignment for this question — not yet answered,
+    /// deadline not passed — is skipped, and the response lists only the rows actually written. This
+    /// is what the assign dialog's "takror berilmaydi" has always promised, and it is the same rule
+    /// the F6 remediation plan uses to pick its audience (<see cref="PlanRemediationAsync"/>), so the
+    /// "Mashq ber" preview and what this writes are the same students. An ANSWERED or EXPIRED
+    /// assignment does not block a new one: re-setting a task the student already did is exactly
+    /// what remediation is for, and a lapsed deadline is not something the student can still
+    /// meet.</para>
+    ///
+    /// <para>Unlike <see cref="CreateModuleAssignmentsAsync"/>, which skips a task a student has EVER
+    /// been assigned — re-assigning a module to a group after a newcomer joins must not hand the old
+    /// hands six finished tasks again — a single task is the unit of "do this again".</para>
+    /// </summary>
     public async Task<ClassroomResult<IReadOnlyList<AssignmentResponse>>> CreateAssignmentsAsync(
         Guid userId, CreateAssignmentRequest payload, CancellationToken ct = default)
     {
@@ -393,16 +579,26 @@ public sealed class ClassroomService
             return ClassroomResult<IReadOnlyList<AssignmentResponse>>.BadRequest(badLimit);
 
         var q = await _db.Questions.FirstOrDefaultAsync(x => x.Id == payload.QuestionId, ct);
-        if (q is null || (user.Role != UserRole.Admin && q.TeacherId != user.Id))
-            return ClassroomResult<IReadOnlyList<AssignmentResponse>>.NotFound();  // missing, or not theirs
+        if (q is null || q.IsDeleted || (user.Role != UserRole.Admin && q.TeacherId != user.Id))
+            return ClassroomResult<IReadOnlyList<AssignmentResponse>>.NotFound();  // missing, deleted, or not theirs
+        // A draft is the owner's to finish, not a class's to answer: submit refuses an unpublished
+        // task, so an assignment to one would be a task the student is shown and cannot do. Told only
+        // to the owner (the 404 above came first), and with a code so the UI can say "publish it".
+        if (!q.IsPublished)
+            return ClassroomResult<IReadOnlyList<AssignmentResponse>>.BadRequest(
+                "Publish the task before assigning it", ClassroomErrorCodes.QuestionNotPublished);
 
         var targetIds = await ResolveTargetsAsync(payload.StudentIds, payload.GroupId, ct);
         var validIds = await RosterStudentIds(user, targetIds, ct);               // S1 fix
 
         var now = DateTime.UtcNow;
+        // One query for the whole target set, not one per student.
+        var owing = await OpenAssignmentPairsAsync(validIds, [payload.QuestionId], now, ct);
+
         var created = new List<Assignment>();
         foreach (var sid in validIds)
         {
+            if (owing.Contains((sid, payload.QuestionId))) continue;            // still owes the first copy
             var a = new Assignment
             {
                 Id = Guid.NewGuid(),
@@ -417,15 +613,25 @@ public sealed class ClassroomService
             };
             _db.Assignments.Add(a);
             created.Add(a);
-            // (Deferred) notifying each student — the notifications module is not wired in here.
         }
-        if (created.Count > 0) await _db.SaveChangesAsync(ct);
+        if (created.Count > 0)
+        {
+            await _db.SaveChangesAsync(ct);
+            var recipients = created.Select(a => a.StudentId).Distinct().ToList();
+            await _notifier.SendBestEffortAsync(
+                n => n.AssignmentsCreatedAsync(user.Id, recipients, q.Id, blockId: null, ct), ct);
+        }
         return ClassroomResult<IReadOnlyList<AssignmentResponse>>.Ok(await AssignmentsOutAsync(created, ct));
     }
 
-    /// <summary>POST /assignments/module — assign every published task of a module in one go.
-    /// A teacher must own the module (admin: any). Skips tasks a student already has an
-    /// assignment for. <b>S1 fix</b>: same roster filter as the single-task path.</summary>
+    /// <summary>POST /assignments/module — assign every published, not-deleted task of a module in
+    /// one go (a soft-deleted or draft task is skipped — submit would refuse it anyway).
+    /// A teacher must own the module (admin: any). Skips every task a student has EVER been
+    /// assigned, answered or not: assigning a module is enrolment, and the everyday repeat —
+    /// re-assigning it to the whole group after a newcomer joins — must hand the newcomer the module
+    /// without handing everyone else their finished tasks again. (The single-task path skips only
+    /// OPEN copies; see <see cref="CreateAssignmentsAsync"/> for why the two differ.)
+    /// <b>S1 fix</b>: same roster filter as the single-task path.</summary>
     public async Task<ClassroomResult<IReadOnlyList<AssignmentResponse>>> CreateModuleAssignmentsAsync(
         Guid userId, CreateModuleAssignmentRequest payload, CancellationToken ct = default)
     {
@@ -479,7 +685,14 @@ public sealed class ClassroomService
                 created.Add(a);
             }
         }
-        if (created.Count > 0) await _db.SaveChangesAsync(ct);
+        if (created.Count > 0)
+        {
+            await _db.SaveChangesAsync(ct);
+            // ONE ping per student for the whole module, however many of its tasks they received.
+            var recipients = created.Select(a => a.StudentId).Distinct().ToList();
+            await _notifier.SendBestEffortAsync(
+                n => n.AssignmentsCreatedAsync(user.Id, recipients, questionId: null, block.Id, ct), ct);
+        }
         return ClassroomResult<IReadOnlyList<AssignmentResponse>>.Ok(await AssignmentsOutAsync(created, ct));
     }
 
@@ -514,11 +727,121 @@ public sealed class ClassroomService
         return await AssignmentsOutAsync(items, ct);
     }
 
+    // ─── Taking work back / moving deadlines ────────────────────────────────
+    // Ownership of an assignment is its teacher_id; ownership of a group-wide operation is the group
+    // (OwnedGroupAsync). A teacher who owns neither gets NotFound, never Forbidden. Every delete runs
+    // through DeleteAssignmentsAsync, which detaches answers from the row before removing it.
+
+    /// <summary>
+    /// DELETE /assignments/{id} — withdraw one assignment row. The teacher who set it (admin: any)
+    /// may; another teacher gets NotFound. The student's answers to it and their grades survive —
+    /// they simply stop being attributed to an assignment that no longer exists.
+    /// </summary>
+    public async Task<ClassroomOutcome> DeleteAssignmentAsync(
+        Guid userId, Guid assignmentId, CancellationToken ct = default)
+    {
+        var user = await ActiveUserAsync(userId, ct);
+        if (user is null) return ClassroomOutcome.Unauthorized;
+        if (!IsTeacher(user)) return ClassroomOutcome.Forbidden;
+
+        var rows = _db.Assignments.Where(a => a.Id == assignmentId);
+        if (user.Role != UserRole.Admin) rows = rows.Where(a => a.TeacherId == user.Id);
+        if (!await rows.AnyAsync(ct)) return ClassroomOutcome.NotFound;
+
+        await using var tx = await _db.Database.BeginTransactionAsync(ct);
+        await DeleteAssignmentsAsync(rows, ct);
+        await tx.CommitAsync(ct);
+        return ClassroomOutcome.Ok;
+    }
+
+    /// <summary>
+    /// POST /assignments/cancel — take one task back from one group: every row of the caller's
+    /// (admin: anyone's) for that question that was assigned THROUGH that group, answered or not.
+    /// Idempotent — nothing left to cancel is <c>{ cancelled: 0 }</c>, not an error. NotFound when
+    /// the group is not the caller's.
+    /// </summary>
+    public async Task<ClassroomResult<CancelGroupAssignmentsResponse>> CancelGroupAssignmentsAsync(
+        Guid userId, CancelGroupAssignmentsRequest payload, CancellationToken ct = default)
+    {
+        var user = await ActiveUserAsync(userId, ct);
+        if (user is null) return ClassroomResult<CancelGroupAssignmentsResponse>.Unauthorized();
+        if (!IsTeacher(user)) return ClassroomResult<CancelGroupAssignmentsResponse>.Forbidden();
+
+        var group = await OwnedGroupAsync(user, payload.GroupId, ct);
+        if (group is null) return ClassroomResult<CancelGroupAssignmentsResponse>.NotFound();
+
+        await using var tx = await _db.Database.BeginTransactionAsync(ct);
+        var cancelled = await DeleteAssignmentsAsync(GroupTaskRows(user, group.Id, payload.QuestionId), ct);
+        await tx.CommitAsync(ct);
+        return ClassroomResult<CancelGroupAssignmentsResponse>.Ok(new CancelGroupAssignmentsResponse(cancelled));
+    }
+
+    /// <summary>
+    /// PATCH /assignments/group — set (or, with an explicit <c>null</c>, remove) the deadline of one
+    /// task across one group: every row of the caller's (admin: anyone's) for that question assigned
+    /// through that group. See <see cref="UpdateGroupAssignmentsRequest"/> for why an ABSENT
+    /// <c>due_at</c> is <c>due_at_required</c> and never a silent "no deadline". A past instant is
+    /// <c>due_in_past</c>: nobody can meet it, and an assignment born overdue only teaches the
+    /// student to ignore deadlines.
+    ///
+    /// <para>Moving a deadline also re-opens the answering window: submit attributes an answer to an
+    /// assignment only while <c>due_at</c> is null or in the future, so extending a lapsed deadline
+    /// is how a teacher gives the class more time.</para>
+    /// </summary>
+    public async Task<ClassroomResult<UpdateGroupAssignmentsResponse>> UpdateGroupAssignmentsDueAsync(
+        Guid userId, UpdateGroupAssignmentsRequest payload, CancellationToken ct = default)
+    {
+        var user = await ActiveUserAsync(userId, ct);
+        if (user is null) return ClassroomResult<UpdateGroupAssignmentsResponse>.Unauthorized();
+        if (!IsTeacher(user)) return ClassroomResult<UpdateGroupAssignmentsResponse>.Forbidden();
+
+        if (!payload.HasDueAt)
+            return ClassroomResult<UpdateGroupAssignmentsResponse>.BadRequest(
+                "due_at is required — send null to remove the deadline", ClassroomErrorCodes.DueAtRequired);
+
+        var now = DateTime.UtcNow;
+        DateTime? dueAt = payload.DueAt is { } raw ? AsUtc(raw) : null;
+        if (dueAt < now)
+            return ClassroomResult<UpdateGroupAssignmentsResponse>.BadRequest(
+                "due_at is in the past", ClassroomErrorCodes.DueInPast);
+
+        var group = await OwnedGroupAsync(user, payload.GroupId, ct);
+        if (group is null) return ClassroomResult<UpdateGroupAssignmentsResponse>.NotFound();
+
+        var updated = await GroupTaskRows(user, group.Id, payload.QuestionId)
+            .ExecuteUpdateAsync(s => s
+                .SetProperty(a => a.DueAt, dueAt)
+                .SetProperty(a => a.UpdatedAt, now), ct);
+        return ClassroomResult<UpdateGroupAssignmentsResponse>.Ok(new UpdateGroupAssignmentsResponse(updated));
+    }
+
+    /// <summary>The rows a group-wide operation on one task touches: this task, assigned through this
+    /// group, by the caller (admin: by anyone).</summary>
+    private IQueryable<Assignment> GroupTaskRows(User user, Guid groupId, Guid questionId)
+    {
+        var rows = _db.Assignments.Where(a => a.GroupId == groupId && a.QuestionId == questionId);
+        return user.Role == UserRole.Admin ? rows : rows.Where(a => a.TeacherId == user.Id);
+    }
+
+    /// <summary>
+    /// A wire instant as UTC. System.Text.Json hands back <c>Utc</c> for a "Z" value, <c>Local</c>
+    /// for one with an offset (already converted, so only the kind is wrong) and <c>Unspecified</c>
+    /// for one with no zone at all — which is read as UTC, the only zone this API speaks. Npgsql
+    /// refuses anything but <c>Utc</c> for a <c>timestamptz</c>, so skipping this is a 500.
+    /// </summary>
+    private static DateTime AsUtc(DateTime value) => value.Kind switch
+    {
+        DateTimeKind.Utc => value,
+        DateTimeKind.Local => value.ToUniversalTime(),
+        _ => DateTime.SpecifyKind(value, DateTimeKind.Utc),
+    };
+
     // ─── Gradebook ──────────────────────────────────────────────────────────
 
     /// <summary>GET /reports/gradebook — one row per student with attempts + stable average/best band.
-    /// A teacher is scoped to their OWN questions AND their OWN roster; admin sees
-    /// everything. Optional <paramref name="groupId"/> narrows to that group's members. Student ⇒ 403.</summary>
+    /// A teacher is scoped to their OWN roster's answers to ANY question (<see cref="TeacherScope"/>);
+    /// admin sees everything. Optional <paramref name="groupId"/> narrows to that group's members.
+    /// Student ⇒ 403.</summary>
     public async Task<ClassroomResult<IReadOnlyList<GradebookRowResponse>>> GradebookAsync(
         Guid userId, Guid? groupId, CancellationToken ct = default)
     {
@@ -530,21 +853,16 @@ public sealed class ClassroomService
         return ClassroomResult<IReadOnlyList<GradebookRowResponse>>.Ok(await GradebookRowsAsync(subs, ct));
     }
 
-    // The submission set a gradebook/analytics view is allowed to see.
+    // The submission set a gradebook/analytics view is allowed to see: answers to a question (never
+    // question-less shadowing practice), narrowed by the shared rule — admin everything, a teacher
+    // their own roster's answers to ANY question. The same rule the attempt list, detail and review
+    // routes apply, so the Jurnal, the queue and the student profile always count the same answers.
     private async Task<List<Submission>> RelevantSubmissionsAsync(User user, Guid? groupId, CancellationToken ct)
     {
-        var stmt = _db.Submissions.Include(s => s.Evaluation).AsQueryable();
-
-        if (user.Role == UserRole.Teacher)   // admin: no restriction
-        {
-            // Own questions AND own students (roster) only — never a student this teacher doesn't teach.
-            var roster = _db.GroupMembers
-                .Where(gm => gm.Group.TeacherId == user.Id)
-                .Select(gm => gm.StudentId);
-            stmt = stmt.Where(s => s.Question != null
-                                   && s.Question.TeacherId == user.Id
-                                   && roster.Contains(s.StudentId));
-        }
+        var stmt = _db.Submissions
+            .Include(s => s.Evaluation)
+            .Where(s => s.QuestionId != null)
+            .VisibleTo(_db, user);
 
         if (groupId is not null)
         {
@@ -605,7 +923,7 @@ public sealed class ClassroomService
 
     /// <summary>
     /// GET /reports/insights — everything the D1 Insaytlar screen shows, in one read. Same scoping as
-    /// <see cref="GradebookAsync"/> (own questions AND own roster; <paramref name="groupId"/> narrows).
+    /// <see cref="GradebookAsync"/> (own roster, any question; <paramref name="groupId"/> narrows).
     /// Student ⇒ 403.
     ///
     /// <para>Every number is composed from rows that already exist — no new table, no migration. The
@@ -659,7 +977,7 @@ public sealed class ClassroomService
         var tallies = TallyCorrections(subs);
         var remediationOn = await ClassInsightsEnabledAsync(ct);
         var errors = remediationOn
-            ? await PlanRemediationAsync(user, subs, tallies, ct)
+            ? await PlanRemediationAsync(user, tallies, ct)
             : TopErrorPatterns(tallies);
 
         return ClassroomResult<InsightsResponse>.Ok(new InsightsResponse(
@@ -919,9 +1237,10 @@ public sealed class ClassroomService
     ///
     /// <para>Per row: the candidate task is the still-assignable question this error type occurred on
     /// most often, and the audience is the students who actually made it — never the whole class.
-    /// Students who already have an OUTSTANDING assignment for that question are dropped: a second
-    /// copy of a task they have not done yet is noise, and a fan-out is the one thing on this screen
-    /// a teacher cannot undo.</para>
+    /// Students who already have an <see cref="OpenAssignments">OPEN</see> assignment for that
+    /// question are dropped: a second copy of a task they have not done yet is noise. It is the very
+    /// predicate <see cref="CreateAssignmentsAsync"/> skips by, so the names the confirm lists are the
+    /// rows the confirm writes.</para>
     ///
     /// <para>Rows under <see cref="RemediationMinStudents"/> are not planned for at all — they are
     /// returned unchanged, with <c>Remediation</c> null.</para>
@@ -931,7 +1250,6 @@ public sealed class ClassroomService
     /// </summary>
     private async Task<List<InsightsErrorResponse>> PlanRemediationAsync(
         User user,
-        List<Submission> subs,
         (Dictionary<string, ErrorTally> ByType, int Total) tallies,
         CancellationToken ct)
     {
@@ -984,10 +1302,7 @@ public sealed class ClassroomService
         var onRoster = (await RosterStudentIds(user, affected, ct)).ToHashSet();
 
         var pickedIds = picked.Values.Select(q => q.Id).Distinct().ToList();
-        var openAssignments = await _db.Assignments
-            .Where(a => pickedIds.Contains(a.QuestionId) && affected.Contains(a.StudentId))
-            .Select(a => new { a.QuestionId, a.StudentId, a.CreatedAt })
-            .ToListAsync(ct);
+        var owing = await OpenAssignmentPairsAsync(affected, pickedIds, DateTime.UtcNow, ct);
 
         var names = await _db.Users
             .Where(u => affected.Contains(u.Id))
@@ -1001,7 +1316,7 @@ public sealed class ClassroomService
 
             var students = tally.Students
                 .Where(onRoster.Contains)
-                .Where(sid => !HasOpenAssignment(sid, q.Id))
+                .Where(sid => !owing.Contains((sid, q.Id)))
                 .Select(sid => new InsightsRemediationStudent(sid, names.GetValueOrDefault(sid, "—")))
                 .OrderBy(s => s.FullName, StringComparer.OrdinalIgnoreCase)
                 .ToList();
@@ -1020,17 +1335,6 @@ public sealed class ClassroomService
         return rows
             .Select(r => plans.TryGetValue(r.Type, out var plan) ? r with { Remediation = plan } : r)
             .ToList();
-
-        // "Open" by the SAME rule AssignmentResponse.Completed uses — an answer given at or after the
-        // assignment closes it — so this screen and the assignment list can never disagree about who
-        // still owes the task. `subs` already holds every answer for these (student, question) pairs
-        // in scope, so no extra query is needed.
-        bool HasOpenAssignment(Guid studentId, Guid questionId)
-            => openAssignments.Any(a => a.StudentId == studentId
-                                        && a.QuestionId == questionId
-                                        && !subs.Any(s => s.StudentId == studentId
-                                                          && s.QuestionId == questionId
-                                                          && s.CreatedAt >= a.CreatedAt));
     }
 
     /// <summary>
@@ -1052,10 +1356,156 @@ public sealed class ClassroomService
         return await stmt.Select(gm => gm.StudentId).Distinct().ToListAsync(ct);
     }
 
+    // ─── One roster student: the A6 header and the premium grant ─────────────
+    // Visibility is the roster rule (TeacherScope): a teacher reaches only a STUDENT who sits in one
+    // of their groups, and anyone else — another teacher's student, a teacher, an unknown id — is
+    // NotFound, so neither route can be used to probe who exists. Admin reaches any student.
+
+    /// <summary>
+    /// GET /classroom/students/{id} — the student card behind the A6 profile header: name, the
+    /// premium grant (the toggle's state) and effective premium, and which of the caller's groups the
+    /// student is in.
+    /// </summary>
+    public async Task<ClassroomResult<ClassroomStudentResponse>> StudentAsync(
+        Guid userId, Guid studentId, CancellationToken ct = default)
+    {
+        var user = await ActiveUserAsync(userId, ct);
+        if (user is null) return ClassroomResult<ClassroomStudentResponse>.Unauthorized();
+        if (!IsTeacher(user)) return ClassroomResult<ClassroomStudentResponse>.Forbidden();
+
+        var student = await ReachableStudentAsync(user, studentId, ct);
+        if (student is null) return ClassroomResult<ClassroomStudentResponse>.NotFound();
+
+        var memberships = _db.GroupMembers.Where(gm => gm.StudentId == student.Id);
+        if (user.Role != UserRole.Admin)
+            memberships = memberships.Where(gm => gm.Group.TeacherId == user.Id);
+        var groups = await memberships
+            .OrderBy(gm => gm.CreatedAt)
+            .Select(gm => new ClassroomStudentGroupResponse(gm.GroupId, gm.Group.Name, gm.CreatedAt))
+            .ToListAsync(ct);
+
+        return ClassroomResult<ClassroomStudentResponse>.Ok(new ClassroomStudentResponse(
+            Id: student.Id,
+            FullName: student.FullName,
+            Email: student.Email,
+            IsPremium: student.IsPremium,
+            HasPremium: await PremiumAccess.HasPremiumAsync(_db, student, DateTime.UtcNow, ct),
+            Groups: groups));
+    }
+
+    /// <summary>
+    /// PATCH /classroom/students/{id}/premium — the teacher grants or revokes the freemium premium
+    /// ("Premiumni o'qituvchingiz berishi mumkin"), as the legacy product let them. It writes
+    /// <c>users.is_premium</c> — the same column the admin PATCH writes — and nothing else: whether a
+    /// student HAS premium is still decided by <see cref="PremiumAccess"/> (grant OR an active paid
+    /// subscription), so revoking a grant never takes away something the student paid for. The
+    /// response carries both, see <see cref="StudentPremiumResponse"/>.
+    /// </summary>
+    public async Task<ClassroomResult<StudentPremiumResponse>> SetStudentPremiumAsync(
+        Guid userId, Guid studentId, SetStudentPremiumRequest payload, CancellationToken ct = default)
+    {
+        var user = await ActiveUserAsync(userId, ct);
+        if (user is null) return ClassroomResult<StudentPremiumResponse>.Unauthorized();
+        if (!IsTeacher(user)) return ClassroomResult<StudentPremiumResponse>.Forbidden();
+
+        if (payload.IsPremium is not { } grant)
+            return ClassroomResult<StudentPremiumResponse>.BadRequest(
+                "is_premium (true or false) is required", ClassroomErrorCodes.IsPremiumRequired);
+
+        var student = await ReachableStudentAsync(user, studentId, ct);
+        if (student is null) return ClassroomResult<StudentPremiumResponse>.NotFound();
+
+        if (student.IsPremium != grant)
+        {
+            student.IsPremium = grant;
+            student.UpdatedAt = DateTime.UtcNow;
+            await _db.SaveChangesAsync(ct);
+        }
+
+        return ClassroomResult<StudentPremiumResponse>.Ok(new StudentPremiumResponse(
+            student.Id,
+            student.IsPremium,
+            await PremiumAccess.HasPremiumAsync(_db, student, DateTime.UtcNow, ct)));
+    }
+
+    /// <summary>The target of a per-student route: a user with the STUDENT role that the caller may
+    /// reach — admin any, a teacher only their own roster. Null otherwise (⇒ NotFound).</summary>
+    private async Task<User?> ReachableStudentAsync(User caller, Guid studentId, CancellationToken ct)
+    {
+        var student = await _db.Users.FirstOrDefaultAsync(
+            u => u.Id == studentId && u.Role == UserRole.Student, ct);
+        if (student is null) return null;
+        if (caller.Role == UserRole.Admin) return student;
+        return await TeacherScope.TeachesAsync(_db, caller.Id, student.Id, ct) ? student : null;
+    }
+
     // ─── Shared helpers ─────────────────────────────────────────────────────
 
     private async Task<User?> ActiveUserAsync(Guid userId, CancellationToken ct)
         => await _db.Users.FirstOrDefaultAsync(u => u.Id == userId && u.IsActive, ct);
+
+    /// <summary>The group, if the caller may manage it: its owner, or any admin. Null for a missing
+    /// group AND for someone else's — the two must be indistinguishable (⇒ NotFound).</summary>
+    private async Task<Group?> OwnedGroupAsync(User user, Guid groupId, CancellationToken ct)
+    {
+        var group = await _db.Groups.FirstOrDefaultAsync(g => g.Id == groupId, ct);
+        return group is not null && (user.Role == UserRole.Admin || group.TeacherId == user.Id)
+            ? group
+            : null;
+    }
+
+    /// <summary>
+    /// Assignments the student has not answered yet — by the SAME rule
+    /// <see cref="AssignmentResponse.Completed"/> reports (any answer to that question given at or
+    /// after the assignment was set closes it), so a list that shows a task as done and a delete that
+    /// treats it as history can never disagree. Deadline-blind on purpose: this is "what is not the
+    /// student's record", used when an arrangement is dismantled.
+    /// </summary>
+    private IQueryable<Assignment> Unanswered()
+        => _db.Assignments.Where(a => !_db.Submissions.Any(
+            s => s.StudentId == a.StudentId
+                 && s.QuestionId == a.QuestionId
+                 && s.CreatedAt >= a.CreatedAt));
+
+    /// <summary>
+    /// OPEN assignments — the ones a student still owes: <see cref="Unanswered"/> AND the deadline
+    /// has not passed. The one definition of "they already have this task", shared by the
+    /// single-task create path and the F6 remediation plan. A lapsed deadline is not open: submit no
+    /// longer attributes answers to it, so it is not something the student can still do.
+    /// </summary>
+    private IQueryable<Assignment> OpenAssignments(DateTime now)
+        => Unanswered().Where(a => a.DueAt == null || a.DueAt >= now);
+
+    /// <summary>The (student, question) pairs among these that have an <see cref="OpenAssignments">
+    /// OPEN</see> assignment — one query for the whole set, never one per student.</summary>
+    private async Task<HashSet<(Guid StudentId, Guid QuestionId)>> OpenAssignmentPairsAsync(
+        List<Guid> studentIds, List<Guid> questionIds, DateTime now, CancellationToken ct)
+    {
+        if (studentIds.Count == 0 || questionIds.Count == 0) return [];
+        var rows = await OpenAssignments(now)
+            .Where(a => studentIds.Contains(a.StudentId) && questionIds.Contains(a.QuestionId))
+            .Select(a => new { a.StudentId, a.QuestionId })
+            .ToListAsync(ct);
+        return rows.Select(r => (r.StudentId, r.QuestionId)).ToHashSet();
+    }
+
+    /// <summary>
+    /// Deletes these assignment rows WITHOUT taking student history with them: every answer that
+    /// was attributed to one is detached first (<c>assignment_id = NULL</c>), then the rows go. The
+    /// FK already says <c>ON DELETE SET NULL</c>; doing it here too keeps the guarantee in reviewed
+    /// code rather than only in a constraint. The ids are materialised once so both statements act
+    /// on the same rows. Run inside the caller's transaction. Returns how many rows were removed.
+    /// </summary>
+    private async Task<int> DeleteAssignmentsAsync(IQueryable<Assignment> rows, CancellationToken ct)
+    {
+        var ids = await rows.Select(a => a.Id).ToListAsync(ct);
+        if (ids.Count == 0) return 0;
+
+        await _db.Submissions
+            .Where(s => s.AssignmentId != null && ids.Contains(s.AssignmentId.Value))
+            .ExecuteUpdateAsync(s => s.SetProperty(x => x.AssignmentId, (Guid?)null), ct);
+        return await _db.Assignments.Where(a => ids.Contains(a.Id)).ExecuteDeleteAsync(ct);
+    }
 
     private static bool IsTeacher(User u) => u.Role is UserRole.Teacher or UserRole.Admin;
 
@@ -1078,18 +1528,18 @@ public sealed class ClassroomService
     /// The S1 fix. Keep only targets that are students AND (unless the actor is an admin) belong to
     /// the acting teacher's roster — a student who is a member of some group this teacher owns.
     /// This is the check that stops one teacher assigning work to another teacher's students, so it
-    /// must stay on every assignment-creation path; the review-queue path applies the same rule.
+    /// must stay on every assignment-creation path; the read side (list, review, gradebook) applies
+    /// the same roster through <see cref="TeacherScope"/>, which is where this reads it from.
     /// </summary>
     private async Task<List<Guid>> RosterStudentIds(User teacher, List<Guid> targetIds, CancellationToken ct)
     {
         if (targetIds.Count == 0) return [];
         var isAdmin = teacher.Role == UserRole.Admin;
+        var roster = TeacherScope.RosterStudentIds(_db, teacher.Id);
         return await _db.Users
             .Where(u => targetIds.Contains(u.Id)
                         && u.Role == UserRole.Student
-                        && (isAdmin
-                            || _db.GroupMembers.Any(gm => gm.StudentId == u.Id
-                                                          && gm.Group.TeacherId == teacher.Id)))
+                        && (isAdmin || roster.Contains(u.Id)))
             .Select(u => u.Id)
             .ToListAsync(ct);
     }
@@ -1228,14 +1678,18 @@ public sealed class ClassroomService
 /// <summary>Domain outcome an endpoint maps to an HTTP status.</summary>
 public enum ClassroomOutcome { Ok, Unauthorized, Forbidden, NotFound, BadRequest }
 
-/// <summary>A service result: an <see cref="ClassroomOutcome"/> plus a payload on success and an
-/// optional detail message for error bodies.</summary>
-public sealed record ClassroomResult<T>(ClassroomOutcome Outcome, T? Value = null, string? Detail = null)
+/// <summary>A service result: an <see cref="ClassroomOutcome"/> plus a payload on success, and for
+/// errors an optional human <c>Detail</c> and machine <c>Code</c>. A code is written to the error
+/// body only when there is one, so every 400 that predates codes keeps its exact
+/// <c>{ "detail": ... }</c> shape.</summary>
+public sealed record ClassroomResult<T>(
+    ClassroomOutcome Outcome, T? Value = null, string? Detail = null, string? Code = null)
     where T : class
 {
     public static ClassroomResult<T> Ok(T value) => new(ClassroomOutcome.Ok, value);
     public static ClassroomResult<T> Unauthorized() => new(ClassroomOutcome.Unauthorized);
     public static ClassroomResult<T> Forbidden() => new(ClassroomOutcome.Forbidden);
     public static ClassroomResult<T> NotFound() => new(ClassroomOutcome.NotFound);
-    public static ClassroomResult<T> BadRequest(string detail) => new(ClassroomOutcome.BadRequest, null, detail);
+    public static ClassroomResult<T> BadRequest(string detail, string? code = null)
+        => new(ClassroomOutcome.BadRequest, null, detail, code);
 }

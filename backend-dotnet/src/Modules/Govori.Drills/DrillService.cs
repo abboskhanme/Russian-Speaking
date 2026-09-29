@@ -11,8 +11,9 @@ using Microsoft.Extensions.Logging;
 namespace Govori.Drills;
 
 /// <summary>HTTP-shaped outcome. Everything a learner can legitimately hit — flag off, no key, spent
-/// budget — is a <see cref="DrillState"/> on a 200, not one of these.</summary>
-public enum DrillStatus { Ok, NotFound, BadRequest }
+/// budget — is a <see cref="DrillState"/> on a 200, not one of these. <c>Unauthorized</c> is a
+/// missing or DEACTIVATED account (see <c>DrillService.IsActiveAsync</c>).</summary>
+public enum DrillStatus { Ok, NotFound, BadRequest, Unauthorized }
 
 /// <summary>The flag and the ceiling that decide whether an attempt may run.</summary>
 public sealed record DrillLimits(bool Enabled, int DailyAttempts);
@@ -99,11 +100,15 @@ public sealed class DrillService
 
     /// <summary>The pair grid plus the state the hub needs to tell the truth BEFORE the learner has
     /// recorded themselves.</summary>
-    public async Task<DrillCatalogResponse> CatalogAsync(Guid userId, CancellationToken ct = default)
+    public async Task<(DrillStatus Status, DrillCatalogResponse? Body)> CatalogAsync(
+        Guid userId, CancellationToken ct = default)
     {
+        if (!await IsActiveAsync(userId, ct))
+            return (DrillStatus.Unauthorized, null);
+
         var limits = await LimitsAsync(ct);
         if (!limits.Enabled)
-            return new DrillCatalogResponse(DrillState.Disabled, Array.Empty<DrillPairResponse>(), 0);
+            return (DrillStatus.Ok, new DrillCatalogResponse(DrillState.Disabled, Array.Empty<DrillPairResponse>(), 0));
 
         await EnsureSeededAsync(ct);
 
@@ -131,7 +136,7 @@ public sealed class DrillService
             ? DrillState.BudgetSpent
             : await _stt.IsConfiguredAsync(ct) ? DrillState.Ready : DrillState.Unconfigured;
 
-        return new DrillCatalogResponse(
+        return (DrillStatus.Ok, new DrillCatalogResponse(
             state,
             pairs.Select(p =>
             {
@@ -142,7 +147,7 @@ public sealed class DrillService
                     p.FocusIndexA, p.FocusIndexB,
                     stat?.Attempts ?? 0, stat?.Correct ?? 0);
             }).ToList(),
-            left);
+            left));
     }
 
     // ─── One attempt ────────────────────────────────────────────────────────
@@ -165,6 +170,12 @@ public sealed class DrillService
         Guid userId, string? pairSlug, string? targetWord, Stream audio, string filename,
         double? clientDurationSec, CancellationToken ct = default)
     {
+        // First, before the flag, the budget or a vendor: an attempt is up to two paid STT calls,
+        // and a suspended account must stop spending when it is suspended, not when its access
+        // token happens to expire.
+        if (!await IsActiveAsync(userId, ct))
+            return (DrillStatus.Unauthorized, null);
+
         var limits = await LimitsAsync(ct);
         if (!limits.Enabled)
             return (DrillStatus.Ok, Blocked(DrillState.Disabled, targetWord, 0));
@@ -387,6 +398,15 @@ public sealed class DrillService
         return _db.Drills.AsNoTracking()
             .CountAsync(d => d.StudentId == userId && d.CreatedAt >= since, ct);
     }
+
+    /// <summary>
+    /// Is the caller an existing, ACTIVE account? Read from the database on every call, never from
+    /// the token — the rule every other module applies (§7.5). An access token outlives the moment
+    /// an admin suspends an account; without this a suspended learner kept calling the STT vendor
+    /// until it expired. Missing or inactive is a 401, as on the submit route.
+    /// </summary>
+    private Task<bool> IsActiveAsync(Guid userId, CancellationToken ct)
+        => _db.Users.AnyAsync(u => u.Id == userId && u.IsActive, ct);
 
     /// <summary>Plants the curated pairs the first time they are needed, and ONLY into an empty
     /// table. The empty check is what makes this safe on every request: it is a first-run import,

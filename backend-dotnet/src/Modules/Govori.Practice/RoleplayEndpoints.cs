@@ -18,8 +18,10 @@ namespace Govori.Practice;
 ///
 /// <para><b>Availability is a 200, not a status code.</b> The flag being off, no AI key being wired,
 /// a spent daily budget and a closed conversation all come back as a <c>state</c> on a normal body —
-/// see <c>RoleplayState</c>. Only a conversation that is missing (or someone else's) is a 404, and
-/// only a malformed request is a 400.</para>
+/// see <c>RoleplayState</c>. Only a conversation that is missing (or someone else's) is a 404, only
+/// a malformed request is a 400, and a missing or DEACTIVATED account is a 401 on every route —
+/// checked against the database before anything else, so a suspended account stops spending on
+/// the vendors immediately rather than when its token expires.</para>
 /// </summary>
 public static class RoleplayEndpoints
 {
@@ -33,7 +35,8 @@ public static class RoleplayEndpoints
         {
             if (!TryGetUserId(principal, out var userId))
                 return Results.Unauthorized();
-            return Results.Ok(await svc.CatalogAsync(userId, ct));
+            var (status, response) = await svc.CatalogAsync(userId, ct);
+            return status == RoleplayStatus.Unauthorized ? Results.Unauthorized() : Results.Ok(response);
         }).RequireAuthorization();
 
         // POST /api/roleplay/conversations { scenario_slug } — open one conversation.
@@ -47,6 +50,7 @@ public static class RoleplayEndpoints
             var (status, response) = await svc.StartAsync(userId, body?.ScenarioSlug, ct);
             return status switch
             {
+                RoleplayStatus.Unauthorized => Results.Unauthorized(),
                 RoleplayStatus.NotFound => Detail("Scenario not found", StatusCodes.Status404NotFound),
                 RoleplayStatus.BadRequest => Detail("scenario_slug is required", StatusCodes.Status400BadRequest),
                 _ => Results.Ok(response),
@@ -79,6 +83,7 @@ public static class RoleplayEndpoints
             var (status, response) = await svc.TurnAsync(userId, id, stream, file.FileName, duration, ct);
             return status switch
             {
+                RoleplayStatus.Unauthorized => Results.Unauthorized(),
                 RoleplayStatus.NotFound => Detail("Conversation not found", StatusCodes.Status404NotFound),
                 RoleplayStatus.BadRequest => Detail(
                     "The recording is empty or too large.", StatusCodes.Status400BadRequest),
@@ -94,9 +99,12 @@ public static class RoleplayEndpoints
             if (!TryGetUserId(principal, out var userId))
                 return Results.Unauthorized();
             var (status, response) = await svc.EndAsync(userId, id, ct);
-            return status == RoleplayStatus.NotFound
-                ? Detail("Conversation not found", StatusCodes.Status404NotFound)
-                : Results.Ok(response);
+            return status switch
+            {
+                RoleplayStatus.Unauthorized => Results.Unauthorized(),
+                RoleplayStatus.NotFound => Detail("Conversation not found", StatusCodes.Status404NotFound),
+                _ => Results.Ok(response),
+            };
         }).RequireAuthorization();
 
         return app;
