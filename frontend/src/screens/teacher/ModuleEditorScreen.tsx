@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import type { ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { Badge, Button, Card, Input, Modal, Text } from "../../shared/ui";
 import { AppShell, Brand, NotificationsBell, teacherNavItems } from "../../widgets";
@@ -65,6 +66,11 @@ export interface ModuleEditorProps {
   librarySearching?: boolean;
   activeNavKey?: string;
   onNavigate?: (key: string, item: NavItem) => void;
+  /** Another panel's frame (the admin's `/admin/content/:id` reuses this screen).
+   * Absent = the teacher nav and header. */
+  shell?: { navItems: NavItem[]; headerEnd?: ReactNode };
+  /** Rendered under the name/topic/level form — the admin's visibility picker. */
+  metaExtra?: ReactNode;
   queuedCount?: number;
   onBack?: () => void;
   /** Save name/topic/level. Rejects on failure so the form can surface it. */
@@ -207,6 +213,8 @@ export function ModuleEditorScreen({
   librarySearching,
   activeNavKey = "content",
   onNavigate,
+  shell,
+  metaExtra,
   queuedCount = 0,
   onBack,
   onSaveMeta,
@@ -261,7 +269,7 @@ export function ModuleEditorScreen({
     <AppShell
       brand={<Brand />}
       nav={{
-        items: teacherNavItems(t, queuedCount),
+        items: shell?.navItems ?? teacherNavItems(t, queuedCount),
         activeKey: activeNavKey,
         onNavigate,
         label: t("nav.landmark"),
@@ -271,7 +279,7 @@ export function ModuleEditorScreen({
           {t("nav.content")}
         </Text>
       }
-      headerEnd={<NotificationsBell />}
+      headerEnd={shell?.headerEnd ?? <NotificationsBell />}
     >
       <div className={styles.page} data-density="compact">
         <header className={styles.head}>
@@ -323,6 +331,8 @@ export function ModuleEditorScreen({
             </Button>
           </div>
         </Card>
+
+        {metaExtra}
 
         <section className={styles.section} aria-label={t("teacher.tabTasks")}>
           <div className={styles.sectionHead}>

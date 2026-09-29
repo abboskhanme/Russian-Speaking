@@ -1,9 +1,14 @@
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
+import type { TFunction } from "i18next";
 import { Badge, Button, Card, Input, Modal, Switch, Text } from "../../shared/ui";
+import type { BadgeVariant } from "../../shared/ui";
+import { isApiError } from "../../shared/api";
 import { formatMinor, parseMajorToMinor } from "../../shared/money";
 import { AppShell, Brand, NotificationsBell, adminNavItems } from "../../widgets";
 import type { NavItem } from "../../widgets";
+import { AdminAccountButton } from "./AdminChrome";
+import { isNetworkError } from "./adminErrors";
 import { mockAdminPlans, mockAdminSubscriptions } from "./adminBilling.mock";
 import styles from "./AdminBillingScreen.module.css";
 
@@ -68,6 +73,56 @@ export interface AdminBillingProps {
   onDelete?: (id: string) => Promise<void>;
 }
 
+/** A subscription's status as it stands NOW. */
+export type EffectiveStatus = "active" | "pending" | "expired" | "cancelled" | "other";
+
+/**
+ * The status the badge shows — the row's `status` checked against its own dates,
+ * the same rule the server's `PremiumAccess` applies before granting anything:
+ * `active` AND started AND not yet ended.
+ *
+ * The stored status alone is not the truth. Nothing flips a row to `expired` at the
+ * instant its window closes (a sweep job does, eventually), so a subscription that
+ * ended last month can still read `active` — and a green "Premium" badge on it told
+ * the admin that someone has premium the gate is already refusing them.
+ */
+export function effectiveStatus(
+  row: Pick<AdminSubscriptionRow, "status" | "startsAt" | "endsAt">,
+  now: number = Date.now(),
+): EffectiveStatus {
+  switch (row.status) {
+    case "active": {
+      const end = row.endsAt ? Date.parse(row.endsAt) : Number.NaN;
+      if (!Number.isNaN(end) && end <= now) return "expired";
+      const start = Date.parse(row.startsAt);
+      if (!Number.isNaN(start) && start > now) return "pending";
+      return "active";
+    }
+    case "pending":
+    case "expired":
+    case "cancelled":
+      return row.status;
+    default:
+      // An unknown status is named as such, never printed raw.
+      return "other";
+  }
+}
+
+function statusBadge(status: EffectiveStatus, t: TFunction): { variant: BadgeVariant; label: string } {
+  switch (status) {
+    case "active":
+      return { variant: "success", label: t("billing.status.active") };
+    case "pending":
+      return { variant: "neutral", label: t("billing.status.pending") };
+    case "expired":
+      return { variant: "neutral", label: t("billing.status.expired") };
+    case "cancelled":
+      return { variant: "neutral", label: t("billing.status.cancelled") };
+    case "other":
+      return { variant: "neutral", label: t("admin.billing.statusOther") };
+  }
+}
+
 /* -------------------------------------------------------------------------- */
 /* Screen                                                                     */
 /* -------------------------------------------------------------------------- */
@@ -94,7 +149,9 @@ export interface AdminBillingProps {
  * A tariff with a subscription or payment attempt against it cannot be deleted — the
  * server refuses, and the row offers the **faollik** switch instead. That switch is
  * what "stop selling this price" actually means; a delete would leave a paid
- * subscription unable to say what was bought.
+ * subscription unable to say what was bought. The row's status reads **Faol /
+ * Nofaol** — never "o'chirilgan", which sat beside the "O'chirish" button and read as
+ * "already deleted". And the delete itself is a confirm, not one tap.
  */
 export function AdminBillingScreen({
   plans,
@@ -112,11 +169,12 @@ export function AdminBillingScreen({
   // means an open sheet keeps showing the values from before the write that refetched
   // the list underneath it.
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [busyId, setBusyId] = useState<string | null>(null);
 
   const editing = useMemo(() => plans.find((p) => p.id === editingId) ?? null, [plans, editingId]);
+  const deleting = useMemo(() => plans.find((p) => p.id === deletingId) ?? null, [plans, deletingId]);
   const sold = subscriptions.length;
 
   const closeSheet = () => {
@@ -135,19 +193,6 @@ export function AdminBillingScreen({
     }
   };
 
-  const remove = async (id: string) => {
-    setError(null);
-    setBusyId(id);
-    try {
-      await onDelete?.(id);
-    } catch {
-      // The server refuses a tariff that was ever sold. Say which, rather than a
-      // generic failure: the admin's next move (deactivate instead) depends on it.
-      setError(t("admin.billing.deleteRefused"));
-    } finally {
-      setBusyId(null);
-    }
-  };
 
   return (
     <AppShell
@@ -163,7 +208,12 @@ export function AdminBillingScreen({
           {t("admin.billing.title")}
         </Text>
       }
-      headerEnd={<NotificationsBell />}
+      headerEnd={
+        <>
+          <NotificationsBell />
+          <AdminAccountButton />
+        </>
+      }
     >
       <div className={styles.page} data-density="compact">
         {/* ---- The honest state, first and unmissable ---- */}
@@ -226,7 +276,7 @@ export function AdminBillingScreen({
                         </Text>
                       </span>
                       <Badge variant={plan.active ? "success" : "neutral"} size="md">
-                        {plan.active ? t("admin.billing.on") : t("admin.billing.off")}
+                        {plan.active ? t("admin.billing.planActive") : t("admin.billing.planInactive")}
                       </Badge>
                     </div>
 
@@ -246,14 +296,18 @@ export function AdminBillingScreen({
                       <Button variant="ghost" size="sm" onClick={() => setEditingId(plan.id)}>
                         {t("admin.billing.edit")}
                       </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        disabled={busyId === plan.id}
-                        onClick={() => void remove(plan.id)}
-                      >
-                        {t("admin.billing.delete")}
-                      </Button>
+                      {onDelete && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => {
+                            setError(null);
+                            setDeletingId(plan.id);
+                          }}
+                        >
+                          {t("admin.billing.delete")}
+                        </Button>
+                      )}
                     </div>
                   </Card>
                 </li>
@@ -285,31 +339,34 @@ export function AdminBillingScreen({
               </div>
             ) : (
               <ul className={styles.subList}>
-                {subscriptions.map((s) => (
-                  <li key={s.id} className={styles.subRow}>
-                    <span className={styles.subWho}>
-                      <Text as="span" variant="body" weight="semibold" truncate>
-                        {s.userName}
-                      </Text>
-                      <Text as="span" variant="body-s" color="muted" truncate>
-                        {s.userEmail ?? s.planName}
-                      </Text>
-                    </span>
-                    <span className={styles.subMeta}>
-                      <Badge variant={s.status === "active" ? "success" : "neutral"} size="md">
-                        {t(`billing.status.${s.status}`, { defaultValue: s.status })}
-                      </Badge>
-                      {s.teacherGranted && (
-                        <Badge variant="primary" size="md">
-                          {t("admin.billing.alsoGranted")}
+                {subscriptions.map((s) => {
+                  const badge = statusBadge(effectiveStatus(s), t);
+                  return (
+                    <li key={s.id} className={styles.subRow}>
+                      <span className={styles.subWho}>
+                        <Text as="span" variant="body" weight="semibold" truncate>
+                          {s.userName}
+                        </Text>
+                        <Text as="span" variant="body-s" color="muted" truncate>
+                          {s.userEmail ?? s.planName}
+                        </Text>
+                      </span>
+                      <span className={styles.subMeta}>
+                        <Badge variant={badge.variant} size="md">
+                          {badge.label}
                         </Badge>
-                      )}
-                      <Text as="span" variant="body-s" color="muted" numeric>
-                        {s.endsAt ? formatDay(s.endsAt) : "—"}
-                      </Text>
-                    </span>
-                  </li>
-                ))}
+                        {s.teacherGranted && (
+                          <Badge variant="primary" size="md">
+                            {t("admin.billing.alsoGranted")}
+                          </Badge>
+                        )}
+                        <Text as="span" variant="body-s" color="muted" numeric>
+                          {s.endsAt ? formatDay(s.endsAt) : "—"}
+                        </Text>
+                      </span>
+                    </li>
+                  );
+                })}
               </ul>
             )}
           </Card>
@@ -322,7 +379,86 @@ export function AdminBillingScreen({
         onClose={closeSheet}
         onSubmit={submit}
       />
+
+      {deleting && onDelete && (
+        <DeletePlanDialog plan={deleting} onClose={() => setDeletingId(null)} onDelete={onDelete} />
+      )}
     </AppShell>
+  );
+}
+
+/* -------------------------------------------------------------------------- */
+/* Delete confirmation                                                        */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * "O'chirish" used to fire on one tap. A tariff nothing was sold under is cheap to
+ * lose, but not free — its price and wording were somebody's decision — and a button
+ * that deletes on contact sits one row away from "Tahrirlash". So: a confirm that
+ * names the tariff, and, when the server refuses (it was sold under), the reason in
+ * the dialog itself, with the way out (deactivate it) in the same sentence.
+ */
+function DeletePlanDialog({
+  plan,
+  onClose,
+  onDelete,
+}: {
+  plan: AdminPlan;
+  onClose: () => void;
+  onDelete: (id: string) => Promise<void>;
+}) {
+  const { t } = useTranslation();
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const confirm = async () => {
+    if (busy) return;
+    setBusy(true);
+    setError(null);
+    try {
+      await onDelete(plan.id);
+      onClose();
+    } catch (e) {
+      setError(
+        isNetworkError(e)
+          ? t("auth.errors.network")
+          : isApiError(e) && e.status === 409
+            ? t("admin.billing.deleteRefused")
+            : t("admin.billing.deleteFailed"),
+      );
+      setBusy(false);
+    }
+  };
+
+  return (
+    <Modal open onClose={onClose} title={t("admin.billing.deleteTitle")} closeLabel={t("common.close")}>
+      <div className={styles.form}>
+        <Card variant="outline" padding="md">
+          <Text as="p" variant="body" weight="semibold">
+            {plan.name}
+          </Text>
+          <Text as="p" variant="body-s" color="muted">
+            {plan.code} · {formatMinor(plan.priceMinor, plan.currency)}
+          </Text>
+        </Card>
+        <Text as="p" variant="body">
+          {t("admin.billing.deleteBody")}
+        </Text>
+        {error && (
+          <Text as="p" variant="body-s" color="danger" role="alert">
+            {error}
+          </Text>
+        )}
+        <div className={styles.formActions}>
+          <Button variant="ghost" onClick={onClose} disabled={busy}>
+            {t("common.cancel")}
+          </Button>
+          <Button variant="danger" loading={busy} onClick={() => void confirm()}>
+            {t("admin.billing.deleteConfirm")}
+          </Button>
+        </div>
+      </div>
+    </Modal>
   );
 }
 

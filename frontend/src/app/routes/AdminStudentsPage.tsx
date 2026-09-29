@@ -3,11 +3,14 @@
  *
  *   • `GET    /api/admin/students?search=` → the list
  *   • `PATCH  /api/admin/students/{id}`    → rename, (de)activate, premium
+ *   • `PATCH  /api/admin/users/{id}/role`  → student → teacher
  *   • `DELETE /api/admin/students/{id}`    → PERMANENT, CASCADING
  *
- * The premium switch here is the product's actual freemium lever: it grants or
- * revokes unlimited attempts for one account, with no payment record behind it,
- * because payments do not exist in this schema yet.
+ * The premium switch here is a GRANT: unlimited attempts for one account with no
+ * payment record behind it — the same `is_premium` a teacher can flip for their own
+ * students. Paid subscriptions are a separate source (the billing tables, shown on
+ * Tariflar); either one unlocks premium, and revoking this switch leaves a paid
+ * subscription in place.
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -17,6 +20,7 @@ import { endpoints } from "../../shared/api";
 import type { AdminStudentResponse } from "../../shared/api";
 import { PageError, PageLoading } from "../PageState";
 import { useAdminNavHandler } from "../nav";
+import { newestFirst } from "./adminPeople";
 
 const SEARCH_DEBOUNCE_MS = 250;
 
@@ -27,7 +31,9 @@ export default function AdminStudentsPage() {
   const [rows, setRows] = useState<AdminStudentResponse[]>([]);
   const [term, setTerm] = useState("");
   const [searching, setSearching] = useState(false);
-  const [loading, setLoading] = useState(true);
+  // Ever loaded, not "in flight" — a refetch after a write must not swap the screen
+  // for a spinner and unmount the sheet the admin is working in.
+  const [loaded, setLoaded] = useState(false);
   const [failed, setFailed] = useState(false);
   const [reloadKey, setReloadKey] = useState(0);
   const timer = useRef<number | undefined>(undefined);
@@ -36,17 +42,16 @@ export default function AdminStudentsPage() {
 
   useEffect(() => {
     let alive = true;
-    setLoading(true);
     setFailed(false);
     endpoints
       .adminStudents(term || undefined)
-      .then((r) => alive && setRows(r))
-      .catch(() => alive && setFailed(true))
-      .finally(() => {
+      .then((r) => {
         if (!alive) return;
-        setLoading(false);
-        setSearching(false);
-      });
+        setRows(r);
+        setLoaded(true);
+      })
+      .catch(() => alive && setFailed(true))
+      .finally(() => alive && setSearching(false));
     return () => {
       alive = false;
     };
@@ -62,7 +67,7 @@ export default function AdminStudentsPage() {
 
   const people = useMemo<AdminPerson[]>(
     () =>
-      rows.map((r) => ({
+      newestFirst(rows).map((r) => ({
         id: r.id,
         fullName: r.full_name,
         // The phone is the real identity here; `email` is a synthesised
@@ -78,8 +83,8 @@ export default function AdminStudentsPage() {
     [rows, t],
   );
 
-  if (loading && rows.length === 0) return <PageLoading />;
   if (failed) return <PageError onRetry={refetch} />;
+  if (!loaded) return <PageLoading />;
 
   return (
     <AdminPeopleScreen
@@ -103,6 +108,11 @@ export default function AdminStudentsPage() {
       }}
       onDelete={async (id) => {
         await endpoints.adminDeleteStudent(id);
+        refetch();
+      }}
+      // Student → teacher. The row leaves this list; the screen says where it went.
+      onChangeRole={async (id, role) => {
+        await endpoints.adminChangeRole(id, role);
         refetch();
       }}
     />

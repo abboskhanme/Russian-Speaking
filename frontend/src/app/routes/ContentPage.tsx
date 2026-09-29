@@ -17,14 +17,19 @@ import type { ContentModule, ContentTabKey, ContentTask } from "../../screens/te
 import { endpoints } from "../../shared/api";
 import type { TeacherBlockResponse, TeacherQuestionResponse } from "../../shared/api";
 import { PageError, PageLoading } from "../PageState";
-import { TEACHER_NAV_PATH, useTeacherNavHandler } from "../nav";
+import { useTeacherNavHandler } from "../nav";
+import { useContentPanel } from "../contentPanel";
 
 const TABS: ContentTabKey[] = ["modules", "tasks"];
 
 export default function ContentPage() {
   const navigate = useNavigate();
   const { t } = useTranslation();
-  const onNavigate = useTeacherNavHandler();
+  // Teacher by default; the admin's `/admin/content` runs this same page inside its
+  // own shell and URL space (see app/contentPanel).
+  const panel = useContentPanel();
+  const teacherNavigate = useTeacherNavHandler();
+  const onNavigate = panel.onNavigate ?? teacherNavigate;
   const [params, setParams] = useSearchParams();
 
   const raw = params.get("tab");
@@ -106,9 +111,9 @@ export default function ContentPage() {
    * would be unidentifiable, so it is seeded with a localized placeholder the
    * teacher immediately renames in the field that has focus. */
   const create = useCallback(async () => {
-    const created = await endpoints.createBlock({ name: t("teacher.newModule") });
-    navigate(`${TEACHER_NAV_PATH.content}/${encodeURIComponent(created.id)}`);
-  }, [navigate, t]);
+    const created = await endpoints.createBlock({ name: t("teacher.newModule"), ...panel.createDefaults });
+    navigate(`${panel.basePath}/${encodeURIComponent(created.id)}`);
+  }, [navigate, t, panel]);
 
   if (loading) return <PageLoading />;
   if (failed) return <PageError onRetry={() => setReloadKey((k) => k + 1)} />;
@@ -121,15 +126,25 @@ export default function ContentPage() {
       onTabChange={setTab}
       activeNavKey="content"
       onNavigate={onNavigate}
+      shell={panel.shell}
+      moduleExtra={
+        panel.renderModuleExtra
+          ? (m) => {
+              const block = blocks.find((b) => b.id === m.id);
+              return block ? panel.renderModuleExtra?.(block) : null;
+            }
+          : undefined
+      }
+      modulesEmpty={panel.renderModulesEmpty?.(() => void create())}
       queuedCount={queued}
       onCreate={() => void create()}
-      onOpenModule={(id) => navigate(`${TEACHER_NAV_PATH.content}/${encodeURIComponent(id)}`)}
+      onOpenModule={(id) => navigate(`${panel.basePath}/${encodeURIComponent(id)}`)}
       // A task's home is its module; opening one from the flat list goes to the
       // module editor when it has one, and otherwise there is nowhere better yet.
       onOpenTask={(id) => {
         const q = questions.find((x) => x.id === id);
         if (q?.block_id) {
-          navigate(`${TEACHER_NAV_PATH.content}/${encodeURIComponent(q.block_id)}`);
+          navigate(`${panel.basePath}/${encodeURIComponent(q.block_id)}`);
         }
       }}
     />

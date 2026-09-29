@@ -1,0 +1,29 @@
+/* AdminAccountButton — the header avatar. Geometry matches NotificationsBell
+ * (44×44) so the two sit as a pair; the colours are the teacher A1 avatar's, the
+ * panel family's "this is you" mark. Tokens only. */
+
+.avatar {
+  display: inline-grid;
+  place-items: center;
+  flex: none;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--r-pill);
+  background: var(--accent-tint);
+  color: var(--accent);
+  font: inherit;
+  font-weight: var(--fw-black);
+  letter-spacing: 0.02em;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: filter var(--m-fast);
+}
+.avatar:hover {
+  filter: brightness(0.96);
+}
+.avatar:focus-visible {
+  outline: var(--focus-ring-width) solid var(--focus-ring);
+  outline-offset: var(--focus-ring-offset);
+}

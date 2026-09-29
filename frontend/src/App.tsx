@@ -46,6 +46,10 @@ const AdminTeachersPage = lazy(() => import("./app/routes/AdminTeachersPage"));
 const AdminStudentsPage = lazy(() => import("./app/routes/AdminStudentsPage"));
 const AdminSettingsPage = lazy(() => import("./app/routes/AdminSettingsPage"));
 const AdminBillingPage = lazy(() => import("./app/routes/AdminBillingPage"));
+const AdminLayout = lazy(() => import("./app/routes/AdminLayout"));
+const AdminContentPage = lazy(() => import("./app/routes/AdminContentPage"));
+const AdminModuleEditorPage = lazy(() => import("./app/routes/AdminModuleEditorPage"));
+const AdminProfilePage = lazy(() => import("./app/routes/AdminProfilePage"));
 const PracticeHubPage = lazy(() => import("./app/routes/PracticeHubPage"));
 const ModuleDetailPage = lazy(() => import("./app/routes/ModuleDetailPage"));
 const PracticePage = lazy(() => import("./app/routes/PracticePage"));
@@ -152,14 +156,24 @@ export default function App() {
 
               {/* Admin app (admins ONLY — teachers are deliberately not allowed here,
                   unlike the /teacher subtree which admits both). Its own /admin/*
-                  space, its own four-item nav, its own design. */}
+                  space, its own six-item nav, its own design. AdminLayout gives every
+                  admin header its avatar → /admin/profile. */}
               <Route element={<RequireRole allow={["admin"]} />}>
-                <Route path="/admin" element={<AdminDashboardPage />} />
-                <Route path="/admin/teachers" element={<AdminTeachersPage />} />
-                <Route path="/admin/students" element={<AdminStudentsPage />} />
-                <Route path="/admin/settings" element={<AdminSettingsPage />} />
-                {/* Tariflar — the plan editor + who holds a subscription. */}
-                <Route path="/admin/billing" element={<AdminBillingPage />} />
+                <Route element={<AdminLayout />}>
+                  <Route path="/admin" element={<AdminDashboardPage />} />
+                  {/* O'qituvchilar | Adminlar (?tab=admins). */}
+                  <Route path="/admin/teachers" element={<AdminTeachersPage />} />
+                  <Route path="/admin/students" element={<AdminStudentsPage />} />
+                  {/* Kontent — the teacher's C1/C4 pages inside the admin shell; the
+                      official catalog is authored here (app/contentPanel). */}
+                  <Route path="/admin/content" element={<AdminContentPage />} />
+                  <Route path="/admin/content/:blockId" element={<AdminModuleEditorPage />} />
+                  <Route path="/admin/settings" element={<AdminSettingsPage />} />
+                  {/* Tariflar — the plan editor + who holds a subscription. */}
+                  <Route path="/admin/billing" element={<AdminBillingPage />} />
+                  {/* Profil — reached from the header avatar, NOT from the nav bar. */}
+                  <Route path="/admin/profile" element={<AdminProfilePage />} />
+                </Route>
               </Route>
 
               {/* Student app (students only). */}

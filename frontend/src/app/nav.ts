@@ -108,9 +108,15 @@ export const ADMIN_NAV_PATH: Record<AdminNavKey, string> = {
   home: "/admin",
   teachers: "/admin/teachers",
   students: "/admin/students",
+  // The teacher's Kontent pages, run inside the admin shell (see app/contentPanel).
+  content: "/admin/content",
   billing: "/admin/billing",
   settings: "/admin/settings",
 };
+
+/** The admin's own account — reached from the header avatar, not from the nav bar
+ * (the admin bar has no Profil item, by design). */
+export const ADMIN_PROFILE_PATH = "/admin/profile";
 
 /** Reverse lookup: pathname → admin nav key, for the active nav state. */
 export function adminNavKeyForPath(pathname: string): AdminNavKey {

@@ -10,6 +10,9 @@
 import { apiClient } from "./client";
 import type {
   AchievementResponse,
+  AdminCreateTeacherArgs,
+  AdminRoleChangeArgs,
+  AdminRoleChangeResponse,
   AdminStatsResponse,
   AdminStudentResponse,
   AdminStudentUpdateArgs,
@@ -786,6 +789,35 @@ export function adminStats(): Promise<AdminStatsResponse> {
 export function adminTeachers(search?: string): Promise<AdminTeacherResponse[]> {
   const q = search ? `?search=${encodeURIComponent(search)}` : "";
   return apiClient.get<AdminTeacherResponse[]>(`/admin/teachers${q}`);
+}
+
+/** POST /api/admin/teachers → 201 with the new row.
+ *
+ * The day-one path: on a fresh install nothing else can make a teacher. Refusals
+ * carry a machine `code` (see {@link AdminErrorBody}): 409 `phone_taken_by_student`
+ * (with `user_id` + `full_name`, so the UI can offer to promote that student
+ * instead), 409 `phone_taken`, 400 `invalid_phone`. */
+export function adminCreateTeacher(args: AdminCreateTeacherArgs): Promise<AdminTeacherResponse> {
+  return apiClient.post<AdminTeacherResponse>("/admin/teachers", args);
+}
+
+/** PATCH /api/admin/users/{id}/role → `{ id, role }`.
+ *
+ * One endpoint for every direction (student ⇄ teacher, teacher ⇄ admin). Refusals:
+ * 400 `cannot_change_own_role`, 409 `last_admin`, 409 `teacher_owns_groups` (with
+ * `group_count`) — a teacher's groups would be left with no owner. */
+export function adminChangeRole(
+  id: string,
+  role: AdminRoleChangeArgs["role"],
+): Promise<AdminRoleChangeResponse> {
+  return apiClient.patch<AdminRoleChangeResponse>(`/admin/users/${encodeURIComponent(id)}/role`, {
+    role,
+  } satisfies AdminRoleChangeArgs);
+}
+
+/** GET /api/admin/admins → every admin, the caller's own row marked `is_self`. */
+export function adminAdmins(): Promise<AdminTeacherResponse[]> {
+  return apiClient.get<AdminTeacherResponse[]>("/admin/admins");
 }
 
 /** PATCH /api/admin/teachers/{id} → rename / (de)activate. */

@@ -22,6 +22,14 @@
 /* Two-up on a phone, four-up once there is room. The counters pair naturally
    (teachers/students, tasks/published, answers/graded), so two columns keeps each
    pair on one line at every width. */
+/* In-flight and failed are two lines in one card: one question ("is grading
+   keeping up?"), two different answers. */
+.notes {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-1);
+}
+
 .tiles {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));

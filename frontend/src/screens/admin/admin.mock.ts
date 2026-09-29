@@ -14,6 +14,8 @@ export const mockAdminStats: AdminStats = {
   publishedQuestions: 38,
   submissions: 770,
   evaluatedSubmissions: 768,
+  pendingSubmissions: 1,
+  failedSubmissions: 1,
 };
 
 export const mockAdminTeachers: AdminPerson[] = [

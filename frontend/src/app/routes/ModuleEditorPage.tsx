@@ -20,7 +20,8 @@ import type { EditorTask, LibraryTask, NewTaskDraft } from "../../screens/teache
 import { endpoints } from "../../shared/api";
 import type { TeacherBlockDetailResponse, TeacherQuestionResponse } from "../../shared/api";
 import { PageError, PageLoading } from "../PageState";
-import { TEACHER_NAV_PATH, useTeacherNavHandler } from "../nav";
+import { useTeacherNavHandler } from "../nav";
+import { useContentPanel } from "../contentPanel";
 
 /** Debounce for the library search, so typing does not fire a request per key. */
 const SEARCH_DEBOUNCE_MS = 250;
@@ -28,7 +29,11 @@ const SEARCH_DEBOUNCE_MS = 250;
 export default function ModuleEditorPage() {
   const { blockId = "" } = useParams();
   const navigate = useNavigate();
-  const onNavigate = useTeacherNavHandler();
+  // Teacher by default; `/admin/content/:blockId` runs this same page inside the
+  // admin shell and URL space (see app/contentPanel).
+  const panel = useContentPanel();
+  const teacherNavigate = useTeacherNavHandler();
+  const onNavigate = panel.onNavigate ?? teacherNavigate;
   const { t } = useTranslation();
 
   const [block, setBlock] = useState<TeacherBlockDetailResponse | null>(null);
@@ -210,8 +215,10 @@ export default function ModuleEditorPage() {
       librarySearching={librarySearching}
       activeNavKey="content"
       onNavigate={onNavigate}
+      shell={panel.shell}
+      metaExtra={panel.renderEditorExtra?.(block, refetch)}
       queuedCount={queued}
-      onBack={() => navigate(TEACHER_NAV_PATH.content)}
+      onBack={() => navigate(panel.basePath)}
       onSaveMeta={saveMeta}
       onTogglePublished={togglePublished}
       onAttachTask={attachTask}

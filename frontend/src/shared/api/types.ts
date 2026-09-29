@@ -934,7 +934,12 @@ export interface TeacherBlockResponse {
   topic: string | null;
   level: string | null;
   ru_style: string | null;
+  /** `public` (an official module — every student sees it; set by an admin only) ·
+   * `group` (the author's own students) · `private` (the author alone). */
   visibility: string;
+  /** The author's name. An admin's list holds EVERY teacher's modules, so without it
+   * the admin could not tell the official catalog from someone's class material. */
+  owner_name?: string | null;
   is_published: boolean;
   sort_order: number;
   task_count: number;
@@ -1046,17 +1051,63 @@ export interface AdminStatsResponse {
   published_questions: number;
   submissions: number;
   evaluated_submissions: number;
+  /** Answers still queued or being graded — work in progress, not a problem. */
+  pending_submissions: number;
+  /** Answers whose grading ended in an error. Counted apart from `pending`, because
+   * "2 answers are still ungraded" used to include these, and an admin cannot wait
+   * a failure out. */
+  failed_submissions: number;
 }
 
-/** GET /api/admin/teachers (?search) → one row per teacher. */
+/** GET /api/admin/teachers (?search) → one row per teacher. `?search=` matches the
+ * name, the email AND the phone digits. Also the row shape of `GET /api/admin/admins`. */
 export interface AdminTeacherResponse {
   id: string;
   email: string;
   full_name: string;
+  /** The real sign-in number. `email` is only a `{phone}@govori.uz` placeholder
+   * built from it, so the rows show this and never the email. Null on legacy rows. */
+  phone: string | null;
   is_active: boolean;
   created_at: string;
   /** Tasks they authored — also what a deletion would destroy. */
   question_count: number;
+  /** Only on `GET /api/admin/admins`: true for the caller's own row, which is the one
+   * row that offers no role change (the server refuses `cannot_change_own_role`). */
+  is_self?: boolean;
+}
+
+/** POST /api/admin/teachers — create a teacher account up front. The teacher then
+ * signs in with this phone through the usual Telegram code; there is no password. */
+export interface AdminCreateTeacherArgs {
+  /** E.164, `+998…`. */
+  phone: string;
+  full_name: string;
+}
+
+/** PATCH /api/admin/users/{id}/role. */
+export interface AdminRoleChangeArgs {
+  role: UserRole;
+}
+
+export interface AdminRoleChangeResponse {
+  id: string;
+  role: UserRole;
+}
+
+/** The error body the Administration endpoints answer with. `detail` is the API's
+ * usual human sentence and is NEVER shown; `code` is what the UI branches on, and the
+ * extra fields ride along with the codes that need them:
+ *   • `phone_taken_by_student` → `user_id` + `full_name` (offer the promotion)
+ *   • `teacher_owns_groups`    → `group_count`
+ *   • `invalid_link`           → `field` (which link was refused) */
+export interface AdminErrorBody {
+  detail?: string;
+  code?: string;
+  user_id?: string;
+  full_name?: string;
+  group_count?: number;
+  field?: string;
 }
 
 /** PATCH /api/admin/teachers/{id}. Null/omitted = leave unchanged. There is no
