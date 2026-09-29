@@ -583,14 +583,28 @@ In a browser, on a phone:
 1. **Register a brand-new account** with a real number. The code must arrive in
    Telegram. If it does not, nobody can sign up, and no error appears anywhere.
 2. **Log in as the admin** from step 6 and open `/admin`.
-3. **Record and submit one answer, and wait for the grade.** This is the only
+3. **Give the platform something to practise.** A fresh install has no content
+   at all — no modules, no tasks — and nothing is seeded (owner's decision,
+   2026-09-29). Until this step a student sees an empty catalog and there is
+   nothing to submit in step 4.
+   - **Kontent → Yangi modul**, visibility **Rasmiy (barcha o'quvchilar)**, add
+     at least one task, then **Nashr qilish**. Publishing the module publishes
+     its tasks. Official modules are what every student sees, including one with
+     no teacher; the first `FREE_TASKS_PER_MODULE` tasks of each are free.
+   - **O'qituvchilar → O'qituvchi qo'shish** — phone + name. The teacher then
+     signs in with that phone via the Telegram code; there is no password. If
+     the phone already belongs to a student, the panel offers to promote them.
+   - **Sozlamalar → Aloqa havolalari** — the Telegram support and channel links. They
+     are empty on a fresh install, and the student's Help screen and account
+     deletion ("write to the admin") point at them.
+4. **Record and submit one answer, and wait for the grade.** This is the only
    check that exercises the api, the worker, ffmpeg, MinIO, the AI chain and the
    audio proxy at once. If it stays "processing":
    `docker compose -f docker-compose.prod.yml logs worker`.
-4. **Play the graded answer's audio.** If it 404s, `S3_PUBLIC_URL` is wrong. The
+5. **Play the graded answer's audio.** If it 404s, `S3_PUBLIC_URL` is wrong. The
    page still looks fine, so nothing else will tell you.
 
-The install is not finished until 1 and 3 have both been done by a human.
+The install is not finished until 1, 3 and 4 have all been done by a human.
 
 ---
 
