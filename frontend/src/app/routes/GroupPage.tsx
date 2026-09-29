@@ -1,5 +1,6 @@
 /**
- * GroupPage (`/group`) — the student's group screen: classmates ranked by XP.
+ * GroupPage (`/group`) — the student's group screen: classmates ranked by GROUP XP
+ * (XP from this group's assigned tasks only — not their all-time total).
  *
  * Reached from the Home "O'QITUVCHINGIZ" block. Resolves the caller's group via
  * `GET /api/groups/mine` (a student is in at most one), then loads that group's

@@ -26,6 +26,24 @@ import { tokenStore } from "./tokens";
 /** boot = hydrating from a stored token; ready = resolved (in or out). */
 export type AuthStatus = "boot" | "ready";
 
+/** How recently an account must have been created for a named verify to count as
+ * a REGISTRATION. Generous, because it compares the server's clock with this one. */
+const FRESH_ACCOUNT_MS = 15 * 60 * 1000;
+
+/**
+ * Whether `me` is an account that was created just now.
+ *
+ * A verify that carries a name is not proof of a new account: the server treats a
+ * KNOWN phone as a login whatever else is sent, so someone who goes through the
+ * register form with a number they already use is simply signed in. Without this
+ * check that person would be pushed into the new-student placement test. The
+ * account's own `created_at` is the fact that settles it.
+ */
+export function isFreshAccount(me: MeResponse, now: number = Date.now()): boolean {
+  const created = Date.parse(me.created_at);
+  return Number.isFinite(created) && now - created < FRESH_ACCOUNT_MS;
+}
+
 /** The two shapes an OTP verify can settle into. `needsRegistration` means the
  * phone is new and the caller must collect a name and verify again. */
 export interface VerifyOtpResult {
@@ -40,10 +58,12 @@ export interface AuthContextValue {
   isAuthenticated: boolean;
   /**
    * "Just registered" signal (docs: post-register placement hop). Set true when the last
-   * successful `verifyOtp` created an account (a `fullName` was supplied), so the app can route
-   * a brand-new user into the one-time placement test instead of straight to Home. It is a
-   * transient in-memory flag (not persisted): cleared by {@link clearJustRegistered} once the
-   * placement screen has consumed it.
+   * successful sign-in CREATED an account — a name was supplied AND the account is brand new
+   * ({@link isFreshAccount}) — on either path: the register form (raised in `hydrateUser`, at the
+   * end of its deferred flow) or the login→register fallback (raised in `verifyOtp`). `RoleHome`
+   * reads it and sends the new student to the one-time placement test instead of straight to
+   * Home. A transient in-memory flag (not persisted): cleared by {@link clearJustRegistered} as
+   * that hop is taken, and by `logout`.
    */
   justRegistered: boolean;
   /** Clear the {@link justRegistered} signal (placement consumed it / user skipped). */
@@ -80,6 +100,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<MeResponse | null>(null);
   const [status, setStatus] = useState<AuthStatus>(tokenStore.access ? "boot" : "ready");
   const [justRegistered, setJustRegistered] = useState(false);
+  /** A deferred (`hydrate: false`) verify carried a name — the register form's path.
+   * `hydrateUser` settles whether that created an account once the user is known. */
+  const registering = useRef(false);
   const booted = useRef(false);
 
   const loadMe = useCallback(async () => {
@@ -124,14 +147,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // but DON'T flip `user` yet — the "Manzil" step still has to run before
       // PublicOnly would bounce the now-authed user to Home.
       if (opts?.hydrate === false) {
+        // The register form's path: the flag is decided when the flow completes.
+        registering.current = Boolean(fullName && fullName.trim());
         return { needsRegistration: false, user: null };
       }
       const me = await endpoints.me(true);
       setUser(me);
       setStatus("ready");
-      // A supplied name means this verify CREATED the account (register, or the
-      // login→register fallback) — flag it so the app can route into placement.
-      if (fullName && fullName.trim()) setJustRegistered(true);
+      // A supplied name on a brand-new account means this verify CREATED it (the
+      // login→register fallback) — flag it so the app routes into placement.
+      if (fullName && fullName.trim() && isFreshAccount(me)) setJustRegistered(true);
       return { needsRegistration: false, user: me };
     },
     [],
@@ -140,6 +165,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const hydrateUser = useCallback((me: MeResponse) => {
     setUser(me);
     setStatus("ready");
+    // The deferred register flow ends here (after its "Manzil" step). This used to
+    // be the one path that never raised the signal, so a student who registered
+    // through the three-step form — the main way in — was never offered placement.
+    if (registering.current) {
+      registering.current = false;
+      if (isFreshAccount(me)) setJustRegistered(true);
+    }
   }, []);
 
   /**
@@ -177,6 +209,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     tokenStore.clear();
     setUser(null);
     setStatus("ready");
+    setJustRegistered(false);
+    registering.current = false;
 
     // ...then tell the server, in a request built to survive the navigation this
     // triggers (`keepalive`, see endpoints.logout). Errors are swallowed because

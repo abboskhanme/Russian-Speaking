@@ -116,6 +116,21 @@
   background: var(--surface-3);
   color: var(--faint);
 }
+/* Premium lock — the accent the module list's "Pro" already uses, so the two
+ * kinds of lock are told apart by more than their label. */
+.chip_premium {
+  background: var(--accent-tint);
+  color: var(--accent);
+}
+.proTag {
+  padding: 2px var(--s-2);
+  border-radius: var(--r-pill);
+  background: var(--accent-tint);
+  color: var(--accent);
+  font-size: var(--t-label-size);
+  font-weight: var(--fw-bold);
+  letter-spacing: 0.04em;
+}
 
 .taskText {
   flex: 1;

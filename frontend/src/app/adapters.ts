@@ -5,6 +5,7 @@
  */
 import type {
   LeaderboardEntryResponse,
+  PlanResponse,
   StudentModuleResponse,
   StudentTaskResponse,
 } from "../shared/api";
@@ -119,9 +120,16 @@ export interface PracticeTarget {
 
 /**
  * Resolve which task Practice should present: the one matching `taskId` when
- * given (Home "Continue"/module-open passes `next_task_id`), else the first
+ * given (a module row, an assignment, the daily step, a skip), else the first
  * actionable task across all modules (a `next_task_id` that is not locked).
  * Returns null when nothing is reachable (empty/all-locked catalogue).
+ *
+ * **An explicit id that is not in the catalogue resolves to null — never to some
+ * other task.** It used to fall back to the first open task, which meant a
+ * teacher's assignment whose task was unpublished (or a stale link) silently put
+ * a DIFFERENT question in front of the student, who then answered it believing
+ * they had done their homework. The caller now says "this task is not available"
+ * instead; a wrong question is worse than no question.
  */
 export function pickPracticeTarget(
   modules: StudentModuleResponse[],
@@ -132,6 +140,7 @@ export function pickPracticeTarget(
       const idx = m.tasks.findIndex((tk) => tk.id === taskId);
       if (idx >= 0) return { module: m, task: m.tasks[idx], index: idx + 1 };
     }
+    return null;
   }
   for (const m of modules) {
     if (!m.next_task_id) continue;
@@ -139,6 +148,70 @@ export function pickPracticeTarget(
     if (idx >= 0) return { module: m, task: m.tasks[idx], index: idx + 1 };
   }
   return null;
+}
+
+/** A task the student can answer right now: not done, and behind neither lock.
+ * The same three conditions the server uses to pick a module's `next_task_id`. */
+function isOpen(task: StudentTaskResponse): boolean {
+  return !task.done && !task.locked && !task.premium_locked;
+}
+
+/**
+ * The next OPEN task after `currentTaskId`, in catalogue order (modules as the
+ * server lists them, tasks in their module order), wrapping round to the start —
+ * what "O'tkazib yuborish" and "Keyingi vazifa" move to. Never the current task:
+ * skipping used to reload the very task being skipped. Null when no other open
+ * task exists, so the caller can hide the action instead of offering a no-op.
+ *
+ * A current id the catalogue does not list (it was just finished and dropped, or
+ * never there) starts the search from the beginning.
+ */
+export function nextOpenTarget(
+  modules: StudentModuleResponse[],
+  currentTaskId?: string | null,
+): PracticeTarget | null {
+  const flat: PracticeTarget[] = modules.flatMap((m) =>
+    m.tasks.map((task, i) => ({ module: m, task, index: i + 1 })),
+  );
+  const start = flat.findIndex((x) => x.task.id === currentTaskId);
+  for (let step = 1; step <= flat.length; step++) {
+    const candidate = flat[(start + step + flat.length) % flat.length];
+    if (candidate.task.id !== currentTaskId && isOpen(candidate.task)) return candidate;
+  }
+  return null;
+}
+
+/** The grading-failure codes the backend writes to `submissions.error_message`. */
+const KNOWN_FAILURES = ["grading_timeout", "stt_failed", "grader_failed", "internal"];
+
+/**
+ * A grading-failure machine code → its `results.failure.*` i18n key.
+ *
+ * `error_message` is a CODE, never prose: the raw value must not reach the screen
+ * (it used to — as an English exception message). Anything that is not one of the
+ * known codes — rows failed before the codes existed still hold free text, and a
+ * newer backend may add codes — reads as `internal`, the generic failure, rather
+ * than as a raw key or an empty line.
+ */
+export function gradingFailureKey(code?: string | null): string {
+  return code && KNOWN_FAILURES.includes(code)
+    ? `results.failure.${code}`
+    : "results.failure.internal";
+}
+
+/**
+ * The cheapest active MONTHLY plan (28–31 days), for the Profile's "…dan boshlab"
+ * price line — or null when none is on offer, and the card then shows no price.
+ * A yearly plan is never used: its per-year figure next to "oyiga" would be a
+ * number nobody is charged, and dividing it into a monthly one would be a price
+ * no plan actually has.
+ */
+export function cheapestMonthlyPlan(plans: PlanResponse[]): PlanResponse | null {
+  const monthly = plans.filter(
+    (p) => p.is_active && p.duration_days >= 28 && p.duration_days <= 31 && p.price_minor > 0,
+  );
+  if (monthly.length === 0) return null;
+  return monthly.reduce((min, p) => (p.price_minor < min.price_minor ? p : min));
 }
 
 /** The current user's own leaderboard row (real XP + streak), or null. */

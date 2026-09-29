@@ -12,18 +12,26 @@ import styles from "./AllResultsScreen.module.css";
 
 export type ResultTrend = "up" | "down" | "flat";
 
-/** One row of the full history — the same shape as the Profile "recent" rows. */
+/** Where an attempt stands. Only a `graded` one has a band and a trend. */
+export type AllResultsStatus = "graded" | "grading" | "failed";
+
+/** One row of the full history — the Profile "recent" row shape, plus the
+ * attempts that never got a score. */
 export interface AllResultsItem {
   id: string;
   title: string;
-  /** Rounded band, 0..100. */
-  band: number;
+  status: AllResultsStatus;
+  /** Rounded band, 0..100 — null unless graded. */
+  band: number | null;
   createdAt: string;
-  trend: ResultTrend;
+  /** Versus the previous graded attempt; absent unless graded. */
+  trend?: ResultTrend;
+  /** A failed attempt's reason, already localized. */
+  reason?: string;
 }
 
 export interface AllResultsScreenProps {
-  /** Every graded attempt, newest first. */
+  /** Every attempt, newest first — graded, still grading, and failed. */
   results: AllResultsItem[];
   /** Open one attempt's detail by submission id. */
   onOpenResult: (id: string) => void;
@@ -39,9 +47,14 @@ export interface AllResultsScreenProps {
 
 /**
  * AllResultsScreen (`/results`) — the full "Barcha natijalar" history: every
- * graded attempt as a tappable row (band · title · when · trend), each opening
- * the attempt detail. Reached from the Profile → Natijalar "Barcha natijalar"
- * button. Presentational + prop-driven; the page fetches. Full-width; every
+ * attempt as a tappable row (band · title · when · trend), each opening the
+ * attempt detail. Reached from the Profile → Natijalar "Barcha natijalar" button
+ * and from the task screen when grading outlives its wait.
+ *
+ * Attempts that never got a score are rows too: "baholanmoqda" while grading
+ * runs, "baholanmadi" + the reason when it failed. They used to be left out, so
+ * the Profile counted 24 attempts over a list of 22 and a failed answer simply
+ * vanished. Presentational + prop-driven; the page fetches. Full-width; every
  * colour / space / radius is a token.
  */
 export function AllResultsScreen({
@@ -101,9 +114,12 @@ export function AllResultsScreen({
                     onClick={() => onOpenResult(r.id)}
                     aria-label={t("profile.results.openAria", { title: r.title })}
                   >
-                    <span className={styles.bandDot} aria-hidden>
+                    <span
+                      className={cx(styles.bandDot, r.band === null && styles.bandDotMuted)}
+                      aria-hidden
+                    >
                       <Text as="span" variant="title-s" numeric>
-                        {r.band}
+                        {r.band ?? "—"}
                       </Text>
                     </span>
                     <span className={styles.text}>
@@ -113,12 +129,28 @@ export function AllResultsScreen({
                       <Text as="span" variant="body-s" color="muted">
                         {relativeDate(t, r.createdAt, now)}
                       </Text>
+                      {r.status === "grading" && (
+                        <Text as="span" variant="body-s" color="info">
+                          {t("results.status.pending")}
+                        </Text>
+                      )}
+                      {r.status === "failed" && (
+                        <Text as="span" variant="body-s" color="danger">
+                          {r.reason
+                            ? t("results.notGradedReason", { reason: r.reason })
+                            : t("results.notGraded")}
+                        </Text>
+                      )}
                     </span>
                     <span className={styles.trendCell}>
-                      <VisuallyHidden>{trendLabel(t, r.trend)}</VisuallyHidden>
-                      <span className={cx(styles.trend, TREND_CLASS[r.trend])} aria-hidden>
-                        {TREND_ARROW[r.trend]}
-                      </span>
+                      {r.trend && (
+                        <>
+                          <VisuallyHidden>{trendLabel(t, r.trend)}</VisuallyHidden>
+                          <span className={cx(styles.trend, TREND_CLASS[r.trend])} aria-hidden>
+                            {TREND_ARROW[r.trend]}
+                          </span>
+                        </>
+                      )}
                       <span className={styles.chevron} aria-hidden>
                         <ChevronGlyph />
                       </span>

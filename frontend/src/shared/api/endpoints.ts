@@ -310,6 +310,17 @@ export function attemptDetail(id: string, signal?: AbortSignal): Promise<Attempt
   return apiClient.get<AttemptDetailResponse>(`/submissions/${id}/detail`, { signal });
 }
 
+/** GET /api/submissions?limit= → the STUDENT's own attempts, newest first, in EVERY status —
+ * pending, failed and done alike (the server pins a student to their own rows). The results
+ * history reads it for the attempts `/profile/results` leaves out: that list is graded-only, so
+ * without this a failed or still-grading answer simply vanished from the student's history
+ * while the Profile's attempt count went on counting it. */
+export function mySubmissions(limit = 100): Promise<SubmissionResponse[]> {
+  return apiClient.get<SubmissionResponse[]>(
+    `/submissions?limit=${encodeURIComponent(String(limit))}`,
+  );
+}
+
 /* ── Placement — the one-time post-register CEFR check ───────────────────── */
 
 /** GET /api/placement/questions → the 3 fixed Russian prompts (auth required). */

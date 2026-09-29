@@ -220,6 +220,38 @@
 .assignmentTitle {
   color: var(--warn-ink);
 }
+/* The callout as a button onto the task. No press-scale on purpose (a wide row). */
+.assignmentBtn {
+  width: 100%;
+  appearance: none;
+  border: 0;
+  font: inherit;
+  cursor: pointer;
+  text-align: start;
+  transition: filter var(--m-instant);
+}
+.assignmentBtn .assignmentBody {
+  flex: 1;
+}
+.assignmentBtn:hover {
+  filter: brightness(0.97);
+}
+.assignmentBtn:focus-visible {
+  outline: var(--focus-ring-width) solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+/* ---- Invite-link outcome ---- */
+.joinNotice {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-3);
+  border-color: var(--danger);
+}
+.joinNoticeText {
+  min-width: 0;
+}
 
 /* ---- No-group state ---- */
 .noGroup {

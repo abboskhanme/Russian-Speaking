@@ -10,6 +10,7 @@ import { UZ_REGION_NAMES, districtsFor } from "../../../shared/uz-regions";
  * screen here would silently drop that warning, so we import the real one. */
 import { IconInput } from "../../auth/IconInput";
 import { OtpStep } from "../../auth/OtpStep";
+import { otpErrorKey, throttleFrom, throttleMessage, useThrottle } from "../../auth/throttle";
 import { SelectField } from "../../auth/SelectField";
 import { PhoneIcon, PinIcon, UserIcon } from "../../auth/icons";
 import { formatDisplay, groupNational, isValidUz, nationalDigits, toE164 } from "../../auth/phone";
@@ -379,7 +380,7 @@ function EditInfoDialog({
       onClose();
     } catch (err) {
       // Stay open with the input intact — closing would look like a save.
-      setError(mapError(err, t));
+      setError(mapError(err, t, "save"));
       setBusy(false);
     }
   }
@@ -484,6 +485,15 @@ function ChangePhoneDialog({
   const [error, setError] = useState<string | null>(null);
   const [info, setInfo] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  // The server's 429s, as on sign-in: a resend cooldown on the request, a lockout
+  // on the confirm. Each counts itself down and clears at zero.
+  const cooldown = useThrottle();
+  const lockout = useThrottle();
+  const shownError = lockout.throttle
+    ? throttleMessage(t, lockout.throttle, lockout.remainingSec)
+    : cooldown.throttle
+      ? throttleMessage(t, cooldown.throttle, cooldown.remainingSec)
+      : error;
 
   async function send(): Promise<boolean> {
     setError(null);
@@ -493,7 +503,9 @@ function ChangePhoneDialog({
       setCode("");
       return true;
     } catch (err) {
-      setError(mapError(err, t));
+      const wait = throttleFrom(err, "cooldown");
+      if (wait) cooldown.start(wait);
+      else setError(mapError(err, t));
       return false;
     } finally {
       setBusy(false);
@@ -526,7 +538,9 @@ function ChangePhoneDialog({
       await onConfirm(code);
       onClose();
     } catch (err) {
-      setError(mapError(err, t));
+      const wait = throttleFrom(err, "lockout");
+      if (wait) lockout.start(wait);
+      else setError(mapError(err, t));
       setBusy(false);
     }
   }
@@ -537,6 +551,9 @@ function ChangePhoneDialog({
     setCode("");
     setError(null);
     setInfo(null);
+    // Per phone: a different number starts without the old number's wait.
+    cooldown.start(null);
+    lockout.start(null);
   }
 
   return (
@@ -557,7 +574,9 @@ function ChangePhoneDialog({
           onResend={resend}
           submitLabel={t("auth.otp.verify")}
           busy={busy}
-          error={error}
+          resendWaitSec={cooldown.remainingSec}
+          verifyLocked={lockout.throttle !== null}
+          error={shownError}
           info={info}
         />
       ) : (
@@ -566,9 +585,9 @@ function ChangePhoneDialog({
             {t("profile.phone.changeNote")}
           </Text>
 
-          {error && (
+          {shownError && (
             <div className={styles.formError} role="alert">
-              {error}
+              {shownError}
             </div>
           )}
 
@@ -729,21 +748,26 @@ function normaliseAddress(
 }
 
 /**
- * Turn a rejected callback into one sentence the student can act on.
+ * Turn a rejected callback into one sentence the student can act on — always from
+ * the locale files, never the server's `detail` (Uzbek for some refusals, English
+ * for others, whatever language this screen is in).
  *
  * `409` is the one status worth its own wording: it means the number the user
  * just typed belongs to somebody else's account, and no amount of retrying the
- * code will change that — they need a different number.
+ * code will change that — they need a different number. A `400` means different
+ * things to the two dialogs: a malformed NUMBER in the phone change, a rejected
+ * name in the edit dialog.
  */
-function mapError(err: unknown, t: (key: string) => string): string {
+function mapError(
+  err: unknown,
+  t: (key: string) => string,
+  context: "save" | "phone" = "phone",
+): string {
   if (isApiError(err)) {
     if (err.status === 409) return t("profile.phone.taken");
-    if (err.status === 401) return t("auth.errors.badCode");
-    if (err.status === 400) return err.detail || t("auth.errors.badPhone");
-    if (err.status === 403) return err.detail || t("auth.errors.blocked");
-    if (err.status === 0) return t("auth.errors.network");
+    if (err.status === 400 && context === "save") return t("profile.info.invalid");
   }
-  return t("auth.errors.generic");
+  return t(otpErrorKey(err));
 }
 
 /**

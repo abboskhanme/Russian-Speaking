@@ -10,7 +10,15 @@ import styles from "./AssignmentsTab.module.css";
 
 /** One teacher-assigned, one-off task row. */
 export interface Assignment {
+  /** The ASSIGNMENT row's id — the list key, nothing else. */
   id: string;
+  /**
+   * The TASK the assignment points at (`question_id`) — what "Boshlash" opens.
+   * Two ids on purpose: the row used to hand its own assignment id to the task
+   * screen, which does not know assignment ids, so the student was put in front
+   * of some other task entirely.
+   */
+  taskId: string;
   title: string;
   /** ISO-8601 due timestamp, or null when the assignment has no deadline. */
   dueAt: string | null;
@@ -26,7 +34,7 @@ export interface Assignment {
 export interface AssignmentsTabProps {
   assignments: Assignment[];
   /** "Boshlash" on a not-done assignment → the task recording screen. */
-  onStart: (assignmentId: string) => void;
+  onStart: (taskId: string) => void;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -85,10 +93,10 @@ function AssignmentRow({
 }: {
   assignment: Assignment;
   now: Date;
-  onStart: (id: string) => void;
+  onStart: (taskId: string) => void;
 }) {
   const { t, i18n } = useTranslation();
-  const { id, title, dueAt, completed, band, maxAttempts, attemptsUsed = 0 } = assignment;
+  const { taskId, title, dueAt, completed, band, maxAttempts, attemptsUsed = 0 } = assignment;
 
   const due = formatDue(t, i18n.language, dueAt, completed, now);
   // Shown ONLY when the teacher set a budget. With no limit there is no number
@@ -148,7 +156,7 @@ function AssignmentRow({
             variant="primary"
             size="sm"
             disabled={exhausted}
-            onClick={() => onStart(id)}
+            onClick={() => onStart(taskId)}
           >
             {exhausted ? t("mashq.assignments.noAttempts") : t("mashq.assignments.start")}
           </Button>

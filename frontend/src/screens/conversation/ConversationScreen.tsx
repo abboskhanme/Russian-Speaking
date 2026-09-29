@@ -6,7 +6,7 @@ import {
   useState,
 } from "react";
 import { useTranslation } from "react-i18next";
-import { Button, FlowingWaveform, Text, cx } from "../../shared/ui";
+import { Button, Card, FlowingWaveform, Text, cx } from "../../shared/ui";
 import { scenarioIcon } from "./scenarios";
 import type { Scenario } from "./scenarios";
 import type { RoleplayCorrection } from "./roleplayApi";
@@ -144,13 +144,36 @@ export function ConversationScreen({
           </div>
         </div>
 
-        <Button variant="ghost" size="sm" onClick={onFinish} className={styles.finish}>
+        {/* Not while a turn is in flight: finishing then closed the conversation
+            under the reply, the turn was saved AFTER the end, and the summary
+            reported 0 turns for a conversation the student had just had. */}
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={onFinish}
+          disabled={typing}
+          className={styles.finish}
+        >
           {t("suhbat.finish")}
         </Button>
       </header>
 
       {/* ---- Transcript ---- */}
       <div className={styles.thread} role="log" aria-label={scenario.titleRu} aria-live="polite">
+        {/* The brief, before the first line: what this conversation is FOR. The
+            header carries the goal too, but truncated to one line at 375px — the
+            student should read the whole of it once before speaking. Only what the
+            scenario data actually carries (goal · level · length); the partner's
+            persona is an instruction to the AI, not something to show. */}
+        <Card variant="tint" padding="md" className={styles.brief}>
+          <Text as="p" variant="body" weight="semibold">
+            {t("suhbat.goalLabel", { goal: scenario.goalUz })}
+          </Text>
+          <Text as="p" variant="body-s" color="muted">
+            {t("suhbat.scenarioMeta", { level: scenario.level, min: scenario.minutes })}
+          </Text>
+        </Card>
+
         <ul className={styles.messages}>
           {messages.map((m) =>
             m.role === "ai" ? (

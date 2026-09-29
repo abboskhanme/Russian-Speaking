@@ -61,6 +61,12 @@ export interface OtpStepProps {
   submitLabel: string;
   busy: boolean;
   resendBusy?: boolean;
+  /** Seconds left on the server's resend cooldown (a 429 `Retry-After`). While
+   * above zero the resend button is disabled and counts down in its own label. */
+  resendWaitSec?: number;
+  /** The verify lockout is running (too many wrong codes): the right code would be
+   * refused too, so the verify button is disabled until it passes. */
+  verifyLocked?: boolean;
   error?: string | null;
   info?: string | null;
   /** Optional content rendered right under the header (register shows the stepper). */
@@ -79,6 +85,8 @@ export function OtpStep({
   submitLabel,
   busy,
   resendBusy = false,
+  resendWaitSec = 0,
+  verifyLocked = false,
   error,
   info,
   topSlot,
@@ -239,9 +247,11 @@ export function OtpStep({
         type="button"
         className={styles.resend}
         onClick={onResend}
-        disabled={busy || resendBusy}
+        disabled={busy || resendBusy || resendWaitSec > 0}
       >
-        {t("auth.otp.resend")}
+        {resendWaitSec > 0
+          ? t("auth.otp.resendIn", { seconds: resendWaitSec })
+          : t("auth.otp.resend")}
       </button>
 
       <Button
@@ -250,7 +260,7 @@ export function OtpStep({
         size="lg"
         fullWidth
         loading={busy}
-        disabled={code.length < 6 || burned}
+        disabled={code.length < 6 || burned || verifyLocked}
       >
         {submitLabel}
       </Button>

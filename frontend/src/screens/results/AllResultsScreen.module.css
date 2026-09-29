@@ -71,6 +71,11 @@
   background: var(--primary-tint);
   color: var(--primary-ink);
 }
+/* No score yet (grading) or never (failed) — a dash on a neutral dot. */
+.bandDotMuted {
+  background: var(--surface-3);
+  color: var(--muted);
+}
 .text {
   flex: 1;
   min-width: 0;

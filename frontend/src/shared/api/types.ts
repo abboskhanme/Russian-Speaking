@@ -226,6 +226,23 @@ export interface StudentTaskResponse {
   premium_locked: boolean;
   /** Best overall band (0..100) the caller earned on this task; null when never graded. */
   band: number | null;
+  /* ── The task's own content, so the answer screen can show the QUESTION and not only its
+   *    title. APPEND-ONLY. The four content fields mirror the document exactly (optional AND
+   *    nullable): a locked task carries nulls for the prompt / instruction / media — the words
+   *    are part of what premium unlocks — and the screen still degrades to the title alone
+   *    when they are absent. The two timings are always sent. The model answer is deliberately
+   *    NOT here: it is revealed only after submitting. ── */
+  /** The Russian question/prompt the student answers aloud. */
+  prompt_text?: string | null;
+  /** The instruction ("shart") — how to answer: length, register, what to cover. */
+  instruction_text?: string | null;
+  /** Presigned GET url for the task's picture or clip; null when the task has none. */
+  media_url?: string | null;
+  media_type?: "image" | "video" | null;
+  /** "Collect your thoughts" seconds before capture starts; 0 = no prep step. */
+  prep_time_sec: number;
+  /** Hard cap on the answer, seconds; the recorder auto-stops here. 0 = the Recorder's default. */
+  answer_time_limit_sec: number;
 }
 
 export type ModuleVisibility = "public" | "group";
@@ -260,6 +277,10 @@ export interface SubmissionResponse {
   audio_url: string | null;
   audio_duration_sec: number | null;
   status: SubmissionStatus;
+  /** A grading-failure MACHINE CODE (`grading_timeout` · `stt_failed` · `grader_failed` ·
+   * `internal`) — never text to show. Rows that failed before the codes existed still hold
+   * free text. Map it through `gradingFailureKey` (app/adapters): anything unknown reads as
+   * `internal`. */
   error_message: string | null;
   created_at: string;
   completed_at: string | null;

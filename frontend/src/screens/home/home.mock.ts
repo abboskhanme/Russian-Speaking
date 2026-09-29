@@ -24,6 +24,7 @@ export const mockHomeGroup: HomeGroup = {
   name: "B1 · Kechki-3",
   memberCount: 18,
   nextAssignment: {
+    taskId: "q-introduce",
     title: "O'zingni tanishtir",
     // "bugun 21:00" — a due time later today.
     dueAt: (() => {

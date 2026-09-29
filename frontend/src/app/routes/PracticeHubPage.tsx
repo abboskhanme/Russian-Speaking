@@ -44,10 +44,13 @@ function mapModule(m: StudentModuleResponse): PracticeModule {
 }
 
 /** Wire → the Topshiriqlar row shape. `question_title` is nullable on the wire;
- * fall back to an empty string rather than render "null". */
+ * fall back to an empty string rather than render "null". `id` keys the row;
+ * `taskId` is what "Boshlash" opens — the assignment's QUESTION, never the
+ * assignment row's own id (which the task screen cannot resolve). */
 function mapAssignment(a: AssignmentResponse): PracticeHubScreenProps["assignments"][number] {
   return {
     id: a.id,
+    taskId: a.question_id,
     title: a.question_title ?? "",
     dueAt: a.due_at,
     completed: a.completed,

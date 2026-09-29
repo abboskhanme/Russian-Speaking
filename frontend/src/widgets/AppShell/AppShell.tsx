@@ -1,4 +1,5 @@
 import type { HTMLAttributes, ReactNode } from "react";
+import { useTranslation } from "react-i18next";
 import { cx } from "../../shared/ui";
 import { Nav } from "../Nav";
 import type { NavItem } from "../Nav";
@@ -8,7 +9,7 @@ export interface AppShellNav {
   items: NavItem[];
   activeKey?: string;
   onNavigate?: (key: string, item: NavItem) => void;
-  /** Accessible name for the nav landmarks (default: "Asosiy navigatsiya"). */
+  /** Accessible name for the nav landmarks (default: the localized `nav.landmark`). */
   label?: string;
 }
 
@@ -48,7 +49,8 @@ export function AppShell({
   children,
   ...props
 }: AppShellProps) {
-  const navLabel = nav.label ?? "Asosiy navigatsiya";
+  const { t } = useTranslation();
+  const navLabel = nav.label ?? t("nav.landmark");
 
   return (
     <div className={cx(styles.shell, className)} {...props}>
@@ -75,7 +77,7 @@ export function AppShell({
         <div className={styles.body}>
           <main className={styles.content}>{children}</main>
           {aside && (
-            <aside className={styles.aside} aria-label="Yordamchi panel">
+            <aside className={styles.aside} aria-label={t("nav.asideLabel")}>
               {aside}
             </aside>
           )}

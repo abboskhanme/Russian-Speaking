@@ -6,9 +6,9 @@
  *   • Language detection is intentionally OFF — the language is an explicit,
  *     app-owned choice (persisted server-side per user in the real product), so
  *     nothing here sniffs the browser / navigator. Call `setLang()` to change it.
- *   • Namespaces: a single `common` ns this pass (nav + shared buttons + the
- *     chat placeholder + a plural sample). The full 2085-key extraction and the
- *     namespace split are described in ./README.md.
+ *   • Namespaces: a single `common` ns (every screen's copy, keyed by area, plus
+ *     the `units.*` plural sample the tests pin). The full 2085-key extraction
+ *     and the namespace split are described in ./README.md.
  *   • Plurals use i18next's built-in CLDR rules (Intl.PluralRules), so Russian
  *     gets one/few/many automatically — e.g. `t("units.points", { count: 2 })`
  *     → «2 балла» (the Faza 4.7 DoD). No i18next-icu needed for this.

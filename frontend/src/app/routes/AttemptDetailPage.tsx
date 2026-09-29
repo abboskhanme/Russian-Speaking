@@ -59,6 +59,7 @@ export default function AttemptDetailPage() {
           modelAnswer: d.model_answer_text,
           teacherBand: d.teacher_band,
           teacherComment: d.teacher_comment,
+          reviewedAt: d.reviewed_at,
         });
       })
       .catch((e) => {

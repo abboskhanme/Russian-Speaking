@@ -131,8 +131,11 @@ export default function DailyPage() {
     setWarmupDay(session.day);
   }, [session]);
 
+  // `from=daily` makes the task screen offer "Bugungi mashg'ulotga qaytish" on its
+  // result, so the student is brought back HERE for the next step instead of being
+  // left in Mashq wondering where the session went.
   const openTask = useCallback(
-    (taskId: string) => navigate(`/task?task=${encodeURIComponent(taskId)}`),
+    (taskId: string) => navigate(`/task?task=${encodeURIComponent(taskId)}&from=daily`),
     [navigate],
   );
 

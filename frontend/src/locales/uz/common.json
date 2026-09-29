@@ -19,7 +19,8 @@
     "adminTeachers": "O‘qituvchilar",
     "adminStudents": "O‘quvchilar",
     "adminSettings": "Sozlamalar",
-    "adminBilling": "Tariflar"
+    "adminBilling": "Tariflar",
+    "asideLabel": "Yordamchi panel"
   },
   "common": {
     "continue": "Davom etish",
@@ -36,12 +37,6 @@
   "theme": {
     "toLight": "Yorug' rejimga o'tish",
     "toDark": "Qorong'i rejimga o'tish"
-  },
-  "chat": {
-    "title": "AI Suhbat",
-    "comingSoon": "Tez orada",
-    "body": "AI bilan jonli suhbat mashqlari ustida ishlayapmiz — rolli o'yinlar va erkin muloqot tez orada shu yerda bo'ladi.",
-    "backHome": "Bosh sahifaga qaytish"
   },
   "units": {
     "points_one": "{{count}} ball",
@@ -118,7 +113,14 @@
       "overdue": "muddati o'tgan"
     },
     "joinPending": "So‘rov yuborildi",
-    "joinPendingHint": "O‘qituvchi tasdiqlashini kuting"
+    "joinPendingHint": "O‘qituvchi tasdiqlashini kuting",
+    "nextAssignmentUndated": "Keyingi topshiriq",
+    "openAssignment": "{{title}} topshirig'ini ochish",
+    "todayTaglineNoDrill": "Tayyorlanish · gapirish",
+    "joinLink": {
+      "invalid": "Taklif havolasidagi guruh kodi noto'g'ri yoki guruh topilmadi.",
+      "failed": "Taklif havolasi orqali qo'shilib bo'lmadi. Kodni qo'lda kiritib ko'ring."
+    }
   },
   "practice": {
     "attemptsLeft_one": "{{count}} urinish qoldi",
@@ -138,12 +140,68 @@
     "criteriaTitle": "Mezonlar",
     "nextTask": "Keyingi vazifa →",
     "skipCta": "O'tkazib yuborish →",
-    "submitDone": "Javobingiz qabul qilindi 🎉",
-    "submitGrading": "Javobingiz yuborildi — baholanmoqda…",
     "submitFailed": "Javobni yuborib bo'lmadi. Qayta urinib ko'ring.",
-    "paywall": "Bu vazifa uchun premium kerak. Davom etish uchun premiumga o'ting.",
-    "forbidden": "Bu vazifa sizga tayinlanmagan yoki muddati o'tgan.",
-    "emptyBody": "Hozircha mavjud vazifa yo'q. Keyinroq qayta tekshiring."
+    "emptyBody": "Hozircha mavjud vazifa yo'q. Keyinroq qayta tekshiring.",
+    "promptLabel": "Shart",
+    "mediaAlt": "Vazifa rasmi: {{title}}",
+    "timing": {
+      "prep": "Tayyorgarlik: {{time}}",
+      "answer": "Javob: {{time}} gacha",
+      "sec": "{{n}} s",
+      "min": "{{n}} daq"
+    },
+    "details": "Batafsil",
+    "backToDaily": "Bugungi mashg'ulotga qaytish",
+    "pending": {
+      "title": "Hali baholanmoqda",
+      "body": "Javobingiz saqlandi. Baholash odatdagidan uzoqroq davom etyapti — natija Natijalar bo'limida chiqadi.",
+      "cta": "Natijalarga o'tish"
+    },
+    "failed": {
+      "title": "Javobni baholab bo'lmadi",
+      "hint": "Yana bir bor yozib yuboring."
+    },
+    "locked": {
+      "title": "Bu vazifa Premium bilan ochiladi",
+      "body": "Rasmiy modulning bepul topshiriqlaridan keyingilari Premium foydalanuvchilar uchun. Yozishdan oldin aytamiz — javobingiz bekorga ketmasin.",
+      "cta": "Premium haqida"
+    },
+    "unavailable": {
+      "title": "Bu vazifa mavjud emas",
+      "body": "U o'chirilgan yoki sizga ochiq emas. Mashq bo'limidan boshqa vazifani tanlang.",
+      "cta": "Mashqqa qaytish"
+    },
+    "closed": {
+      "title": "Bu vazifaga javob berib bo'lmaydi",
+      "body": "U yopilgan, sizga tayinlanmagan, muddati o'tgan yoki urinishlar tugagan."
+    },
+    "empty": {
+      "title": "Hozircha vazifa yo'q",
+      "cta": "Bosh sahifaga"
+    },
+    "rateLimited": "Juda ko'p javob yuborildi. Birozdan keyin qayta urinib ko'ring."
+  },
+  "recorder": {
+    "idleHint": "Tayyor bo'lsang, yozishni boshla.",
+    "start": "Yozishni boshlash",
+    "requesting": "Mikrofon so'ralmoqda…",
+    "recording": "Yozilyapti",
+    "stop": "To'xtatish",
+    "cancel": "Bekor qilish",
+    "prepTitle": "Fikringni yig'ib ol",
+    "prepHint": "Nima demoqchisan? Shoshilma — vaqting yetarli.",
+    "skip": "Tayyorman",
+    "play": "Eshitish",
+    "pause": "To'xtatish",
+    "reRecord": "Qayta yozish",
+    "accept": "Tayyor",
+    "reviewReady": "Yozuv tayyor. Eshitib ko'r yoki qayta yoz.",
+    "retry": "Qayta urinish",
+    "deniedTitle": "Mikrofonga ruxsat berilmadi",
+    "deniedHint": "Yozish uchun brauzer sozlamalaridan mikrofonga ruxsat bering.",
+    "errorTitle": "Yozib bo'lmadi",
+    "errorHint": "Qurilmangda mikrofon yozuvi qo'llab-quvvatlanmaydi.",
+    "region": "Ovoz yozish"
   },
   "placement": {
     "kicker": "Dastlabki sinov · bir martalik",
@@ -279,7 +337,8 @@
       "registeredValue": "{{year}}-yil, {{month}}",
       "edit": "Tahrirlash",
       "editTitle": "Ma'lumotni tahrirlash",
-      "namePlaceholder": "Aziz Karimov"
+      "namePlaceholder": "Aziz Karimov",
+      "invalid": "Ism yoki manzil noto'g'ri kiritilgan."
     },
     "phone": {
       "change": "O'zgartirish",
@@ -416,9 +475,10 @@
     },
     "pro": {
       "badge": "PRO",
-      "title": "Govori Pro",
-      "body": "Cheksiz urinish, jonli suhbat, fonema drill.",
-      "cta": "Pro'ga o'tish · 35 000 so'm/oy"
+      "title": "Premium",
+      "body": "Rasmiy modullarning bepul topshiriqlaridan keyingilari ham ochiladi.",
+      "cta": "Premium haqida",
+      "priceFrom": "Oyiga {{price}} dan boshlab"
     },
     "help": {
       "row": "Yordam markazi",
@@ -842,7 +902,8 @@
       "resend": "Kodni qayta yuborish",
       "verify": "Tasdiqlash",
       "needName": "Bu raqam yangi. Ro'yxatdan o'tish uchun ismingizni kiriting va yangi kodni tasdiqlang.",
-      "resent": "Yangi kod yuborildi."
+      "resent": "Yangi kod yuborildi.",
+      "resendIn": "Qayta yuborish ({{seconds}} s)"
     },
     "otpStatus": {
       "sent": "Kod Telegram'ga yuborildi.",
@@ -863,7 +924,10 @@
       "blocked": "Hisob bloklangan yoki faol emas",
       "nameRequired": "Ismingizni kiriting",
       "network": "Internet aloqasi yo'q. Qayta urinib ko'ring.",
-      "generic": "Xatolik yuz berdi. Qayta urinib ko'ring."
+      "generic": "Xatolik yuz berdi. Qayta urinib ko'ring.",
+      "cooldown": "Kodni qayta so'rashdan oldin {{seconds}} soniya kuting.",
+      "lockout": "Juda ko'p noto'g'ri urinish. {{minutes}} daqiqadan keyin qayta urinib ko'ring.",
+      "tooMany": "Juda ko'p urinish. Birozdan keyin qayta urinib ko'ring."
     },
     "tryLink": "Tizimni sinab ko'rish · darajangizni bepul aniqlang",
     "steps": {
@@ -882,7 +946,8 @@
       "streetLabel": "Ko'cha, uy, xonadon",
       "streetPlaceholder": "Amir Temur ko'chasi, 12-uy, 34-xonadon",
       "finish": "Tugatish va boshlash"
-    }
+    },
+    "joinPendingNote": "Guruhga qo'shilish uchun hisobingizga kiring — so'rov o'zi yuboriladi."
   },
   "notifications": {
     "title": "Bildirishnomalar",
@@ -960,7 +1025,8 @@
       "taskN": "{{n}}-vazifa",
       "taskCurrent": "{{n}}-vazifa · joriy",
       "start": "Boshlash",
-      "locked": "Yopiq"
+      "locked": "Yopiq",
+      "premium": "Pro"
     },
     "complete": {
       "title": "Modul yakunlandi!",
@@ -1020,10 +1086,18 @@
       "pending": "Baholanmoqda…",
       "processing": "Baholanmoqda…",
       "failed": "Baholab bo'lmadi."
-    }
+    },
+    "failure": {
+      "grading_timeout": "Baholash juda uzoq cho'zildi.",
+      "stt_failed": "Ovozni matnga aylantirib bo'lmadi.",
+      "grader_failed": "AI javobni baholay olmadi.",
+      "internal": "Texnik xatolik yuz berdi."
+    },
+    "notGraded": "Baholanmadi",
+    "notGradedReason": "Baholanmadi · {{reason}}",
+    "teacherChecked": "O'qituvchi tekshirdi"
   },
   "daily": {
-    "title": "Bugungi {{min}} daqiqa",
     "railLabel": "Bugungi sessiya bosqichlari",
     "progress": "{{total}} bosqichdan {{done}} tasi bajarildi",
     "totalMinutes": "~{{min}} daqiqa",
@@ -1070,7 +1144,8 @@
       "title": "Bugun uchun mashq yo'q",
       "body": "Hamma vazifalar bajarilgan yoki hali ochilmagan. Mashq bo'limida modullarni ko'rib chiqing.",
       "cta": "Mashqqa o'tish"
-    }
+    },
+    "name": "Bugungi 5 daqiqa"
   },
   "review": {
     "title": "Xatolar ustida",
@@ -1173,10 +1248,11 @@
     "meta": "{{teacher}} · {{count}} o'quvchi",
     "classmates": "GURUHDOSHLAR",
     "you": "Siz",
-    "xp": "XP",
+    "xp": "Guruh XP",
     "streak": "🔥 {{count}}",
     "empty": "Reyting hozircha bo'sh.",
-    "open": "{{name}} guruhini ochish"
+    "open": "{{name}} guruhini ochish",
+    "xpHint": "Faqat shu guruh topshiriqlari uchun olingan XP."
   },
   "suhbat": {
     "heading": "Suhbat",
@@ -1452,6 +1528,7 @@
       "allTasks": "Har moduldagi barcha topshiriqlar",
       "allModules": "Yangi modullar chiqishi bilan",
       "feedback": "Har javob uchun to'liq tahlil"
-    }
+    },
+    "lockedReason": "Siz ochmoqchi bo'lgan vazifa Premium bilan ochiladi."
   }
 }

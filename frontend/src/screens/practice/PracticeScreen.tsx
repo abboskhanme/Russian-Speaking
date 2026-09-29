@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import type { ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import {
   Badge,
@@ -26,9 +27,18 @@ import styles from "./PracticeScreen.module.css";
  *   idle       — awaiting the answer (the Recorder is the surface)
  *   recording  — the mic is capturing (Govo listens)
  *   reviewing  — the take was submitted and is being graded (Govo thinks)
- *   submitted  — the result is ready (Govo is proud)
+ *   submitted  — the result is ready (Govo is proud) — mockup B6, the value moment
+ *   pending    — grading outlived the wait. The answer is SAVED and its result will
+ *                land in Natijalar; the screen says exactly that, never a dead end
+ *   failed     — grading failed: the reason in words, plus a way to try again
  */
-export type PracticePhase = "idle" | "recording" | "reviewing" | "submitted";
+export type PracticePhase =
+  | "idle"
+  | "recording"
+  | "reviewing"
+  | "submitted"
+  | "pending"
+  | "failed";
 
 /** Govo's mood is a pure function of the phase (the one wiring the task asks for). */
 const MOOD_BY_PHASE: Record<PracticePhase, MascotMood> = {
@@ -36,14 +46,30 @@ const MOOD_BY_PHASE: Record<PracticePhase, MascotMood> = {
   recording: "listening",
   reviewing: "thinking",
   submitted: "proud",
+  pending: "thinking",
+  failed: "sleepy",
 };
+
+/** A task's picture or clip (mockup B2 "rasm / video"). */
+export interface PracticeMedia {
+  url: string;
+  type: "image" | "video";
+}
 
 export interface PracticeTask {
   id: string;
-  /** The Russian phrase / question the student answers. */
+  /**
+   * The task's short name ("Do'konda"). Shown as a heading ABOVE the prompt when
+   * the task has a prompt of its own; left out when the prompt IS the title (an
+   * API that does not send `prompt_text` yet), so the name is never printed twice.
+   */
+  title?: string;
+  /** The Russian phrase / question the student answers — the prominent line. */
   prompt: string;
   /** The instruction (shart) — shown in a tinted panel. */
   instruction?: string;
+  /** A picture or clip the task is about. A video gets controls and never autoplays. */
+  media?: PracticeMedia | null;
   /** CEFR level badge (e.g. "A2"). */
   band?: string;
   /** Register cue (e.g. "Oddiy" / "Jonli"). */
@@ -54,6 +80,14 @@ export interface PracticeTask {
   hasReferenceAudio?: boolean;
   /** Hard recording cap forwarded to the Recorder (default 120s). */
   maxDurationMs?: number;
+  /** "Collect your thoughts" countdown before capture (skippable); 0/absent = none. */
+  prepMs?: number;
+  /**
+   * Beyond the free part of an official module, for a student without premium.
+   * The server would refuse the answer with a 402, so the screen says so BEFORE a
+   * whole answer is recorded for nothing: no recorder is offered at all.
+   */
+  premiumLocked?: boolean;
 }
 
 export interface PracticeProgress {
@@ -86,7 +120,7 @@ export interface PracticeFeedback {
   score: number;
   /** Relative CEFR band shown to the student (e.g. "A2"). */
   band: string;
-  /** One short, encouraging sentence (≤ 12 words). */
+  /** One short, encouraging sentence (≤ 12 words). Empty when the grader gave none. */
   summary: string;
   /** The faithful transcript of what the student said. */
   transcript?: string;
@@ -117,14 +151,24 @@ export interface PracticeScreenProps {
   onSubmit?: (audio: Blob) => void;
   /** Advance to the next task. */
   onNext?: () => void;
-  /** Skip this task. */
+  /** Skip this task. Hidden when absent (e.g. no other open task to skip to). */
   onSkip?: () => void;
   /** Try this task again (from the result panel). */
   onRetry?: () => void;
-  /** Play the reference / model answer. */
+  /** Play the reference / model answer. The button is hidden without it. */
   onPlayReference?: () => void;
-  /** Play back the student's own recorded answer. */
+  /** Play back the student's own recorded answer. The button is hidden without it. */
   onPlayAnswer?: () => void;
+  /** "Batafsil" on the result — the full attempt detail (`/results/:id`). */
+  onOpenDetail?: () => void;
+  /** The pending state's way on: the Natijalar history, where the result will land. */
+  onOpenResults?: () => void;
+  /** The premium lock's "Premium haqida". */
+  onOpenPremium?: () => void;
+  /** Present only when the task was opened from the daily session — back to it. */
+  onBackToDaily?: () => void;
+  /** Why grading failed, already localized. Shown in the `failed` phase. */
+  failureMessage?: string;
   /** Active nav key (defaults to "practice"). */
   activeNavKey?: string;
   onNavigate?: (key: string, item: NavItem) => void;
@@ -139,9 +183,10 @@ export interface PracticeScreenProps {
  * + `widgets` + tokens (docs/03, docs/04 §4.2–4.6). Presentational and
  * prop-driven: it fetches nothing and owns only the phase (when uncontrolled).
  *
- * Layout is full-width (docs/04 §4.10): AppShell frame → task-prompt card →
- * a "stage" that swaps Recorder / grading placeholder / feedback panel by
- * phase → progress → result actions. Govo's mood is derived from the phase via
+ * Layout is full-width (docs/04 §4.10): AppShell frame → the task card (name,
+ * media, the Russian prompt, the instruction — mockup B2) → a "stage" that swaps
+ * Recorder / grading placeholder / result / pending / failure by phase →
+ * progress → result actions. Govo's mood is derived from the phase via
  * `MOOD_BY_PHASE`, so the mascot and the recorder state stay in lockstep.
  */
 export function PracticeScreen({
@@ -156,6 +201,11 @@ export function PracticeScreen({
   onRetry,
   onPlayReference,
   onPlayAnswer,
+  onOpenDetail,
+  onOpenResults,
+  onOpenPremium,
+  onBackToDaily,
+  failureMessage,
   activeNavKey = "practice",
   onNavigate,
 }: PracticeScreenProps) {
@@ -230,47 +280,21 @@ export function PracticeScreen({
           )}
         </div>
 
-        <Card variant="raised" padding="lg" className={styles.taskCard}>
-          <div className={styles.taskMeta}>
-            {task.band && <Badge variant="primary">{task.band}</Badge>}
-            {task.style && <Badge variant="neutral">{task.style}</Badge>}
-            {task.durationHint && (
-              <Text as="span" variant="body-s" color="muted">
-                {task.durationHint}
-              </Text>
-            )}
-          </div>
-
-          <Text as="p" variant="title-l" className={styles.prompt}>
-            {task.prompt}
-          </Text>
-
-          {task.instruction && (
-            <div className={styles.instruction}>
-              <Text variant="body-l" color="ink-soft">
-                {task.instruction}
-              </Text>
-            </div>
-          )}
-
-          {task.hasReferenceAudio && (
-            <div>
-              <Button variant="secondary" size="sm" onClick={onPlayReference}>
-                <PlayGlyph />
-                {t("practice.listenModel")}
-              </Button>
-            </div>
-          )}
-        </Card>
+        <TaskCard task={task} onPlayReference={onPlayReference} />
 
         <section className={styles.stage} aria-live="polite">
-          {answering && (
-            <Recorder
-              key={task.id}
-              onComplete={handleComplete}
-              onCancel={() => setPhase("idle")}
-              maxDurationMs={task.maxDurationMs}
-            />
+          {task.premiumLocked ? (
+            <LockedPanel onOpenPremium={onOpenPremium} />
+          ) : (
+            answering && (
+              <Recorder
+                key={task.id}
+                onComplete={handleComplete}
+                onCancel={() => setPhase("idle")}
+                maxDurationMs={task.maxDurationMs}
+                prepMs={task.prepMs}
+              />
+            )
           )}
 
           {phase === "reviewing" && <GradingPanel mood={mood} />}
@@ -282,15 +306,52 @@ export function PracticeScreen({
                 feedback={feedback}
                 onRetry={handleRetry}
                 onNext={handleNext}
+                onOpenDetail={onOpenDetail}
+                onBackToDaily={onBackToDaily}
                 onPlayReference={onPlayReference}
                 onPlayAnswer={onPlayAnswer}
               />
             ) : (
               <GradingPanel mood="thinking" />
             ))}
+
+          {phase === "pending" && (
+            <OutcomePanel
+              mood={mood}
+              title={t("practice.pending.title")}
+              body={t("practice.pending.body")}
+              actions={
+                <>
+                  {onOpenResults && (
+                    <Button variant="secondary" onClick={onOpenResults}>
+                      {t("practice.pending.cta")}
+                    </Button>
+                  )}
+                  <NextActions onNext={handleNext} onBackToDaily={onBackToDaily} />
+                </>
+              }
+            />
+          )}
+
+          {phase === "failed" && (
+            <OutcomePanel
+              mood={mood}
+              title={t("practice.failed.title")}
+              body={failureMessage ?? t("results.failure.internal")}
+              hint={t("practice.failed.hint")}
+              actions={
+                <>
+                  <Button variant="primary" onClick={handleRetry}>
+                    {t("common.retry")}
+                  </Button>
+                  <NextActions onNext={handleNext} onBackToDaily={onBackToDaily} quiet />
+                </>
+              }
+            />
+          )}
         </section>
 
-        {answering && onSkip && (
+        {(answering || task.premiumLocked) && onSkip && (
           <div className={styles.answerActions}>
             <Button variant="ghost" onClick={onSkip}>
               {t("practice.skipCta")}
@@ -299,6 +360,120 @@ export function PracticeScreen({
         )}
       </div>
     </AppShell>
+  );
+}
+
+/* -------------------------------------------------------------------------- */
+/* Task card (mockup B2)                                                      */
+/* -------------------------------------------------------------------------- */
+
+/** Seconds → a short, unit-labelled duration ("30 s", "2 daq", "1:30"). */
+function useShortDuration() {
+  const { t } = useTranslation();
+  return (ms: number) => {
+    const sec = Math.round(ms / 1000);
+    if (sec < 60) return t("practice.timing.sec", { n: sec });
+    if (sec % 60 === 0) return t("practice.timing.min", { n: sec / 60 });
+    return `${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, "0")}`;
+  };
+}
+
+/**
+ * The question itself. It used to show only the task's TITLE — the student was
+ * asked to answer "Do'konda" without ever seeing the question about the shop. Now:
+ * the name (small), the picture or clip, the Russian prompt (large, `lang="ru"`
+ * so a screen reader reads it as Russian) and the instruction panel.
+ */
+function TaskCard({
+  task,
+  onPlayReference,
+}: {
+  task: PracticeTask;
+  onPlayReference?: () => void;
+}) {
+  const { t } = useTranslation();
+  const duration = useShortDuration();
+  const showTitle = Boolean(task.title && task.title !== task.prompt);
+
+  return (
+    <Card variant="raised" padding="lg" className={styles.taskCard}>
+      <div className={styles.taskMeta}>
+        {task.band && <Badge variant="primary">{task.band}</Badge>}
+        {task.style && <Badge variant="neutral">{task.style}</Badge>}
+        {task.durationHint && (
+          <Text as="span" variant="body-s" color="muted">
+            {task.durationHint}
+          </Text>
+        )}
+        {task.prepMs ? (
+          <Text as="span" variant="body-s" color="muted">
+            {t("practice.timing.prep", { time: duration(task.prepMs) })}
+          </Text>
+        ) : null}
+        {task.maxDurationMs ? (
+          <Text as="span" variant="body-s" color="muted">
+            {t("practice.timing.answer", { time: duration(task.maxDurationMs) })}
+          </Text>
+        ) : null}
+      </div>
+
+      {showTitle && (
+        <Text as="h2" variant="title-s" color="ink-soft" className={styles.taskTitle}>
+          {task.title}
+        </Text>
+      )}
+
+      {task.media && (
+        <div className={styles.media}>
+          {task.media.type === "video" ? (
+            // Controls, no autoplay: sound the student did not ask for, in a
+            // classroom or on a bus, is the one thing a practice screen must not do.
+            <video
+              className={styles.mediaEl}
+              src={task.media.url}
+              controls
+              preload="metadata"
+              playsInline
+            />
+          ) : (
+            <img
+              className={styles.mediaEl}
+              src={task.media.url}
+              alt={t("practice.mediaAlt", { title: task.title ?? task.prompt })}
+              loading="lazy"
+            />
+          )}
+        </div>
+      )}
+
+      <div className={styles.promptBlock}>
+        {showTitle && (
+          <Text as="p" variant="label" color="muted">
+            {t("practice.promptLabel")}
+          </Text>
+        )}
+        <Text as="p" variant="title-l" className={styles.prompt} lang={showTitle ? "ru" : undefined}>
+          {task.prompt}
+        </Text>
+      </div>
+
+      {task.instruction && (
+        <div className={styles.instruction}>
+          <Text variant="body-l" color="ink-soft">
+            {task.instruction}
+          </Text>
+        </div>
+      )}
+
+      {task.hasReferenceAudio && onPlayReference && (
+        <div>
+          <Button variant="secondary" size="sm" onClick={onPlayReference}>
+            <PlayGlyph />
+            {t("practice.listenModel")}
+          </Button>
+        </div>
+      )}
+    </Card>
   );
 }
 
@@ -357,6 +532,98 @@ function GradingPanel({ mood }: { mood: MascotMood }) {
 }
 
 /* -------------------------------------------------------------------------- */
+/* Premium lock, pending and failure                                          */
+/* -------------------------------------------------------------------------- */
+
+/** Shown INSTEAD of the recorder on a premium-locked task (see `premiumLocked`). */
+function LockedPanel({ onOpenPremium }: { onOpenPremium?: () => void }) {
+  const { t } = useTranslation();
+  return (
+    <Card variant="tint" padding="lg" className={styles.outcome}>
+      <span className={styles.lockBadge} aria-hidden>
+        <LockGlyph />
+      </span>
+      <Text as="h2" variant="title-s" align="center">
+        {t("practice.locked.title")}
+      </Text>
+      <Text as="p" variant="body" color="ink-soft" align="center">
+        {t("practice.locked.body")}
+      </Text>
+      {onOpenPremium && (
+        <div className={styles.actions}>
+          <Button variant="primary" onClick={onOpenPremium}>
+            {t("practice.locked.cta")}
+          </Button>
+        </div>
+      )}
+    </Card>
+  );
+}
+
+/** The shared frame of the pending and failed states: Govo, a line, a way on. */
+function OutcomePanel({
+  mood,
+  title,
+  body,
+  hint,
+  actions,
+}: {
+  mood: MascotMood;
+  title: string;
+  body: string;
+  hint?: string;
+  actions: ReactNode;
+}) {
+  return (
+    <Card variant="tint" padding="lg" className={styles.outcome} role="status">
+      <Mascot mood={mood} size={104} label="" />
+      <Text as="h2" variant="title-s" align="center">
+        {title}
+      </Text>
+      <Text as="p" variant="body" color="ink-soft" align="center">
+        {body}
+      </Text>
+      {hint && (
+        <Text as="p" variant="body-s" color="muted" align="center">
+          {hint}
+        </Text>
+      )}
+      <div className={styles.actions}>{actions}</div>
+    </Card>
+  );
+}
+
+/**
+ * "Keyingi vazifa", plus — only when the task came from the daily session — the
+ * way back to it, which is then the primary action: the student came here to do
+ * one step of today's session, and the session is where the next step is.
+ */
+function NextActions({
+  onNext,
+  onBackToDaily,
+  quiet = false,
+}: {
+  onNext: () => void;
+  onBackToDaily?: () => void;
+  /** Render both as secondary (the failed state's primary action is the retry). */
+  quiet?: boolean;
+}) {
+  const { t } = useTranslation();
+  return (
+    <>
+      <Button variant={onBackToDaily || quiet ? "secondary" : "primary"} onClick={onNext}>
+        {t("practice.nextTask")}
+      </Button>
+      {onBackToDaily && (
+        <Button variant={quiet ? "secondary" : "primary"} onClick={onBackToDaily}>
+          {t("practice.backToDaily")}
+        </Button>
+      )}
+    </>
+  );
+}
+
+/* -------------------------------------------------------------------------- */
 /* Feedback panel (docs/04 §4.3)                                              */
 /* -------------------------------------------------------------------------- */
 
@@ -365,6 +632,8 @@ interface FeedbackPanelProps {
   feedback: PracticeFeedback;
   onRetry: () => void;
   onNext: () => void;
+  onOpenDetail?: () => void;
+  onBackToDaily?: () => void;
   onPlayReference?: () => void;
   onPlayAnswer?: () => void;
 }
@@ -374,6 +643,8 @@ function FeedbackPanel({
   feedback,
   onRetry,
   onNext,
+  onOpenDetail,
+  onBackToDaily,
   onPlayReference,
   onPlayAnswer,
 }: FeedbackPanelProps) {
@@ -386,7 +657,7 @@ function FeedbackPanel({
     <div className={styles.feedback}>
       <Card variant="tint" padding="lg" className={styles.block}>
         <div className={styles.scoreHead}>
-          <Mascot mood={mood} size={104} label="Govo — natijangdan xursand" />
+          <Mascot mood={mood} size={104} label={t("practice.feedbackMascotLabel")} />
           <div className={styles.scoreBlock}>
             <div className={cx(styles.scoreRing, RING_BY_TONE[tone])}>
               <Text as="span" variant="score" weight="black" numeric color={TEXT_BY_TONE[tone]}>
@@ -397,9 +668,11 @@ function FeedbackPanel({
               <Badge variant="accent" size="md">
                 {t("practice.levelBadge", { band: feedback.band })}
               </Badge>
-              <Text variant="body-l" color="ink-soft">
-                {feedback.summary}
-              </Text>
+              {feedback.summary && (
+                <Text variant="body-l" color="ink-soft">
+                  {feedback.summary}
+                </Text>
+              )}
             </div>
           </div>
         </div>
@@ -427,19 +700,27 @@ function FeedbackPanel({
           <Text as="p" variant="label" color="muted">
             {t("practice.yourAnswer")}
           </Text>
-          <Text as="p" variant="mono" className={styles.transcriptText}>
+          <Text as="p" variant="mono" className={styles.transcriptText} lang="ru">
             {feedback.transcript}
           </Text>
-          <div className={styles.audioRow}>
-            <Button variant="ghost" size="sm" onClick={onPlayAnswer}>
-              <PlayGlyph />
-              {t("practice.listenYourAudio")}
-            </Button>
-            <Button variant="ghost" size="sm" onClick={onPlayReference}>
-              <PlayGlyph />
-              {t("practice.modelAnswer")}
-            </Button>
-          </div>
+          {/* Only the buttons that can do something: a play button with nothing
+              wired behind it reads as broken audio. */}
+          {(onPlayAnswer || onPlayReference) && (
+            <div className={styles.audioRow}>
+              {onPlayAnswer && (
+                <Button variant="ghost" size="sm" onClick={onPlayAnswer}>
+                  <PlayGlyph />
+                  {t("practice.listenYourAudio")}
+                </Button>
+              )}
+              {onPlayReference && (
+                <Button variant="ghost" size="sm" onClick={onPlayReference}>
+                  <PlayGlyph />
+                  {t("practice.modelAnswer")}
+                </Button>
+              )}
+            </div>
+          )}
         </Card>
       )}
 
@@ -524,12 +805,15 @@ function FeedbackPanel({
       )}
 
       <div className={styles.actions}>
+        {onOpenDetail && (
+          <Button variant="ghost" onClick={onOpenDetail}>
+            {t("practice.details")}
+          </Button>
+        )}
         <Button variant="secondary" onClick={onRetry}>
           {t("common.retry")}
         </Button>
-        <Button variant="primary" onClick={onNext}>
-          {t("practice.nextTask")}
-        </Button>
+        <NextActions onNext={onNext} onBackToDaily={onBackToDaily} />
       </div>
     </div>
   );
@@ -573,6 +857,15 @@ function PlayGlyph() {
   return (
     <svg className={styles.glyph} width="14" height="14" viewBox="0 0 24 24" aria-hidden>
       <path d="M8 5.5v13l11-6.5z" fill="currentColor" />
+    </svg>
+  );
+}
+
+function LockGlyph() {
+  return (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden>
+      <rect x="5" y="10.5" width="14" height="10" rx="2.5" stroke="currentColor" strokeWidth="2" />
+      <path d="M8.5 10.5V8a3.5 3.5 0 0 1 7 0v2.5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
     </svg>
   );
 }

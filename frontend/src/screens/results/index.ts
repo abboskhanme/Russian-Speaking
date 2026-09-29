@@ -5,7 +5,12 @@
  * `widgets` + tokens.
  */
 export { AllResultsScreen } from "./AllResultsScreen";
-export type { AllResultsScreenProps, AllResultsItem, ResultTrend } from "./AllResultsScreen";
+export type {
+  AllResultsScreenProps,
+  AllResultsItem,
+  AllResultsStatus,
+  ResultTrend,
+} from "./AllResultsScreen";
 
 export { AttemptDetailScreen } from "./AttemptDetailScreen";
 export type { AttemptDetailScreenProps, AttemptDetail } from "./AttemptDetailScreen";
