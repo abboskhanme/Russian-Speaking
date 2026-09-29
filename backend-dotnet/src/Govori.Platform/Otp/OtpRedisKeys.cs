@@ -22,6 +22,14 @@ public static class OtpRedisKeys
     /// <summary>The stored one-time code for an identifier (a normalised phone).</summary>
     public static RedisKey Code(string key) => $"otp:{key.ToLowerInvariant()}";
 
-    /// <summary>The wrong-guess counter guarding <see cref="Code"/>.</summary>
+    /// <summary>The wrong-guess counter guarding <see cref="Code"/>. Reset with every new code.</summary>
     public static RedisKey Attempts(string key) => $"otp_attempts:{key.ToLowerInvariant()}";
+
+    /// <summary>Present while the identifier may not be sent another code yet (the request
+    /// cooldown). Only <c>RedisOtpStore</c> reads it; it lives here so every OTP key has one home.</summary>
+    public static RedisKey RequestCooldown(string key) => $"otp_cooldown:{key.ToLowerInvariant()}";
+
+    /// <summary>Wrong guesses for the identifier across ALL its codes in the current window. Unlike
+    /// <see cref="Attempts"/>, a new code does not reset it — that is the whole point of it.</summary>
+    public static RedisKey Failures(string key) => $"otp_failures:{key.ToLowerInvariant()}";
 }

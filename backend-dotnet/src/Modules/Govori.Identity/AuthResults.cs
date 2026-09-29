@@ -14,6 +14,11 @@ public enum OtpRequestStatus
 
     /// <summary>The phone failed <c>PhoneNumbers.NormalizeUz</c> → 400.</summary>
     InvalidPhone,
+
+    /// <summary>A code was sent to this phone less than the request cooldown ago → 429 with
+    /// Retry-After. Nothing was minted or sent. Keyed by the phone alone, so a registered and an
+    /// unregistered number answer this identically.</summary>
+    TooSoon,
 }
 
 /// <summary>
@@ -26,6 +31,8 @@ public enum OtpRequestStatus
 /// <c>GET /api/auth/otp/status</c> (appended at the END — this record is constructed positionally).
 /// <see cref="TelegramMode"/> (<c>"direct"</c> | <c>"deep_link"</c>, or null in dev delivery) is how
 /// the code is being pushed over Telegram; it flows through to <c>OtpSentResponse.TelegramMode</c>.
+/// On <see cref="OtpRequestStatus.TooSoon"/>, <see cref="RetryAfter"/> is how long the cooldown has
+/// left (appended at the END, same reason as <see cref="RequestId"/>).
 /// </summary>
 public sealed record OtpRequestResult(
     OtpRequestStatus Status,
@@ -35,7 +42,8 @@ public sealed record OtpRequestResult(
     string? TelegramLink = null,
     string? Error = null,
     string? RequestId = null,
-    string? TelegramMode = null);
+    string? TelegramMode = null,
+    TimeSpan? RetryAfter = null);
 
 /// <summary>Outcome of <see cref="AuthService.VerifyOtpAsync"/>.</summary>
 public enum OtpVerifyStatus
@@ -57,6 +65,11 @@ public enum OtpVerifyStatus
 
     /// <summary>The phone failed <c>PhoneNumbers.NormalizeUz</c> → 400.</summary>
     InvalidPhone,
+
+    /// <summary>Too many wrong codes for this phone in the current window → 429 with Retry-After.
+    /// The typed code was not even compared. Keyed by the phone alone, so it reveals nothing about
+    /// whether the phone has an account.</summary>
+    LockedOut,
 }
 
 /// <summary>
@@ -64,13 +77,15 @@ public enum OtpVerifyStatus
 /// <see cref="OtpVerifyStatus.LoggedIn"/>/<see cref="OtpVerifyStatus.Registered"/>;
 /// <see cref="Role"/> is populated on <see cref="OtpVerifyStatus.Inactive"/> so the endpoint can
 /// pick the teacher-awaiting-approval vs blocked message; <see cref="Error"/> carries the format
-/// message on <see cref="OtpVerifyStatus.InvalidPhone"/>.
+/// message on <see cref="OtpVerifyStatus.InvalidPhone"/>; <see cref="RetryAfter"/> is how long a
+/// <see cref="OtpVerifyStatus.LockedOut"/> lock has left.
 /// </summary>
 public sealed record OtpVerifyOutcome(
     OtpVerifyStatus Status,
     TokenResponse? Tokens = null,
     UserRole? Role = null,
-    string? Error = null);
+    string? Error = null,
+    TimeSpan? RetryAfter = null);
 
 /// <summary>Outcome of <see cref="AuthService.UpdateProfileAsync"/>.</summary>
 public enum UpdateProfileStatus
@@ -157,13 +172,19 @@ public enum PhoneChangeRequestStatus
 
     /// <summary>No such user, or the account is not active → 401.</summary>
     Unauthorized,
+
+    /// <summary>A code was sent to the NEW number less than the request cooldown ago → 429 with
+    /// Retry-After. The same per-phone cooldown as login, because it is the same code key. Decided
+    /// before the pending change is written, so a refused request changes nothing.</summary>
+    TooSoon,
 }
 
 /// <summary>
 /// Result of starting a phone change. On <see cref="PhoneChangeRequestStatus.Sent"/> the payload
 /// mirrors <c>POST /api/auth/otp/request</c> field-for-field (channel, TTL, dev hint, Telegram deep
 /// link, request id) because it IS the same OTP flow — the client can reuse its login OTP step,
-/// polling <c>GET /api/auth/otp/status</c> included.
+/// polling <c>GET /api/auth/otp/status</c> included. <see cref="RetryAfter"/> is set on
+/// <see cref="PhoneChangeRequestStatus.TooSoon"/>.
 /// </summary>
 public sealed record PhoneChangeRequestResult(
     PhoneChangeRequestStatus Status,
@@ -173,7 +194,8 @@ public sealed record PhoneChangeRequestResult(
     string? TelegramLink = null,
     string? Error = null,
     string? RequestId = null,
-    string? TelegramMode = null);
+    string? TelegramMode = null,
+    TimeSpan? RetryAfter = null);
 
 /// <summary>Outcome of <see cref="AuthService.ConfirmPhoneChangeAsync"/>.</summary>
 public enum PhoneChangeConfirmStatus
@@ -190,11 +212,17 @@ public enum PhoneChangeConfirmStatus
 
     /// <summary>No such user, or the account is not active → 401.</summary>
     Unauthorized,
+
+    /// <summary>Too many wrong codes for the new number in the current window → 429 with
+    /// Retry-After (the same per-phone lock as login).</summary>
+    LockedOut,
 }
 
 /// <summary>Result of confirming a phone change. <see cref="Me"/> is set only on
-/// <see cref="PhoneChangeConfirmStatus.Changed"/>.</summary>
-public sealed record PhoneChangeConfirmOutcome(PhoneChangeConfirmStatus Status, MeResponse? Me = null);
+/// <see cref="PhoneChangeConfirmStatus.Changed"/>; <see cref="RetryAfter"/> only on
+/// <see cref="PhoneChangeConfirmStatus.LockedOut"/>.</summary>
+public sealed record PhoneChangeConfirmOutcome(
+    PhoneChangeConfirmStatus Status, MeResponse? Me = null, TimeSpan? RetryAfter = null);
 
 /// <summary>Outcome of <see cref="AuthService.GoogleAsync"/>.</summary>
 public enum GoogleAuthStatus

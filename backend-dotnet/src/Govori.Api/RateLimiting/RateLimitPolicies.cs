@@ -99,9 +99,9 @@ internal static class RateLimitPolicies
 
     public static IServiceCollection AddGovoriRateLimiter(this IServiceCollection services, IConfiguration config)
     {
-        // Default store is process-local (safe for tests, no Redis at boot). Opt into the
-        // implemented Redis-backed, cross-instance store with GOVORI_RATELIMIT_BACKEND=redis
-        // (distributed-limiting TODO, docs/07 §7.3). TryAdd so integration tests can pre-register
+        // Default store is process-local (safe for tests, no Redis at boot). The deployed stacks opt
+        // into the Redis-backed, cross-instance store with GOVORI_RATELIMIT_BACKEND=redis (both
+        // compose files set it; docs/07 §7.3). TryAdd so integration tests can pre-register
         // a fake store (throwing → prove fail-open; counting → prove 429) via ConfigureTestServices.
         var backend = config["GOVORI_RATELIMIT_BACKEND"] ?? "memory";
         if (string.Equals(backend, "redis", StringComparison.OrdinalIgnoreCase))
