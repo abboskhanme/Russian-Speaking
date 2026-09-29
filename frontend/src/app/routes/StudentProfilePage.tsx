@@ -69,7 +69,7 @@ export default function StudentProfilePage() {
     Promise.allSettled([
       endpoints.teacherStudentSubmissions(studentId, 100),
       groupId ? endpoints.teacherGroupDetail(groupId) : Promise.resolve(null),
-      endpoints.teacherSubmissions(),
+      endpoints.teacherReviewCount(),
       // For the trend direction only. Deliberately taken from the SERVER rather
       // than recomputed from `subs` here: the newer-half-vs-older-half rule lives
       // in ClassroomScoring, and a second copy in the client would drift from the
@@ -92,7 +92,7 @@ export default function StudentProfilePage() {
         setPremium(who ? { granted: who.is_premium, effective: who.has_premium } : null);
         setQueued(
           all.status === "fulfilled"
-            ? all.value.filter((x) => x.status === "done" && x.reviewed_at === null).length
+            ? all.value.count
             : 0,
         );
         setTrend(

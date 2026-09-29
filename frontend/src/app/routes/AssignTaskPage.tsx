@@ -76,7 +76,7 @@ export default function AssignTaskPage() {
         endpoints.teacherGroups(),
         endpoints.teacherQuestions({ limit: QUESTION_LIMIT }),
         endpoints.teacherBlocks(),
-        endpoints.teacherReviewQueue(100),
+        endpoints.teacherReviewCount(),
         studentId ? endpoints.classroomStudent(studentId) : Promise.resolve(null),
       ]);
       if (!alive) return;
@@ -92,7 +92,7 @@ export default function AssignTaskPage() {
       setGroups(g.value);
       setQuestions(q.status === "fulfilled" ? q.value : []);
       setBlocks(b.status === "fulfilled" ? b.value : []);
-      setQueued(rq.status === "fulfilled" ? rq.value.length : 0);
+      setQueued(rq.status === "fulfilled" ? rq.value.count : 0);
 
       if (studentId) {
         let target: AssignStudentTarget | null =

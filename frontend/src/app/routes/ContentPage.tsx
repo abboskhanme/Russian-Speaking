@@ -66,7 +66,7 @@ export default function ContentPage() {
     Promise.allSettled([
       endpoints.teacherBlocks(),
       endpoints.teacherQuestions({ limit: 200 }),
-      endpoints.teacherReviewQueue(100),
+      endpoints.teacherReviewCount(),
     ])
       .then(([b, q, r]) => {
         if (!alive) return;
@@ -76,7 +76,7 @@ export default function ContentPage() {
         }
         setBlocks(b.value);
         setQuestions(q.status === "fulfilled" ? q.value : []);
-        setQueued(r.status === "fulfilled" ? r.value.length : 0);
+        setQueued(r.status === "fulfilled" ? r.value.count : 0);
       })
       .finally(() => alive && setLoaded(true));
 

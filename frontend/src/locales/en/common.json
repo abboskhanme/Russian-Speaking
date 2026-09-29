@@ -590,6 +590,8 @@
     "joinedAt": "joined {{month}}",
     "answers": "Answers",
     "queueIntro": "Every graded answer you haven't reviewed yet is here. Nothing is approved automatically.",
+    "queueShown": "Showing {{shown}} of {{total}}",
+    "queueMore": "Load more",
     "qAll": "All",
     "qLow": "Low score",
     "queueClear": "Queue is empty — everything reviewed",

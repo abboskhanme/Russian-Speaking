@@ -437,6 +437,10 @@ public sealed partial class ClassroomEndpointsTests
         Assert.Contains(mine, await Ids(client, $"/api/submissions?student_id={rosterStudent}", token));
         Assert.Empty(await Ids(client, $"/api/submissions?student_id={outsider}", token));   // IDOR: nothing
         Assert.Contains(mine, await Ids(client, "/api/submissions?needs_review=true", token));
+        // The badge count follows the SAME scope and rule: the roster answer, not the outsider's.
+        Assert.Equal(1, await ReviewCount(client, token));
+        Assert.Equal(HttpStatusCode.Unauthorized,
+            (await client.GetAsync("/api/submissions/review-count")).StatusCode);
 
         Assert.Equal(HttpStatusCode.OK, (await Send(client, HttpMethod.Get, $"/api/submissions/{mine}", token)).StatusCode);
         Assert.Equal(HttpStatusCode.OK, (await Send(client, HttpMethod.Get, $"/api/submissions/{mine}/detail", token)).StatusCode);
@@ -447,6 +451,7 @@ public sealed partial class ClassroomEndpointsTests
             Json(new { teacher_band = 75 }))).StatusCode);
         Assert.Equal(HttpStatusCode.NotFound, (await Send(client, HttpMethod.Patch, $"/api/submissions/{theirs}/review", token,
             Json(new { teacher_band = 75 }))).StatusCode);
+        Assert.Equal(0, await ReviewCount(client, token));                 // reviewed → off the queue
         await using (var ctx = CreateContext())
             Assert.Null((await ctx.Submissions.SingleAsync(s => s.Id == theirs)).TeacherBand);
 
@@ -475,6 +480,14 @@ public sealed partial class ClassroomEndpointsTests
             Assert.Equal(HttpStatusCode.OK, resp.StatusCode);
             using var doc = JsonDocument.Parse(await resp.Content.ReadAsStringAsync());
             return doc.RootElement.EnumerateArray().Select(r => r.GetProperty("id").GetGuid()).ToList();
+        }
+
+        static async Task<int> ReviewCount(HttpClient client, string token)
+        {
+            var resp = await Send(client, HttpMethod.Get, "/api/submissions/review-count", token);
+            Assert.Equal(HttpStatusCode.OK, resp.StatusCode);
+            using var doc = JsonDocument.Parse(await resp.Content.ReadAsStringAsync());
+            return doc.RootElement.GetProperty("count").GetInt32();
         }
     }
 

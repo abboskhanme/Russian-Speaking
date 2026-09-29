@@ -73,7 +73,7 @@ export default function GroupDetailPage() {
       endpoints.teacherGradebook(groupId),
       endpoints.teacherAssignments(),
       endpoints.teacherJoinRequests(),
-      endpoints.teacherSubmissions(),
+      endpoints.teacherReviewCount(),
       endpoints.teacherInsights(groupId),
     ])
       .then(([d, gb, asg, req, subs, ins]) => {
@@ -95,7 +95,7 @@ export default function GroupDetailPage() {
         );
         setQueued(
           subs.status === "fulfilled"
-            ? subs.value.filter((s) => s.status === "done" && s.reviewed_at === null).length
+            ? subs.value.count
             : 0,
         );
       })

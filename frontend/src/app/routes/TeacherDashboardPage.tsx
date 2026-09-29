@@ -45,7 +45,6 @@ import type {
   GroupJoinRequestResponse,
   GroupResponse,
   InsightsResponse,
-  SubmissionResponse,
 } from "../../shared/api";
 import { useAuth } from "../../shared/auth";
 import { firstName } from "../adapters";
@@ -67,7 +66,7 @@ export default function TeacherDashboardPage() {
 
   const [groups, setGroups] = useState<GroupResponse[]>([]);
   const [rosters, setRosters] = useState<GroupDetailResponse[]>([]);
-  const [subs, setSubs] = useState<SubmissionResponse[]>([]);
+  const [queued, setQueued] = useState(0);
   const [requests, setRequests] = useState<GroupJoinRequestResponse[]>([]);
   const [gradebook, setGradebook] = useState<GradebookRowResponse[]>([]);
   const [insights, setInsights] = useState<InsightsResponse | null>(null);
@@ -87,7 +86,7 @@ export default function TeacherDashboardPage() {
     (async () => {
       const [g, s, r, gb, ins] = await Promise.allSettled([
         endpoints.teacherGroups(),
-        endpoints.teacherSubmissions(),
+        endpoints.teacherReviewCount(),
         endpoints.teacherJoinRequests(),
         endpoints.teacherGradebook(),
         endpoints.teacherInsights(),
@@ -95,7 +94,7 @@ export default function TeacherDashboardPage() {
       if (!alive) return;
       if (g.status === "fulfilled") setGroups(g.value);
       else setFailed(true);
-      setSubs(s.status === "fulfilled" ? s.value : []);
+      setQueued(s.status === "fulfilled" ? s.value.count : 0);
       setRequests(r.status === "fulfilled" ? r.value : []);
       setGradebook(gb.status === "fulfilled" ? gb.value : []);
       setInsights(ins.status === "fulfilled" ? ins.value : null);
@@ -129,13 +128,6 @@ export default function TeacherDashboardPage() {
       initials: user ? initialsOf(user.full_name) : undefined,
     }),
     [user, t],
-  );
-
-  /** Attempts AI grading has finished (`status === "done"`) but no teacher has
-   * signed off on (`reviewed_at === null`) — the Navbat queue. */
-  const queued = useMemo(
-    () => subs.filter((s) => s.status === "done" && s.reviewed_at === null).length,
-    [subs],
   );
 
   const stats = useMemo<TeacherStats>(

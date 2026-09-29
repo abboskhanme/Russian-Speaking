@@ -52,6 +52,16 @@ export interface ReviewQueueProps {
    * recorded the review, so the row can leave the list.
    */
   onConfirm?: (id: string) => Promise<void> | void;
+  /**
+   * The queue's TRUE size (`GET /api/submissions/review-count`). `items` is one
+   * page of it, so the tab label and the FAB badge read this, never
+   * `items.length` — a 100-row page printed "100" over a 125-answer queue.
+   * Omitted → falls back to `items.length` (mock / story use).
+   */
+  total?: number;
+  /** Fetch the next page. Offered only while `items` is shorter than `total`. */
+  onLoadMore?: () => void;
+  loadingMore?: boolean;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -88,8 +98,12 @@ export function ReviewQueueScreen({
   onNavigate,
   onOpen,
   onConfirm,
+  total,
+  onLoadMore,
+  loadingMore = false,
 }: ReviewQueueProps) {
   const { t } = useTranslation();
+  const count = total ?? items.length;
   const player = useRef<HTMLAudioElement>(null);
   const [playingId, setPlayingId] = useState<string | null>(null);
 
@@ -118,7 +132,7 @@ export function ReviewQueueScreen({
   );
 
   const tabs: TabItem[] = [
-    { key: "all", label: items.length ? `${t("teacher.qAll")} · ${items.length}` : t("teacher.qAll") },
+    { key: "all", label: count ? `${t("teacher.qAll")} · ${count}` : t("teacher.qAll") },
     { key: "low", label: t("teacher.qLow") },
   ];
 
@@ -126,7 +140,7 @@ export function ReviewQueueScreen({
     <AppShell
       brand={<Brand />}
       nav={{
-        items: teacherNavItems(t, items.length),
+        items: teacherNavItems(t, count),
         activeKey: activeNavKey,
         onNavigate,
         label: t("nav.landmark"),
@@ -175,6 +189,16 @@ export function ReviewQueueScreen({
               </li>
             ))}
           </ul>
+        )}
+        {onLoadMore && items.length < count && (
+          <div className={styles.more}>
+            <Text as="p" variant="body-s" color="muted">
+              {t("teacher.queueShown", { shown: items.length, total: count })}
+            </Text>
+            <Button variant="secondary" onClick={onLoadMore} disabled={loadingMore}>
+              {t("teacher.queueMore")}
+            </Button>
+          </div>
         )}
         {/* The one shared player. No controls of its own — each card's button
             drives it — and hidden from the accessibility tree for that reason. */}

@@ -36,11 +36,14 @@ export const bearer = (userId: string) => ({
 
 /** Length of one teacher's review queue, straight from the API. */
 export async function queueLength(request: APIRequestContext, teacherId: string): Promise<number> {
-  const res = await request.get("/api/submissions?needs_review=true&limit=200", {
+  // The server's count, not a list's length: a page is capped at 200 rows, and the
+  // UI now prints this same count on the badge — reading a list here would make the
+  // test agree with exactly the truncation it exists to catch.
+  const res = await request.get("/api/submissions/review-count", {
     headers: bearer(teacherId),
   });
   if (!res.ok()) return 0;
-  return ((await res.json()) as unknown[]).length;
+  return ((await res.json()) as { count: number }).count;
 }
 
 let cached: Teacher | null = null;

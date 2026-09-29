@@ -10,6 +10,7 @@
 import { apiClient } from "./client";
 import type {
   AchievementResponse,
+  ReviewCountResponse,
   CreateTeacherArgs,
   UserRoleUpdateArgs,
   UserRoleResponse,
@@ -762,10 +763,18 @@ export function teacherStudentSubmissions(
  * grading has FINISHED but no teacher has signed off. `failed` attempts are
  * excluded server-side — a pipeline failure is an ops problem, not a grading
  * decision. Teacher-scoped like every submission read. */
-export function teacherReviewQueue(limit = 50): Promise<SubmissionResponse[]> {
+export function teacherReviewQueue(limit = 50, offset = 0): Promise<SubmissionResponse[]> {
   return apiClient.get<SubmissionResponse[]>(
-    `/submissions?needs_review=true&limit=${encodeURIComponent(String(limit))}`,
+    `/submissions?needs_review=true&limit=${encodeURIComponent(String(limit))}&offset=${encodeURIComponent(String(offset))}`,
   );
+}
+
+/** GET /api/submissions/review-count → the queue's TRUE size, same scope and rule as
+ * {@link teacherReviewQueue}. The FAB badge reads this, never a fetched list's
+ * `.length`: a list is capped (100–200 rows), so a roster with 125 waiting answers
+ * used to read "100". */
+export function teacherReviewCount(): Promise<ReviewCountResponse> {
+  return apiClient.get<ReviewCountResponse>("/submissions/review-count");
 }
 
 /** PATCH /api/submissions/{id}/review → write the teacher's verdict (204).

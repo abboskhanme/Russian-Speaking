@@ -40,7 +40,7 @@ export default function GroupInvitePage() {
     Promise.allSettled([
       endpoints.teacherGroupDetail(groupId),
       endpoints.teacherJoinRequests(),
-      endpoints.teacherSubmissions(),
+      endpoints.teacherReviewCount(),
     ])
       .then(([g, req, subs]) => {
         if (!alive) return;
@@ -54,7 +54,7 @@ export default function GroupInvitePage() {
         );
         setQueued(
           subs.status === "fulfilled"
-            ? subs.value.filter((s) => s.status === "done" && s.reviewed_at === null).length
+            ? subs.value.count
             : 0,
         );
       })

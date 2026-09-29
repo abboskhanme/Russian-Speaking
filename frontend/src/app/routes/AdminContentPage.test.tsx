@@ -64,6 +64,7 @@ vi.mock("../../shared/api", async (importOriginal) => {
       teacherBlocks: () => Promise.resolve(blocks),
       teacherQuestions: () => Promise.resolve([]),
       teacherReviewQueue: () => Promise.resolve([]),
+      teacherReviewCount: () => Promise.resolve({ count: 0 }),
       teacherBlock: () => Promise.resolve(detail),
       createBlock: (args: CreateBlockArgs) => {
         createCalls(args);

@@ -268,6 +268,11 @@ export interface StudentModuleResponse {
 
 export type SubmissionStatus = "pending" | "processing" | "done" | "failed";
 
+/** GET /api/submissions/review-count — the grading queue's true size (the FAB badge). */
+export interface ReviewCountResponse {
+  count: number;
+}
+
 export interface SubmissionResponse {
   id: string;
   student_id: string;

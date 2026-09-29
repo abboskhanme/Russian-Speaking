@@ -39,7 +39,7 @@ export default function AttemptReviewPage() {
 
     Promise.allSettled([
       endpoints.attemptDetail(attemptId),
-      endpoints.teacherReviewQueue(100),
+      endpoints.teacherReviewCount(),
     ])
       .then(([d, q]) => {
         if (!alive) return;
@@ -48,7 +48,7 @@ export default function AttemptReviewPage() {
           return;
         }
         setDetail(d.value);
-        setQueued(q.status === "fulfilled" ? q.value.length : 0);
+        setQueued(q.status === "fulfilled" ? q.value.count : 0);
       })
       .finally(() => alive && setLoading(false));
 

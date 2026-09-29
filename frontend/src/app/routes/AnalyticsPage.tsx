@@ -105,7 +105,7 @@ export default function AnalyticsPage() {
         endpoints.teacherGroups(),
         endpoints.teacherInsights(groupId ?? undefined),
         endpoints.teacherGradebook(groupId ?? undefined),
-        endpoints.teacherReviewQueue(100),
+        endpoints.teacherReviewCount(),
       ]);
       if (!alive) return;
 
@@ -119,7 +119,7 @@ export default function AnalyticsPage() {
       setGroups(g.status === "fulfilled" ? g.value : []);
       setInsights(ins.status === "fulfilled" ? ins.value : null);
       setGradebook(gb.status === "fulfilled" ? gb.value : []);
-      setQueued(q.status === "fulfilled" ? q.value.length : 0);
+      setQueued(q.status === "fulfilled" ? q.value.count : 0);
       setLoading(false);
     })();
 

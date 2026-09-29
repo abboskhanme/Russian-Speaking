@@ -80,7 +80,7 @@ export default function ClassesPage() {
         endpoints.teacherGroups(),
         endpoints.teacherGradebook(),
         endpoints.teacherJoinRequests(),
-        endpoints.teacherSubmissions(),
+        endpoints.teacherReviewCount(),
       ]);
       if (!alive) return;
 
@@ -94,7 +94,7 @@ export default function ClassesPage() {
       setRequests(req.status === "fulfilled" ? req.value : []);
       setQueued(
         subs.status === "fulfilled"
-          ? subs.value.filter((s) => s.status === "done" && s.reviewed_at === null).length
+          ? subs.value.count
           : 0,
       );
 

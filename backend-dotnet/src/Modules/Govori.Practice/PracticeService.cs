@@ -217,7 +217,7 @@ public sealed class PracticeService
         // failure is an ops problem, not a grading decision, and putting it in front of a teacher
         // asks them to judge an attempt that was never scored.
         if (needsReview == true)
-            query = query.Where(s => s.Status == SubmissionStatus.Done && s.ReviewedAt == null);
+            query = query.Where(NeedsReview);
 
         var rows = await query
             .Include(s => s.Student)
@@ -232,6 +232,33 @@ public sealed class PracticeService
         foreach (var s in rows)
             result.Add(await ToResponseAsync(s, s.Student, s.Question, ct));
         return result;
+    }
+
+    /// <summary>The grading queue's membership rule — shared by the list and the count so the badge
+    /// and the list can never disagree about what "waiting for review" means.</summary>
+    private static readonly System.Linq.Expressions.Expression<Func<Submission, bool>> NeedsReview =
+        s => s.Status == SubmissionStatus.Done && s.ReviewedAt == null;
+
+    /// <summary>
+    /// GET /api/submissions/review-count — how many answers wait for this user's review, under the
+    /// same role scope as <see cref="ListAsync"/>.
+    ///
+    /// <para>Exists because the panel counted the queue by fetching it: every teacher screen asked
+    /// for 100 rows and printed <c>.length</c> on the FAB badge, so a roster with 125 unreviewed
+    /// answers read "100" — and widening the teacher scope to the whole roster made that the normal
+    /// case, not an edge. A count is one indexed query and no row materialisation.</para>
+    /// </summary>
+    public async Task<int?> ReviewCountAsync(Guid userId, CancellationToken ct = default)
+    {
+        var user = await _db.Users.FirstOrDefaultAsync(u => u.Id == userId, ct);
+        if (user is null || !user.IsActive)
+            return null;
+
+        return await _db.Submissions
+            .Where(s => s.ReferenceText == null)
+            .VisibleTo(_db, user)
+            .Where(NeedsReview)
+            .CountAsync(ct);
     }
 
     /// <summary>

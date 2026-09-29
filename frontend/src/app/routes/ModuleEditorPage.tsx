@@ -79,7 +79,7 @@ export default function ModuleEditorPage() {
     Promise.allSettled([
       endpoints.teacherBlock(blockId),
       endpoints.teacherQuestions({ unassignedOnly: true, limit: 100 }),
-      endpoints.teacherReviewQueue(100),
+      endpoints.teacherReviewCount(),
     ])
       .then(([b, lib, q]) => {
         if (!alive) return;
@@ -90,7 +90,7 @@ export default function ModuleEditorPage() {
         }
         setBlock(b.value);
         setLibrary(lib.status === "fulfilled" ? lib.value : []);
-        setQueued(q.status === "fulfilled" ? q.value.length : 0);
+        setQueued(q.status === "fulfilled" ? q.value.count : 0);
       })
       .finally(() => alive && setLoading(false));
 

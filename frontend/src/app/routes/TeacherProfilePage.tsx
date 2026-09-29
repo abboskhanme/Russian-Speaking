@@ -66,14 +66,14 @@ export default function TeacherProfilePage() {
     // reads as "the queue emptied" rather than "this page didn't ask".
     Promise.allSettled([
       endpoints.teacherGroups(),
-      endpoints.teacherReviewQueue(100),
+      endpoints.teacherReviewCount(),
       endpoints.settingsLinks(),
     ])
       .then(([g, q, l]) => {
         if (!alive) return;
         if (g.status === "fulfilled") setGroups(g.value);
         else setFailed(true);
-        setQueued(q.status === "fulfilled" ? q.value.length : 0);
+        setQueued(q.status === "fulfilled" ? q.value.count : 0);
         setLinks(
           l.status === "fulfilled"
             ? { tgSupportUrl: l.value.tg_support_url, tgChannelUrl: l.value.tg_channel_url }

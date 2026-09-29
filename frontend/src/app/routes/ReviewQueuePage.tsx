@@ -25,6 +25,9 @@ import { relativeTime } from "../adapters";
 import { PageError, PageLoading } from "../PageState";
 import { useTeacherNavHandler } from "../nav";
 
+/** One page of the queue. The API caps a page at 200; 100 keeps the first paint light. */
+const PAGE = 100;
+
 export default function ReviewQueuePage() {
   const navigate = useNavigate();
   const { t } = useTranslation();
@@ -34,7 +37,11 @@ export default function ReviewQueuePage() {
   const filter: QueueFilter = params.get("filter") === "low" ? "low" : "all";
 
   const [subs, setSubs] = useState<SubmissionResponse[]>([]);
+  /** The queue's true size — `subs` is only the pages fetched so far. Null when the
+   * count read failed; the screen then falls back to the list's own length. */
+  const [total, setTotal] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [failed, setFailed] = useState(false);
   const [reloadKey, setReloadKey] = useState(0);
 
@@ -43,16 +50,38 @@ export default function ReviewQueuePage() {
     setLoading(true);
     setFailed(false);
 
-    endpoints
-      .teacherReviewQueue(100)
-      .then((rows) => alive && setSubs(rows))
-      .catch(() => alive && setFailed(true))
+    Promise.allSettled([endpoints.teacherReviewQueue(PAGE), endpoints.teacherReviewCount()])
+      .then(([rows, count]) => {
+        if (!alive) return;
+        if (rows.status !== "fulfilled") {
+          setFailed(true);
+          return;
+        }
+        setSubs(rows.value);
+        setTotal(count.status === "fulfilled" ? count.value.count : null);
+      })
       .finally(() => alive && setLoading(false));
 
     return () => {
       alive = false;
     };
   }, [reloadKey]);
+
+  // Newest first, so the next page starts where this one ended. A row confirmed in
+  // the meantime has left the server's queue too, which shifts the window by one —
+  // de-duplicating by id keeps that from ever showing a card twice.
+  const loadMore = useCallback(async () => {
+    setLoadingMore(true);
+    try {
+      const next = await endpoints.teacherReviewQueue(PAGE, subs.length);
+      setSubs((prev) => {
+        const seen = new Set(prev.map((s) => s.id));
+        return [...prev, ...next.filter((s) => !seen.has(s.id))];
+      });
+    } finally {
+      setLoadingMore(false);
+    }
+  }, [subs.length]);
 
   const items = useMemo<QueueItem[]>(
     () =>
@@ -75,6 +104,7 @@ export default function ReviewQueuePage() {
     // The AI's band stands; no comment is invented on the teacher's behalf.
     await endpoints.reviewSubmission(id, { confirm: true });
     setSubs((prev) => prev.filter((s) => s.id !== id));
+    setTotal((n) => (n == null ? n : Math.max(0, n - 1)));
   }, []);
 
   const setFilter = useCallback(
@@ -99,6 +129,9 @@ export default function ReviewQueuePage() {
       onNavigate={onNavigate}
       onOpen={(id) => navigate(`/teacher/queue/${encodeURIComponent(id)}`)}
       onConfirm={confirm}
+      total={total ?? undefined}
+      onLoadMore={loadMore}
+      loadingMore={loadingMore}
     />
   );
 }

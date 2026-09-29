@@ -135,3 +135,13 @@
   text-align: center;
   padding-block: var(--s-6);
 }
+
+/* "N / M ko'rsatilmoqda · Yana yuklash" under a page of a longer queue. */
+.more {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-3);
+  padding-block: var(--s-3);
+}

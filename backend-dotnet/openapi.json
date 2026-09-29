@@ -2514,6 +2514,21 @@
         ]
       }
     },
+    "/api/submissions/review-count": {
+      "get": {
+        "summary": "HTTP: GET /api/submissions/review-count",
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
     "/api/submissions/{id}": {
       "get": {
         "summary": "HTTP: GET /api/submissions/{id:guid}",
@@ -5497,6 +5512,18 @@
           "total_rounds",
           "graduated",
           "remaining_due"
+        ]
+      },
+      "ReviewCountResponse": {
+        "type": "object",
+        "properties": {
+          "count": {
+            "type": "integer",
+            "format": "int32"
+          }
+        },
+        "required": [
+          "count"
         ]
       },
       "ReviewDrillItemResponse": {

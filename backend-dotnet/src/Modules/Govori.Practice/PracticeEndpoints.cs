@@ -99,6 +99,16 @@ public static class PracticeEndpoints
             return list is null ? Results.Unauthorized() : Results.Ok(list);
         }).RequireAuthorization();
 
+        // GET /api/submissions/review-count → { count } — the grading queue's true size under the
+        // same scope as the list (the FAB badge). No `{id:guid}` clash: the literal segment is not a guid.
+        submissions.MapGet("/review-count", async (ClaimsPrincipal principal, PracticeService svc, CancellationToken ct) =>
+        {
+            if (!TryGetUserId(principal, out var userId))
+                return Results.Unauthorized();
+            var count = await svc.ReviewCountAsync(userId, ct);
+            return count is null ? Results.Unauthorized() : Results.Ok(new ReviewCountResponse(count.Value));
+        }).RequireAuthorization();
+
         // GET /api/submissions/{id} — attempt status/detail.
         // 404 (missing OR not visible to this user — never leaks existence).
         submissions.MapGet("/{id:guid}", async (Guid id, ClaimsPrincipal principal, PracticeService svc, CancellationToken ct) =>

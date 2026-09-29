@@ -590,6 +590,8 @@
     "joinedAt": "qo‘shilgan {{month}}",
     "answers": "Javoblar",
     "queueIntro": "Siz hali ko‘rib chiqmagan har bir baholangan javob shu yerda. Hech narsa avtomatik tasdiqlanmaydi.",
+    "queueShown": "{{total}} tadan {{shown}} tasi ko‘rsatilmoqda",
+    "queueMore": "Yana yuklash",
     "qAll": "Hammasi",
     "qLow": "Past ball",
     "queueClear": "Navbat bo‘sh — hammasi tekshirildi",

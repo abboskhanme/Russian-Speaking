@@ -44,7 +44,11 @@ const ROW: SubmissionResponse = {
 };
 
 // Hoisted with the mock below, which runs before this module's own statements.
-const { review } = vi.hoisted(() => ({ review: vi.fn() }));
+const { review, queuePage, reviewCount } = vi.hoisted(() => ({
+  review: vi.fn(),
+  queuePage: vi.fn(),
+  reviewCount: vi.fn(),
+}));
 
 vi.mock("../../shared/api", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../../shared/api")>();
@@ -52,7 +56,8 @@ vi.mock("../../shared/api", async (importOriginal) => {
     ...actual,
     endpoints: {
       ...actual.endpoints,
-      teacherReviewQueue: () => Promise.resolve([ROW]),
+      teacherReviewQueue: (...args: unknown[]) => queuePage(...args),
+      teacherReviewCount: () => reviewCount(),
       reviewSubmission: (...args: unknown[]) => review(...args),
       unreadCount: () => Promise.resolve({ count: 0 }),
     },
@@ -61,6 +66,8 @@ vi.mock("../../shared/api", async (importOriginal) => {
 
 beforeEach(() => {
   review.mockReset().mockResolvedValue(undefined);
+  queuePage.mockReset().mockResolvedValue([ROW]);
+  reviewCount.mockReset().mockResolvedValue({ count: 1 });
   // jsdom has no media pipeline; the player only needs to accept the calls.
   vi.spyOn(HTMLMediaElement.prototype, "play").mockResolvedValue(undefined);
   vi.spyOn(HTMLMediaElement.prototype, "pause").mockImplementation(() => undefined);
@@ -103,5 +110,23 @@ describe("▶ Audio", () => {
     await user.click(pause);
     expect(HTMLMediaElement.prototype.pause).toHaveBeenCalled();
     expect(screen.getByRole("button", { name: t("teacher.audioPlay", { name: "Dilfuza R." }) })).toBeInTheDocument();
+  });
+});
+
+describe("the queue's size", () => {
+  it("is the server's count, not the length of the page it happened to fetch", async () => {
+    // One page of one row, over a queue of 125: the tab and the FAB badge used to
+    // print the page's length, so a teacher with 125 waiting answers read "100".
+    reviewCount.mockResolvedValue({ count: 125 });
+    const second = { ...ROW, id: "sub-2", student_name: "Bekzod T." };
+    queuePage.mockResolvedValueOnce([ROW]).mockResolvedValueOnce([second]);
+    const user = renderPage();
+
+    expect(await screen.findByText(`${t("teacher.qAll")} · 125`)).toBeInTheDocument();
+    expect(screen.getByText(t("teacher.queueShown", { shown: 1, total: 125 }))).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: t("teacher.queueMore") }));
+    expect(queuePage).toHaveBeenLastCalledWith(100, 1);          // next page starts after the first
+    expect(await screen.findByText("Bekzod T.")).toBeInTheDocument();
   });
 });

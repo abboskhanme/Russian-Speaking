@@ -208,3 +208,7 @@ public static class ReviewErrorCodes
     /// <summary><c>teacher_band</c> outside 0..100.</summary>
     public const string BandOutOfRange = "band_out_of_range";
 }
+
+/// <summary>GET /api/submissions/review-count — the grading queue's true size (the FAB badge), under
+/// the same scope and the same "graded, not yet reviewed" rule as <c>GET /api/submissions?needs_review=true</c>.</summary>
+public sealed record ReviewCountResponse(int Count);

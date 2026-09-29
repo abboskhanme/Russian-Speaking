@@ -33,7 +33,7 @@ vi.mock("../../shared/api", async (importOriginal) => {
     endpoints: {
       ...actual.endpoints,
       teacherStudentSubmissions: () => Promise.resolve([]),
-      teacherSubmissions: () => Promise.resolve([]),
+      teacherReviewCount: () => Promise.resolve({ count: 0 }),
       teacherGradebook: () => Promise.resolve([]),
       classroomStudent: () =>
         state.student ? Promise.resolve(state.student) : Promise.reject(new Error("404")),
