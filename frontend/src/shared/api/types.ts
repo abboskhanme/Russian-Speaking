@@ -540,6 +540,94 @@ export interface JoinGroupResponse extends GroupResponse {
   pending: boolean;
 }
 
+/* ── Classroom · group + assignment management (A5 "Sozlama", "Faol topshiriqlar") ──
+ * Every 400 these routes produce carries a machine `code` beside the human `detail`
+ * ({ detail, code }); the UI branches on the code and never prints the detail. */
+
+/** PATCH /api/groups/{id} body → {@link GroupResponse}. An absent field is left
+ * alone. `name` is trimmed; blank → 400 `name_required`, >128 chars → 400
+ * `name_too_long`.
+ *
+ * `level` exists on the wire and is REFUSED (400 `level_not_supported`): `groups`
+ * has no level column — a group card's CEFR badge is derived from its students'
+ * scores. The UI therefore never sends it; it is mirrored here only so the
+ * contract gate sees the same shape the server declares. */
+export interface UpdateGroupArgs {
+  name?: string | null;
+  level?: string | null;
+}
+
+/** POST /api/assignments/cancel body — take one task back from one group: every
+ * row of the caller's for `question_id` that was assigned THROUGH `group_id`.
+ * Students' answers and grades are untouched. */
+export interface CancelGroupAssignmentsArgs {
+  question_id: string;
+  group_id: string;
+}
+
+/** POST /api/assignments/cancel → how many assignment rows were removed. 0 is a
+ * normal answer (idempotent), not an error — e.g. the task reached the students
+ * through A6's single-student assign, not through the group. */
+export interface CancelGroupAssignmentsResponse {
+  cancelled: number;
+}
+
+/** PATCH /api/assignments/group body — move one task's deadline across one group.
+ * `due_at` is REQUIRED and may be null: an ISO instant sets the deadline, an
+ * explicit `null` removes it ("muddatsiz"). Omitting the key is a 400
+ * `due_at_required` — the server will not read a forgotten field as "no
+ * deadline" for a whole group. A past instant is 400 `due_in_past`. */
+export interface UpdateGroupAssignmentsArgs {
+  question_id: string;
+  group_id: string;
+  due_at: string | null;
+}
+
+/** PATCH /api/assignments/group → how many rows now carry the new deadline. */
+export interface UpdateGroupAssignmentsResponse {
+  updated: number;
+}
+
+/** PATCH /api/classroom/students/{id}/premium body. `is_premium` is required — a
+ * body without it is a 400 `is_premium_required`, never a silent revoke. */
+export interface SetStudentPremiumArgs {
+  is_premium: boolean;
+}
+
+/** PATCH /api/classroom/students/{id}/premium → the stored grant AND what the
+ * student actually has. `is_premium` is the grant this route writes — the
+ * switch's state. `has_premium` is the grant OR an active paid subscription, so it
+ * can be true with the switch off (the student pays for themselves). The A6 switch
+ * reads `is_premium` back from HERE after every write, never from its own guess. */
+export interface StudentPremiumResponse {
+  id: string;
+  is_premium: boolean;
+  has_premium: boolean;
+}
+
+/** One of the caller's groups a student sits in (A6 header). */
+export interface ClassroomStudentGroupResponse {
+  id: string;
+  name: string;
+  joined_at: string;
+}
+
+/** GET /api/classroom/students/{id} → the A6 header: who the student is, the
+ * premium grant (so the screen can draw the switch) and which of the caller's
+ * groups they are in. A teacher reads only their own roster — anyone else is a
+ * 404, which is also how "this route is not deployed yet" looks, so a failure
+ * simply leaves the premium switch out. */
+export interface ClassroomStudentResponse {
+  id: string;
+  full_name: string;
+  email: string;
+  /** The teacher/admin grant — the switch's state. */
+  is_premium: boolean;
+  /** Effective premium: the grant OR an active subscription. */
+  has_premium: boolean;
+  groups: ClassroomStudentGroupResponse[];
+}
+
 /** A pending join request. Used by BOTH sides: the teacher's "So'rovlar" tab
  * (`GET /api/groups/requests`, their own groups only) and the student's own waiting state
  * (`GET /api/groups/requests/mine`). Carries the group name + code so a row reads standalone. */
@@ -941,6 +1029,10 @@ export interface TeacherBlockResponse {
   student_count: number;
   created_at: string;
   updated_at: string;
+  /** Full name of the module's owner. Additive: an admin's list holds every
+   * teacher's modules and needs it to tell them apart; a teacher's list is all
+   * their own. Optional so an older API image still type-checks. */
+  owner_name?: string;
 }
 
 /** GET /api/blocks/{id} → the module plus its ordered tasks (the C4 editor). */

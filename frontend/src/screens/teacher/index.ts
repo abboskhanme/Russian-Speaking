@@ -45,6 +45,12 @@ export type {
   GroupRosterStudent,
 } from "./TeacherGroupDetailScreen";
 
+/** A5 «Sozlama» + the "Faol topshiriqlar" row menu. */
+export { GroupSettingsSheet } from "./GroupSettingsSheet";
+export type { GroupSettingsSheetProps, GroupSettingsMember } from "./GroupSettingsSheet";
+export { AssignmentActionsSheet } from "./AssignmentActionsSheet";
+export type { AssignmentActionsSheetProps, DueChangeResult } from "./AssignmentActionsSheet";
+
 /** A7 «A'zo qo'shish · havola + kod». */
 export { GroupInviteScreen, default as GroupInviteDemo } from "./GroupInviteScreen";
 export type { GroupInviteProps, InvitePendingStudent } from "./GroupInviteScreen";
@@ -95,12 +101,22 @@ export type {
   EditorTask,
   LibraryTask,
   NewTaskDraft,
+  TaskPatch,
+  ModuleDeleteResult,
 } from "./ModuleEditorScreen";
+
+/** C2 «Vazifa yaratish» + the task editor — one sheet, used by C1 and C4. */
+export { TaskEditorSheet, durationLabel } from "./TaskEditorSheet";
+export type { EditableTask, TaskModuleOption, TaskEditorSheetProps } from "./TaskEditorSheet";
+
+/** The teacher panel's single-choice chips (CEFR level, time limits). */
+export { ChoiceChips, LevelChips, CEFR_LEVELS } from "./ChoiceChips";
+export type { ChoiceChip } from "./ChoiceChips";
 
 export { mockContentModules, mockContentTasks, mockModuleEditor } from "./content.mock";
 
 /** D1 «Insaytlar» + D2 «Jurnal» as one tabbed screen. */
-export { AnalyticsScreen, default as AnalyticsDemo } from "./AnalyticsScreen";
+export { AnalyticsScreen, default as AnalyticsDemo, ErrorsSection } from "./AnalyticsScreen";
 export type {
   AnalyticsScreenProps,
   AnalyticsTabKey,
@@ -124,6 +140,7 @@ export type {
   AssignSelection,
   AssignGroupOption,
   AssignOutcome,
+  AssignStudentTarget,
 } from "./AssignTaskScreen";
 
 export { mockAssignTask } from "./assign.mock";

@@ -270,3 +270,12 @@
   outline: var(--focus-ring-width) solid var(--focus-ring);
   outline-offset: var(--focus-ring-offset);
 }
+/* A module with nothing assignable in it: visible (with its reason under the
+   title), but inert. */
+.pickerRow:disabled {
+  cursor: default;
+  background: var(--surface-2);
+}
+.pickerRow:disabled:hover {
+  background: var(--surface-2);
+}

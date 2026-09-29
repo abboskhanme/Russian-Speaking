@@ -32,6 +32,13 @@ import type {
   GradebookRowResponse,
   InsightsResponse,
   GroupJoinRequestResponse,
+  UpdateGroupArgs,
+  CancelGroupAssignmentsArgs,
+  CancelGroupAssignmentsResponse,
+  UpdateGroupAssignmentsArgs,
+  UpdateGroupAssignmentsResponse,
+  StudentPremiumResponse,
+  ClassroomStudentResponse,
   TeacherBlockResponse,
   TeacherBlockDetailResponse,
   TeacherQuestionResponse,
@@ -505,6 +512,72 @@ export function rejectJoinRequest(id: string): Promise<void> {
   return apiClient.post<void>(`/groups/requests/${encodeURIComponent(id)}/reject`);
 }
 
+/* ── Teacher — group management (A5 «Sozlama») ─────────────────────────────
+ * Owner/admin only; another teacher's group is a 404, never a 403, so a group id
+ * cannot be probed. 400s carry a machine `code` (see `UpdateGroupArgs`). */
+
+/** PATCH /api/groups/{id} → rename. Never send `level` — the server has no column
+ * for it and answers 400 `level_not_supported`. */
+export function updateGroup(id: string, args: UpdateGroupArgs): Promise<GroupResponse> {
+  return apiClient.patch<GroupResponse>(`/groups/${encodeURIComponent(id)}`, args);
+}
+
+/** POST /api/groups/{id}/regenerate-code → the group with a NEW join code. The old
+ * code (and every invite link built from it) stops working at once; members and
+ * pending requests are untouched. */
+export function regenerateGroupCode(id: string): Promise<GroupResponse> {
+  return apiClient.post<GroupResponse>(`/groups/${encodeURIComponent(id)}/regenerate-code`);
+}
+
+/** DELETE /api/groups/{id}/members/{studentId} → remove one student (204). Their
+ * answers and grades are kept; only the membership goes. */
+export function removeGroupMember(groupId: string, studentId: string): Promise<void> {
+  return apiClient.del<void>(
+    `/groups/${encodeURIComponent(groupId)}/members/${encodeURIComponent(studentId)}`,
+  );
+}
+
+/** DELETE /api/groups/{id} → 204. Removes the memberships and the group's OPEN
+ * assignments; every answer and grade stays with its student. */
+export function deleteGroup(id: string): Promise<void> {
+  return apiClient.del<void>(`/groups/${encodeURIComponent(id)}`);
+}
+
+/** POST /api/assignments/cancel → take one task back from one group. Idempotent;
+ * `{ cancelled: 0 }` is a normal answer. */
+export function cancelGroupAssignments(
+  args: CancelGroupAssignmentsArgs,
+): Promise<CancelGroupAssignmentsResponse> {
+  return apiClient.post<CancelGroupAssignmentsResponse>("/assignments/cancel", args);
+}
+
+/** PATCH /api/assignments/group → move (or, with `due_at: null`, remove) one task's
+ * deadline across one group. The key is always sent — omitting it is a 400
+ * `due_at_required` by design. A past instant is 400 `due_in_past`. */
+export function updateGroupAssignmentsDue(
+  args: UpdateGroupAssignmentsArgs,
+): Promise<UpdateGroupAssignmentsResponse> {
+  return apiClient.patch<UpdateGroupAssignmentsResponse>("/assignments/group", args);
+}
+
+/* ── Teacher — one student (A6) ──────────────────────────────────────────── */
+
+/** GET /api/classroom/students/{id} → identity, the premium grant and the
+ * caller's groups the student is in. 404 outside the caller's roster. */
+export function classroomStudent(id: string): Promise<ClassroomStudentResponse> {
+  return apiClient.get<ClassroomStudentResponse>(`/classroom/students/${encodeURIComponent(id)}`);
+}
+
+/** PATCH /api/classroom/students/{id}/premium → grant or revoke the teacher-given
+ * premium. Resolves with what the server STORED, which the caller must render
+ * instead of the value it asked for. */
+export function setStudentPremium(id: string, isPremium: boolean): Promise<StudentPremiumResponse> {
+  return apiClient.patch<StudentPremiumResponse>(
+    `/classroom/students/${encodeURIComponent(id)}/premium`,
+    { is_premium: isPremium },
+  );
+}
+
 /** GET /api/reports/gradebook (?group_id) → one row per student the teacher may
  * see, with `avg_band` / `best_band` (0–100) + attempt counts. Teacher-scoped
  * server-side to their OWN questions AND roster, so a student with no attempt on
@@ -682,15 +755,27 @@ export function teacherReviewQueue(limit = 50): Promise<SubmissionResponse[]> {
 
 /** PATCH /api/submissions/{id}/review → write the teacher's verdict (204).
  *
- * Pass `band` to override the AI's score, `comment` for the "Izoh o'quvchiga",
- * or both. Sending NEITHER is a 400 — an empty review would still stamp
- * `reviewed_at` and drop the attempt out of the queue with no decision recorded.
- * A blank `comment` clears an existing note; omitting it leaves it untouched.
- * 404 when the attempt is outside this teacher's roster/questions. */
+ * Every field is tri-state on the wire: an ABSENT key leaves the stored value
+ * alone, so only what the teacher actually changed is sent. Pass `band` to
+ * override the AI's score, `comment` for the "Izoh o'quvchiga", or both; a blank
+ * `comment` clears an existing note.
+ *
+ * `confirm: true` is "✓ Tasdiqlash" — accept the AI's score as it stands. It
+ * stamps the review without touching the band and without inventing a comment:
+ * the canned "AI bahosi tasdiqlandi" note used to be written as the teacher's
+ * comment, which the STUDENT then read as their teacher's feedback. The server
+ * refuses `confirm` together with a band (400 `confirm_with_band`), so the two
+ * are mutually exclusive here too. An empty body is a 400 `empty_review`.
+ * 404 when the attempt is outside this teacher's roster. */
 export function reviewSubmission(
   id: string,
-  args: { band?: number; comment?: string },
+  args: { band?: number; comment?: string } | { confirm: true },
 ): Promise<void> {
+  if ("confirm" in args) {
+    return apiClient.patch<void>(`/submissions/${encodeURIComponent(id)}/review`, {
+      confirm: true,
+    });
+  }
   const body: { teacher_band?: number; teacher_comment?: string } = {};
   if (args.band !== undefined) body.teacher_band = args.band;
   if (args.comment !== undefined) body.teacher_comment = args.comment;
@@ -770,6 +855,20 @@ export function updateQuestion(
   args: UpdateQuestionArgs,
 ): Promise<TeacherQuestionResponse> {
   return apiClient.patch<TeacherQuestionResponse>(`/questions/${encodeURIComponent(id)}`, args);
+}
+
+/** DELETE /api/questions/{id} → 204. A SOFT delete: the task disappears from
+ * every list and from students' modules, while every answer and grade already
+ * given to it is kept (a hard delete would cascade them away). */
+export function deleteQuestion(id: string): Promise<void> {
+  return apiClient.del<void>(`/questions/${encodeURIComponent(id)}`);
+}
+
+/** DELETE /api/blocks/{id} → 204: the module goes and its tasks are soft-deleted
+ * with it (students' answers kept). 409 when the server judges it cannot be done
+ * safely — the caller says so rather than retrying. */
+export function deleteBlock(id: string): Promise<void> {
+  return apiClient.del<void>(`/blocks/${encodeURIComponent(id)}`);
 }
 
 /* ── Administration ────────────────────────────────────────────────────────

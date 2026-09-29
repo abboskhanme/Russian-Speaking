@@ -176,9 +176,10 @@ export interface AnalyticsScreenProps {
  * can be null: a class with no graded attempt gets an empty state per section,
  * not a wall of zeros. Divide-by-zero renders an em-dash, never `NaN%`.
  *
- * **The mockup's per-error "Mashq ber" button is deliberately absent** — there
- * is no error-type→task mapping anywhere in the data, so the button would have
- * nothing to assign.
+ * **"Mashq ber" on each error row is F6's one-tap remediation**, and it ships
+ * behind `class_insights_enabled`: the server supplies the task (the question
+ * this error actually occurred on most often) and exactly the students to send it
+ * to, so the screen invents neither. With the flag off the button is absent.
  *
  * Presentational and prop-driven: it fetches nothing (the CSV export is the one
  * side effect, and it is built entirely from the rows already on screen).
@@ -683,23 +684,28 @@ function WeekSection({ week }: { week: AnalyticsWeekDay[] }) {
  * would blank the charts and throw away the confirmation the teacher just earned.
  * The row states what happened and its button stays down.
  */
-function ErrorsSection({
+export function ErrorsSection({
   errors,
   minStudents,
   onAssignRemediation,
+  title,
 }: {
   errors: AnalyticsErrorRow[];
   minStudents: number;
   onAssignRemediation?: AnalyticsScreenProps["onAssignRemediation"];
+  /** Section heading. A5 reuses this section as "Guruh xatolari" — the same rows,
+   * the same numbers and the same F6 button as Analitika filtered to that group. */
+  title?: string;
 }) {
   const { t } = useTranslation();
   const [pending, setPending] = useState<AnalyticsErrorRow | null>(null);
   const [sent, setSent] = useState<Record<string, number>>({});
+  const heading = title ?? t("teacher.analytics.errorsTitle");
 
   return (
-    <section className={styles.section} aria-label={t("teacher.analytics.errorsTitle")}>
+    <section className={styles.section} aria-label={heading}>
       <Text as="h3" variant="label" color="muted">
-        {t("teacher.analytics.errorsTitle")}
+        {heading}
       </Text>
       {errors.length === 0 ? (
         <Card variant="flat" padding="md" className={styles.empty}>

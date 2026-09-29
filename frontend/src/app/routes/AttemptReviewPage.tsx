@@ -102,10 +102,12 @@ export default function AttemptReviewPage() {
   );
 
   const confirm = useCallback(async () => {
-    // Comment-only, so the AI's band stands — see ReviewQueuePage.
-    await endpoints.reviewSubmission(attemptId, { comment: t("teacher.confirmedNote") });
+    // `confirm: true` — the AI's band stands and NO comment is written. The old
+    // call stored "AI bahosi tasdiqlandi" as the teacher's comment, which the
+    // student then read as feedback from their teacher.
+    await endpoints.reviewSubmission(attemptId, { confirm: true });
     navigate(TEACHER_NAV_PATH.queue);
-  }, [attemptId, navigate, t]);
+  }, [attemptId, navigate]);
 
   if (loading) return <PageLoading />;
   if (failed || !detail) return <PageError onRetry={() => setReloadKey((k) => k + 1)} />;

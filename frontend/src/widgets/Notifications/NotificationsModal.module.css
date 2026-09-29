@@ -206,6 +206,19 @@
   min-width: 0;
 }
 
+/* Per-type glyph (notificationKinds.tsx). Decorative — the title carries the
+ * meaning; an unknown type gets the generic bell. */
+.kindIcon {
+  display: inline-grid;
+  place-items: center;
+  flex: none;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--r-pill);
+  background: var(--surface-2);
+  color: var(--ink-soft);
+}
+
 .dot {
   flex: none;
   width: 8px;

@@ -5,12 +5,14 @@
  *   • `GET /api/submissions?needs_review=true` → the queue (AI-graded, not yet
  *     teacher-signed-off), teacher-scoped server-side
  *   • `PATCH /api/submissions/{id}/review`    → "✓ Tasdiqlash", accepting the AI's
- *     score with a note that says so
+ *     score as it stands
  *
- * Confirming sends a COMMENT rather than a band: leaving `teacher_band` unset is
- * what records "I accept the AI's number", where echoing the AI's score back as a
- * manual one would make every auto-approval indistinguishable from a hand-graded
- * verdict in the data.
+ * Confirming sends `{ confirm: true }` — no band and no comment. Leaving
+ * `teacher_band` unset is what records "I accept the AI's number" (echoing the
+ * AI's score back as a manual one would make every confirmation indistinguishable
+ * from a hand-graded verdict), and `reviewed_at` records the confirmation itself.
+ * It used to send a canned "AI bahosi tasdiqlandi" note as the teacher comment,
+ * which the STUDENT then saw as feedback their teacher had written.
  */
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
@@ -63,20 +65,17 @@ export default function ReviewQueuePage() {
           level: s.question_level ?? undefined,
           score: s.overall_band ?? undefined,
           when: t(rel.key, { count: rel.count }),
-          hasAudio: s.audio_url !== null,
+          audioUrl: s.audio_url,
         };
       }),
     [subs, t],
   );
 
-  const confirm = useCallback(
-    async (id: string) => {
-      // Comment-only: the AI's band stands, and the note records who accepted it.
-      await endpoints.reviewSubmission(id, { comment: t("teacher.confirmedNote") });
-      setSubs((prev) => prev.filter((s) => s.id !== id));
-    },
-    [t],
-  );
+  const confirm = useCallback(async (id: string) => {
+    // The AI's band stands; no comment is invented on the teacher's behalf.
+    await endpoints.reviewSubmission(id, { confirm: true });
+    setSubs((prev) => prev.filter((s) => s.id !== id));
+  }, []);
 
   const setFilter = useCallback(
     (f: QueueFilter) => {

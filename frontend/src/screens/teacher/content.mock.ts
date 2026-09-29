@@ -20,6 +20,9 @@ export const mockContentTasks: ContentTask[] = [
     level: "A2",
     moduleName: "Kundalik muloqot",
     published: true,
+    prepTimeSec: 30,
+    answerTimeLimitSec: 120,
+    submissionCount: 12,
   },
   {
     id: "t-2",
@@ -28,6 +31,9 @@ export const mockContentTasks: ContentTask[] = [
     level: "B1",
     moduleName: "Ishda rus tili",
     published: true,
+    prepTimeSec: 30,
+    answerTimeLimitSec: 120,
+    submissionCount: 0,
   },
   // Unattached + draft — what C5's picker offers.
   {
@@ -36,6 +42,9 @@ export const mockContentTasks: ContentTask[] = [
     prompt: "Позвоните и запишитесь к врачу.",
     level: "A2",
     published: false,
+    prepTimeSec: 10,
+    answerTimeLimitSec: 60,
+    submissionCount: 0,
   },
 ];
 
@@ -48,8 +57,26 @@ export const mockModuleEditor: ModuleEditorProps = {
   level: "A1–A2",
   published: false,
   tasks: [
-    { id: "t-1", title: "Do‘konda xarid", level: "A2", published: true, submissionCount: 12 },
-    { id: "t-2", title: "Telefon suhbati", level: "A2", published: false, submissionCount: 0 },
+    {
+      id: "t-1",
+      title: "Do‘konda xarid",
+      prompt: "Расскажите, что вы вчера купили в магазине. 3–4 предложения.",
+      level: "A2",
+      published: true,
+      submissionCount: 12,
+      prepTimeSec: 30,
+      answerTimeLimitSec: 120,
+    },
+    {
+      id: "t-2",
+      title: "Telefon suhbati",
+      prompt: "Позвоните и запишитесь к врачу.",
+      level: "A2",
+      published: false,
+      submissionCount: 0,
+      prepTimeSec: 10,
+      answerTimeLimitSec: 60,
+    },
   ],
   library: [
     { id: "t-9", title: "Restoranda buyurtma", prompt: "Закажите столик и блюда…", level: "A2" },
