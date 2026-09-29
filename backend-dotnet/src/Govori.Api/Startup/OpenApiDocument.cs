@@ -320,6 +320,11 @@ public static class OpenApiDocument
         // every partial-update DTO in this codebase is `string? X = null`.
         foreach (var property in info.Properties)
         {
+            // A [JsonIgnore] member still appears in the resolver's property list, but the serializer
+            // never reads or writes it — the partial-update DTOs use one to remember whether a field
+            // was PRESENT in the body (HasDueAt, HasTeacherBand…). Listing it made the document claim
+            // a required wire field no client can send.
+            if (IsAlwaysIgnored(property)) continue;
             var nullable = IsNullable(property);
             properties[property.Name] = SchemaFor(Underlying(property.PropertyType), options, nullable);
             if (!nullable) required.Add(property.Name);
@@ -437,6 +442,12 @@ public static class OpenApiDocument
     /// the same thing the DTO's own declaration says — <c>string? Region</c> is a nullable field and
     /// <c>string Email</c> is not.
     /// </summary>
+    private static bool IsAlwaysIgnored(JsonPropertyInfo property) =>
+        property.AttributeProvider?
+            .GetCustomAttributes(typeof(System.Text.Json.Serialization.JsonIgnoreAttribute), inherit: true)
+            .OfType<System.Text.Json.Serialization.JsonIgnoreAttribute>()
+            .Any(a => a.Condition == System.Text.Json.Serialization.JsonIgnoreCondition.Always) == true;
+
     private static bool IsNullable(JsonPropertyInfo property)
     {
         if (Nullable.GetUnderlyingType(property.PropertyType) is not null) return true;
