@@ -43,6 +43,10 @@ export interface PracticeHubScreenProps {
    * (or nothing is due), and the hub then shows no trace of it. */
   reviewDrill?: PracticeHubReviewDrill | null;
 
+  /** Tovushlar mashqi (the minimal-pair drill) — omitted or null when it cannot be
+   * practised here (flag off, no STT key, no pairs); the hub then shows no trace. */
+  soundsDrill?: { onStart: () => void } | null;
+
   /**
    * Controlled tab selection. Omit both this and `onChangeTab` to let the screen
    * own the choice internally (the usual case, mirroring ProfileScreen).
@@ -78,6 +82,7 @@ export function PracticeHubScreen({
   assignments,
   onStartTask,
   reviewDrill,
+  soundsDrill,
   activeTab,
   onChangeTab,
   activeNavKey = "practice",
@@ -139,6 +144,26 @@ export function PracticeHubScreen({
             </div>
             <Button variant="primary" onClick={reviewDrill.onStart}>
               {t("review.entry.cta")}
+            </Button>
+          </Card>
+        )}
+
+        {/* Tovushlar mashqi — same card, same reason for not being interactive. */}
+        {soundsDrill && (
+          <Card variant="tint" padding="md" className={styles.drillEntry}>
+            <div className={styles.drillText}>
+              <Text variant="label" color="primary">
+                {t("drill.entry.kicker")}
+              </Text>
+              <Text variant="title-s" weight="black">
+                {t("drill.title")}
+              </Text>
+              <Text variant="body-s" color="ink-soft">
+                {t("drill.entry.body")}
+              </Text>
+            </div>
+            <Button variant="secondary" onClick={soundsDrill.onStart}>
+              {t("drill.entry.cta")}
             </Button>
           </Card>
         )}

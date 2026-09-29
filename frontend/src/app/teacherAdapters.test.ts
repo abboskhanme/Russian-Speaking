@@ -14,9 +14,16 @@
  *     the truth is "never measured" — the two call for opposite interventions.
  */
 import { describe, expect, it } from "vitest";
-import type { GroupDetailResponse, GroupResponse, SubmissionResponse } from "../shared/api";
+import type {
+  GroupDetailResponse,
+  GroupResponse,
+  SubmissionResponse,
+  TeacherBlockResponse,
+  TeacherQuestionResponse,
+} from "../shared/api";
 import {
   apiErrorCode,
+  assignableTasks,
   averageBand,
   distinctStudentCount,
   levelFromBand,
@@ -175,5 +182,26 @@ describe("questionPatchArgs", () => {
       answer_time_limit_sec: 180,
     });
     expect(questionPatchArgs({})).toEqual({});
+  });
+});
+
+describe("assignableTasks", () => {
+  // Only the fields the rule reads; the rest of each row is irrelevant to it.
+  const q = (id: string, block_id: string | null, is_published = true) =>
+    ({ id, block_id, is_published }) as TeacherQuestionResponse;
+  const b = (id: string, is_published: boolean, visibility = "group") =>
+    ({ id, is_published, visibility }) as TeacherBlockResponse;
+
+  it("offers only tasks a student can open: published, in a published, non-private module", () => {
+    const blocks = [b("live", true), b("draft", false), b("mine", true, "private"), b("official", true, "public")];
+    const questions = [
+      q("ok", "live"),
+      q("official-ok", "official"),
+      q("loose", null),              // no module → the student has no way in
+      q("in-draft", "draft"),        // module not published
+      q("in-private", "mine"),       // private module → no student sees it
+      q("task-draft", "live", false),
+    ];
+    expect(assignableTasks(questions, blocks).map((x) => x.id)).toEqual(["ok", "official-ok"]);
   });
 });

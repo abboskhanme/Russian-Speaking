@@ -33,6 +33,9 @@ const ASSIGNMENT: AssignmentResponse = {
   attempts_used: 0,
 };
 
+// What GET /api/drills/pairs answers in each test (a 200 with a state, never a 404).
+let drillState: "Ready" | "Disabled" = "Disabled";
+
 vi.mock("../../shared/api", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../../shared/api")>();
   return {
@@ -42,6 +45,12 @@ vi.mock("../../shared/api", async (importOriginal) => {
       studentBlocks: () => Promise.resolve([]),
       assignmentsMine: () => Promise.resolve([ASSIGNMENT]),
       reviewDrill: () => Promise.reject(new Error("off")),
+      drillPairs: () =>
+        Promise.resolve({
+          state: drillState,
+          pairs: drillState === "Ready" ? [{ id: "p1" }] : [],
+          daily_left: 40,
+        }),
       unreadCount: () => Promise.resolve({ count: 0 }),
     },
   };
@@ -64,5 +73,31 @@ describe("an assignment row", () => {
     fireEvent.click(screen.getByRole("button", { name: t("mashq.assignments.start") }));
 
     expect(await screen.findByTestId("location")).toHaveTextContent("/task?task=question-42");
+  });
+});
+
+describe("the Tovushlar mashqi entry", () => {
+  const renderHub = () =>
+    render(
+      <MemoryRouter initialEntries={["/practice"]}>
+        <Routes>
+          <Route path="/practice" element={<PracticeHubPage />} />
+          <Route path="*" element={<LocationProbe />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+  it("is how the sound drill is reached at all — it had a route and no way in", async () => {
+    drillState = "Ready";
+    renderHub();
+    fireEvent.click(await screen.findByRole("button", { name: t("drill.entry.cta") }));
+    expect(await screen.findByTestId("location")).toHaveTextContent("/drill");
+  });
+
+  it("leaves no trace when the drill cannot be practised here", async () => {
+    drillState = "Disabled";
+    renderHub();
+    await screen.findByText(t("mashq.tabs.modules"));
+    expect(screen.queryByText(t("drill.title"))).toBeNull();
   });
 });

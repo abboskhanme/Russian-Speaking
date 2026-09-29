@@ -306,7 +306,7 @@
     "dailyGoal": "Daily goal",
     "dailyGoalDesc": "Daily practice time",
     "notifications": "Notifications",
-    "notificationsDesc": "Reminders and streak alerts",
+    "notificationsDesc": "Assignments, results and group updates",
     "on": "On",
     "off": "Off",
     "appearance": "Appearance",
@@ -818,7 +818,7 @@
       "min_one": "{{count}} min",
       "min_other": "{{count}} min",
       "minSec": "{{m}} min {{s}} s",
-      "reachNone": "A task without a module is saved as a draft. Once published, it can be assigned.",
+      "reachNone": "Students can't see a task that isn't in a module. Add it to a published module.",
       "reachLive": "“{{module}}” is active — students see the task as soon as it's saved.",
       "reachDraft": "“{{module}}” is a draft — the task goes out when the module is published."
     },
@@ -1195,6 +1195,11 @@
   },
   "drill": {
     "title": "Sound drill",
+    "entry": {
+      "kicker": "PRONUNCIATION",
+      "body": "мышка or мишка? One sound changes what the word means.",
+      "cta": "Practise"
+    },
     "lede": "In Russian a single sound changes what a word means. These pairs drill exactly that difference.",
     "dailyLeft": "{{count}} attempts left today",
     "budgetSpentShort": "Today's attempts are used up",
@@ -1605,8 +1610,8 @@
     "notConnected": {
       "title": "Payments are not connected yet",
       "body": "Premium cannot be bought yet. A purchase button will appear here once a payment provider is connected.",
-      "meanwhile": "In the meantime your teacher can grant you Premium.",
-      "contact": "Contact your teacher",
+      "meanwhile": "In the meantime your teacher or an administrator can grant you Premium.",
+      "contact": "Contact support",
       "short": "Payments are not connected yet."
     },
     "status": {
@@ -1618,7 +1623,7 @@
     },
     "free": {
       "title": "You are on the free plan",
-      "body": "The first three tasks of every module are free. Premium unlocks the rest."
+      "body": "The first three tasks of every official module are free; Premium unlocks the rest. Your teacher's modules are free in full."
     },
     "byTeacher": {
       "title": "Premium granted by your teacher",

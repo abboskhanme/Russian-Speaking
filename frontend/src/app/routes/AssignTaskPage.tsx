@@ -40,7 +40,7 @@ import type {
 } from "../../shared/api";
 import { PageError, PageLoading } from "../PageState";
 import { useTeacherNavHandler } from "../nav";
-import { apiErrorCode, apiErrorStatus } from "../teacherAdapters";
+import { apiErrorCode, apiErrorStatus, assignableTasks } from "../teacherAdapters";
 
 /** The library read's ceiling. Below it the list is COMPLETE, and a module's
  * published-task count computed from it is a fact; at it, the count may be short
@@ -131,19 +131,16 @@ export default function AssignTaskPage() {
     [groups],
   );
 
-  const tasks = useMemo<AssignSelection[]>(
-    () =>
-      questions
-        .filter((q) => q.is_published)
+  const tasks = useMemo<AssignSelection[]>(() => {
+    return assignableTasks(questions, blocks)
         .map((q) => ({
           id: q.id,
           kind: "task" as const,
           title: q.title,
           // Level and module, whichever exist — the same secondary line C1 shows.
           subtitle: [q.level, q.block_name].filter(Boolean).join(" · ") || undefined,
-        })),
-    [questions],
-  );
+        }));
+  }, [questions, blocks]);
 
   const modules = useMemo<AssignSelection[]>(() => {
     const complete = questions.length < QUESTION_LIMIT;

@@ -67,6 +67,7 @@ export default function PracticeHubPage() {
   const [modules, setModules] = useState<PracticeModule[]>([]);
   const [assignments, setAssignments] = useState<PracticeHubScreenProps["assignments"]>([]);
   const [reviewDue, setReviewDue] = useState(0);
+  const [soundsDrill, setSoundsDrill] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
   const [reloadKey, setReloadKey] = useState(0);
@@ -99,8 +100,9 @@ export default function PracticeHubPage() {
       endpoints.studentBlocks(),
       endpoints.assignmentsMine(),
       endpoints.reviewDrill(),
+      endpoints.drillPairs(),
     ])
-      .then(([b, a, r]) => {
+      .then(([b, a, r, d]) => {
         if (!alive) return;
 
         // Only a total outage of the two REAL sections is a hard error; any
@@ -113,6 +115,15 @@ export default function PracticeHubPage() {
         setModules(b.status === "fulfilled" ? b.value.map(mapModule) : []);
         setAssignments(a.status === "fulfilled" ? a.value.map(mapAssignment) : []);
         setReviewDue(r.status === "fulfilled" ? r.value.due_count : 0);
+        // Tovushlar mashqi had a route and a screen but no way in. Its availability is a
+        // 200 with a state, not a 404, so the entry reads the state: shown when the drill
+        // can be practised today or its budget is merely spent (the screen says so);
+        // hidden when the flag is off or no STT key is set, where it could only refuse.
+        setSoundsDrill(
+          d.status === "fulfilled" &&
+            d.value.pairs.length > 0 &&
+            (d.value.state === "Ready" || d.value.state === "BudgetSpent"),
+        );
       })
       .finally(() => alive && setLoading(false));
 
@@ -131,6 +142,7 @@ export default function PracticeHubPage() {
       assignments={assignments}
       onStartTask={(taskId) => navigate(`/task?task=${taskId}`)}
       reviewDrill={{ dueCount: reviewDue, onStart: () => navigate("/review") }}
+      soundsDrill={soundsDrill ? { onStart: () => navigate("/drill") } : null}
       activeTab={activeTab}
       onChangeTab={setActiveTab}
       activeNavKey="practice"

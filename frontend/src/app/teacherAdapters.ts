@@ -10,6 +10,7 @@ import type {
   GroupResponse,
   InsightsResponse,
   SubmissionResponse,
+  TeacherBlockResponse,
   TeacherQuestionResponse,
   UpdateQuestionArgs,
 } from "../shared/api";
@@ -73,6 +74,22 @@ export function createQuestionArgs(draft: NewTaskDraft, blockId: string | null):
  * Screens branch on this and map it to i18n — the `detail` beside it is English
  * prose for developers and is never shown to a teacher.
  */
+/**
+ * The tasks D3 may offer on their own: published, inside a module that is itself
+ * published and not private. A student opens an assigned task through their module
+ * list, so a loose task or one in a draft module used to be offered here and the
+ * student then read "Bu vazifa mavjud emas" for homework they could not open.
+ */
+export function assignableTasks(
+  questions: TeacherQuestionResponse[],
+  blocks: TeacherBlockResponse[],
+): TeacherQuestionResponse[] {
+  const reachable = new Set(
+    blocks.filter((b) => b.is_published && b.visibility !== "private").map((b) => b.id),
+  );
+  return questions.filter((q) => q.is_published && q.block_id != null && reachable.has(q.block_id));
+}
+
 export function apiErrorCode(e: unknown): CodedErrorResponse["code"] | null {
   if (!isApiError(e)) return null;
   const body = e.body;

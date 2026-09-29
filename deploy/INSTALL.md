@@ -587,7 +587,7 @@ In a browser, on a phone:
    at all — no modules, no tasks — and nothing is seeded (owner's decision,
    2026-09-29). Until this step a student sees an empty catalog and there is
    nothing to submit in step 4.
-   - **Kontent → Yangi modul**, visibility **Rasmiy (barcha o'quvchilar)**, add
+   - **Kontent → Birinchi modulni yaratish** (later **+ Yaratish**), visibility **Rasmiy (barcha o'quvchilar)**, add
      at least one task, then **Nashr qilish**. Publishing the module publishes
      its tasks. Official modules are what every student sees, including one with
      no teacher; the first `FREE_TASKS_PER_MODULE` tasks of each are free.

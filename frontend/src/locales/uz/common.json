@@ -306,7 +306,7 @@
     "dailyGoal": "Kunlik maqsad",
     "dailyGoalDesc": "Har kungi mashq vaqti",
     "notifications": "Bildirishnomalar",
-    "notificationsDesc": "Eslatma va seriya ogohlantirishlari",
+    "notificationsDesc": "Topshiriqlar, natijalar va guruh xabarlari",
     "on": "Yoqilgan",
     "off": "O'chirilgan",
     "appearance": "Ko'rinish",
@@ -818,7 +818,7 @@
       "min_one": "{{count}} daq",
       "min_other": "{{count}} daq",
       "minSec": "{{m}} daq {{s}} s",
-      "reachNone": "Modulsiz vazifa qoralama bo‘lib saqlanadi. Nashr qilgach, uni topshiriq sifatida berish mumkin.",
+      "reachNone": "Modulsiz vazifani o‘quvchilar ko‘ra olmaydi. Uni nashr qilingan modulga qo‘shing.",
       "reachLive": "«{{module}}» faol — vazifa saqlanishi bilan o‘quvchilarga ko‘rinadi.",
       "reachDraft": "«{{module}}» qoralama — vazifa modul nashr qilinganda chiqadi."
     },
@@ -1195,6 +1195,11 @@
   },
   "drill": {
     "title": "Tovushlar mashqi",
+    "entry": {
+      "kicker": "TALAFFUZ",
+      "body": "мышка yoki мишка? Bitta tovush so'zning ma'nosini o'zgartiradi.",
+      "cta": "Mashq qilish"
+    },
     "lede": "Rus tilida bitta tovush so'zning ma'nosini butunlay o'zgartiradi. Quyidagi juftliklarda aynan shu farq mashq qilinadi.",
     "dailyLeft": "Bugun {{count}} ta urinish qoldi",
     "budgetSpentShort": "Bugungi urinishlar tugadi",
@@ -1605,8 +1610,8 @@
     "notConnected": {
       "title": "To'lov tizimi hali ulanmagan",
       "body": "Premiumni hozircha sotib bo'lmaydi. To'lov provayderi ulangach, shu yerda sotib olish tugmasi paydo bo'ladi.",
-      "meanwhile": "Shu paytgacha Premiumni o'qituvchingiz berishi mumkin.",
-      "contact": "O'qituvchi bilan bog'lanish",
+      "meanwhile": "Shu paytgacha Premiumni o'qituvchingiz yoki administrator berishi mumkin.",
+      "contact": "Yordam xizmatiga yozish",
       "short": "To'lov tizimi hali ulanmagan."
     },
     "status": {
@@ -1618,7 +1623,7 @@
     },
     "free": {
       "title": "Siz bepul rejadasiz",
-      "body": "Har modulning dastlabki uchta topshirig'i bepul. Keyingilari uchun Premium kerak."
+      "body": "Har bir rasmiy modulning dastlabki uchta topshirig'i bepul, keyingilari uchun Premium kerak. O'qituvchingiz modullari to'liq bepul."
     },
     "byTeacher": {
       "title": "Premium — o'qituvchingiz bergan",
