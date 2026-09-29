@@ -38,6 +38,7 @@ Uchta cheklov tartibni belgilaydi, va ular muzokaraga ochiq emas:
 | **S4** | **Yangi funksiyalar (flag ortida)** | **6.1 · 6.2 · 6.3 · 6.5 · 6.7 · 6.8** ✅ · **6.6** 🟡 (skelet) | ✅ |
 | **S5** | **Zaxira skriptlari, tozalash, hujjatlar, yakuniy QA** | **0.5** ✅ (zaxira **va** tiklash, sinalgan) · 7.x · **prodga tayyorlik** ✅ | 🟡 |
 | **S6** | **Prodga tayyorlik qattiqlashtirishi** *(2026-08-23 kechasi, rejada yo'q edi)* | Sirlar · CORS · token bekor qilish · vendor timeout · rate limit · readiness · log · cutover minalari · ErrorBoundary · uchala rol uchun E2E · kontrast | ✅ |
+| **S8** | **Uch rol bo'yicha yakuniy audit va tuzatish** *(2026-09-29)* | Pastdagi "S8" bo'limi — 7 ta P0, ~30 ta P1 | ✅ kod · 🟡 jonli tekshiruv |
 | **S7** | **Noldan o'rnatish** *(egasining 2026-08-23 qarori)* | `INSTALL.md` · `bootstrap-admin.sh` · `smoke.sh` · `preflight.sh` rejimlari · sertifikat zanjiri | ✅ |
 
 > **S4 — yakuniy holat (2026-08-23).** Sprint yopildi. Uch band reja yozganidan boshqacha chiqdi,
@@ -181,6 +182,52 @@ Tartib — qiymat/xarajat bo'yicha, eng arzon foydadan boshlab:
 
 ---
 
+### S8 · Uch rol bo'yicha yakuniy audit (2026-09-29)
+
+Egasining so'rovi: *"loyihani tugatish kerak, nimalar qolgan — har taraflama tekshir, admin,
+teacher, student taraflama"*. To'rtta auditor (o'quvchi · o'qituvchi · admin · backend) jonli
+stack'ni headless brauzer va API orqali yurib chiqdi; oltita agent tuzatdi, integratsiya va QA —
+arxitektor. Topilgan narsalar testlar yashil bo'lgan holda **mahsulotni ishlatib bo'lmas** qilib
+turgan edi — ya'ni bular faqat ilovani haqiqatan ishlatib ko'rilganda chiqdi.
+
+**P0 — launch'ni to'xtatib turgan 7 ta narsa, hammasi yopildi:**
+
+| # | Muammo | Nima qilindi |
+|---|---|---|
+| 1 | Chrome/Android'dan yozilgan javob **hech qachon** saqlanmagan: `audio/webm;codecs=opus` MinIO imzosini buzardi → 500 | `ContentTypes.Essence` saqlash qatlamida — barcha chaqiruvchilar uchun |
+| 2 | Vazifa ekranida **savolning o'zi** ko'rinmagan, AI esa yashirin prompt bo'yicha baholagan | `StudentTaskResponse` += prompt, ko'rsatma, media, tayyorlanish/javob vaqti; ekran ularni ko'rsatadi |
+| 3 | O'qituvchi topshirig'i **boshqa vazifani** ochgan (assignment id ↔ question id) | To'g'ri id + noma'lum id'da jim fallback o'rniga halol "mavjud emas" |
+| 4 | Toza o'rnatishda **o'qituvchi yaratib bo'lmaydi** | `POST /api/admin/teachers` (telefon + ism) + rol almashtirish + "O'qituvchi qo'shish" |
+| 5 | **Rasmiy (public) modul** yaratib/nashr qilib bo'lmaydi → yangi serverda katalog bo'sh | Admin "Kontent" bo'limi, `visibility: public` faqat admin uchun |
+| 6 | O'qituvchi vazifalari **hech qachon nashr bo'lmagan** | Modul nashri vazifalarni ham nashr qiladi; vazifa bo'yicha kalit va holat |
+| 7 | Rate-limit `X-Forwarded-For` orqali aylanib o'tilgan (OTP taxmin qilish, pullik guest yo'llar) | nginx sarlavhani qayta yozadi, API oxirgi hop'ni oladi; telefon bo'yicha OTP cooldown + xato limiti |
+
+**P1 (asosiylari):** Telegram bot tokeni log'larga ochiq yozilardi · SRS takrorlash hech qachon
+avtomatik rejalashtirilmagan · streak hech qachon tushmagan (iyuldagi "🔥 15") · baholash xatosi
+o'quvchiga xom inglizcha matn · natija ekrani yo'q edi · taklif havolasi `/j/:code` o'lik ·
+placement ro'yxatdan keyin taklif qilinmagan · recorder faqat o'zbekcha · soxta Pro narxi va
+sertifikat va'dasi · o'qituvchi premium bera olmagan · takroriy topshiriq · topshiriq/guruh
+boshqaruvi yo'q · kontentni tahrirlash/o'chirish yo'q · o'qituvchi rasmiy katalogdagi sinf ishini
+ko'rmagan · bildirishnomalar deyarli yo'q · admin chiqish/profil yo'q · Adminlar ro'yxati yo'q ·
+`/drill`ga kirish yo'li yo'q.
+
+**Qabul qilingan qarorlar** — `docs/ASSUMPTIONS.md` (har biri bir qatorda bekor qilinadi).
+**Egasining qarorlari** (2026-09-29): push — tugagach `origin/dotnet-rewrite`; boshlang'ich
+kontent seed qilinmaydi; C3/C6 — launch'dan keyin; brend rangi o'zgarmaydi (16 ta light-mavzu
+kontrast tuguni qabul qilingan cheklov).
+
+**O'lchov (2026-09-29):** backend build **0 warning / 0 error**, to'rtala suite **553 passed,
+0 failed, 4 skipped** (430 dan) · frontend **355 vitest** (189 dan), build yashil, bundle
+**141.7 / 180 KB gz** (o'sish — asosan uch tildagi yangi matnlar entry chunk'da) ·
+`check:contract` **0 xato** (OpenAPI qayta generatsiya qilindi; emitter `[JsonIgnore]`
+maydonlarni endi hujjatga chiqarmaydi).
+
+**Ochiq (keyingi raund):** o'qituvchi rasmiy katalog vazifalarini topshiriq qilib bera olmaydi ·
+guruhni boshqa o'qituvchiga o'tkazish yo'q · admin audit trail yo'q · model izohlari serverda
+aralash tilda · anonim `/api/guest/assess` (frontend chaqirmaydi, lekin Azure'ga pul sarflaydi —
+rate-limit ortida) · presigned URL'lar MinIO root kaliti bilan imzolanadi · placement STT/grader
+ishlamasa deterministik "ball" ko'rsatadi · streak kuni UTC bo'yicha (Toshkentda 05:00).
+
 ## 🔴 Bloklangan — foydalanuvchisiz bajarilmaydi
 
 Bular unutilgani uchun emas, **ataylab** qilinmagan. Har biri sabab bilan:
@@ -190,7 +237,7 @@ Bular unutilgani uchun emas, **ataylab** qilinmagan. Har biri sabab bilan:
 | ~~**0.1–0.4, 0.6, 0.7 · Prod zaxirasi**~~ | **Mavzudan chiqdi (2026-08-23)**: prod ma'lumoti ko'chirilmaydi, ya'ni qutqariladigan 50 foydalanuvchi yo'q. Zaxira **yo'qolmadi, ko'chdi** — o'rnatishdan **keyingi** ish bo'ldi: `deploy/INSTALL.md` 9.1 (kundalik cron o'sha kechaning o'zida) va `deploy/README.md` §"After the install". `preflight.sh` `live` rejimga o'tgach zaxira yo'qligini yana FAIL qiladi. |
 | ~~**2.7 · Real prod hash bilan login**~~ | **Mavzudan chiqdi (2026-08-23)**: ko'chiriladigan hash yo'q. Login umuman parolsiz (telefon + Telegram OTP, `password_hash` NULL) va parolsiz **admin** kirishi lokal simulyatsiyada uchidan-uchiga sinaldi: OTP → token → `role=admin` → `/api/admin/stats` 200, tokensiz 401. |
 | **5.5 · O'rnatishning server yarmi** | Tashqariga qaragan, qaytarib bo'lmaydigan amal: DNS, Let's Encrypt (soatiga 5 muvaffaqiyatsiz urinish limiti), haqiqiy Telegram bot, egasining o'z telefon raqami birinchi admin uchun. **Tayyorgarlik tugadi** — `deploy/INSTALL.md`, `bootstrap-admin.sh`, `smoke.sh`, va bo'sh volume'dan boshlangan lokal simulyatsiya yashil. Qolgani — droplet. |
-| **7.9 · `TEACHER-PANEL-PLAN.md` + `dev-role.sh`** | C3/C6 **mahsulot qaroriga** bog'liq — texnik emas, egasining qarori |
+| ~~**7.9 · C3/C6 qarori**~~ | **Qaror qilindi (2026-09-29, egasi): launch'dan keyin.** 5 ta kuratsiya ssenariy qoladi. `TEACHER-PANEL-PLAN.md` ataylab qilingan omissiyalar yozuvi sifatida saqlanadi. |
 
 ---
 
