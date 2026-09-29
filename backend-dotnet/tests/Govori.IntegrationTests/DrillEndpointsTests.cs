@@ -93,6 +93,48 @@ public sealed class DrillEndpointsTests : IClassFixture<DrillEndpointsTests.Dril
         }
     }
 
+    /// <summary>
+    /// A deactivated account is refused (401) BEFORE the flag, the budget or the vendor: with the
+    /// feature on and STT wired, a suspended learner's attempt makes no recognition call and writes
+    /// no row. Without the check the same request would have been a paid, 200 attempt — the access
+    /// token outlives the suspension.
+    /// </summary>
+    [Fact]
+    public async Task A_deactivated_account_spends_nothing_on_the_vendor()
+    {
+        var studentId = Guid.NewGuid();
+        await SeedStudentAsync(studentId);
+        await SetFlagAsync(DrillService.EnabledKey, "true");
+        await using (var ctx = CreateContext())
+        {
+            (await ctx.Users.SingleAsync(u => u.Id == studentId)).IsActive = false;
+            await ctx.SaveChangesAsync();
+        }
+        var stt = _factory.Stt;
+        stt.Reset();
+
+        try
+        {
+            var client = _factory.CreateClient();
+            var token = TokenFor(studentId);
+
+            var pairs = new HttpRequestMessage(HttpMethod.Get, "/api/drills/pairs");
+            pairs.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
+            Assert.Equal(HttpStatusCode.Unauthorized, (await client.SendAsync(pairs)).StatusCode);
+
+            var attempt = await PostAsync(client, token, Multipart("y-i-myshka", "мышка"));
+            Assert.Equal(HttpStatusCode.Unauthorized, attempt.StatusCode);
+
+            Assert.Equal(0, stt.Calls);
+            await using var ctx = CreateContext();
+            Assert.False(await ctx.Drills.AnyAsync(d => d.StudentId == studentId));
+        }
+        finally
+        {
+            await CleanupAsync(studentId);
+        }
+    }
+
     /// <summary>Flag on: the curated content is planted on first use and the hub is ready.</summary>
     [Fact]
     public async Task Flag_on_seeds_the_curated_pairs()

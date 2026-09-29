@@ -17,7 +17,11 @@ public sealed record JoinGroupRequest(string? Code);
 /// <summary>
 /// Body of POST /api/assignments — assign one question. Targets are the
 /// union of explicit <c>student_ids</c> and the whole <c>group_id</c>'s members; both are then
-/// filtered through the teacher's roster (S1 fix — see ClassroomService).
+/// filtered through the teacher's roster (S1 fix — see ClassroomService). A target who already has
+/// an OPEN assignment for this question (not yet answered, deadline not passed) is skipped, and the
+/// 201 body lists only the rows actually created — so an empty array means "everyone already had
+/// it", which is what the UI's "takror berilmaydi" promises. A soft-deleted question is a 404 like
+/// a missing one; an unpublished one is a 400 <c>question_not_published</c>.
 /// </summary>
 public sealed record CreateAssignmentRequest(
     Guid QuestionId,
@@ -172,8 +176,8 @@ public sealed record GradebookRowResponse(
 // invented; the plan file records those omissions.
 
 /// <summary>
-/// The Analitika · Insaytlar payload. Scoped exactly like the gradebook (own questions AND own
-/// roster; <c>group_id</c> narrows, never widens).
+/// The Analitika · Insaytlar payload. Scoped exactly like the gradebook (the answers of the caller's
+/// OWN roster, to any question — <c>TeacherScope</c>; <c>group_id</c> narrows, never widens).
 ///
 /// <para><b>Two different class averages live here on purpose.</b> <see cref="ClassAvg"/> is the mean
 /// of the per-student rolling averages — i.e. the mean of the very <c>avg_band</c> values the D2
@@ -286,9 +290,9 @@ public sealed record InsightsErrorResponse(
 /// <c>lexical</c>, <c>pronunciation_hint</c>, <c>style</c>, <c>relevance</c>). A hand-written
 /// type→topic table would be invention: nothing says the "Еда и вкусы" prompt drills word order.</para>
 ///
-/// <para>So the mapping is the one the graded answers already MEASURED: the task is the question on
-/// which this error type occurred most often inside the caller's own scope — the prompt this class
-/// demonstrably stumbles on. Re-assigning it is remediation with no invented data, and it composes
+/// <para>So the mapping is the one the graded answers already MEASURED: the task is the question the
+/// caller may assign (their own; admin: any) on which this error type occurred most often inside the
+/// caller's scope — the prompt this class demonstrably stumbles on. Re-assigning it is remediation with no invented data, and it composes
 /// with the existing completion rule (<see cref="AssignmentResponse.Completed"/> counts an answer
 /// given AFTER the assignment), so a question a student has already answered once is still a real,
 /// open task the second time it is set.</para>
@@ -314,3 +318,114 @@ public sealed record InsightsRemediationResponse(
 /// <summary>One recipient of a remediation assignment. Roster-scoped, so it exposes nothing the
 /// caller cannot already read from their own group detail.</summary>
 public sealed record InsightsRemediationStudent(Guid Id, string FullName);
+
+// ─── Group + assignment management (after-launch audit, P1) ──────────────────
+// A teacher could create a group and hand out work, and then could change neither: no rename, no
+// fresh join code, no way to remove one student or the whole group, no way to take an assignment
+// back or move its deadline. These are the bodies and results of those routes. Every 400 they
+// produce carries a machine `code` beside the human `detail` ({ "detail": ..., "code": ... }) so a
+// client can branch on the reason without parsing prose.
+
+/// <summary>
+/// Body of PATCH /api/groups/{id}. Both fields are optional; an absent or <c>null</c> one leaves the
+/// group alone.
+///
+/// <para><c>name</c> is trimmed and must be non-blank and at most 128 characters (the column's
+/// width) — a blank name is a 400 <c>name_required</c>, never a silent fallback to "Группа" the way
+/// creation does it, because renaming a group to nothing is a mistake, not a default. Too long is a
+/// 400 <c>name_too_long</c>.</para>
+///
+/// <para><c>level</c> is accepted in the shape but REFUSED with 400 <c>level_not_supported</c>
+/// when given: <c>groups</c> has no level column (the CEFR badge on a group card is DERIVED from its
+/// students' average band), and storing a teacher-set level needs a migration this change does not
+/// make. Refusing loudly beats accepting a value that would then vanish.</para>
+/// </summary>
+public sealed record UpdateGroupRequest(string? Name = null, string? Level = null);
+
+/// <summary>Body of POST /api/assignments/cancel — take back one task from one group: every row
+/// of the caller's for <c>question_id</c> that was assigned through <c>group_id</c>. Student answers
+/// and their grades are untouched.</summary>
+public sealed record CancelGroupAssignmentsRequest(Guid QuestionId, Guid GroupId);
+
+/// <summary>Result of POST /api/assignments/cancel — how many assignment rows were removed (0 when
+/// there were none; the call is idempotent).</summary>
+public sealed record CancelGroupAssignmentsResponse(int Cancelled);
+
+/// <summary>
+/// Body of PATCH /api/assignments/group — move the deadline of one task across one group.
+///
+/// <para><c>due_at</c> is REQUIRED but may be <c>null</c>: an ISO-8601 instant sets the deadline,
+/// an explicit <c>null</c> removes it ("muddatsiz"). A body without the key is a 400
+/// <c>due_at_required</c> rather than being read as <c>null</c> — otherwise a client that forgot the
+/// field would silently wipe the deadline of a whole group's work. A past instant is a 400
+/// <c>due_in_past</c>. A value with no offset is read as UTC.</para>
+///
+/// <para>Presence is tracked through the init accessor (System.Text.Json only calls it for keys
+/// that are in the body), which is why this is not a positional record.</para>
+/// </summary>
+public sealed record UpdateGroupAssignmentsRequest
+{
+    private readonly DateTime? _dueAt;
+
+    public Guid QuestionId { get; init; }
+
+    public Guid GroupId { get; init; }
+
+    public DateTime? DueAt
+    {
+        get => _dueAt;
+        init { _dueAt = value; HasDueAt = true; }
+    }
+
+    /// <summary>Whether <c>due_at</c> was in the body at all (explicit <c>null</c> included).
+    /// Server-side only — never on the wire.</summary>
+    [System.Text.Json.Serialization.JsonIgnore]
+    public bool HasDueAt { get; private init; }
+}
+
+/// <summary>Result of PATCH /api/assignments/group — how many assignment rows now carry the new
+/// deadline.</summary>
+public sealed record UpdateGroupAssignmentsResponse(int Updated);
+
+// ─── Teacher-granted premium + the A6 student card ───────────────────────────
+
+/// <summary>
+/// Body of PATCH /api/classroom/students/{id}/premium — the teacher's freemium grant/revoke
+/// ("Premiumni o'qituvchingiz berishi mumkin"). <c>is_premium</c> is required; a body without it is
+/// a 400 <c>is_premium_required</c> rather than a silent revoke.
+/// </summary>
+public sealed record SetStudentPremiumRequest(bool? IsPremium = null);
+
+/// <summary>
+/// Result of the premium PATCH.
+///
+/// <para><c>is_premium</c> is the GRANT this route writes (<c>users.is_premium</c>) — the toggle's
+/// state. <c>has_premium</c> is what the student actually gets: the grant OR an active paid
+/// subscription (PremiumAccess, the one definition the paywall uses). They differ exactly when a
+/// student pays for themselves, and a toggle that shows "off" for someone who still has premium
+/// would read as broken without it. ADDITIVE beyond the two-field shape the route was specified
+/// with.</para>
+/// </summary>
+public sealed record StudentPremiumResponse(Guid Id, bool IsPremium, bool HasPremium);
+
+/// <summary>
+/// GET /api/classroom/students/{id} — the header of the teacher's A6 student profile: who the
+/// student is, the premium grant (so the screen can draw the toggle) and which of the caller's
+/// groups they sit in. It exists because A6 is also opened WITHOUT a <c>?group=</c> (from the
+/// Klasslar "O'quvchilar" tab and the dashboard), and then no other response carries the student at
+/// all. Same visibility as the premium PATCH: a teacher reads only their own roster (404 otherwise).
+/// </summary>
+public sealed record ClassroomStudentResponse(
+    Guid Id,
+    string FullName,
+    string Email,
+    /// <summary>The teacher/admin grant — the toggle's state. See <see cref="StudentPremiumResponse"/>.</summary>
+    bool IsPremium,
+    /// <summary>Effective premium: the grant OR an active subscription.</summary>
+    bool HasPremium,
+    /// <summary>The caller's groups this student is a member of (admin: all of them), oldest
+    /// membership first.</summary>
+    IReadOnlyList<ClassroomStudentGroupResponse> Groups);
+
+/// <summary>One group a student sits in, as the A6 header shows it.</summary>
+public sealed record ClassroomStudentGroupResponse(Guid Id, string Name, DateTime JoinedAt);

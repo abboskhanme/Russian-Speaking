@@ -287,6 +287,147 @@ public sealed class PracticeEndpointsTests : IClassFixture<PracticeEndpointsTest
         }
     }
 
+    /// <summary>
+    /// A withdrawn task cannot be answered by ANY path. A soft-deleted task inside a published module
+    /// is a 404 — for an admin too; an unpublished task is a 403 whether the student reaches it through
+    /// its module or through an open assignment. None of the refusals writes a row (and, by the guard
+    /// order, none uploads). A live task in the same module still takes an answer, so the gate is the
+    /// task's state and not a blanket refusal.
+    /// </summary>
+    [Fact]
+    public async Task Deleted_or_unpublished_tasks_cannot_be_answered_by_any_path()
+    {
+        var teacherId = Guid.NewGuid();
+        var adminId = Guid.NewGuid();
+        var studentId = Guid.NewGuid();
+        var blockId = Guid.NewGuid();
+        var live = Guid.NewGuid();
+        var deleted = Guid.NewGuid();          // soft-deleted inside the published module
+        var draftInModule = Guid.NewGuid();    // unpublished inside the published module
+        var draftAssigned = Guid.NewGuid();    // unpublished, but the student holds an open assignment
+
+        using var storage = new MinioObjectStorage(BuildStorageOptions());
+        var uploadedKeys = new List<string>();
+
+        await using (var ctx = CreateContext())
+        {
+            ctx.Users.Add(NewUser(teacherId, $"wd-teacher-{teacherId:N}@example.test", UserRole.Teacher, null, premium: false));
+            ctx.Users.Add(NewUser(adminId, $"wd-admin-{adminId:N}@example.test", UserRole.Admin, null, premium: false));
+            // Premium, so the freemium gate can never be what refuses a submit here.
+            ctx.Users.Add(NewUser(studentId, $"wd-student-{studentId:N}@example.test", UserRole.Student, null, premium: true));
+            ctx.QuestionBlocks.Add(NewBlock(blockId, teacherId, "public"));
+            ctx.Questions.Add(NewQuestion(live, teacherId, blockId, sortOrder: 0));
+            var d = NewQuestion(deleted, teacherId, blockId, sortOrder: 1);
+            d.IsDeleted = true;
+            d.IsPublished = false;              // exactly what the Catalog soft delete writes
+            ctx.Questions.Add(d);
+            var dm = NewQuestion(draftInModule, teacherId, blockId, sortOrder: 2);
+            dm.IsPublished = false;
+            ctx.Questions.Add(dm);
+            var da = NewQuestion(draftAssigned, teacherId, blockId, sortOrder: 3);
+            da.IsPublished = false;
+            ctx.Questions.Add(da);
+            ctx.Assignments.Add(NewAssignment(Guid.NewGuid(), teacherId, studentId, draftAssigned, maxAttempts: null));
+            await ctx.SaveChangesAsync();
+        }
+
+        try
+        {
+            var client = _factory.CreateClient();
+            var token = TokenFor(studentId);
+
+            Assert.Equal(HttpStatusCode.NotFound,
+                (await Send(client, HttpMethod.Post, "/api/submissions", token, BuildAudioForm(deleted))).StatusCode);
+            Assert.Equal(HttpStatusCode.NotFound,
+                (await Send(client, HttpMethod.Post, "/api/submissions", TokenFor(adminId), BuildAudioForm(deleted))).StatusCode);
+            Assert.Equal(HttpStatusCode.Forbidden,
+                (await Send(client, HttpMethod.Post, "/api/submissions", token, BuildAudioForm(draftInModule))).StatusCode);
+            Assert.Equal(HttpStatusCode.Forbidden,
+                (await Send(client, HttpMethod.Post, "/api/submissions", token, BuildAudioForm(draftAssigned))).StatusCode);
+            await using (var ctx = CreateContext())
+                Assert.Equal(0, await ctx.Submissions.CountAsync(s => s.StudentId == studentId || s.StudentId == adminId));
+
+            // Control: the live task in the same module still takes an answer.
+            var ok = await Send(client, HttpMethod.Post, "/api/submissions", token, BuildAudioForm(live));
+            Assert.Equal(HttpStatusCode.Created, ok.StatusCode);
+            using var doc = JsonDocument.Parse(await ok.Content.ReadAsStringAsync());
+            uploadedKeys.Add(doc.RootElement.GetProperty("audio_key").GetString()!);
+        }
+        finally
+        {
+            foreach (var key in uploadedKeys)
+                await storage.DeleteAsync(key);
+            await using var ctx = CreateContext();
+            await ctx.Submissions.Where(s => s.StudentId == studentId || s.StudentId == adminId).ExecuteDeleteAsync();
+            await ctx.Assignments.Where(a => a.StudentId == studentId).ExecuteDeleteAsync();
+            await ctx.Questions.Where(x => x.BlockId == blockId).ExecuteDeleteAsync();
+            await ctx.QuestionBlocks.Where(b => b.Id == blockId).ExecuteDeleteAsync();
+            await ctx.Users.Where(u => u.Id == studentId || u.Id == teacherId || u.Id == adminId).ExecuteDeleteAsync();
+        }
+    }
+
+    /// <summary>
+    /// A deactivated account is refused on every roleplay route BEFORE anything else runs — the flag,
+    /// the budget, the conversation lookup, the vendors. Each probe is chosen so that without the
+    /// check it would answer differently (200 for the catalogue and start, 404 for an unknown
+    /// conversation), which is what proves the 401 is the active-user gate and not a coincidence.
+    /// </summary>
+    [Fact]
+    public async Task Roleplay_refuses_a_deactivated_account_on_every_route()
+    {
+        var activeId = Guid.NewGuid();
+        var suspendedId = Guid.NewGuid();
+        await using (var ctx = CreateContext())
+        {
+            ctx.Users.Add(NewUser(activeId, $"rp-active-{activeId:N}@example.test", UserRole.Student, null, premium: false));
+            var suspended = NewUser(suspendedId, $"rp-suspended-{suspendedId:N}@example.test", UserRole.Student, null, premium: true);
+            suspended.IsActive = false;
+            ctx.Users.Add(suspended);
+            await ctx.SaveChangesAsync();
+        }
+
+        try
+        {
+            var client = _factory.CreateClient();
+            var unknown = Guid.NewGuid();
+
+            // The same probes for an ACTIVE student: the routes work and the conversation is unknown.
+            var active = TokenFor(activeId);
+            Assert.Equal(HttpStatusCode.OK, (await Send(client, HttpMethod.Get, "/api/roleplay/scenarios", active)).StatusCode);
+            Assert.Equal(HttpStatusCode.OK, (await Send(client, HttpMethod.Post, "/api/roleplay/conversations", active,
+                JsonContent.Create(new { scenario_slug = "apteka" }))).StatusCode);
+            Assert.Equal(HttpStatusCode.NotFound, (await Send(client, HttpMethod.Post,
+                $"/api/roleplay/conversations/{unknown}/end", active)).StatusCode);
+
+            var token = TokenFor(suspendedId);
+            Assert.Equal(HttpStatusCode.Unauthorized, (await Send(client, HttpMethod.Get, "/api/roleplay/scenarios", token)).StatusCode);
+            Assert.Equal(HttpStatusCode.Unauthorized, (await Send(client, HttpMethod.Post, "/api/roleplay/conversations", token,
+                JsonContent.Create(new { scenario_slug = "apteka" }))).StatusCode);
+            Assert.Equal(HttpStatusCode.Unauthorized, (await Send(client, HttpMethod.Post,
+                $"/api/roleplay/conversations/{unknown}/turns", token, BuildRoleplayAudio())).StatusCode);
+            Assert.Equal(HttpStatusCode.Unauthorized, (await Send(client, HttpMethod.Post,
+                $"/api/roleplay/conversations/{unknown}/end", token)).StatusCode);
+
+            await using var ctx = CreateContext();
+            Assert.False(await ctx.RoleplayTurns.AnyAsync(t => t.StudentId == suspendedId));
+        }
+        finally
+        {
+            await using var ctx = CreateContext();
+            await ctx.RoleplayTurns.Where(t => t.StudentId == activeId || t.StudentId == suspendedId).ExecuteDeleteAsync();
+            await ctx.Users.Where(u => u.Id == activeId || u.Id == suspendedId).ExecuteDeleteAsync();
+        }
+
+        static MultipartFormDataContent BuildRoleplayAudio()
+        {
+            var form = new MultipartFormDataContent();
+            var audio = new ByteArrayContent(Encoding.UTF8.GetBytes("fake-roleplay-audio"));
+            audio.Headers.ContentType = new MediaTypeHeaderValue("audio/webm");
+            form.Add(audio, "audio", "turn.webm");
+            return form;
+        }
+    }
+
     // ── helpers ──
 
     // Auth is phone-OTP now (no email/password login). These non-auth tests only need a bearer for a

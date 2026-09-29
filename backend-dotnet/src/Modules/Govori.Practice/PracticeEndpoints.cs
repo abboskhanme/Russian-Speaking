@@ -84,8 +84,9 @@ public static class PracticeEndpoints
         }).RequireAuthorization().RequireRateLimiting(RateLimitPolicyNames.SubmitAudio).DisableAntiforgery();
 
         // GET /api/submissions — list my attempts (?question_id, ?student_id, ?needs_review,
-        // ?limit=1..200, ?offset>=0). Students see only their own; teachers their roster; admins
-        // all. Every filter only NARROWS that scope — none can widen it (see ListAsync).
+        // ?limit=1..200, ?offset>=0). Students see only their own; teachers every answer their
+        // roster gives, to any question (TeacherScope); admins all. Every filter only NARROWS that
+        // scope — none can widen it (see ListAsync).
         submissions.MapGet("", async (
             ClaimsPrincipal principal, PracticeService svc,
             Guid? question_id, Guid? student_id, bool? needs_review,
@@ -129,9 +130,10 @@ public static class PracticeEndpoints
         }).RequireAuthorization();
 
         // PATCH /api/submissions/{id}/review — a teacher's manual verdict: overall band and/or the
-        // "Izoh o'quvchiga" comment → 204. Teacher/admin only (403 for a student). 404 when the
-        // submission is missing OR belongs outside this teacher's roster/questions, so ids cannot be
-        // probed. 400 on an empty body or a band outside 0..100.
+        // "Izoh o'quvchiga" comment, or `confirm: true` → 204. Absent key = unchanged, explicit null
+        // = clear (see ReviewSubmissionRequest). Teacher/admin only (403 for a student). 404 when the
+        // submission is missing OR its student is outside this teacher's roster, so ids cannot be
+        // probed. 400 { detail, code } with code empty_review / confirm_with_band / band_out_of_range.
         submissions.MapPatch("/{id:guid}/review", async (
             Guid id, ReviewSubmissionRequest body, ClaimsPrincipal principal,
             PracticeService svc, CancellationToken ct) =>
@@ -139,15 +141,15 @@ public static class PracticeEndpoints
             if (!TryGetUserId(principal, out var userId))
                 return Results.Unauthorized();
             var outcome = await svc.ReviewAsync(userId, id, body, ct);
-            return outcome switch
+            return outcome.Status switch
             {
                 ReviewStatus.Ok => Results.NoContent(),
                 ReviewStatus.Unauthorized => Results.Unauthorized(),
                 ReviewStatus.Forbidden => Detail("Teacher role required", StatusCodes.Status403Forbidden),
                 ReviewStatus.NotFound => Detail("Submission not found", StatusCodes.Status404NotFound),
-                ReviewStatus.BadRequest => Detail(
-                    "Provide teacher_band (0..100) and/or teacher_comment",
-                    StatusCodes.Status400BadRequest),
+                ReviewStatus.BadRequest => Results.Json(
+                    new { detail = outcome.Detail, code = outcome.Code },
+                    statusCode: StatusCodes.Status400BadRequest),
                 _ => Results.StatusCode(StatusCodes.Status500InternalServerError),
             };
         }).RequireAuthorization();

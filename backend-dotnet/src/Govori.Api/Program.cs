@@ -259,6 +259,12 @@ try
     // and GradingJob resolves the rewarder from whichever host runs it.
     builder.Services.AddScoped<Govori.Contracts.IGradingRewarder, Govori.Engagement.SubmissionRewarder>();
 
+    // Classroom/Practice → notifications seam (IClassroomNotifier → ClassroomNotifier): join
+    // requests and decisions, new assignments and saved reviews raise in-app pings through the
+    // Contracts interface, so neither raising module references Engagement. API-only — the Worker
+    // runs no Classroom or Practice write path.
+    builder.Services.AddScoped<Govori.Contracts.IClassroomNotifier, Govori.Engagement.ClassroomNotifier>();
+
     // ── Administration / app settings + admin user management (docs/07 §3.7, Faza 3.7) ──
     // AppSettingsService owns the tri-state app_settings read/write (None=unchanged / ""=clear /
     // value=store) with env-var fallback, behind the ~30s AppSettingsCache (SINGLETON). That cache is

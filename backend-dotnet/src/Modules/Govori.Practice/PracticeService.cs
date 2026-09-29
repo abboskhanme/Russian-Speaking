@@ -33,13 +33,20 @@ public sealed class PracticeService
     private readonly IObjectStorage _storage;
     private readonly CatalogService _catalog;
     private readonly IGradingQueue _grading;
+    private readonly IClassroomNotifier _notifier;
 
-    public PracticeService(GovoriDbContext db, IObjectStorage storage, CatalogService catalog, IGradingQueue grading)
+    // The notifier is OPTIONAL (default: a no-op) so a service constructed directly keeps compiling;
+    // the host injects Engagement's implementation. It only ever tells a student their attempt was
+    // reviewed — see ReviewAsync.
+    public PracticeService(
+        GovoriDbContext db, IObjectStorage storage, CatalogService catalog, IGradingQueue grading,
+        IClassroomNotifier? notifier = null)
     {
         _db = db;
         _storage = storage;
         _catalog = catalog;
         _grading = grading;
+        _notifier = notifier ?? new NullClassroomNotifier();
     }
 
     // Storage-key extension for a recorded answer's content type; anything unknown → "webm".
@@ -55,9 +62,19 @@ public sealed class PracticeService
 
     /// <summary>
     /// Submit an audio answer. The guard ORDER is load-bearing and must not be rearranged:
-    /// 404 (no question) → [non-admin] 403 (not reachable) → 402 (freemium gate) → store audio →
-    /// create the <c>pending</c> Submission → enqueue grading → 201. Every rejection happens before
-    /// the upload, so a rejected attempt leaves no object and no row behind.
+    /// 404 (no question, or a soft-deleted one) → [non-admin] 403 (unpublished, or not reachable) →
+    /// 402 (freemium gate) → store audio → create the <c>pending</c> Submission → enqueue grading →
+    /// 201. Every rejection happens before the upload, so a rejected attempt leaves no object and no
+    /// row behind.
+    ///
+    /// <para><b>The task itself must be live, whatever path reaches it.</b> Reachability used to be
+    /// judged on the MODULE (published?) and on side doors (an open assignment, a review item) — never
+    /// on the task. So a soft-deleted task inside a published module, or an unpublished or deleted
+    /// task a student still had an assignment for, could be answered by a direct POST and would then
+    /// spend an STT and a grader call on content its author had withdrawn. A soft-deleted task is now
+    /// a 404 for everyone, admin included — it is gone, and "gone" is what 404 means. An unpublished
+    /// one is a 403 for everyone but an admin, whichever door they came through; the admin bypass is
+    /// kept so a draft can still be tried end to end before it ships.</para>
     /// </summary>
     public async Task<SubmitResult> SubmitAsync(Guid userId, SubmitAudio audio, CancellationToken ct = default)
     {
@@ -67,7 +84,7 @@ public sealed class PracticeService
             return new SubmitResult(SubmitStatus.Unauthorized);
 
         var question = await _db.Questions.FirstOrDefaultAsync(q => q.Id == audio.QuestionId, ct);
-        if (question is null)
+        if (question is null || question.IsDeleted)                         // soft-deleted ⇒ gone, for everyone
             return new SubmitResult(SubmitStatus.QuestionNotFound);
 
         // A submission counts against a still-open assignment (no due date, or not yet past it)
@@ -81,6 +98,11 @@ public sealed class PracticeService
 
         if (student.Role != UserRole.Admin)                                 // admin bypasses both gates
         {
+            // An unpublished task is reachable by NO path — not its module, not an open assignment,
+            // not the review queue. Checked first, so a withdrawn draft costs no further query.
+            if (!question.IsPublished)
+                return new SubmitResult(SubmitStatus.Forbidden);
+
             // Reachable via its module, a still-open assignment, or a pending review item.
             var inReview = await _db.ReviewItems.AnyAsync(
                 r => r.StudentId == student.Id && r.QuestionId == question.Id && !r.Completed, ct);
@@ -150,9 +172,10 @@ public sealed class PracticeService
 
     /// <summary>
     /// List attempts. Real (non-shadow) answers only (<c>reference_text IS NULL</c>). Students see
-    /// only their own; teachers see answers to their own questions from their own roster; admins
-    /// see all. Newest first, paged. Returns <c>null</c> when the user is missing/inactive, which
-    /// the endpoint turns into a 401.
+    /// only their own; teachers see every answer their own roster gives, to ANY question
+    /// (<see cref="TeacherScope"/> — a class on the public catalog is still the teacher's class);
+    /// admins see all. Newest first, paged. Returns <c>null</c> when the user is missing/inactive,
+    /// which the endpoint turns into a 401.
     /// </summary>
     public async Task<IReadOnlyList<SubmissionResponse>?> ListAsync(
         Guid userId, Guid? questionId, int limit, int offset, CancellationToken ct = default,
@@ -165,25 +188,12 @@ public sealed class PracticeService
         limit = Math.Clamp(limit, 1, 200);                                  // page size is capped at 200
         offset = Math.Max(offset, 0);                                       // never page backwards
 
-        // Shadowing practice (reference_text set) is excluded from the answer list.
-        var query = _db.Submissions.Where(s => s.ReferenceText == null);
-
-        if (user.Role == UserRole.Student)
-        {
-            query = query.Where(s => s.StudentId == user.Id);               // own answers only
-        }
-        else if (user.Role == UserRole.Teacher)
-        {
-            // Answers to the teacher's OWN questions AND only from their own roster — both
-            // conditions apply; neither alone grants visibility.
-            var roster = _db.GroupMembers
-                .Where(gm => gm.Group.TeacherId == user.Id)
-                .Select(gm => gm.StudentId);
-            query = query
-                .Where(s => s.Question != null && s.Question.TeacherId == user.Id)
-                .Where(s => roster.Contains(s.StudentId));
-        }
-        // admin: all submissions
+        // Shadowing practice (reference_text set) is excluded from the answer list. The role scope
+        // (student: own · teacher: own roster, any question · admin: all) is the shared rule, so
+        // this list and the detail/review routes below can never disagree about an attempt.
+        var query = _db.Submissions
+            .Where(s => s.ReferenceText == null)
+            .VisibleTo(_db, user);
 
         if (questionId is not null)
             query = query.Where(s => s.QuestionId == questionId);
@@ -220,8 +230,8 @@ public sealed class PracticeService
 
     /// <summary>
     /// Attempt status/detail. Anyone may read their OWN attempt; a student may read only their own;
-    /// a teacher only their own students' answers to their own questions. Missing OR not visible
-    /// → 404 (never leaks existence).
+    /// a teacher any answer from their own roster (<see cref="TeacherScope"/>). Missing OR not
+    /// visible → 404 (never leaks existence).
     /// </summary>
     public async Task<GetResult> GetAsync(Guid userId, Guid submissionId, CancellationToken ct = default)
     {
@@ -237,15 +247,9 @@ public sealed class PracticeService
         if (submission is null)
             return new GetResult(GetStatus.NotFound);
 
-        // Visibility: the owner always may read their own attempt — this ownership check must come
-        // FIRST, because a teacher/admin's own shadowing practice has no question and would
-        // otherwise trip the roster check below. Beyond that, a student reads only their own; a
-        // teacher only their own students' answers to their own questions.
-        var visible =
-            submission.StudentId == user.Id
-            || (user.Role != UserRole.Student
-                && !(user.Role == UserRole.Teacher && await TeacherDeniedAsync(user.Id, submission, ct)));
-        if (!visible)
+        // Visibility is the shared rule (owner first, then admin / teacher-roster) — the same one
+        // the list applies, so an attempt the queue shows is always an attempt this route serves.
+        if (!await TeacherScope.CanSeeAsync(_db, user, submission, ct))
             return new GetResult(GetStatus.NotFound);                       // never leaks existence
 
         var response = await ToResponseAsync(submission, submission.Student, submission.Question, ct);
@@ -273,11 +277,7 @@ public sealed class PracticeService
         if (sub is null)
             return new AttemptDetailResult(GetStatus.NotFound);
 
-        var visible =
-            sub.StudentId == user.Id
-            || (user.Role != UserRole.Student
-                && !(user.Role == UserRole.Teacher && await TeacherDeniedAsync(user.Id, sub, ct)));
-        if (!visible)
+        if (!await TeacherScope.CanSeeAsync(_db, user, sub, ct))
             return new AttemptDetailResult(GetStatus.NotFound);                 // never leaks existence
 
         var expired = sub.AudioDeletedAt is not null;
@@ -367,51 +367,76 @@ public sealed class PracticeService
 
     /// <summary>
     /// PATCH /submissions/{id}/review — a teacher's manual verdict: overall band and/or the
-    /// "Izoh o'quvchiga" comment, stamped with who reviewed it and when.
+    /// "Izoh o'quvchiga" comment, stamped with who reviewed it and when. Field semantics (absent =
+    /// unchanged, <c>null</c> = clear, <c>confirm</c> never overwrites a comment) are documented on
+    /// <see cref="ReviewSubmissionRequest"/>.
     ///
-    /// <para><b>Visibility is the same rule as reading the attempt</b> (<see cref="TeacherDeniedAsync"/>):
-    /// a teacher may review only their OWN students' answers to their OWN questions, and anything
-    /// else is 404 — never 403 — so a teacher cannot probe which submission ids exist. A student is
-    /// refused outright even for their own attempt: grading yourself is not a thing.</para>
+    /// <para><b>Visibility is the roster rule</b> (<see cref="TeacherScope"/>): a teacher may review
+    /// any answer their own students give, to any question, and anything else is 404 — never 403 —
+    /// so a teacher cannot probe which submission ids exist. A student is refused outright even for
+    /// their own attempt, and nobody may grade their OWN attempt: the owner shortcut that lets
+    /// anyone READ their attempt deliberately does not apply here.</para>
     ///
-    /// <para>An empty body (neither field) is a 400. Without that guard it would stamp
-    /// <c>ReviewedAt</c>, drop the row out of the review queue, and record no actual decision.</para>
+    /// <para>After the verdict is committed the student is told (<c>review_done</c>) — but only when
+    /// this request actually decided something new: a first review, or a changed band or comment. A
+    /// double-tapped Save or a re-confirm is not news.</para>
     /// </summary>
-    public async Task<ReviewStatus> ReviewAsync(
+    public async Task<ReviewResult> ReviewAsync(
         Guid userId, Guid submissionId, ReviewSubmissionRequest body, CancellationToken ct = default)
     {
         var user = await _db.Users.FirstOrDefaultAsync(u => u.Id == userId, ct);
-        if (user is null || !user.IsActive) return ReviewStatus.Unauthorized;
-        if (user.Role == UserRole.Student) return ReviewStatus.Forbidden;
+        if (user is null || !user.IsActive) return new ReviewResult(ReviewStatus.Unauthorized);
+        if (user.Role == UserRole.Student) return new ReviewResult(ReviewStatus.Forbidden);
 
-        var hasBand = body.TeacherBand is not null;
-        var hasComment = body.TeacherComment is not null;
-        if (!hasBand && !hasComment) return ReviewStatus.BadRequest;
-        if (hasBand && (body.TeacherBand < 0 || body.TeacherBand > 100)) return ReviewStatus.BadRequest;
+        var confirm = body.Confirm == true;
+        if (!body.HasTeacherBand && !body.HasTeacherComment && !confirm)
+            return ReviewResult.BadRequest("empty_review",
+                "Provide teacher_band (0..100), teacher_comment, or confirm: true");
+        if (confirm && body.HasTeacherBand)
+            return ReviewResult.BadRequest("confirm_with_band",
+                "confirm accepts the AI's score; it cannot be sent together with teacher_band");
+        if (body.TeacherBand is { } band && (band < 0 || band > 100))
+            return ReviewResult.BadRequest("band_out_of_range", "teacher_band must be between 0 and 100");
 
-        // Include(Question) is REQUIRED, not incidental: TeacherDeniedAsync compares
-        // sub.Question.TeacherId, so an unloaded navigation makes it deny every teacher and this
-        // endpoint 404s even for the rightful owner.
-        var sub = await _db.Submissions
-            .Include(s => s.Question)
-            .FirstOrDefaultAsync(s => s.Id == submissionId, ct);
-        if (sub is null) return ReviewStatus.NotFound;
-        if (user.Role == UserRole.Teacher && await TeacherDeniedAsync(user.Id, sub, ct))
-            return ReviewStatus.NotFound;                                   // not yours ⇒ does not exist
+        var sub = await _db.Submissions.FirstOrDefaultAsync(s => s.Id == submissionId, ct);
+        if (sub is null || sub.StudentId == user.Id)
+            return new ReviewResult(ReviewStatus.NotFound);
+        var mayReview = user.Role == UserRole.Admin
+                        || await TeacherScope.TeachesAsync(_db, user.Id, sub.StudentId, ct);
+        if (!mayReview)
+            return new ReviewResult(ReviewStatus.NotFound);                // not yours ⇒ does not exist
+
+        var wasReviewed = sub.ReviewedAt is not null;
+        var bandBefore = sub.TeacherBand;
+        var commentBefore = sub.TeacherComment;
+
+        // Absent keys never reach these branches, so an omitted field is left exactly as stored.
+        if (body.HasTeacherBand)
+            sub.TeacherBand = body.TeacherBand;                             // null withdraws the override
+        if (body.HasTeacherComment)
+        {
+            var comment = string.IsNullOrWhiteSpace(body.TeacherComment)
+                ? null                                                      // null or blank clears
+                : body.TeacherComment!.Trim();
+            // A confirm's note only fills an EMPTY slot. It used to overwrite what the teacher had
+            // actually written, leaving "AI score confirmed" beside the teacher's own band.
+            if (!confirm || sub.TeacherComment is null)
+                sub.TeacherComment = comment;
+        }
 
         var now = DateTime.UtcNow;
-        if (hasBand) sub.TeacherBand = body.TeacherBand;
-        // A blank comment CLEARS it; an absent one leaves the previous note alone.
-        if (hasComment)
-            sub.TeacherComment = string.IsNullOrWhiteSpace(body.TeacherComment)
-                ? null
-                : body.TeacherComment!.Trim();
         sub.ReviewedBy = user.Id;
         sub.ReviewedAt = now;
         sub.UpdatedAt = now;
-
         await _db.SaveChangesAsync(ct);
-        return ReviewStatus.Ok;
+
+        var decidedSomething = !wasReviewed
+                               || !Nullable.Equals(bandBefore, sub.TeacherBand)
+                               || !string.Equals(commentBefore, sub.TeacherComment, StringComparison.Ordinal);
+        if (decidedSomething)
+            await _notifier.SendBestEffortAsync(n => n.ReviewSavedAsync(sub.Id, ct), ct);
+
+        return new ReviewResult(ReviewStatus.Ok);
     }
 
     /// <summary>
@@ -430,19 +455,6 @@ public sealed class PracticeService
             return true;                                                    // official public curriculum
         var teacherIds = await _catalog.StudentTeacherIdsAsync(student.Id, ct);
         return teacherIds.Contains(block.TeacherId);                        // the student's teacher's group module
-    }
-
-    /// <summary>
-    /// A teacher may view an attempt only if it answers their OWN question AND the student is in
-    /// their roster. Returns true when EITHER condition fails, i.e. when the view must be denied.
-    /// </summary>
-    private async Task<bool> TeacherDeniedAsync(Guid teacherId, Submission sub, CancellationToken ct)
-    {
-        if (sub.Question is null || sub.Question.TeacherId != teacherId)
-            return true;
-        var inRoster = await _db.GroupMembers.AnyAsync(
-            gm => gm.Group.TeacherId == teacherId && gm.StudentId == sub.StudentId, ct);
-        return !inRoster;
     }
 
     // Presign the audio URL (local SigV4 signing — no network), then project: the wire shape
@@ -509,6 +521,13 @@ public enum GetStatus { Ok, Unauthorized, NotFound }
 /// <summary>Outcome of <see cref="PracticeService.ReviewAsync"/>. <c>NotFound</c> covers both a
 /// missing submission and one this teacher may not see, so existence is never leaked.</summary>
 public enum ReviewStatus { Ok, Unauthorized, Forbidden, NotFound, BadRequest }
+
+/// <summary>A review outcome plus, for a 400, the machine <paramref name="Code"/> and human
+/// <paramref name="Detail"/> the endpoint writes as <c>{ "detail", "code" }</c>.</summary>
+public sealed record ReviewResult(ReviewStatus Status, string? Code = null, string? Detail = null)
+{
+    public static ReviewResult BadRequest(string code, string detail) => new(ReviewStatus.BadRequest, code, detail);
+}
 
 public sealed record GetResult(GetStatus Status, SubmissionResponse? Submission = null);
 
