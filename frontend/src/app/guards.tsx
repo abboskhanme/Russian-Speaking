@@ -55,9 +55,9 @@ export function PublicOnly() {
   return <Outlet />;
 }
 
-/** Roles that use the teacher app. Admin rides the teacher panel (the backend's
- * `IsTeacher` already treats admin as a super-teacher); the separate admin app is
- * out of scope for this build. */
+/** Roles admitted to the teacher app. An admin may use it too (the backend's
+ * `IsTeacher` treats admin as a super-teacher), but lands in their OWN app under
+ * `/admin/*` — see {@link RoleHome}. */
 export const TEACHER_ROLES: readonly UserRole[] = ["teacher", "admin"];
 
 /**

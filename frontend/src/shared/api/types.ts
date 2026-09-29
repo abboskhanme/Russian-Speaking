@@ -1053,6 +1053,8 @@ export interface TeacherBlockResponse {
   topic: string | null;
   level: string | null;
   ru_style: string | null;
+  /** `public` (an official module — every student sees it; set by an admin only) ·
+   * `group` (the author's own students) · `private` (the author alone). */
   visibility: string;
   is_published: boolean;
   sort_order: number;
@@ -1169,18 +1171,82 @@ export interface AdminStatsResponse {
   published_questions: number;
   submissions: number;
   evaluated_submissions: number;
+  /** Answers still queued or being graded — work in progress, not a problem. */
+  pending_submissions: number;
+  /** Answers whose grading ended in an error. Counted apart from `pending`, because
+   * "2 answers are still ungraded" used to include these, and an admin cannot wait
+   * a failure out. */
+  failed_submissions: number;
 }
 
-/** GET /api/admin/teachers (?search) → one row per teacher. */
+/** GET /api/admin/teachers (?search) → one row per teacher. `?search=` matches the
+ * name, the email AND the phone digits. */
 export interface AdminTeacherResponse {
   id: string;
   email: string;
   full_name: string;
+  /** The real sign-in number. `email` is only a `{phone}@govori.uz` placeholder
+   * built from it, so the rows show this and never the email. Null on legacy rows. */
+  phone: string | null;
   is_active: boolean;
   created_at: string;
   /** Tasks they authored — also what a deletion would destroy. */
   question_count: number;
 }
+
+/** GET /api/admin/admins → one row per admin: the teacher row plus `is_self`. */
+export interface AdminUserResponse extends AdminTeacherResponse {
+  /** True for the caller's own row — the one row that offers no role change (the
+   * server refuses `cannot_change_own_role`). */
+  is_self: boolean;
+}
+
+/** POST /api/admin/teachers — create a teacher account up front. The teacher then
+ * signs in with this phone through the usual Telegram code; there is no password.
+ * Refusals: 409 {@link PhoneTakenByStudentResponse} · 409 `phone_taken` · 400
+ * `invalid_phone` · 400 `invalid_full_name`. */
+export interface CreateTeacherArgs {
+  /** E.164, `+998…`. */
+  phone: string;
+  full_name: string;
+}
+
+/** PATCH /api/admin/users/{id}/role. Refusals: 400 `cannot_change_own_role` ·
+ * 400 `invalid_role` · 409 `last_admin` · 409 {@link TeacherOwnsGroupsResponse}. */
+export interface UserRoleUpdateArgs {
+  role: UserRole;
+}
+
+export interface UserRoleResponse {
+  id: string;
+  role: UserRole;
+}
+
+/** 409 `phone_taken_by_student` — the number is a STUDENT's; the add sheet names them
+ * and offers the promotion instead of dead-ending on "taken". */
+export interface PhoneTakenByStudentResponse extends CodedErrorResponse {
+  user_id: string;
+  full_name: string;
+}
+
+/** 409 `teacher_owns_groups` — the count is what the refusal sentence names. */
+export interface TeacherOwnsGroupsResponse extends CodedErrorResponse {
+  group_count: number;
+}
+
+/** 400 `invalid_link` on PATCH /api/admin/settings/links — `field` is the refused
+ * link, so the message lands on that input. */
+export interface InvalidLinkResponse extends CodedErrorResponse {
+  field: string;
+}
+
+/** Any Administration refusal as it arrives on `ApiError.body`: the shared
+ * {@link CodedErrorResponse} plus whichever extra the code carries. Everything is
+ * optional because the body is read off an unknown error, never trusted. `detail`
+ * is developer prose and is never rendered. */
+export type AdminErrorBody = Partial<
+  PhoneTakenByStudentResponse & TeacherOwnsGroupsResponse & InvalidLinkResponse
+>;
 
 /** PATCH /api/admin/teachers/{id}. Null/omitted = leave unchanged. There is no
  * password field: setting one needs the frozen auth hasher, which the

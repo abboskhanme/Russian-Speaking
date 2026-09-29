@@ -669,23 +669,60 @@ The one whole panel that was missing. The backend had 12 endpoints and there was
 finished design, but the app had ZERO `/admin` routes: an admin who signed in
 landed in the teacher panel, looking at someone else's groups.
 
-**Its own product, like the teacher panel.** Four-item nav
-(`Boshqaruv · O'qituvchilar · O'quvchilar · Sozlamalar`) and **no centre FAB** —
-that is a judgement, not an omission: the student's FAB is "record", the teacher's
-is "grade the queue", and administration has no comparable single repeated action,
-so promoting one of four items would invent an emphasis the work does not have.
-`RoleHome` now sends an admin here, and `/admin/*` admits **admins only** (unlike
-`/teacher/*`, which admits both) — verified in a browser: a teacher opening
-`/admin/students` lands back on `/teacher`.
+**Its own product, like the teacher panel.** Six-item nav
+(`Boshqaruv · O'qituvchilar · O'quvchilar · Kontent · Tariflar · Sozlamalar`) and
+**no centre FAB** — that is a judgement, not an omission: the student's FAB is
+"record", the teacher's is "grade the queue", and administration has no comparable
+single repeated action, so promoting one item would invent an emphasis the work does
+not have. On a 390px bottom bar the two longest uz labels use a `shortLabel`
+(`Bosh`, `Ustozlar`); the sidebar keeps the full words. No Profil item either: the
+header avatar on every admin screen opens `/admin/profile`. `RoleHome` sends an admin
+here, and `/admin/*` admits **admins only** (unlike `/teacher/*`, which admits both)
+— verified in a browser: a teacher opening `/admin/students` lands back on `/teacher`.
 
-- [x] **Boshqaruv** — the six real counters from `GET /api/admin/stats`, grouped
+**The day-one round.** On a fresh install an admin could not create a teacher,
+could not publish the official catalog, and could not log out. Nothing is seeded, so
+each of these is the ONLY path to its outcome:
+- **"O'qituvchi qo'shish"** (`POST /api/admin/teachers`) — phone (the login screen's
+  `+998` mask and normaliser) + name. A number that belongs to a STUDENT turns the
+  sheet into "promote this student?" (naming them) instead of a dead-end 409.
+- **Role management** (`PATCH /api/admin/users/{id}/role`) — student → teacher,
+  teacher → student, teacher → admin from the manage sheets; admin → teacher from the
+  **Adminlar** segment of the teachers screen (`?tab=admins`, `GET /api/admin/admins`,
+  "Siz" on your own row, which offers no change). Every direction is a confirm that
+  states its own consequence; `teacher_owns_groups` (with the count), `last_admin` and
+  `cannot_change_own_role` are sentences, not "save failed". There is no group
+  REASSIGN endpoint, so the owns-groups sentence says to delete the groups or to
+  deactivate the account instead — it does not point at a feature that does not exist.
+- **Kontent** (`/admin/content`, `/admin/content/:blockId`) — the teacher's C1/C4
+  pages REUSED inside the admin shell via `app/contentPanel` (base path, shell, three
+  admin-only render slots), not forked. The admin sees every module with its author
+  and a Rasmiy / Guruh / Shaxsiy badge, and the editor has a visibility picker whose
+  **Rasmiy (barcha o'quvchilar)** option a teacher never sees. A module created here
+  starts `public` (still a draft): a `group` default would let an admin "publish" to
+  their own students, who do not exist. The empty Modullar tab explains what the
+  official catalog is and carries the create button.
+- **Profil** (`/admin/profile`) — `IdentityCard` · `InfoTab` · `SettingsTab` reused
+  exactly as the teacher profile does (name, verified phone change, language written
+  to `preferred_language`, theme, notifications, sign out).
+
+- [x] **Boshqaruv** — the real counters from `GET /api/admin/stats`, grouped
   people / content / activity, plus the one derived figure worth acting on: how
-  much of the submitted work is graded.
+  much of the submitted work is graded. In-flight (`pending_submissions`) and
+  failed (`failed_submissions`) are separate lines: the old "N ta javob hali
+  baholanmagan" counted FAILED answers as merely late.
 - [x] **O'qituvchilar · O'quvchilar** — one screen, two configurations. Search
-  (server-side), rename, suspend, premium grant, guarded delete.
-- [x] **Sozlamalar** — the runtime AI + STT settings and the outbound Telegram
-  links.
-- [x] i18n uz/ru/en.
+  (server-side; matches name and phone digits), add teacher, role change, rename,
+  suspend, premium grant, guarded delete. Rows show the real phone, newest first,
+  50 at a time ("Yana ko'rsatish").
+- [x] **Kontent** — see above.
+- [x] **Tariflar** — the plan editor + who holds a subscription. The badge applies
+  the `PremiumAccess` rule (active AND inside its window), so an ended subscription
+  reads "Tugagan", not "Premium"; plan status reads Faol / Nofaol; delete is a confirm.
+- [x] **Sozlamalar** — the runtime AI + STT settings, the feature switches and the
+  outbound Telegram links. Each section reports its save beside its own button (the
+  page is ~5,900px on a phone); a refused link (`invalid_link`) lands on its field.
+- [x] i18n uz/ru/en (uz admin copy on the ASCII apostrophe, like the rest of the file).
 
 **The decision that shaped this panel: deactivate is the primary action, delete is
 not.** `DELETE /api/admin/{teachers,students}/{id}` is `Users.Remove`, and every
@@ -709,12 +746,14 @@ would not prevent the one mistake that matters here.
   leaves `auto` quietly on Gemini, and a settings screen that only echoes your
   choice back cannot tell you it is being ignored.
 
-**Omitted — no table, column or endpoint exists (do NOT fake):** revenue by plan
-and recent payments (`plans` / `subscriptions` / `entitlements` are absent),
-teacher star ratings, daily-active-users, the retention cohort grid, the
-moderation queue, data export and cache-clear. An admin panel whose numbers are
-decorative is worse than a small one that is true — it is the screen decisions get
-made from.
+**Omitted — nothing real behind it (do NOT fake):** teacher star ratings,
+daily-active-users, the retention cohort grid, the moderation queue, data export and
+cache-clear have no table, column or endpoint. Revenue by plan and recent payments
+are a different case: the billing tables exist now (Tariflar), but no payment
+provider is connected, so every revenue figure would be a zero dressed as a chart —
+Tariflar says plainly that nothing can be bought yet instead. An admin panel whose
+numbers are decorative is worse than a small one that is true — it is the screen
+decisions get made from.
 
 **Three bugs the browser pass caught, all fixed:**
 1. The settings endpoints are under `/api/admin/settings/*`, not `/api/admin/*` —

@@ -17,7 +17,7 @@ import { describe, expect, it } from "vitest";
 // Vite's `?raw` rather than `node:fs`: under Vitest `import.meta.url` is a module-
 // runner URL, not a `file:` one, so path arithmetic off it throws.
 import appSource from "../App.tsx?raw";
-import { ADMIN_NAV_PATH, NAV_PATH, TEACHER_NAV_PATH } from "./nav";
+import { ADMIN_NAV_PATH, ADMIN_PROFILE_PATH, NAV_PATH, TEACHER_NAV_PATH } from "./nav";
 
 /** Every `path="…"` literal declared in the router. */
 const ROUTED = new Set([...appSource.matchAll(/path="([^"]+)"/g)].map(([, path]) => path));
@@ -38,6 +38,13 @@ describe("route coverage", () => {
       .filter(([, path]) => !ROUTED.has(path))
       .map(([key, path]) => `${key} → ${path}`);
     expect(unrouted).toEqual([]);
+  });
+
+  it("routes the admin destinations that are not nav items", () => {
+    // Reached from the header avatar and from a Kontent row — neither is in the bar,
+    // so the sweep above cannot see them, and a missing one bounces to the admin home.
+    expect(ROUTED.has(ADMIN_PROFILE_PATH)).toBe(true);
+    expect(ROUTED.has(`${ADMIN_NAV_PATH.content}/:blockId`)).toBe(true);
   });
 });
 

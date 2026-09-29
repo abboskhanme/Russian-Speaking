@@ -10,11 +10,15 @@
 import { apiClient } from "./client";
 import type {
   AchievementResponse,
+  CreateTeacherArgs,
+  UserRoleUpdateArgs,
+  UserRoleResponse,
   AdminStatsResponse,
   AdminStudentResponse,
   AdminStudentUpdateArgs,
   AdminTeacherResponse,
   AdminTeacherUpdateArgs,
+  AdminUserResponse,
   AiProbeResponse,
   AiSettingsResponse,
   AiSettingsUpdateArgs,
@@ -896,6 +900,35 @@ export function adminStats(): Promise<AdminStatsResponse> {
 export function adminTeachers(search?: string): Promise<AdminTeacherResponse[]> {
   const q = search ? `?search=${encodeURIComponent(search)}` : "";
   return apiClient.get<AdminTeacherResponse[]>(`/admin/teachers${q}`);
+}
+
+/** POST /api/admin/teachers → 201 with the new row.
+ *
+ * The day-one path: on a fresh install nothing else can make a teacher. Refusals
+ * carry a machine `code` (see {@link AdminErrorBody}): 409 `phone_taken_by_student`
+ * (with `user_id` + `full_name`, so the UI can offer to promote that student
+ * instead), 409 `phone_taken`, 400 `invalid_phone`, 400 `invalid_full_name`. */
+export function adminCreateTeacher(args: CreateTeacherArgs): Promise<AdminTeacherResponse> {
+  return apiClient.post<AdminTeacherResponse>("/admin/teachers", args);
+}
+
+/** PATCH /api/admin/users/{id}/role → `{ id, role }`.
+ *
+ * One endpoint for every direction (student ⇄ teacher, teacher ⇄ admin). Refusals:
+ * 400 `cannot_change_own_role`, 400 `invalid_role`, 409 `last_admin`, 409 `teacher_owns_groups` (with
+ * `group_count`) — a teacher's groups would be left with no owner. */
+export function adminChangeRole(
+  id: string,
+  role: UserRoleUpdateArgs["role"],
+): Promise<UserRoleResponse> {
+  return apiClient.patch<UserRoleResponse>(`/admin/users/${encodeURIComponent(id)}/role`, {
+    role,
+  } satisfies UserRoleUpdateArgs);
+}
+
+/** GET /api/admin/admins → every admin, the caller's own row marked `is_self`. */
+export function adminAdmins(): Promise<AdminUserResponse[]> {
+  return apiClient.get<AdminUserResponse[]>("/admin/admins");
 }
 
 /** PATCH /api/admin/teachers/{id} → rename / (de)activate. */

@@ -36,6 +36,11 @@ export default function AdminDashboardPage() {
           publishedQuestions: s.published_questions,
           submissions: s.submissions,
           evaluatedSubmissions: s.evaluated_submissions,
+          // Read through a fallback although the contract has them: an API image built
+          // before the split still answers every other counter, and the screen then
+          // falls back to its old, coarser sentence instead of claiming zero failures.
+          pendingSubmissions: s.pending_submissions ?? null,
+          failedSubmissions: s.failed_submissions ?? null,
         });
       })
       .catch(() => alive && setFailed(true))

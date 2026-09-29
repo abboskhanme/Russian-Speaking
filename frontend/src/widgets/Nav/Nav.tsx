@@ -7,6 +7,10 @@ export interface NavItem {
   key: string;
   /** Visible label (and the accessible name for the emphasised FAB). */
   label: string;
+  /** Bottom-bar only: a shorter word for a bar too narrow for `label` (six items at
+   * 390px). It is also the item's accessible name there — deliberately, so that what
+   * a voice-control user reads on screen is what they can say (WCAG 2.5.3). */
+  shortLabel?: string;
   /** 24×24 inline SVG drawn with `currentColor` (see `./icons`). */
   icon: ReactNode;
   /** Render as a real link. When omitted the item is a `<button>`. */
@@ -117,7 +121,9 @@ function NavEntry({ item, active, isBottom, onNavigate }: NavEntryProps) {
   ) : (
     <>
       {icon}
-      <span className={styles.label}>{item.label}</span>
+      <span className={styles.label}>
+        {isBottom && item.shortLabel ? item.shortLabel : item.label}
+      </span>
       {!isBottom && hasBadge && <span className={styles.badge}>{item.badge}</span>}
     </>
   );

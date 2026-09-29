@@ -2,6 +2,7 @@ import { useTranslation } from "react-i18next";
 import { Card, StatTile, Text } from "../../shared/ui";
 import { AppShell, Brand, NotificationsBell, adminNavItems } from "../../widgets";
 import type { NavItem } from "../../widgets";
+import { AdminAccountButton } from "./AdminChrome";
 import { mockAdminStats } from "./admin.mock";
 import styles from "./AdminDashboardScreen.module.css";
 
@@ -9,8 +10,8 @@ import styles from "./AdminDashboardScreen.module.css";
 /* Public contract                                                            */
 /* -------------------------------------------------------------------------- */
 
-/** The six counters `GET /api/admin/stats` returns. Every one is a COUNT the
- * database answers directly — nothing here is estimated or projected. */
+/** The counters `GET /api/admin/stats` returns. Every one is a COUNT the database
+ * answers directly — nothing here is estimated or projected. */
 export interface AdminStats {
   teachers: number;
   students: number;
@@ -18,6 +19,10 @@ export interface AdminStats {
   publishedQuestions: number;
   submissions: number;
   evaluatedSubmissions: number;
+  /** Queued or being graded right now. Null when the API predates the field. */
+  pendingSubmissions: number | null;
+  /** Grading ended in an error. Null when the API predates the field. */
+  failedSubmissions: number | null;
 }
 
 export interface AdminDashboardProps {
@@ -34,23 +39,25 @@ export interface AdminDashboardProps {
  * AdminDashboardScreen — **Boshqaruv**, the admin landing page
  * (`docs/design/mockups/Govorim - Admin.dc.html`).
  *
- * **The admin panel is its own product**, like the teacher panel: its own four-item
- * nav (`Boshqaruv · O'qituvchilar · O'quvchilar · Sozlamalar`), no centre FAB, and
- * no student or teacher screen used as a starting point. `shared/ui` primitives and
- * tokens ARE shared — that is infrastructure.
+ * **The admin panel is its own product**, like the teacher panel: its own nav
+ * (`Boshqaruv · O'qituvchilar · O'quvchilar · Kontent · Tariflar · Sozlamalar`), no
+ * centre FAB, and no student or teacher screen used as a starting point. `shared/ui`
+ * primitives and tokens ARE shared — that is infrastructure.
  *
  * **Half the mockup's dashboard is deliberately absent, and that is the point.**
  * The design shows revenue by plan, recent payments, teacher star ratings, daily
- * active users, a retention cohort grid and a moderation queue. None of those has
- * a table, a column or an endpoint behind it — `plans`, `subscriptions`,
- * `entitlements`, ratings and moderation simply do not exist in this schema. An
- * admin panel whose numbers are decorative is worse than a small one that is true,
- * because it is the screen people make decisions from. Each omission is recorded in
- * TEACHER-PANEL-PLAN.md rather than silently dropped.
+ * active users, a retention cohort grid and a moderation queue. Ratings, activity
+ * tracking and moderation have no table behind them at all. Plans and subscriptions
+ * DO exist now (Tariflar), but no payment provider is connected, so every revenue
+ * figure would be zero dressed up as a chart — the Tariflar screen states that
+ * plainly instead. An admin panel whose numbers are decorative is worse than a small
+ * one that is true, because it is the screen people make decisions from. Each
+ * omission is recorded in TEACHER-PANEL-PLAN.md rather than silently dropped.
  *
  * What IS here: how much content and activity the platform actually holds, plus the
  * one derived figure that answers a real operational question — how much of the
- * submitted work the grader has managed to score.
+ * submitted work the grader has managed to score, and what is still in flight or
+ * has failed.
  */
 export function AdminDashboardScreen({
   stats,
@@ -71,6 +78,15 @@ export function AdminDashboardScreen({
     stats.submissions > 0
       ? Math.floor((stats.evaluatedSubmissions / stats.submissions) * 100)
       : null;
+  // Not graded is two different things, and they used to be one sentence: "2 answers
+  // are still ungraded" counted FAILED answers too, which read as "wait a bit" about
+  // work that will never finish on its own. In flight and failed are now separate
+  // lines, and failed is a warning, not a to-do — nothing on this screen retries it.
+  const legacy = stats.pendingSubmissions === null || stats.failedSubmissions === null;
+  const pending = Math.max(0, stats.pendingSubmissions ?? 0);
+  const failed = Math.max(0, stats.failedSubmissions ?? 0);
+  // The coarse gap — the whole sentence for an API that predates the split, and the
+  // fallback when neither split count explains it.
   const ungraded = Math.max(0, stats.submissions - stats.evaluatedSubmissions);
 
   return (
@@ -87,7 +103,12 @@ export function AdminDashboardScreen({
           {t("nav.adminHome")}
         </Text>
       }
-      headerEnd={<NotificationsBell />}
+      headerEnd={
+        <>
+          <NotificationsBell />
+          <AdminAccountButton />
+        </>
+      }
     >
       <div className={styles.page} data-density="compact">
         <section className={styles.section} aria-label={t("admin.people")}>
@@ -140,12 +161,37 @@ export function AdminDashboardScreen({
               label={t("admin.graded")}
             />
           </div>
-          <Card variant="flat" padding="md">
-            <Text as="p" variant="body-s" color={ungraded > 0 ? "warn" : "muted"}>
-              {ungraded > 0
-                ? t("admin.ungradedNote", { count: ungraded })
-                : t("admin.allGradedNote")}
-            </Text>
+          <Card variant="flat" padding="md" className={styles.notes}>
+            {legacy ? (
+              <Text as="p" variant="body-s" color={ungraded > 0 ? "warn" : "muted"}>
+                {ungraded > 0
+                  ? t("admin.ungradedNote", { count: ungraded })
+                  : t("admin.allGradedNote")}
+              </Text>
+            ) : (
+              <>
+                {pending > 0 && (
+                  <Text as="p" variant="body-s" color="muted">
+                    {t("admin.pendingNote", { count: pending })}
+                  </Text>
+                )}
+                {failed > 0 && (
+                  <Text as="p" variant="body-s" color="warn">
+                    {t("admin.failedNote", { count: failed })}
+                  </Text>
+                )}
+                {/* "All graded" only when the arithmetic agrees. An answer that is
+                    neither in flight nor failed nor graded is not something this card
+                    may round away. */}
+                {pending === 0 && failed === 0 && (
+                  <Text as="p" variant="body-s" color={ungraded > 0 ? "warn" : "muted"}>
+                    {ungraded > 0
+                      ? t("admin.ungradedNote", { count: ungraded })
+                      : t("admin.allGradedNote")}
+                  </Text>
+                )}
+              </>
+            )}
           </Card>
         </section>
       </div>

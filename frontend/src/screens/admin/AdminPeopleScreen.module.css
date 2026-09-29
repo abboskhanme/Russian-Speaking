@@ -8,15 +8,22 @@
   width: 100%;
 }
 
+/* Wraps rather than truncates: on a phone "O'qituvchilar" + the count + "O'qituvchi
+   qo'shish" do not fit one line, and the title is the part that must stay whole —
+   so the button drops to its own line (right-aligned by .addBtn). */
 .head {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: var(--s-3);
   min-width: 0;
 }
 .title {
-  flex: 1;
+  flex: 1 1 auto;
   min-width: 0;
+}
+.addBtn {
+  margin-inline-start: auto;
 }
 
 .list {
@@ -49,12 +56,39 @@
 .rowActions {
   flex: none;
 }
+/* A row whose action is a long label (Adminlar: "O'qituvchiga tushirish") wraps it
+   under the name on a phone instead of cutting the phone number short. */
+.rowWrap {
+  flex-wrap: wrap;
+}
+.rowWrap .rowBody {
+  flex: 1 1 12rem;
+}
+.rowWrap .rowActions {
+  margin-inline-start: auto;
+}
 
 .empty {
   display: grid;
   place-items: center;
+  gap: var(--s-3);
   text-align: center;
   padding-block: var(--s-6);
+}
+
+/* The phone, set the way the login screen sets it while it is typed. */
+.mono {
+  font-family: var(--font-mono);
+}
+
+/* "Yana ko'rsatish" — the count says how much is still hidden, so the button is
+   not a guess about whether scrolling further would find anyone. */
+.more {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-3);
+  flex-wrap: wrap;
 }
 
 /* ---- Manage sheet ---- */
@@ -88,6 +122,23 @@
 .legend {
   text-transform: uppercase;
   letter-spacing: 0.06em;
+}
+
+/* ---- Rolni o'zgartirish ----
+   Its own group, between the reversible switches and the danger zone: a role
+   change can be undone, but it moves the person to another list and another app,
+   so it must not read as one more toggle. */
+.roleZone {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+  padding-top: var(--s-3);
+  border-top: 1px solid var(--line);
+}
+.roleActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-2);
 }
 
 /* ---- Danger zone ----

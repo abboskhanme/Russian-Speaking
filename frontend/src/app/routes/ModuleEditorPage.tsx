@@ -34,7 +34,8 @@ import type {
 import { endpoints } from "../../shared/api";
 import type { TeacherBlockDetailResponse, TeacherQuestionResponse } from "../../shared/api";
 import { PageError, PageLoading } from "../PageState";
-import { TEACHER_NAV_PATH, useTeacherNavHandler } from "../nav";
+import { useTeacherNavHandler } from "../nav";
+import { useContentPanel } from "../contentPanel";
 import {
   apiErrorStatus,
   createQuestionArgs,
@@ -48,7 +49,11 @@ const SEARCH_DEBOUNCE_MS = 250;
 export default function ModuleEditorPage() {
   const { blockId = "" } = useParams();
   const navigate = useNavigate();
-  const onNavigate = useTeacherNavHandler();
+  // Teacher by default; `/admin/content/:blockId` runs this same page inside the
+  // admin shell and URL space (see app/contentPanel).
+  const panel = useContentPanel();
+  const teacherNavigate = useTeacherNavHandler();
+  const onNavigate = panel.onNavigate ?? teacherNavigate;
   const { t } = useTranslation();
 
   const [block, setBlock] = useState<TeacherBlockDetailResponse | null>(null);
@@ -229,14 +234,15 @@ export default function ModuleEditorPage() {
   const deleteModule = useCallback(async (): Promise<ModuleDeleteResult> => {
     try {
       await endpoints.deleteBlock(blockId);
-      navigate(TEACHER_NAV_PATH.content, { replace: true });
+      // Back to THIS panel's list — an admin deleting from /admin/content stays there.
+      navigate(panel.basePath, { replace: true });
       return { ok: true };
     } catch (e) {
       // 409: the server refused because it cannot be done safely. That is a
       // different sentence from "something failed" — retrying will not help.
       return { ok: false, reason: apiErrorStatus(e) === 409 ? "conflict" : "failed" };
     }
-  }, [blockId, navigate]);
+  }, [blockId, navigate, panel.basePath]);
 
   if (loading && !block) return <PageLoading />;
   if (failed || !block) return <PageError onRetry={refetch} />;
@@ -252,8 +258,10 @@ export default function ModuleEditorPage() {
       librarySearching={librarySearching}
       activeNavKey="content"
       onNavigate={onNavigate}
+      shell={panel.shell}
+      metaExtra={panel.renderEditorExtra?.(block, refetch)}
       queuedCount={queued}
-      onBack={() => navigate(TEACHER_NAV_PATH.content)}
+      onBack={() => navigate(panel.basePath)}
       onSaveMeta={saveMeta}
       onTogglePublished={togglePublished}
       onAttachTask={attachTask}

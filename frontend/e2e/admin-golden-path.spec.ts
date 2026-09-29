@@ -102,7 +102,7 @@ test("an admin reads the dashboard, grants premium and saves a setting", async (
   const target = subject as AdminStudent;
 
   await test.step("the nav reaches the student roster", async () => {
-    await clickNav(page, "O‘quvchilar", /^\/admin\/students$/);
+    await clickNav(page, "O'quvchilar", /^\/admin\/students$/);
     await expectNoCriticalA11y(page, "/admin/students");
     await expectNoRawJson(page, "/admin/students");
   });

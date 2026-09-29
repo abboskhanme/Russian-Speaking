@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import type { ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { Badge, Button, Card, Input, Tabs, Text } from "../../shared/ui";
 import type { TabItem } from "../../shared/ui";
@@ -37,6 +38,13 @@ export interface ContentScreenProps {
   onTabChange?: (k: ContentTabKey) => void;
   activeNavKey?: string;
   onNavigate?: (key: string, item: NavItem) => void;
+  /** Another panel's frame (the admin's `/admin/content` reuses this screen). Absent
+   * = the teacher nav and header. */
+  shell?: { navItems: NavItem[]; headerEnd?: ReactNode };
+  /** An extra line under a module row's meta — the admin's owner + visibility. */
+  moduleExtra?: (m: ContentModule) => ReactNode;
+  /** Replaces the Modullar tab's empty line. */
+  modulesEmpty?: ReactNode;
   queuedCount?: number;
   /** "+ Yaratish" on the Modullar tab — a new draft module. */
   onCreate?: () => void;
@@ -84,6 +92,9 @@ export function ContentScreen({
   onTabChange,
   activeNavKey = "content",
   onNavigate,
+  shell,
+  moduleExtra,
+  modulesEmpty,
   queuedCount = 0,
   onCreate,
   onOpenModule,
@@ -132,7 +143,7 @@ export function ContentScreen({
     <AppShell
       brand={<Brand />}
       nav={{
-        items: teacherNavItems(t, queuedCount),
+        items: shell?.navItems ?? teacherNavItems(t, queuedCount),
         activeKey: activeNavKey,
         onNavigate,
         label: t("nav.landmark"),
@@ -142,7 +153,7 @@ export function ContentScreen({
           {t("nav.content")}
         </Text>
       }
-      headerEnd={<NotificationsBell />}
+      headerEnd={shell?.headerEnd ?? <NotificationsBell />}
     >
       <div className={styles.page} data-density="compact">
         <header className={styles.head}>
@@ -163,7 +174,7 @@ export function ContentScreen({
 
         {activeTab === "modules" ? (
           modules.length === 0 ? (
-            <EmptyCard text={t("teacher.noModules")} />
+            (modulesEmpty ?? <EmptyCard text={t("teacher.noModules")} />)
           ) : (
             <ul className={styles.list}>
               {modules.map((m) => (
@@ -187,6 +198,7 @@ export function ContentScreen({
                           .filter(Boolean)
                           .join(" · ")}
                       </Text>
+                      {moduleExtra?.(m)}
                     </span>
                     <Badge variant={m.published ? "success" : "neutral"} size="sm">
                       {m.published ? t("teacher.statusActive") : t("teacher.statusDraft")}

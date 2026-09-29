@@ -87,25 +87,44 @@ export function teacherNavItems(t: TFunction, pendingReviews = 0): NavItem[] {
 
 /** Stable keys for the admin destinations (`Govorim - Admin.dc.html`, plus Tariflar
  *  from Faza 6.6). */
-export type AdminNavKey = "home" | "teachers" | "students" | "billing" | "settings";
+export type AdminNavKey = "home" | "teachers" | "students" | "content" | "billing" | "settings";
 
 /**
- * The admin nav model: **Boshqaruv · O'qituvchilar · O'quvchilar · Tariflar · Sozlamalar**.
+ * The admin nav model: **Boshqaruv · O'qituvchilar · O'quvchilar · Kontent · Tariflar ·
+ * Sozlamalar**.
  *
- * Five items and **no raised centre FAB**, unlike the other two bars. That is a
+ * Six items and **no raised centre FAB**, unlike the other two bars. That is a
  * judgement, not an oversight: the student's FAB is "record", the teacher's is
  * "grade the queue" — each panel has one dominant, repeated action. Administration
- * has no such action; promoting one of these four would invent an emphasis the
- * work does not have.
+ * has no such action; promoting one of these would invent an emphasis the work does
+ * not have.
  *
- * There is no Profil item either — an admin manages other people's accounts here,
- * and their own account lives where every other user's does.
+ * **Kontent** is the mockup's "Modul, vazifa va ssenariylar": the official catalog.
+ * No starter content ships, so on a fresh install this is where every module a
+ * student will ever see gets written.
+ *
+ * Six labels do not fit a 390px bottom bar at full length in Uzbek, so the two
+ * longest carry a `shortLabel` the bottom bar uses; the sidebar keeps the full word.
+ *
+ * There is no Profil item either — an admin manages other people's accounts here;
+ * their own account opens from the header avatar (`/admin/profile`).
  */
 export function adminNavItems(t: TFunction): NavItem[] {
   return [
-    { key: "home", label: t("nav.adminHome"), icon: <HomeIcon /> },
-    { key: "teachers", label: t("nav.adminTeachers"), icon: <TeachersIcon /> },
+    {
+      key: "home",
+      label: t("nav.adminHome"),
+      shortLabel: t("nav.adminHomeShort"),
+      icon: <HomeIcon />,
+    },
+    {
+      key: "teachers",
+      label: t("nav.adminTeachers"),
+      shortLabel: t("nav.adminTeachersShort"),
+      icon: <TeachersIcon />,
+    },
     { key: "students", label: t("nav.adminStudents"), icon: <GroupsIcon /> },
+    { key: "content", label: t("nav.content"), icon: <ContentIcon /> },
     // Tariflar sits before Sozlamalar because it is a place with content, and
     // Sozlamalar is the drawer everything configuration-shaped ends up in — a nav
     // bar reads better when the settings item stays last.

@@ -1,11 +1,24 @@
 import { useEffect, useState } from "react";
 import type { ReactNode } from "react";
+import type { TFunction } from "i18next";
 import { useTranslation } from "react-i18next";
 import { Badge, Button, Card, Input, Spinner, Switch, Text } from "../../shared/ui";
 import { AppShell, Brand, NotificationsBell, adminNavItems } from "../../widgets";
 import type { NavItem } from "../../widgets";
+import { AdminAccountButton } from "./AdminChrome";
+import { adminErrorBody, isNetworkError } from "./adminErrors";
 import { mockAdminSettings } from "./admin.mock";
 import styles from "./AdminSettingsScreen.module.css";
+
+/** The three independently saved sections. */
+type SaveSection = "ai" | "features" | "links";
+
+/** The outcome of the last save, and WHICH section's button produced it. */
+interface SaveFeedback {
+  section: SaveSection;
+  tone: "success" | "muted" | "danger";
+  text: string;
+}
 
 /* -------------------------------------------------------------------------- */
 /* Public contract                                                            */
@@ -142,6 +155,25 @@ export interface AdminSettingsProps {
 }
 
 
+/**
+ * The server's curated model labels carry an advisory suffix typed in whatever
+ * language that list was written in — "(recommended)" on Gemini, "(tavsiya etiladi)"
+ * on Claude — so one screen mixed English and Uzbek. The model name before it is a
+ * product name and stays as sent; the suffix is recognised and re-said in the
+ * interface language. An unrecognised suffix is left alone rather than guessed at.
+ */
+const MODEL_LABEL_TAGS: ReadonlyArray<{ pattern: RegExp; key: string }> = [
+  { pattern: /\s*\((?:recommended|tavsiya etiladi|рекомендуется)\)\s*$/i, key: "admin.modelRecommended" },
+  { pattern: /\s*\((?:avoid on free tier)\)\s*$/i, key: "admin.modelAvoidFreeTier" },
+];
+
+export function modelLabel(label: string, t: TFunction): string {
+  for (const { pattern, key } of MODEL_LABEL_TAGS) {
+    if (pattern.test(label)) return `${label.replace(pattern, "")} (${t(key)})`;
+  }
+  return label;
+}
+
 /** Splits a stored chain into backend names, dropping blanks and duplicates while
  * keeping order — the same normalisation the server does, so an unedited chain
  * compares equal to itself and never lands in the patch. */
@@ -254,8 +286,12 @@ export function AdminSettingsScreen({
   );
   const [payments, setPayments] = useState(settings.paymentsEnabled);
   const [busy, setBusy] = useState(false);
-  const [note, setNote] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  // One result line, printed beside the button that produced it. It used to be a
+  // single line at the very bottom of a ~5,900px page, so "Saqlandi" — and worse,
+  // "Saqlanmadi" — appeared off-screen from the button the admin had just pressed.
+  const [feedback, setFeedback] = useState<SaveFeedback | null>(null);
+  // `invalid_link` names the field; the message goes on THAT input.
+  const [linkErrors, setLinkErrors] = useState<{ support?: string; channel?: string }>({});
   // Probe results keyed `kind:name`, plus one in-flight flag. One flag and not one per
   // section because the endpoint has no scope argument: it probes everything, so both
   // buttons buy the same round of calls and every card is genuinely pending.
@@ -364,11 +400,15 @@ export function AdminSettingsScreen({
     settings.paymentsEnabled,
   ]);
 
+  /** A failed save's sentence: the connection, or the server said no. Never the raw
+   * `detail`, which is an English developer string. */
+  const failure = (e: unknown) =>
+    isNetworkError(e) ? t("auth.errors.network") : t("admin.saveFailed");
+
   const saveAi = async () => {
     if (busy) return;
     setBusy(true);
-    setNote(null);
-    setError(null);
+    setFeedback(null);
     try {
       const patch: AdminSettingsPatch = {};
       // Models are trimmed before comparing AND before sending: a trailing space typed
@@ -410,7 +450,7 @@ export function AdminSettingsScreen({
       if (speechKey.trim()) patch.azureSpeechKey = speechKey.trim();
 
       if (Object.keys(patch).length === 0) {
-        setNote(t("admin.nothingToSave"));
+        setFeedback({ section: "ai", tone: "muted", text: t("admin.nothingToSave") });
         return;
       }
       await onSaveAi?.(patch);
@@ -427,9 +467,9 @@ export function AdminSettingsScreen({
       // The keys just changed, so any probe round on screen describes the old ones.
       setProbes({});
       setProbeFailed(null);
-      setNote(t("admin.saved"));
-    } catch {
-      setError(t("admin.saveFailed"));
+      setFeedback({ section: "ai", tone: "success", text: t("admin.saved") });
+    } catch (e) {
+      setFeedback({ section: "ai", tone: "danger", text: failure(e) });
     } finally {
       setBusy(false);
     }
@@ -455,8 +495,7 @@ export function AdminSettingsScreen({
   const saveFeatures = async () => {
     if (busy) return;
     setBusy(true);
-    setNote(null);
-    setError(null);
+    setFeedback(null);
     try {
       // Booleans go over as strings because the server's tri-state needs three states and a
       // `boolean` carries two; the numbers are sent verbatim so the server can reject an
@@ -472,9 +511,9 @@ export function AdminSettingsScreen({
         phonemeDrillDailyAttempts: drillAttempts,
         paymentsEnabled: String(payments),
       });
-      setNote(t("admin.saved"));
-    } catch {
-      setError(t("admin.saveFailed"));
+      setFeedback({ section: "features", tone: "success", text: t("admin.saved") });
+    } catch (e) {
+      setFeedback({ section: "features", tone: "danger", text: failure(e) });
     } finally {
       setBusy(false);
     }
@@ -483,13 +522,25 @@ export function AdminSettingsScreen({
   const saveLinks = async () => {
     if (busy) return;
     setBusy(true);
-    setNote(null);
-    setError(null);
+    setFeedback(null);
+    setLinkErrors({});
     try {
       await onSaveLinks?.({ tgSupportUrl: support.trim(), tgChannelUrl: channel.trim() });
-      setNote(t("admin.saved"));
-    } catch {
-      setError(t("admin.saveFailed"));
+      setFeedback({ section: "links", tone: "success", text: t("admin.saved") });
+    } catch (e) {
+      const body = adminErrorBody(e);
+      if (body?.code === "invalid_link") {
+        // The server names the refused field; the message goes on that input. If it
+        // names neither (an older build), both inputs are suspects and the line under
+        // the button says so, with the accepted format.
+        const field = body.field ?? "";
+        const message = t("admin.errInvalidLink");
+        if (/support/i.test(field)) setLinkErrors({ support: message });
+        else if (/channel/i.test(field)) setLinkErrors({ channel: message });
+        else setFeedback({ section: "links", tone: "danger", text: message });
+      } else {
+        setFeedback({ section: "links", tone: "danger", text: failure(e) });
+      }
     } finally {
       setBusy(false);
     }
@@ -509,7 +560,12 @@ export function AdminSettingsScreen({
           {t("nav.adminSettings")}
         </Text>
       }
-      headerEnd={<NotificationsBell />}
+      headerEnd={
+        <>
+          <NotificationsBell />
+          <AdminAccountButton />
+        </>
+      }
     >
       <div className={styles.page} data-density="compact">
         {/* ---- AI grader ---- */}
@@ -751,6 +807,7 @@ export function AdminSettingsScreen({
           </div>
 
           <div className={styles.actions}>
+            <SaveResult feedback={feedback} section="ai" />
             <Button variant="primary" disabled={busy} onClick={() => void saveAi()}>
               {t("admin.saveAi")}
             </Button>
@@ -883,6 +940,7 @@ export function AdminSettingsScreen({
               {t("admin.roleplayCostHint")}
             </Text>
             <div className={styles.actions}>
+              <SaveResult feedback={feedback} section="features" />
               <Button variant="secondary" size="sm" disabled={busy} onClick={() => void saveFeatures()}>
                 {t("admin.saveFeatures")}
               </Button>
@@ -896,36 +954,39 @@ export function AdminSettingsScreen({
             {t("admin.links")}
           </Text>
           <Card variant="outline" padding="md" className={styles.card}>
+            {/* The accepted format is stated up front, not only after a refusal: the
+                server takes a full https link, and normalises a bare `t.me/…` or
+                `@name` into one. */}
             <Input
               label={t("admin.tgSupport")}
               value={support}
-              onChange={(e) => setSupport(e.currentTarget.value)}
+              onChange={(e) => {
+                setSupport(e.currentTarget.value);
+                setLinkErrors((prev) => ({ ...prev, support: undefined }));
+              }}
               placeholder="https://t.me/…"
+              hint={t("admin.linkFormatHint")}
+              error={linkErrors.support}
             />
             <Input
               label={t("admin.tgChannel")}
               value={channel}
-              onChange={(e) => setChannel(e.currentTarget.value)}
+              onChange={(e) => {
+                setChannel(e.currentTarget.value);
+                setLinkErrors((prev) => ({ ...prev, channel: undefined }));
+              }}
               placeholder="https://t.me/…"
+              hint={t("admin.linkFormatHint")}
+              error={linkErrors.channel}
             />
             <div className={styles.actions}>
+              <SaveResult feedback={feedback} section="links" />
               <Button variant="secondary" size="sm" disabled={busy} onClick={() => void saveLinks()}>
                 {t("admin.saveLinks")}
               </Button>
             </div>
           </Card>
         </section>
-
-        {note && (
-          <Text as="p" variant="body-s" color="success" role="status">
-            {note}
-          </Text>
-        )}
-        {error && (
-          <Text as="p" variant="body-s" color="danger" role="alert">
-            {error}
-          </Text>
-        )}
       </div>
     </AppShell>
   );
@@ -934,6 +995,26 @@ export function AdminSettingsScreen({
 /* -------------------------------------------------------------------------- */
 /* Parts                                                                      */
 /* -------------------------------------------------------------------------- */
+
+/**
+ * The last save's outcome, printed beside the button that produced it and nowhere
+ * else. A success is a quiet status; a failure is an alert — both in the viewport the
+ * admin is already looking at, because that is where their eyes are when they press.
+ */
+function SaveResult({ feedback, section }: { feedback: SaveFeedback | null; section: SaveSection }) {
+  if (!feedback || feedback.section !== section) return null;
+  return (
+    <Text
+      as="span"
+      variant="body-s"
+      color={feedback.tone}
+      role={feedback.tone === "danger" ? "alert" : "status"}
+      className={styles.saveResult}
+    >
+      {feedback.text}
+    </Text>
+  );
+}
 
 /**
  * ChainEditor — the ordered fallback chain for one seam (grading, or STT).
@@ -1298,7 +1379,7 @@ function ModelField({
                 className={m.id === current ? styles.chipOn : styles.chip}
                 onClick={() => onChange(m.id)}
               >
-                <span className={styles.chipLabel}>{m.label}</span>
+                <span className={styles.chipLabel}>{modelLabel(m.label, t)}</span>
                 {m.note && <span className={styles.chipNote}>{m.note}</span>}
               </button>
             ))}

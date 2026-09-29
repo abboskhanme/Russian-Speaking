@@ -28,7 +28,8 @@ import type {
 import { endpoints } from "../../shared/api";
 import type { TeacherBlockResponse, TeacherQuestionResponse } from "../../shared/api";
 import { PageError, PageLoading } from "../PageState";
-import { TEACHER_NAV_PATH, useTeacherNavHandler } from "../nav";
+import { useTeacherNavHandler } from "../nav";
+import { useContentPanel } from "../contentPanel";
 import { createQuestionArgs, editableTaskFromQuestion, questionPatchArgs } from "../teacherAdapters";
 
 const TABS: ContentTabKey[] = ["modules", "tasks"];
@@ -36,7 +37,11 @@ const TABS: ContentTabKey[] = ["modules", "tasks"];
 export default function ContentPage() {
   const navigate = useNavigate();
   const { t } = useTranslation();
-  const onNavigate = useTeacherNavHandler();
+  // Teacher by default; the admin's `/admin/content` runs this same page inside its
+  // own shell and URL space (see app/contentPanel).
+  const panel = useContentPanel();
+  const teacherNavigate = useTeacherNavHandler();
+  const onNavigate = panel.onNavigate ?? teacherNavigate;
   const [params, setParams] = useSearchParams();
 
   const raw = params.get("tab");
@@ -109,9 +114,9 @@ export default function ContentPage() {
    * would be unidentifiable, so it is seeded with a localized placeholder the
    * teacher immediately renames in the field that has focus. */
   const createModule = useCallback(async () => {
-    const created = await endpoints.createBlock({ name: t("teacher.newModule") });
-    navigate(`${TEACHER_NAV_PATH.content}/${encodeURIComponent(created.id)}`);
-  }, [navigate, t]);
+    const created = await endpoints.createBlock({ name: t("teacher.newModule"), ...panel.createDefaults });
+    navigate(`${panel.basePath}/${encodeURIComponent(created.id)}`);
+  }, [navigate, t, panel]);
 
   const createTask = useCallback(
     async (draft: NewTaskDraft) => {
@@ -185,9 +190,19 @@ export default function ContentPage() {
       onTabChange={setTab}
       activeNavKey="content"
       onNavigate={onNavigate}
+      shell={panel.shell}
+      moduleExtra={
+        panel.renderModuleExtra
+          ? (m) => {
+              const block = blocks.find((b) => b.id === m.id);
+              return block ? panel.renderModuleExtra?.(block) : null;
+            }
+          : undefined
+      }
+      modulesEmpty={panel.renderModulesEmpty?.(() => void createModule())}
       queuedCount={queued}
       onCreate={() => void createModule()}
-      onOpenModule={(id) => navigate(`${TEACHER_NAV_PATH.content}/${encodeURIComponent(id)}`)}
+      onOpenModule={(id) => navigate(`${panel.basePath}/${encodeURIComponent(id)}`)}
       onCreateTask={createTask}
       onUpdateTask={updateTask}
       onToggleTaskPublished={toggleTaskPublished}
