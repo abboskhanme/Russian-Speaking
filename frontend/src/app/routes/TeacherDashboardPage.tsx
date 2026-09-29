@@ -3,10 +3,15 @@
  * API (Teacher panel plan, Phase 1). Composes from existing endpoints — no
  * bespoke aggregate endpoint:
  *
- *   • `GET /api/groups`          → the teacher's groups (Guruh + O'quvchi tiles)
+ *   • `GET /api/groups`          → the teacher's groups (Guruh tile)
+ *   • `GET /api/groups/{id}`     → each roster, so the O'quvchi tile counts DISTINCT
+ *                                  students (one in two groups is one student)
  *   • `GET /api/submissions`     → the roster's attempts → the grading-queue count,
  *                                  which drives both the Navbatda tile and the
- *                                  "AI ishonchi past" attention card
+ *                                  "N ta javob tekshiruvingizni kutmoqda" card. (The
+ *                                  mockup words it "AI ishonchi past"; there is no
+ *                                  AI-confidence value anywhere, so the card says
+ *                                  what it counts: graded answers not yet reviewed.)
  *   • `GET /api/groups/requests` → the "qo'shilish so'rovi" card
  *   • `GET /api/reports/gradebook` → per-student `trend_delta` → the "ball tushdi" card
  *   • `GET /api/reports/insights`  → `errors[0]` → the "sinf xatosi" card
@@ -36,6 +41,7 @@ import type {
 import { endpoints } from "../../shared/api";
 import type {
   GradebookRowResponse,
+  GroupDetailResponse,
   GroupJoinRequestResponse,
   GroupResponse,
   InsightsResponse,
@@ -43,6 +49,7 @@ import type {
 } from "../../shared/api";
 import { useAuth } from "../../shared/auth";
 import { firstName } from "../adapters";
+import { distinctStudentCount } from "../teacherAdapters";
 import { PageError, PageLoading } from "../PageState";
 import { TEACHER_NAV_PATH, useTeacherNavHandler } from "../nav";
 import { useTranslation } from "react-i18next";
@@ -59,6 +66,7 @@ export default function TeacherDashboardPage() {
   const onNavigate = useTeacherNavHandler();
 
   const [groups, setGroups] = useState<GroupResponse[]>([]);
+  const [rosters, setRosters] = useState<GroupDetailResponse[]>([]);
   const [subs, setSubs] = useState<SubmissionResponse[]>([]);
   const [requests, setRequests] = useState<GroupJoinRequestResponse[]>([]);
   const [gradebook, setGradebook] = useState<GradebookRowResponse[]>([]);
@@ -76,23 +84,35 @@ export default function TeacherDashboardPage() {
     // load-bearing fetch — if it fails the page is empty, so we surface an error.
     // Each attention card sits behind its own fetch, so a failing aggregate costs
     // exactly one card rather than the whole triage screen.
-    Promise.allSettled([
-      endpoints.teacherGroups(),
-      endpoints.teacherSubmissions(),
-      endpoints.teacherJoinRequests(),
-      endpoints.teacherGradebook(),
-      endpoints.teacherInsights(),
-    ])
-      .then(([g, s, r, gb, ins]) => {
+    (async () => {
+      const [g, s, r, gb, ins] = await Promise.allSettled([
+        endpoints.teacherGroups(),
+        endpoints.teacherSubmissions(),
+        endpoints.teacherJoinRequests(),
+        endpoints.teacherGradebook(),
+        endpoints.teacherInsights(),
+      ]);
+      if (!alive) return;
+      if (g.status === "fulfilled") setGroups(g.value);
+      else setFailed(true);
+      setSubs(s.status === "fulfilled" ? s.value : []);
+      setRequests(r.status === "fulfilled" ? r.value : []);
+      setGradebook(gb.status === "fulfilled" ? gb.value : []);
+      setInsights(ins.status === "fulfilled" ? ins.value : null);
+
+      // The rosters, for a DISTINCT student count. One request per group — a
+      // teacher runs a handful — and a failed one only costs that group's dedup.
+      if (g.status === "fulfilled") {
+        const rs = await Promise.allSettled(g.value.map((grp) => endpoints.teacherGroupDetail(grp.id)));
         if (!alive) return;
-        if (g.status === "fulfilled") setGroups(g.value);
-        else setFailed(true);
-        setSubs(s.status === "fulfilled" ? s.value : []);
-        setRequests(r.status === "fulfilled" ? r.value : []);
-        setGradebook(gb.status === "fulfilled" ? gb.value : []);
-        setInsights(ins.status === "fulfilled" ? ins.value : null);
-      })
-      .finally(() => alive && setLoading(false));
+        setRosters(
+          rs
+            .filter((x): x is PromiseFulfilledResult<GroupDetailResponse> => x.status === "fulfilled")
+            .map((x) => x.value),
+        );
+      }
+      setLoading(false);
+    })();
 
     return () => {
       alive = false;
@@ -121,13 +141,12 @@ export default function TeacherDashboardPage() {
   const stats = useMemo<TeacherStats>(
     () => ({
       groups: groups.length,
-      // Roster reach across the teacher's groups. A student in two of the same
-      // teacher's groups double-counts — `GroupResponse` carries only a count, so
-      // deduping would mean fetching every roster. Phase 2/3 can refine it.
-      students: groups.reduce((sum, g) => sum + g.member_count, 0),
+      // DISTINCT students across the teacher's groups — summing `member_count`
+      // counted a student who sits in two of this teacher's groups twice.
+      students: distinctStudentCount(groups, rosters),
       queued,
     }),
-    [groups, queued],
+    [groups, rosters, queued],
   );
 
   /** Students who have genuinely fallen back. `trend_delta` is null under four
@@ -145,10 +164,10 @@ export default function TeacherDashboardPage() {
     // waiting on this teacher, not a situation to look into.
     if (queued > 0) {
       items.push({
-        id: "low-confidence",
+        id: "queue",
         tone: "danger",
-        title: t("teacher.lowConfidence", { count: queued }),
-        hint: t("teacher.lowConfidenceHint"),
+        title: t("teacher.queueWaiting", { count: queued }),
+        hint: t("teacher.queueWaitingHint"),
       });
     }
 
@@ -194,7 +213,7 @@ export default function TeacherDashboardPage() {
 
   const openAttention = useCallback(
     (id: string) => {
-      if (id === "low-confidence") navigate(TEACHER_NAV_PATH.queue);
+      if (id === "queue") navigate(TEACHER_NAV_PATH.queue);
       else if (id === "join-requests") navigate("/teacher/classes?tab=requests");
       // With exactly one faller the card can honour the mockup's "Profilni ko'rish"
       // literally; with several there is no single profile to open, so it lands on
@@ -222,7 +241,6 @@ export default function TeacherDashboardPage() {
       onNavigate={onNavigate}
       onOpenAttention={openAttention}
       // The teacher nav has no Profil item — the header avatar is that entry.
-      // Its screen is plan Phase 7; until then it resolves back to Obzor.
       onOpenProfile={() => navigate("/teacher/profile")}
     />
   );

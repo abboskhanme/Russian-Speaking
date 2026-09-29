@@ -1,0 +1,86 @@
+/* GroupSettingsSheet — A5 «Sozlama». Teacher panel design; every value is a token. */
+
+.sheet {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-5);
+  width: 100%;
+}
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+}
+.start {
+  align-self: flex-start;
+}
+.grow {
+  flex: 1;
+  min-width: 0;
+}
+
+/* The join code, set like the A7 invite screen shows it — the teacher reads it
+   aloud, so it is large and monospaced. */
+.code {
+  font-family: var(--font-mono);
+  letter-spacing: 0.08em;
+}
+
+.members {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+}
+.member {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+  padding: var(--s-2) var(--s-3);
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  background: var(--surface);
+}
+.memberRow {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  min-width: 0;
+}
+
+.dangerText {
+  color: var(--danger);
+}
+.danger {
+  padding-top: var(--s-4);
+  border-top: 1px solid var(--line);
+}
+
+.confirm {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+  padding: var(--s-3);
+  border: 1px solid var(--danger);
+  border-radius: var(--r-md);
+  background: var(--danger-tint);
+}
+.confirmActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--s-2);
+}
+
+/* Same as the admin delete dialog: visibly inert until the typed name matches —
+   the disabled attribute alone reads as "loading" to a lot of people. */
+.confirmDelete {
+  opacity: 0.55;
+}
+.confirmDeleteArmed {
+  opacity: 1;
+  background: var(--danger);
+  color: var(--primary-on);
+  box-shadow: var(--e-danger);
+}

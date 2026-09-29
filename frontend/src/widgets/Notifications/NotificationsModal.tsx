@@ -12,6 +12,7 @@ import {
 } from "../../shared/ui";
 import { endpoints } from "../../shared/api";
 import type { NotificationResponse } from "../../shared/api";
+import { kindIcon, notificationLink } from "./notificationKinds";
 import styles from "./NotificationsModal.module.css";
 
 export interface NotificationsModalProps {
@@ -317,14 +318,22 @@ function NotificationRow({
 }: NotificationRowProps) {
   const { t } = useTranslation();
   const when = relativeDate(t, n.created_at, now);
-  const href = safeHref(n.link);
+  // The server's own link first; a known type supplies one for an older row that
+  // was written without it. Either way it passes the same scheme check.
+  const href = safeHref(notificationLink(n.type, n.link));
   const external = href !== undefined && !href.startsWith("/");
+  // Title and body are printed exactly as the server rendered them (in the
+  // recipient's language). The type only picks the icon — it is never shown.
+  const title = n.title?.trim() ? n.title : t("notifications.untitled");
 
   const body = (
     <>
       <span className={styles.rowHead}>
+        <span className={styles.kindIcon} aria-hidden>
+          {kindIcon(n.type)}
+        </span>
         <Text as="span" variant="title-s" className={styles.rowTitle}>
-          {n.title}
+          {title}
         </Text>
         {!n.is_read && (
           <>
@@ -364,7 +373,7 @@ function NotificationRow({
           disabled={disabled}
           onChange={() => onToggle(n.id)}
         />
-        <VisuallyHidden>{t("notifications.selectRow", { title: n.title })}</VisuallyHidden>
+        <VisuallyHidden>{t("notifications.selectRow", { title })}</VisuallyHidden>
       </label>
 
       {href ? (

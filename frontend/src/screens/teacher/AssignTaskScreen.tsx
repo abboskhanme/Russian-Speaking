@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
+import type { TFunction } from "i18next";
 import { Badge, Button, Card, Input, Modal, Text, cx } from "../../shared/ui";
 import { AppShell, Brand, NotificationsBell, teacherNavItems } from "../../widgets";
 import type { NavItem } from "../../widgets";
@@ -25,6 +26,16 @@ export interface AssignSelection {
   subtitle?: string;
   /** Modules only: how many published tasks go out with it. */
   taskCount?: number;
+  /** Set when it cannot be assigned right now (a module with no published task),
+   * already localized. The picker shows the row DISABLED with this reason rather
+   * than hiding it — a module that silently vanished from the list reads as a bug. */
+  disabledReason?: string;
+}
+
+/** One student as the assign target — A6's "Topshiriq berish" (`?student=`). */
+export interface AssignStudentTarget {
+  id: string;
+  name: string;
 }
 
 /** One group the teacher can assign to, with the roster size the button counts. */
@@ -39,7 +50,11 @@ export interface AssignOutcome {
   /** Rows created. May be smaller than the roster (server-side roster filter) or
    * than `taskCount × students` (duplicates are skipped). */
   created: number;
-  /** Set when the write failed; the screen shows it verbatim. */
+  /** Single task only: how many of the targeted students already had it OPEN and
+   * were therefore skipped (targets − students who got a row). Absent when the
+   * response cannot say — a module skips per task, not per student. */
+  alreadyHad?: number;
+  /** Set when the write failed — already localized by the page. */
   error?: string;
 }
 
@@ -49,13 +64,22 @@ export interface AssignTaskProps {
   groups: AssignGroupOption[];
   /** Preselected group, from `?group=` when arriving from A2 / A5. */
   initialGroupId?: string | null;
+  /**
+   * A6's "Topshiriq berish": ONE student, from `?student=`. When set, "Kimga" shows
+   * that student instead of the group picker and the write goes to `student_ids`.
+   */
+  student?: AssignStudentTarget | null;
+  /** `?student=` named someone outside the teacher's roster (or unresolvable). */
+  studentMissing?: boolean;
   activeNavKey?: string;
   onNavigate?: (key: string, item: NavItem) => void;
   queuedCount?: number;
   onBack?: () => void;
   onAssign?: (args: {
     selection: AssignSelection;
-    groupId: string;
+    /** Exactly one of these is set. */
+    groupId: string | null;
+    studentId: string | null;
     /** ISO-8601, or null for "no deadline". */
     dueAt: string | null;
     /** Attempts allowed per task, or null for unlimited. */
@@ -91,15 +115,24 @@ export interface AssignTaskProps {
  *
  * **The button's count comes from the selected group's roster, and the success
  * line comes from the RESPONSE.** The server filters targets through the
- * teacher's own roster and skips tasks a student already has, so the number
- * created is legitimately allowed to be smaller than the number offered — saying
- * so is more useful than hiding it.
+ * teacher's own roster and skips a task a student still has open, so the number
+ * created is legitimately allowed to be smaller than the number offered — the line
+ * says how many got it AND how many already had it.
+ *
+ * **One press, one write.** After a success the button goes inert ("Berildi") until
+ * the teacher changes what, whom, when or how many — a second tap used to hand the
+ * same group the same task again.
+ *
+ * **A6 targets ONE student** (`?student=`): "Kimga" then names that student instead
+ * of offering groups, and the write goes out as `student_ids`.
  */
 export function AssignTaskScreen({
   tasks,
   modules,
   groups,
   initialGroupId = null,
+  student = null,
+  studentMissing = false,
   activeNavKey = "classes",
   onNavigate,
   queuedCount = 0,
@@ -122,25 +155,36 @@ export function AssignTaskScreen({
   const [pickerOpen, setPickerOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const [outcome, setOutcome] = useState<AssignOutcome | null>(null);
+  /** True after a SUCCESSFUL write, until any input changes. */
+  const [done, setDone] = useState(false);
 
   const group = useMemo(() => groups.find((g) => g.id === groupId) ?? null, [groups, groupId]);
+  const hasTarget = student !== null || group !== null;
   const nothingToAssign = tasks.length === 0 && modules.length === 0;
-  const ready = selection !== null && group !== null && !busy;
+  const ready = selection !== null && hasTarget && !busy && !done;
+
+  /** Any change re-arms the button and clears the last outcome. */
+  const touched = () => {
+    setDone(false);
+    setOutcome(null);
+  };
 
   const submit = async () => {
-    if (!ready || !selection || !group) return;
+    if (!ready || !selection) return;
     setBusy(true);
     setOutcome(null);
     try {
       const result = await onAssign?.({
         selection,
-        groupId: group.id,
+        groupId: student ? null : (group?.id ?? null),
+        studentId: student?.id ?? null,
         // A blank input means "no deadline", which is a real, nullable state —
         // not today's date, and not an error.
         dueAt: dueAt ? new Date(dueAt).toISOString() : null,
         maxAttempts,
       });
       setOutcome(result ?? null);
+      setDone(Boolean(result && !result.error));
     } finally {
       setBusy(false);
     }
@@ -177,7 +221,13 @@ export function AssignTaskScreen({
           </Text>
         </header>
 
-        {groups.length === 0 ? (
+        {studentMissing ? (
+          <EmptyState
+            body={t("teacher.assignTask.studentMissing")}
+            action={t("teacher.assignTask.goClasses")}
+            onAction={onGoToClasses}
+          />
+        ) : groups.length === 0 && !student ? (
           <EmptyState
             body={t("teacher.assignTask.noGroups")}
             action={t("teacher.assignTask.goClasses")}
@@ -228,9 +278,23 @@ export function AssignTaskScreen({
               <Text as="h2" variant="label" color="muted" className={styles.legend}>
                 {t("teacher.assignTask.who")}
               </Text>
-              {/* Radio semantics, not checkboxes: the endpoint takes ONE group_id,
+              {student ? (
+                // One named student — nothing to pick, so no radio group.
+                <div className={cx(styles.groupRow, styles.groupRowOn)} data-testid="assign-student">
+                  <span className={cx(styles.mark, styles.markOn)} aria-hidden>
+                    <CheckGlyph />
+                  </span>
+                  <Text as="span" variant="body" weight="bold" className={styles.groupName} truncate>
+                    {student.name}
+                  </Text>
+                  <Text as="span" variant="body-s" color="muted">
+                    {t("teacher.assignTask.oneStudent")}
+                  </Text>
+                </div>
+              ) : (
+              /* Radio semantics, not checkboxes: the endpoint takes ONE group_id,
                   and a multi-select that silently assigned to the last one would
-                  be worse than a control that says "one at a time". */}
+                  be worse than a control that says "one at a time". */
               <ul className={styles.groupList} role="radiogroup" aria-label={t("teacher.assignTask.who")}>
                 {groups.map((g) => {
                   const on = g.id === groupId;
@@ -241,7 +305,10 @@ export function AssignTaskScreen({
                         role="radio"
                         aria-checked={on}
                         className={cx(styles.groupRow, on && styles.groupRowOn)}
-                        onClick={() => setGroupId(g.id)}
+                        onClick={() => {
+                          setGroupId(g.id);
+                          touched();
+                        }}
                       >
                         <span className={cx(styles.mark, on && styles.markOn)} aria-hidden>
                           {on && <CheckGlyph />}
@@ -257,6 +324,7 @@ export function AssignTaskScreen({
                   );
                 })}
               </ul>
+              )}
             </section>
 
             {/* ---- Muddat ---- */}
@@ -270,7 +338,10 @@ export function AssignTaskScreen({
               <Input
                 type="datetime-local"
                 value={dueAt}
-                onChange={(e) => setDueAt(e.currentTarget.value)}
+                onChange={(e) => {
+                  setDueAt(e.currentTarget.value);
+                  touched();
+                }}
                 aria-label={t("teacher.assignTask.due")}
               />
               <Text as="p" variant="body-s" color="muted">
@@ -292,7 +363,10 @@ export function AssignTaskScreen({
                       type="button"
                       className={cx(styles.chip, on && styles.chipOn)}
                       aria-pressed={on}
-                      onClick={() => setMaxAttempts(n)}
+                      onClick={() => {
+                        setMaxAttempts(n);
+                        touched();
+                      }}
                     >
                       {n === null
                         ? t("teacher.assignTask.attemptsUnlimited")
@@ -314,13 +388,11 @@ export function AssignTaskScreen({
                 role="status"
               >
                 <Text as="p" variant="body" weight="semibold">
-                  {outcome.error
-                    ? outcome.error
-                    : outcome.created === 0
-                      ? t("teacher.assignTask.createdNone")
-                      : t("teacher.assignTask.created", { count: outcome.created })}
+                  {outcomeText(t, outcome, selection?.kind ?? "task")}
                 </Text>
-                {!outcome.error && outcome.created > 0 && (
+                {/* The module line can only report rows, not who already had what —
+                    so it says the rule instead of a number it cannot know. */}
+                {!outcome.error && outcome.created > 0 && outcome.alreadyHad === undefined && (
                   <Text as="p" variant="body-s" color="muted">
                     {t("teacher.assignTask.createdHint")}
                   </Text>
@@ -330,9 +402,13 @@ export function AssignTaskScreen({
 
             <div className={styles.footer}>
               <Button variant="primary" size="lg" disabled={!ready} onClick={() => void submit()}>
-                {group
-                  ? t("teacher.assignTask.submit", { count: group.memberCount })
-                  : t("teacher.assignTask.submitIdle")}
+                {done
+                  ? t("teacher.assignTask.submitted")
+                  : student
+                    ? t("teacher.assignTask.submit", { count: 1 })
+                    : group
+                      ? t("teacher.assignTask.submit", { count: group.memberCount })
+                      : t("teacher.assignTask.submitIdle")}
               </Button>
             </div>
           </>
@@ -345,7 +421,7 @@ export function AssignTaskScreen({
           onClose={() => setPickerOpen(false)}
           onPick={(s) => {
             setSelection(s);
-            setOutcome(null);
+            touched();
             setPickerOpen(false);
           }}
         />
@@ -460,7 +536,12 @@ function PickerGroup({
       <ul className={styles.pickerList}>
         {items.map((s) => (
           <li key={`${s.kind}:${s.id}`}>
-            <button type="button" className={styles.pickerRow} onClick={() => onPick(s)}>
+            <button
+              type="button"
+              className={styles.pickerRow}
+              disabled={Boolean(s.disabledReason)}
+              onClick={() => onPick(s)}
+            >
               <span
                 className={cx(styles.pickIcon, s.kind === "module" && styles.pickIconModule)}
                 aria-hidden
@@ -476,6 +557,13 @@ function PickerGroup({
                     {s.subtitle}
                   </Text>
                 )}
+                {/* Visible text, not a tooltip: a disabled button takes no focus and
+                    shows no tooltip on touch. */}
+                {s.disabledReason && (
+                  <Text as="span" variant="body-s" color="warn">
+                    {s.disabledReason}
+                  </Text>
+                )}
               </span>
             </button>
           </li>
@@ -483,6 +571,22 @@ function PickerGroup({
       </ul>
     </section>
   );
+}
+
+/**
+ * The result line, from what the SERVER did. A single task can say both halves —
+ * "2 ta o'quvchiga berildi, 3 tasida allaqachon bor edi" — because the response
+ * lists one row per student who got it; a module can only report rows.
+ */
+function outcomeText(t: TFunction, outcome: AssignOutcome, kind: "task" | "module"): string {
+  if (outcome.error) return outcome.error;
+  if (outcome.created === 0) return t("teacher.assignTask.createdNone");
+  if (kind === "task" && outcome.alreadyHad !== undefined) {
+    return outcome.alreadyHad > 0
+      ? t("teacher.assignTask.createdSplit", { count: outcome.created, already: outcome.alreadyHad })
+      : t("teacher.assignTask.createdStudents", { count: outcome.created });
+  }
+  return t("teacher.assignTask.created", { count: outcome.created });
 }
 
 /* ---- Glyphs (teacher panel's own set; sized to the 22–34px slots) ---- */

@@ -26,9 +26,11 @@ export const mockTeacherStats: TeacherStats = {
 
 export const mockTeacherAttention: TeacherAttentionItem[] = [
   {
-    id: "att-low-confidence",
+    // The mockup says "AI ishonchi past"; no confidence value exists anywhere in
+    // the data, so the card counts what IS real — answers not yet reviewed.
+    id: "att-queue",
     tone: "danger",
-    title: "3 ta javob — AI ishonchi past",
+    title: "3 ta javob tekshiruvingizni kutmoqda",
     hint: "Tekshirish navbatiga o‘ting",
   },
   {

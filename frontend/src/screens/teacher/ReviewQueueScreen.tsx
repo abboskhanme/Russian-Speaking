@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Badge, Button, Card, Tabs, Text, cx } from "../../shared/ui";
 import type { TabItem } from "../../shared/ui";
@@ -24,8 +24,8 @@ export interface QueueItem {
   score?: number;
   /** Localized relative time, formatted by the caller. */
   when: string;
-  /** Whether the recording is still available (the retention job purges it). */
-  hasAudio: boolean;
+  /** Presigned url of the recording; null once the retention job has purged it. */
+  audioUrl?: string | null;
 }
 
 /**
@@ -73,6 +73,12 @@ export interface ReviewQueueProps {
  * band itself, so the second filter is **`Past ball`** and says so. The
  * confidence and complaint signals are recorded as backend work rather than
  * mimicked.
+ *
+ * **"▶ Audio" plays.** It was a styled span that looked exactly like a play
+ * button and did nothing. Every list row carries the recording's presigned url,
+ * so it is now a real play/pause toggle — ONE shared player for the whole list, so
+ * starting a second answer stops the first rather than playing two students at
+ * once.
  */
 export function ReviewQueueScreen({
   items,
@@ -84,6 +90,27 @@ export function ReviewQueueScreen({
   onConfirm,
 }: ReviewQueueProps) {
   const { t } = useTranslation();
+  const player = useRef<HTMLAudioElement>(null);
+  const [playingId, setPlayingId] = useState<string | null>(null);
+
+  const togglePlay = (item: QueueItem) => {
+    const el = player.current;
+    if (!el || !item.audioUrl) return;
+    if (playingId === item.id) {
+      el.pause();
+      setPlayingId(null);
+      return;
+    }
+    el.src = item.audioUrl;
+    setPlayingId(item.id);
+    // play() is a promise in browsers (rejects on autoplay policy / a dead url);
+    // either way the button must not stay in "pause" for audio that isn't playing.
+    const started = el.play() as Promise<void> | undefined;
+    started?.catch(() => setPlayingId(null));
+  };
+
+  // Stop playback when the screen goes away (navigating to B2, for instance).
+  useEffect(() => () => player.current?.pause(), []);
 
   const shown = useMemo(
     () => (filter === "low" ? items.filter((i) => i.score != null && i.score <= LOW_BAND) : items),
@@ -138,11 +165,27 @@ export function ReviewQueueScreen({
           <ul className={styles.list}>
             {shown.map((item) => (
               <li key={item.id}>
-                <QueueCard item={item} onOpen={onOpen} onConfirm={onConfirm} />
+                <QueueCard
+                  item={item}
+                  onOpen={onOpen}
+                  onConfirm={onConfirm}
+                  playing={playingId === item.id}
+                  onTogglePlay={() => togglePlay(item)}
+                />
               </li>
             ))}
           </ul>
         )}
+        {/* The one shared player. No controls of its own — each card's button
+            drives it — and hidden from the accessibility tree for that reason. */}
+        <audio
+          ref={player}
+          preload="none"
+          className={styles.player}
+          onEnded={() => setPlayingId(null)}
+          onError={() => setPlayingId(null)}
+          aria-hidden
+        />
       </div>
     </AppShell>
   );
@@ -156,10 +199,14 @@ function QueueCard({
   item,
   onOpen,
   onConfirm,
+  playing,
+  onTogglePlay,
 }: {
   item: QueueItem;
   onOpen?: (id: string, item: QueueItem) => void;
   onConfirm?: (id: string) => Promise<void> | void;
+  playing: boolean;
+  onTogglePlay: () => void;
 }) {
   const { t } = useTranslation();
   const [busy, setBusy] = useState(false);
@@ -214,12 +261,23 @@ function QueueCard({
         <Text as="span" variant="body-s" color="muted">
           {item.when}
         </Text>
-        {item.hasAudio && (
-          <span className={styles.audioCue}>
+        {item.audioUrl && (
+          <button
+            type="button"
+            className={styles.audioCue}
+            aria-pressed={playing}
+            aria-label={
+              playing
+                ? t("teacher.audioPause", { name: item.studentName })
+                : t("teacher.audioPlay", { name: item.studentName })
+            }
+            onClick={onTogglePlay}
+          >
+            {playing ? <PauseGlyph /> : <PlayGlyph />}
             <Text as="span" variant="body-s" weight="bold">
-              ▶ {t("teacher.audio")}
+              {t("teacher.audio")}
             </Text>
-          </span>
+          </button>
         )}
       </div>
 
@@ -246,6 +304,23 @@ function QueueCard({
 /* -------------------------------------------------------------------------- */
 
 type ScoreTone = "success" | "warn" | "danger";
+
+function PlayGlyph() {
+  return (
+    <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
+      <path d="M7 4.5v15l13-7.5z" />
+    </svg>
+  );
+}
+
+function PauseGlyph() {
+  return (
+    <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
+      <rect x="6" y="4.5" width="4" height="15" rx="1" />
+      <rect x="14" y="4.5" width="4" height="15" rx="1" />
+    </svg>
+  );
+}
 
 function scoreTone(score: number): ScoreTone {
   if (score >= 75) return "success";

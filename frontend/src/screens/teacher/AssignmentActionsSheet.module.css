@@ -1,0 +1,63 @@
+/* AssignmentActionsSheet — A5 "Faol topshiriqlar" row menu. Every value is a token. */
+
+.sheet {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-4);
+  width: 100%;
+}
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+}
+.start {
+  align-self: flex-start;
+}
+
+/* "Muddatsiz" — the D3 chip idiom, as a toggle. */
+.chip {
+  align-self: flex-start;
+  padding: var(--s-2) var(--s-4);
+  border: 1.5px solid var(--line-2);
+  border-radius: var(--r-pill);
+  background: var(--surface);
+  color: var(--ink);
+  font: inherit;
+  cursor: pointer;
+  transition: border-color var(--m-fast), background var(--m-fast), color var(--m-fast);
+}
+.chip:hover {
+  background: var(--surface-2);
+}
+.chip:focus-visible {
+  outline: var(--focus-ring-width) solid var(--focus-ring);
+  outline-offset: var(--focus-ring-offset);
+}
+.chipOn {
+  border-color: var(--primary);
+  background: var(--primary);
+  color: var(--primary-on);
+}
+
+.danger {
+  padding-top: var(--s-3);
+  border-top: 1px solid var(--line);
+}
+.dangerText {
+  color: var(--danger);
+}
+.confirm {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+  padding: var(--s-3);
+  border: 1px solid var(--danger);
+  border-radius: var(--r-md);
+  background: var(--danger-tint);
+}
+.confirmActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--s-2);
+}
