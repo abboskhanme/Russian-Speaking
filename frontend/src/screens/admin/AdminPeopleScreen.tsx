@@ -208,6 +208,7 @@ export function AdminPeopleScreen({
             <Button
               variant="primary"
               size="sm"
+              className={styles.addBtn}
               onClick={() => {
                 setNotice(null);
                 setAdding(true);

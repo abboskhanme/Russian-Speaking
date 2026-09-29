@@ -1,5 +1,5 @@
 import { useTranslation } from "react-i18next";
-import { Badge, Button, Card, Spinner, Text } from "../../shared/ui";
+import { Badge, Button, Card, Spinner, Text, cx } from "../../shared/ui";
 import { formatPhone } from "./formatPhone";
 import styles from "./AdminPeopleScreen.module.css";
 
@@ -78,7 +78,7 @@ export function AdminAccountsList({
         <ul className={styles.list}>
           {admins.map((a) => (
             <li key={a.id}>
-              <Card variant="outline" padding="md" className={styles.row}>
+              <Card variant="outline" padding="md" className={cx(styles.row, styles.rowWrap)}>
                 <span className={styles.rowBody}>
                   <span className={styles.nameLine}>
                     <Text as="span" variant="body" weight="bold" truncate>
