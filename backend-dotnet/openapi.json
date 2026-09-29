@@ -6,6 +6,21 @@
     "description": "Generated from the running host\u0027s endpoint table and its own JsonSerializerOptions (backend-dotnet/src/Govori.Api/Startup/OpenApiDocument.cs). Property names are the exact wire names. Response bodies are intentionally absent \u2014 see that file."
   },
   "paths": {
+    "/api/admin/admins": {
+      "get": {
+        "summary": "HTTP: GET /api/admin/admins",
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
     "/api/admin/billing/plans": {
       "get": {
         "summary": "HTTP: GET /api/admin/billing/plans",
@@ -407,6 +422,29 @@
             "bearerAuth": []
           }
         ]
+      },
+      "post": {
+        "summary": "HTTP: POST /api/admin/teachers",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateTeacherRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
       }
     },
     "/api/admin/teachers/{id}": {
@@ -469,6 +507,42 @@
         ]
       }
     },
+    "/api/admin/users/{id}/role": {
+      "patch": {
+        "summary": "HTTP: PATCH /api/admin/users/{id:guid}/role",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UserRoleUpdateRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
     "/api/assignments": {
       "post": {
         "summary": "HTTP: POST /api/assignments/",
@@ -495,6 +569,56 @@
       },
       "get": {
         "summary": "HTTP: GET /api/assignments/",
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/assignments/cancel": {
+      "post": {
+        "summary": "HTTP: POST /api/assignments/cancel",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CancelGroupAssignmentsRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/assignments/group": {
+      "patch": {
+        "summary": "HTTP: PATCH /api/assignments/group",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateGroupAssignmentsRequest"
+              }
+            }
+          }
+        },
         "responses": {
           "200": {
             "description": "OK"
@@ -535,6 +659,32 @@
             }
           }
         },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/assignments/{id}": {
+      "delete": {
+        "summary": "HTTP: DELETE /api/assignments/{id:guid}",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": "OK"
@@ -979,6 +1129,92 @@
             "bearerAuth": []
           }
         ]
+      },
+      "delete": {
+        "summary": "HTTP: DELETE /api/blocks/{id:guid}",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/classroom/students/{id}": {
+      "get": {
+        "summary": "HTTP: GET /api/classroom/students/{id:guid}",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/classroom/students/{id}/premium": {
+      "patch": {
+        "summary": "HTTP: PATCH /api/classroom/students/{id:guid}/premium",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SetStudentPremiumRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
       }
     },
     "/api/daily": {
@@ -1226,6 +1462,125 @@
     "/api/groups/{id}": {
       "get": {
         "summary": "HTTP: GET /api/groups/{id:guid}",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      },
+      "patch": {
+        "summary": "HTTP: PATCH /api/groups/{id:guid}",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateGroupRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      },
+      "delete": {
+        "summary": "HTTP: DELETE /api/groups/{id:guid}",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/groups/{id}/members/{studentId}": {
+      "delete": {
+        "summary": "HTTP: DELETE /api/groups/{id:guid}/members/{studentId:guid}",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "studentId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/groups/{id}/regenerate-code": {
+      "post": {
+        "summary": "HTTP: POST /api/groups/{id:guid}/regenerate-code",
         "parameters": [
           {
             "name": "id",
@@ -1761,6 +2116,30 @@
             "bearerAuth": []
           }
         ]
+      },
+      "delete": {
+        "summary": "HTTP: DELETE /api/questions/{id:guid}",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
       }
     },
     "/api/questions/{id}/media": {
@@ -2284,6 +2663,14 @@
           "evaluated_submissions": {
             "type": "integer",
             "format": "int32"
+          },
+          "pending_submissions": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "failed_submissions": {
+            "type": "integer",
+            "format": "int32"
           }
         },
         "required": [
@@ -2292,7 +2679,9 @@
           "questions",
           "published_questions",
           "submissions",
-          "evaluated_submissions"
+          "evaluated_submissions",
+          "pending_submissions",
+          "failed_submissions"
         ]
       },
       "AdminSubscriptionResponse": {
@@ -2348,6 +2737,48 @@
           "status",
           "starts_at",
           "teacher_granted"
+        ]
+      },
+      "AdminUserResponse": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "email": {
+            "type": "string"
+          },
+          "full_name": {
+            "type": "string"
+          },
+          "phone": {
+            "type": "string",
+            "nullable": true
+          },
+          "is_active": {
+            "type": "boolean"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "question_count": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "is_self": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "id",
+          "email",
+          "full_name",
+          "is_active",
+          "created_at",
+          "question_count",
+          "is_self"
         ]
       },
       "AiProbeResponse": {
@@ -2810,6 +3241,35 @@
           "otp_delivery"
         ]
       },
+      "CancelGroupAssignmentsRequest": {
+        "type": "object",
+        "properties": {
+          "question_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "group_id": {
+            "type": "string",
+            "format": "uuid"
+          }
+        },
+        "required": [
+          "question_id",
+          "group_id"
+        ]
+      },
+      "CancelGroupAssignmentsResponse": {
+        "type": "object",
+        "properties": {
+          "cancelled": {
+            "type": "integer",
+            "format": "int32"
+          }
+        },
+        "required": [
+          "cancelled"
+        ]
+      },
       "CheckoutRequest": {
         "type": "object",
         "properties": {
@@ -2861,6 +3321,77 @@
           "provider",
           "amount_minor",
           "currency"
+        ]
+      },
+      "ClassroomStudentGroupResponse": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string"
+          },
+          "joined_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "joined_at"
+        ]
+      },
+      "ClassroomStudentResponse": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "full_name": {
+            "type": "string"
+          },
+          "email": {
+            "type": "string"
+          },
+          "is_premium": {
+            "type": "boolean"
+          },
+          "has_premium": {
+            "type": "boolean"
+          },
+          "groups": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ClassroomStudentGroupResponse"
+            }
+          }
+        },
+        "required": [
+          "id",
+          "full_name",
+          "email",
+          "is_premium",
+          "has_premium",
+          "groups"
+        ]
+      },
+      "CodedErrorResponse": {
+        "type": "object",
+        "properties": {
+          "detail": {
+            "type": "string"
+          },
+          "code": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "detail",
+          "code"
         ]
       },
       "CreateAssignmentRequest": {
@@ -3042,6 +3573,19 @@
         "required": [
           "question_ids"
         ]
+      },
+      "CreateTeacherRequest": {
+        "type": "object",
+        "properties": {
+          "phone": {
+            "type": "string",
+            "nullable": true
+          },
+          "full_name": {
+            "type": "string",
+            "nullable": true
+          }
+        }
       },
       "DailyPhraseResponse": {
         "type": "object",
@@ -4036,6 +4580,25 @@
           }
         }
       },
+      "InvalidLinkResponse": {
+        "type": "object",
+        "properties": {
+          "detail": {
+            "type": "string"
+          },
+          "code": {
+            "type": "string"
+          },
+          "field": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "detail",
+          "code",
+          "field"
+        ]
+      },
       "JoinGroupRequest": {
         "type": "object",
         "properties": {
@@ -4402,6 +4965,30 @@
         },
         "required": [
           "new_phone"
+        ]
+      },
+      "PhoneTakenByStudentResponse": {
+        "type": "object",
+        "properties": {
+          "detail": {
+            "type": "string"
+          },
+          "code": {
+            "type": "string"
+          },
+          "user_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "full_name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "detail",
+          "code",
+          "user_id",
+          "full_name"
         ]
       },
       "PlacementCompleteRequest": {
@@ -5045,8 +5632,22 @@
           "teacher_comment": {
             "type": "string",
             "nullable": true
+          },
+          "confirm": {
+            "type": "boolean",
+            "nullable": true
+          },
+          "has_teacher_band": {
+            "type": "boolean"
+          },
+          "has_teacher_comment": {
+            "type": "boolean"
           }
-        }
+        },
+        "required": [
+          "has_teacher_band",
+          "has_teacher_comment"
+        ]
       },
       "RoleplayCatalogResponse": {
         "type": "object",
@@ -5301,6 +5902,15 @@
           "hint"
         ]
       },
+      "SetStudentPremiumRequest": {
+        "type": "object",
+        "properties": {
+          "is_premium": {
+            "type": "boolean",
+            "nullable": true
+          }
+        }
+      },
       "StudentModuleResponse": {
         "type": "object",
         "properties": {
@@ -5362,6 +5972,26 @@
           "done_count",
           "tasks",
           "spent_sec"
+        ]
+      },
+      "StudentPremiumResponse": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "is_premium": {
+            "type": "boolean"
+          },
+          "has_premium": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "id",
+          "is_premium",
+          "has_premium"
         ]
       },
       "StudentResponse": {
@@ -5453,6 +6083,30 @@
             "type": "integer",
             "format": "int32",
             "nullable": true
+          },
+          "prompt_text": {
+            "type": "string",
+            "nullable": true
+          },
+          "instruction_text": {
+            "type": "string",
+            "nullable": true
+          },
+          "media_url": {
+            "type": "string",
+            "nullable": true
+          },
+          "media_type": {
+            "type": "string",
+            "nullable": true
+          },
+          "prep_time_sec": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "answer_time_limit_sec": {
+            "type": "integer",
+            "format": "int32"
           }
         },
         "required": [
@@ -5462,7 +6116,9 @@
           "sort_order",
           "done",
           "locked",
-          "premium_locked"
+          "premium_locked",
+          "prep_time_sec",
+          "answer_time_limit_sec"
         ]
       },
       "StudentUpdateRequest": {
@@ -5700,6 +6356,9 @@
             "items": {
               "$ref": "#/components/schemas/TeacherQuestionResponse"
             }
+          },
+          "owner_name": {
+            "type": "string"
           }
         },
         "required": [
@@ -5712,7 +6371,8 @@
           "student_count",
           "created_at",
           "updated_at",
-          "tasks"
+          "tasks",
+          "owner_name"
         ]
       },
       "TeacherBlockResponse": {
@@ -5762,6 +6422,9 @@
           "updated_at": {
             "type": "string",
             "format": "date-time"
+          },
+          "owner_name": {
+            "type": "string"
           }
         },
         "required": [
@@ -5773,7 +6436,28 @@
           "task_count",
           "student_count",
           "created_at",
-          "updated_at"
+          "updated_at",
+          "owner_name"
+        ]
+      },
+      "TeacherOwnsGroupsResponse": {
+        "type": "object",
+        "properties": {
+          "detail": {
+            "type": "string"
+          },
+          "code": {
+            "type": "string"
+          },
+          "group_count": {
+            "type": "integer",
+            "format": "int32"
+          }
+        },
+        "required": [
+          "detail",
+          "code",
+          "group_count"
         ]
       },
       "TeacherQuestionResponse": {
@@ -5894,6 +6578,10 @@
           "question_count": {
             "type": "integer",
             "format": "int32"
+          },
+          "phone": {
+            "type": "string",
+            "nullable": true
           }
         },
         "required": [
@@ -6013,6 +6701,57 @@
           }
         }
       },
+      "UpdateGroupAssignmentsRequest": {
+        "type": "object",
+        "properties": {
+          "question_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "group_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "due_at": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "has_due_at": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "question_id",
+          "group_id",
+          "has_due_at"
+        ]
+      },
+      "UpdateGroupAssignmentsResponse": {
+        "type": "object",
+        "properties": {
+          "updated": {
+            "type": "integer",
+            "format": "int32"
+          }
+        },
+        "required": [
+          "updated"
+        ]
+      },
+      "UpdateGroupRequest": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "nullable": true
+          },
+          "level": {
+            "type": "string",
+            "nullable": true
+          }
+        }
+      },
       "UpdateProfileRequest": {
         "type": "object",
         "properties": {
@@ -6099,6 +6838,31 @@
           },
           "detach_block": {
             "type": "boolean",
+            "nullable": true
+          }
+        }
+      },
+      "UserRoleResponse": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "role": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "role"
+        ]
+      },
+      "UserRoleUpdateRequest": {
+        "type": "object",
+        "properties": {
+          "role": {
+            "type": "string",
             "nullable": true
           }
         }
