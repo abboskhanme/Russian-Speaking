@@ -16,7 +16,9 @@ import { ThemeToggle } from "../../widgets";
 import { tokenStore, useAuth } from "../../shared/auth";
 import { endpoints } from "../../shared/api";
 import type { DevUserResponse, OtpRequestResponse } from "../../shared/api";
+import { hasPendingJoin } from "../../app/pendingJoin";
 import { AuthHero } from "./AuthHero";
+import { AuthNote } from "./AuthNote";
 import { IconInput } from "./IconInput";
 import { OtpStep } from "./OtpStep";
 import { TryLink } from "./TryLink";
@@ -47,6 +49,7 @@ export default function LoginScreen() {
   const [busy, setBusy] = useState(false);
 
   const e164 = toE164(phone);
+  const [joinWaiting] = useState(hasPendingJoin);
   // The server's two 429s (see ./throttle): the per-phone resend cooldown, and the
   // lockout after too many wrong codes. Each counts itself down and clears at zero.
   const cooldown = useThrottle();
@@ -165,6 +168,9 @@ export default function LoginScreen() {
       <div className={styles.content}>
         {step === "phone" ? (
           <form className={styles.form} onSubmit={submitPhone} noValidate>
+            {/* Arrived from a teacher's invite link (`/j/:code`) while signed out:
+                say why sign-in is being asked for, and that nothing more is needed. */}
+            {joinWaiting && <AuthNote tone="info">{t("auth.joinPendingNote")}</AuthNote>}
             {shownError && (
               <div className={styles.error} role="alert">
                 {shownError}

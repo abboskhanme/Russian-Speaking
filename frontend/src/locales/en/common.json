@@ -19,7 +19,8 @@
     "adminTeachers": "Teachers",
     "adminStudents": "Students",
     "adminSettings": "Settings",
-    "adminBilling": "Plans"
+    "adminBilling": "Plans",
+    "asideLabel": "Side panel"
   },
   "common": {
     "continue": "Continue",
@@ -36,12 +37,6 @@
   "theme": {
     "toLight": "Switch to light mode",
     "toDark": "Switch to dark mode"
-  },
-  "chat": {
-    "title": "AI Chat",
-    "comingSoon": "Coming soon",
-    "body": "We're building live AI conversation practice — roleplay and free-form chat will land here soon.",
-    "backHome": "Back to home"
   },
   "units": {
     "points_one": "{{count}} point",
@@ -87,7 +82,7 @@
     "continueEmptyTitle": "No exercises yet",
     "continueEmptyBody": "New tasks will appear here.",
     "todayLabel": "TODAY'S PRACTICE",
-    "todayTitle": "{{min}} minutes today",
+    "todayTitle": "Today's {{min}} minutes",
     "todayTagline": "Warm-up · speaking · fix yesterday's mistake",
     "dailyDone": "Today's 5 minutes are done 🎉",
     "dailyReview": "Take a look",
@@ -118,7 +113,14 @@
       "overdue": "overdue"
     },
     "joinPending": "Request sent",
-    "joinPendingHint": "Waiting for your teacher to approve"
+    "joinPendingHint": "Waiting for your teacher to approve",
+    "nextAssignmentUndated": "Next assignment",
+    "openAssignment": "Open the assignment {{title}}",
+    "todayTaglineNoDrill": "Warm-up · speaking",
+    "joinLink": {
+      "invalid": "The invite link's group code is wrong, or the group wasn't found.",
+      "failed": "Couldn't join through the invite link. Try entering the code by hand."
+    }
   },
   "practice": {
     "attemptsLeft_one": "{{count}} attempt left",
@@ -138,12 +140,68 @@
     "criteriaTitle": "Criteria",
     "nextTask": "Next task →",
     "skipCta": "Skip →",
-    "submitDone": "Your answer was received 🎉",
-    "submitGrading": "Answer submitted — grading…",
     "submitFailed": "Couldn't submit your answer. Please try again.",
-    "paywall": "This task needs premium. Upgrade to continue.",
-    "forbidden": "This task isn't assigned to you, or its deadline has passed.",
-    "emptyBody": "No available tasks yet. Check back later."
+    "emptyBody": "No available tasks yet. Check back later.",
+    "promptLabel": "Task",
+    "mediaAlt": "Task image: {{title}}",
+    "timing": {
+      "prep": "Prep: {{time}}",
+      "answer": "Answer: up to {{time}}",
+      "sec": "{{n}} s",
+      "min": "{{n}} min"
+    },
+    "details": "Details",
+    "backToDaily": "Back to today's session",
+    "pending": {
+      "title": "Still grading",
+      "body": "Your answer is saved. Grading is taking longer than usual — the result will appear in Results.",
+      "cta": "Go to Results"
+    },
+    "failed": {
+      "title": "We couldn't grade your answer",
+      "hint": "Record your answer once more."
+    },
+    "locked": {
+      "title": "This task opens with Premium",
+      "body": "In an official module, the tasks after the free ones need Premium. We say so before you record, so no answer goes to waste.",
+      "cta": "About Premium"
+    },
+    "unavailable": {
+      "title": "This task isn't available",
+      "body": "It was removed or isn't open to you. Pick another task in Practice.",
+      "cta": "Back to Practice"
+    },
+    "closed": {
+      "title": "This task can't be answered",
+      "body": "It's closed, not assigned to you, past its deadline, or out of attempts."
+    },
+    "empty": {
+      "title": "No tasks yet",
+      "cta": "Go home"
+    },
+    "rateLimited": "Too many answers in a row. Try again in a little while."
+  },
+  "recorder": {
+    "idleHint": "When you're ready, start recording.",
+    "start": "Start recording",
+    "requesting": "Requesting the microphone…",
+    "recording": "Recording",
+    "stop": "Stop",
+    "cancel": "Cancel",
+    "prepTitle": "Gather your thoughts",
+    "prepHint": "What do you want to say? No rush — you have time.",
+    "skip": "I'm ready",
+    "play": "Play",
+    "pause": "Pause",
+    "reRecord": "Record again",
+    "accept": "Done",
+    "reviewReady": "Recording ready. Listen back or record again.",
+    "retry": "Try again",
+    "deniedTitle": "Microphone access denied",
+    "deniedHint": "Allow microphone access in your browser settings to record.",
+    "errorTitle": "Couldn't record",
+    "errorHint": "Your device doesn't support microphone recording.",
+    "region": "Voice recording"
   },
   "placement": {
     "kicker": "Placement test · one time",
@@ -279,7 +337,8 @@
       "registeredValue": "{{month}} {{year}}",
       "edit": "Edit",
       "editTitle": "Edit your details",
-      "namePlaceholder": "Aziz Karimov"
+      "namePlaceholder": "Aziz Karimov",
+      "invalid": "The name or address isn't valid."
     },
     "phone": {
       "change": "Change",
@@ -416,9 +475,10 @@
     },
     "pro": {
       "badge": "PRO",
-      "title": "Govori Pro",
-      "body": "Unlimited attempts, live conversation, phoneme drills.",
-      "cta": "Go Pro · 35 000 so'm/month"
+      "title": "Premium",
+      "body": "Unlocks the official-module tasks beyond the free ones.",
+      "cta": "About Premium",
+      "priceFrom": "From {{price}} a month"
     },
     "help": {
       "row": "Help centre",
@@ -740,7 +800,8 @@
       "resend": "Resend code",
       "verify": "Confirm",
       "needName": "This phone is new. Enter your name and confirm the new code to sign up.",
-      "resent": "A new code was sent."
+      "resent": "A new code was sent.",
+      "resendIn": "Resend ({{seconds}} s)"
     },
     "otpStatus": {
       "sent": "The code was sent to Telegram.",
@@ -761,7 +822,10 @@
       "blocked": "Account is blocked or inactive",
       "nameRequired": "Enter your name",
       "network": "No connection. Please try again.",
-      "generic": "Something went wrong. Please try again."
+      "generic": "Something went wrong. Please try again.",
+      "cooldown": "Wait {{seconds}} s before requesting a new code.",
+      "lockout": "Too many wrong attempts. Try again in {{minutes}} min.",
+      "tooMany": "Too many attempts. Try again in a little while."
     },
     "tryLink": "Try the system · find your level for free",
     "steps": {
@@ -780,7 +844,8 @@
       "streetLabel": "Street, house, apartment",
       "streetPlaceholder": "Amir Temur street, 12, apt 34",
       "finish": "Finish and start"
-    }
+    },
+    "joinPendingNote": "Sign in to join the group — the request is sent for you."
   },
   "notifications": {
     "title": "Notifications",
@@ -857,7 +922,8 @@
       "taskN": "Task {{n}}",
       "taskCurrent": "Task {{n}} · current",
       "start": "Start",
-      "locked": "Locked"
+      "locked": "Locked",
+      "premium": "Pro"
     },
     "complete": {
       "title": "Module complete!",
@@ -917,10 +983,18 @@
       "pending": "Grading…",
       "processing": "Grading…",
       "failed": "Grading failed."
-    }
+    },
+    "failure": {
+      "grading_timeout": "Grading took too long.",
+      "stt_failed": "We couldn't transcribe the recording.",
+      "grader_failed": "The AI couldn't grade the answer.",
+      "internal": "A technical error occurred."
+    },
+    "notGraded": "Not graded",
+    "notGradedReason": "Not graded · {{reason}}",
+    "teacherChecked": "Checked by teacher"
   },
   "daily": {
-    "title": "Today's {{min}} minutes",
     "railLabel": "Today's session steps",
     "progress": "{{done}} of {{total}} steps done",
     "totalMinutes": "~{{min}} min",
@@ -967,7 +1041,8 @@
       "title": "Nothing to practise today",
       "body": "Everything is done, or not open yet. Have a look at the modules in Practice.",
       "cta": "Go to Practice"
-    }
+    },
+    "name": "Today's 5 minutes"
   },
   "review": {
     "title": "Mistake drill",
@@ -1070,10 +1145,11 @@
     "meta": "{{teacher}} · {{count}} students",
     "classmates": "CLASSMATES",
     "you": "You",
-    "xp": "XP",
+    "xp": "Group XP",
     "streak": "🔥 {{count}}",
     "empty": "The leaderboard is empty for now.",
-    "open": "Open {{name}} group"
+    "open": "Open {{name}} group",
+    "xpHint": "XP earned on this group's assignments only."
   },
   "suhbat": {
     "heading": "Chat",
@@ -1349,6 +1425,7 @@
       "allTasks": "Every task in every module",
       "allModules": "New modules as soon as they ship",
       "feedback": "Full feedback on every answer"
-    }
+    },
+    "lockedReason": "The task you opened needs Premium."
   }
 }
