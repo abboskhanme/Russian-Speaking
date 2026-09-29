@@ -5,9 +5,10 @@
  * carries the phone, the registration date and the CEFR level derived from the
  * student's graded attempts. The Natijalar tab is backed by `/api/profile/stats
  * · /results · /achievements`; the group block by `/api/groups/mine`; the help
- * sheet by the public `/api/settings/links`.
+ * sheet by the public `/api/settings/links`; the Pro card by `/api/billing/
+ * subscription` (hidden for premium) and `/api/billing/plans` (its real price).
  *
- * The four secondary fetches are deliberately fault-tolerant: a failure in any
+ * The secondary fetches are deliberately fault-tolerant: a failure in any
  * one of them degrades that section to an empty state instead of blanking the
  * whole page, because identity alone is enough to render something useful. Only
  * a missing user is a hard error.
@@ -36,6 +37,8 @@ import { getLang, setLang } from "../../shared/i18n";
 import { useAuth } from "../../shared/auth";
 import { applyTheme, getEffectiveTheme, storeTheme } from "../../widgets";
 import type { ThemeMode } from "../../widgets";
+import { cheapestMonthlyPlan } from "../adapters";
+import { formatMinor } from "../../shared/money";
 import { PageError, PageLoading } from "../PageState";
 import { useNavHandler } from "../nav";
 
@@ -54,6 +57,9 @@ export default function ProfilePage() {
   // carries only the first of the two, so a paying student would otherwise still be shown the
   // upsell card, which is the one place this screen can be plainly wrong about money.
   const [premium, setPremium] = useState<boolean | null>(null);
+  /** The Pro card's "…dan boshlab" price — the cheapest REAL monthly plan, or null
+   * (no price shown) when none is on offer or the plans could not be read. */
+  const [proPriceFrom, setProPriceFrom] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [reloadKey, setReloadKey] = useState(0);
 
@@ -75,8 +81,9 @@ export default function ProfilePage() {
       endpoints.myGroups(),
       endpoints.settingsLinks(),
       endpoints.subscriptionStatus(),
+      endpoints.billingPlans(),
     ])
-      .then(([s, r, a, g, l, b]) => {
+      .then(([s, r, a, g, l, b, p]) => {
         if (!alive) return;
 
         setStats(
@@ -140,6 +147,9 @@ export default function ProfilePage() {
         // billing read hiccuped; falling back to the grant flag is never worse than the
         // behaviour before this call existed.
         setPremium(b.status === "fulfilled" ? b.value.is_premium : null);
+
+        const cheapest = p.status === "fulfilled" ? cheapestMonthlyPlan(p.value) : null;
+        setProPriceFrom(cheapest ? formatMinor(cheapest.price_minor, cheapest.currency) : null);
       })
       .finally(() => alive && setLoading(false));
 
@@ -317,6 +327,7 @@ export default function ProfilePage() {
       onChangeTheme={changeTheme}
       onChangeNotifications={changeNotifications}
       onUpgrade={() => navigate("/premium")}
+      proPriceFrom={proPriceFrom}
       onLogout={handleLogout}
       activeNavKey="profile"
       onNavigate={onNavigate}

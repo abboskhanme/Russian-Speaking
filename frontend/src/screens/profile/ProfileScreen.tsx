@@ -108,6 +108,8 @@ export interface ProfileScreenProps {
   isPremium: boolean;
   /** Null while `/api/settings/links` is still in flight. */
   links: ProfileLinks | null;
+  /** The cheapest real monthly plan's formatted price for the Pro card, or null for none. */
+  proPriceFrom?: string | null;
   /**
    * Controlled tab selection. Omit both this and `onChangeTab` to let the
    * screen own the choice internally (the usual case).
@@ -197,6 +199,7 @@ export function ProfileScreen({
   onChangeTheme,
   onChangeNotifications,
   onUpgrade,
+  proPriceFrom = null,
   onLogout,
   activeNavKey = "profile",
   onNavigate,
@@ -303,6 +306,7 @@ export function ProfileScreen({
               onChangeTheme={onChangeTheme}
               onChangeNotifications={onChangeNotifications}
               onUpgrade={onUpgrade}
+              proPriceFrom={proPriceFrom}
               onLogout={onLogout}
             />
           )}
@@ -354,8 +358,12 @@ export function IdentityCard({
   const runAvatarError = useCallback(
     (err: unknown): string => {
       if (isApiError(err)) {
-        // A network failure has status 0; a server 400 carries its localised detail.
-        return err.status === 0 ? t("auth.errors.network") : err.detail || t("auth.errors.generic");
+        // A network failure has status 0. A server 400 used to be shown as its
+        // `detail` — Uzbek text on a Russian or English screen. The type and the
+        // size are both checked here before the upload, so a 400 that still gets
+        // through is the server's content sniff disagreeing with the file type.
+        if (err.status === 0) return t("auth.errors.network");
+        if (err.status === 400) return t("profile.avatar.errorType");
       }
       return t("auth.errors.generic");
     },

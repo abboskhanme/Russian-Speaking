@@ -36,6 +36,12 @@ export interface AttemptDetail {
   modelAnswer: string | null;
   teacherBand: number | null;
   teacherComment: string | null;
+  /**
+   * When a teacher signed the attempt off, or null. A teacher's quick confirm
+   * writes neither a band nor a comment — only this — so it is shown as a
+   * "O'qituvchi tekshirdi" badge rather than as an empty comment block.
+   */
+  reviewedAt?: string | null;
 }
 
 export interface AttemptDetailScreenProps {
@@ -119,6 +125,11 @@ export function AttemptDetailScreen({
               <Text as="span" variant="body-s" color="muted">
                 {formatDate(i18n.language, detail.createdAt)}
               </Text>
+              {detail.reviewedAt && (
+                <Badge variant="success" size="sm">
+                  {t("results.teacherChecked")}
+                </Badge>
+              )}
             </div>
           </div>
         </Card>

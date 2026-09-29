@@ -53,10 +53,16 @@ export interface HomeDaily {
   done: number;
   /** Every observable step is done. The card says so and stops nagging. */
   completed: boolean;
+  /** Today's session has a correction step. The tagline promises "kechagi xatoni
+   * tuzatish" ONLY then — on a day with nothing due it is a promise of a step
+   * that does not exist. */
+  hasDrill: boolean;
 }
 
 /** The next incomplete assignment, or null when there is none. */
 export interface HomeAssignment {
+  /** The assignment's TASK (`question_id`) — what tapping the row opens. */
+  taskId: string;
   title: string;
   /** ISO-8601 deadline, or null for no deadline. */
   dueAt: string | null;
@@ -123,6 +129,17 @@ export interface HomeScreenProps {
   pendingGroupName?: string | null;
   /** Open the group screen (classmates + group leaderboard) from the group row. */
   onOpenGroup?: () => void;
+  /** Open the next assignment's task (the "Keyingi topshiriq" row). The row is a
+   * plain line when absent. */
+  onOpenAssignment?: (taskId: string) => void;
+  /**
+   * What became of an invite link (`/j/:code`) this visit, already localized —
+   * shown only when it needs saying: a bad code or a failed request. A request
+   * that WAS filed needs no banner: the waiting card below already says so.
+   */
+  joinNotice?: string | null;
+  /** Dismiss {@link joinNotice}. */
+  onDismissJoinNotice?: () => void;
   activeNavKey?: string;
   onNavigate?: (key: string, item: NavItem) => void;
 }
@@ -152,6 +169,9 @@ export function HomeScreen({
   onJoinGroup,
   pendingGroupName,
   onOpenGroup,
+  onOpenAssignment,
+  joinNotice,
+  onDismissJoinNotice,
   activeNavKey = "home",
   onNavigate,
 }: HomeScreenProps) {
@@ -175,11 +195,25 @@ export function HomeScreen({
       <div className={styles.page}>
         <TodayCard today={today} daily={daily} onStart={onStart} />
 
+        {joinNotice && (
+          <Card variant="outline" padding="md" className={styles.joinNotice} role="alert">
+            <Text as="p" variant="body-s" color="danger" className={styles.joinNoticeText}>
+              {joinNotice}
+            </Text>
+            {onDismissJoinNotice && (
+              <Button variant="ghost" size="sm" onClick={onDismissJoinNotice}>
+                {t("common.close")}
+              </Button>
+            )}
+          </Card>
+        )}
+
         {group ? (
           <TeacherSection
             group={group}
             onMessageTeacher={onMessageTeacher}
             onOpenGroup={onOpenGroup}
+            onOpenAssignment={onOpenAssignment}
           />
         ) : pendingGroupName ? (
           <PendingGroupCard groupName={pendingGroupName} />
@@ -256,7 +290,11 @@ function TodayCard({
           {t("home.todayTitle", { min: today.goalMinutes })}
         </Text>
         <Text as="p" variant="body" color="muted">
-          {daily?.completed ? t("home.dailyDone") : t("home.todayTagline")}
+          {daily?.completed
+            ? t("home.dailyDone")
+            : daily?.hasDrill
+              ? t("home.todayTagline")
+              : t("home.todayTaglineNoDrill")}
         </Text>
 
         {/* With F3 on, the session IS today's practice, so the card counts steps
@@ -331,10 +369,12 @@ function TeacherSection({
   group,
   onMessageTeacher,
   onOpenGroup,
+  onOpenAssignment,
 }: {
   group: HomeGroup;
   onMessageTeacher?: () => void;
   onOpenGroup?: () => void;
+  onOpenAssignment?: (taskId: string) => void;
 }) {
   const { t } = useTranslation();
   const teacher = group.teacherName ?? t("home.teacherRole");
@@ -400,24 +440,65 @@ function TeacherSection({
         )}
 
         {group.nextAssignment && (
-          <div className={styles.assignment}>
-            <span className={styles.assignmentIcon} aria-hidden>
-              <ClockGlyph />
-            </span>
-            <div className={styles.assignmentBody}>
-              <Text as="p" variant="body" weight="bold" className={styles.assignmentTitle}>
-                {t("home.nextAssignment", {
-                  when: formatWhen(t, group.nextAssignment.dueAt),
-                })}
-              </Text>
-              <Text as="p" variant="body-s" color="ink-soft">
-                {group.nextAssignment.title}
-              </Text>
-            </div>
-          </div>
+          <NextAssignmentRow assignment={group.nextAssignment} onOpen={onOpenAssignment} />
         )}
       </Card>
     </section>
+  );
+}
+
+/**
+ * "Keyingi topshiriq · ertaga 21:00" + the task's name — and the way INTO it.
+ *
+ * It used to be a plain div: the student could read what was due and then had to
+ * go and find it. It is now a button onto the task (the assignment's `question_id`,
+ * never the assignment row's id). An undated assignment reads "Keyingi topshiriq"
+ * alone — the dated key with an empty `when` left a dangling "Keyingi topshiriq ·".
+ * No press-scale: the row is wide, and shrinking it under the pointer is exactly
+ * how a click gets lost.
+ */
+function NextAssignmentRow({
+  assignment,
+  onOpen,
+}: {
+  assignment: HomeAssignment;
+  onOpen?: (taskId: string) => void;
+}) {
+  const { t } = useTranslation();
+  const when = formatWhen(t, assignment.dueAt);
+  const heading = when ? t("home.nextAssignment", { when }) : t("home.nextAssignmentUndated");
+
+  const inner = (
+    <>
+      <span className={styles.assignmentIcon} aria-hidden>
+        <ClockGlyph />
+      </span>
+      <span className={styles.assignmentBody}>
+        <Text as="span" variant="body" weight="bold" className={styles.assignmentTitle}>
+          {heading}
+        </Text>
+        <Text as="span" variant="body-s" color="ink-soft">
+          {assignment.title}
+        </Text>
+      </span>
+      {onOpen && (
+        <span className={styles.groupChevron} aria-hidden>
+          <ChevronGlyph />
+        </span>
+      )}
+    </>
+  );
+
+  if (!onOpen) return <div className={styles.assignment}>{inner}</div>;
+  return (
+    <button
+      type="button"
+      className={cx(styles.assignment, styles.assignmentBtn)}
+      onClick={() => onOpen(assignment.taskId)}
+      aria-label={t("home.openAssignment", { title: assignment.title })}
+    >
+      {inner}
+    </button>
   );
 }
 

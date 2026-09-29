@@ -14,8 +14,11 @@
  *   /                        → Home (student) · redirect to /teacher (teacher)
  *   /practice                → Mashq hub (Modullar · Topshiriqlar · Suhbat)
  *   /practice/module/:id     → module detail (D2) + complete (D3)
- *   /task?task=:id           → the task recording screen
- *   /chat/:scenarioId        → AI conversation (E3 chat + E4 summary, stubbed)
+ *   /task?task=:id           → the task recording screen (+ `&from=daily` from the
+ *                              daily session, which adds a way back to it)
+ *   /chat                    → AI Suhbat scenario grid (the centre FAB)
+ *   /chat/:scenarioId        → AI conversation (E3 chat + E4 summary, live roleplay API)
+ *   /j/:code                 → a teacher's invite link (public; files the join request)
  *   /review                  → Xatolar ustida — the xato-replay drill (flagged)
  *   /daily                   → Bugungi 5 daqiqa — the daily session (flagged)
  *   /drill                   → Tovushlar mashqi — minimal-pair drill (flagged)
@@ -28,7 +31,15 @@
 import { Suspense, lazy } from "react";
 import { Navigate, Route, Routes, useLocation } from "react-router-dom";
 import { ErrorBoundary, Spinner } from "./shared/ui";
-import { PublicOnly, RequireAuth, RequireRole, RoleHome, TEACHER_ROLES } from "./app/guards";
+import { useTranslation } from "react-i18next";
+import {
+  JoinLink,
+  PublicOnly,
+  RequireAuth,
+  RequireRole,
+  RoleHome,
+  TEACHER_ROLES,
+} from "./app/guards";
 const TeacherDashboardPage = lazy(() => import("./app/routes/TeacherDashboardPage"));
 const ClassesPage = lazy(() => import("./app/routes/ClassesPage"));
 const GroupDetailPage = lazy(() => import("./app/routes/GroupDetailPage"));
@@ -66,6 +77,7 @@ const PlacementPage = lazy(() => import("./app/routes/PlacementPage"));
 const TryPlacementPage = lazy(() => import("./app/routes/TryPlacementPage"));
 
 function RouteFallback() {
+  const { t } = useTranslation();
   return (
     <div
       style={{
@@ -75,7 +87,7 @@ function RouteFallback() {
         background: "var(--bg)",
       }}
     >
-      <Spinner size="lg" label="Yuklanmoqda…" />
+      <Spinner size="lg" label={t("common.loading")} />
     </div>
   );
 }
@@ -113,6 +125,12 @@ export default function App() {
                 so it lives OUTSIDE RequireAuth (and PublicOnly, so a curious signed-in
                 user can revisit it too). Uses the auth-less guest placement endpoints. */}
             <Route path="/try" element={<TryPlacementPage />} />
+
+            {/* A teacher's invite link. Public, because the student who taps it may be
+                signed out (or have no account yet): the guard remembers the code, sends
+                them to sign in when needed, and the student Home files the join request
+                once. Teachers/admins are sent home without joining. */}
+            <Route path="/j/:code" element={<JoinLink />} />
 
             {/* Authed app: redirect to /login when unauthenticated. */}
             <Route element={<RequireAuth />}>

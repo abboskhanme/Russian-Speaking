@@ -14,12 +14,13 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { Button } from "../../shared/ui";
 import { ThemeToggle } from "../../widgets";
 import { tokenStore, useAuth } from "../../shared/auth";
-import { endpoints, isApiError } from "../../shared/api";
+import { endpoints } from "../../shared/api";
 import type { DevUserResponse, OtpRequestResponse } from "../../shared/api";
 import { AuthHero } from "./AuthHero";
 import { IconInput } from "./IconInput";
 import { OtpStep } from "./OtpStep";
 import { TryLink } from "./TryLink";
+import { otpErrorKey, throttleFrom, throttleMessage, useThrottle } from "./throttle";
 import { PhoneIcon, UserIcon } from "./icons";
 import { formatDisplay, groupNational, isValidUz, nationalDigits, toE164 } from "./phone";
 import styles from "./Auth.module.css";
@@ -46,15 +47,28 @@ export default function LoginScreen() {
   const [busy, setBusy] = useState(false);
 
   const e164 = toE164(phone);
+  // The server's two 429s (see ./throttle): the per-phone resend cooldown, and the
+  // lockout after too many wrong codes. Each counts itself down and clears at zero.
+  const cooldown = useThrottle();
+  const lockout = useThrottle();
+  // A waiting line outranks any older error — it is the one that is true right now.
+  const shownError = lockout.throttle
+    ? throttleMessage(t, lockout.throttle, lockout.remainingSec)
+    : cooldown.throttle
+      ? throttleMessage(t, cooldown.throttle, cooldown.remainingSec)
+      : error;
 
+  /** Status → a localized sentence. Never the server's `detail` (English for some
+   * refusals, Uzbek for others, whatever language this screen is in). */
   function mapError(err: unknown): string {
-    if (isApiError(err)) {
-      if (err.status === 401) return t("auth.errors.badCode");
-      if (err.status === 400) return err.detail || t("auth.errors.badPhone");
-      if (err.status === 403) return err.detail || t("auth.errors.blocked");
-      if (err.status === 0) return t("auth.errors.network");
-    }
-    return t("auth.errors.generic");
+    return t(otpErrorKey(err));
+  }
+
+  /** A refused code REQUEST: a 429 with a wait starts the cooldown, anything else is an error. */
+  function failRequest(err: unknown) {
+    const wait = throttleFrom(err, "cooldown");
+    if (wait) cooldown.start(wait);
+    else setError(mapError(err));
   }
 
   async function submitPhone(e: FormEvent) {
@@ -72,7 +86,7 @@ export default function LoginScreen() {
       setCode("");
       setStep("code");
     } catch (err) {
-      setError(mapError(err));
+      failRequest(err);
     } finally {
       setBusy(false);
     }
@@ -96,8 +110,10 @@ export default function LoginScreen() {
         try {
           const fresh = await requestOtp(e164);
           setOtpInfo(fresh);
-        } catch {
-          /* non-fatal — the user can hit resend */
+        } catch (err) {
+          // Non-fatal — the user can hit resend; a cooldown still shows its wait.
+          const wait = throttleFrom(err, "cooldown");
+          if (wait) cooldown.start(wait);
         }
         setCode("");
         setInfo(t("auth.otp.needName"));
@@ -105,7 +121,10 @@ export default function LoginScreen() {
       }
       navigate(redirectTo, { replace: true });
     } catch (err) {
-      setError(mapError(err));
+      // The lockout refuses even the right code: say how long, not "wrong code".
+      const wait = throttleFrom(err, "lockout");
+      if (wait) lockout.start(wait);
+      else setError(mapError(err));
     } finally {
       setBusy(false);
     }
@@ -120,7 +139,7 @@ export default function LoginScreen() {
       setCode("");
       setInfo(t("auth.otp.resent"));
     } catch (err) {
-      setError(mapError(err));
+      failRequest(err);
     } finally {
       setBusy(false);
     }
@@ -133,6 +152,9 @@ export default function LoginScreen() {
     setName("");
     setError(null);
     setInfo(null);
+    // Both waits are PER PHONE: going back to type another number starts clean.
+    cooldown.start(null);
+    lockout.start(null);
   }
 
   return (
@@ -143,9 +165,9 @@ export default function LoginScreen() {
       <div className={styles.content}>
         {step === "phone" ? (
           <form className={styles.form} onSubmit={submitPhone} noValidate>
-            {error && (
+            {shownError && (
               <div className={styles.error} role="alert">
-                {error}
+                {shownError}
               </div>
             )}
             <IconInput
@@ -186,7 +208,9 @@ export default function LoginScreen() {
               onResend={resend}
               submitLabel={needsName ? t("auth.register.submit") : t("auth.otp.verify")}
               busy={busy}
-              error={error}
+              resendWaitSec={cooldown.remainingSec}
+              verifyLocked={lockout.throttle !== null}
+              error={shownError}
               info={info}
             >
               {needsName && (

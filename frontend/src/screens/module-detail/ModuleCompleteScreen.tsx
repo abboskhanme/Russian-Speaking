@@ -47,7 +47,11 @@ export interface ModuleCompleteScreenProps {
   next: NextModuleInfo | null;
   /** Advance to the next module. */
   onNextModule: (id: string) => void;
-  /** Optional certificate download — decorative/no-op; the button hides if absent. */
+  /**
+   * The certificate download. The WHOLE certificate card renders only when this is
+   * given: there is no certificate behind it today, and "Sertifikat tayyor" on a
+   * card with nothing to download promised a document that does not exist.
+   */
   onDownloadCert?: () => void;
   /** The header back affordance → back to the Mashq hub. */
   onBack: () => void;
@@ -118,20 +122,20 @@ export function ModuleCompleteScreen({
           />
         </div>
 
-        {/* ---- Certificate (decorative) ---- */}
-        <Card variant="tint" padding="lg" className={styles.certCard}>
-          <span className={styles.certIcon} aria-hidden>
-            🏅
-          </span>
-          <span className={styles.certBody}>
-            <Text as="p" variant="title-s">
-              {t("mashq.complete.certTitle")}
-            </Text>
-            <Text as="p" variant="body-s" color="muted">
-              {t("mashq.complete.certBody")}
-            </Text>
-          </span>
-          {onDownloadCert && (
+        {/* ---- Certificate — only when there is one to download ---- */}
+        {onDownloadCert && (
+          <Card variant="tint" padding="lg" className={styles.certCard}>
+            <span className={styles.certIcon} aria-hidden>
+              🏅
+            </span>
+            <span className={styles.certBody}>
+              <Text as="p" variant="title-s">
+                {t("mashq.complete.certTitle")}
+              </Text>
+              <Text as="p" variant="body-s" color="muted">
+                {t("mashq.complete.certBody")}
+              </Text>
+            </span>
             <Button
               variant="secondary"
               size="sm"
@@ -141,8 +145,8 @@ export function ModuleCompleteScreen({
             >
               <DownloadIcon />
             </Button>
-          )}
-        </Card>
+          </Card>
+        )}
 
         {/* ---- Next module ---- */}
         {next ? (
@@ -274,7 +278,6 @@ export default function ModuleCompleteScreenDemo() {
     <ModuleCompleteScreen
       {...mockModuleComplete}
       onNextModule={() => undefined}
-      onDownloadCert={() => undefined}
       onBack={() => undefined}
       onNavigate={() => undefined}
     />

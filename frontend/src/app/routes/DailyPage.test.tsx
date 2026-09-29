@@ -24,8 +24,8 @@
  * would prove nothing.
  */
 import { describe, expect, it, vi, beforeEach } from "vitest";
-import { render, screen, waitFor } from "@testing-library/react";
-import { MemoryRouter, Route, Routes } from "react-router-dom";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { MemoryRouter, Route, Routes, useLocation } from "react-router-dom";
 import i18n from "../../shared/i18n";
 import type { DailySessionResponse } from "../../shared/api";
 import DailyPage from "./DailyPage";
@@ -168,9 +168,62 @@ describe("the flag being off", () => {
       screen.queryByText(t("home.stepsValueText", { done: 0, total: 3 })),
     ).not.toBeInTheDocument();
     expect(screen.queryByText(t("home.dailyDone"))).not.toBeInTheDocument();
-    expect(screen.getByText(t("home.todayTagline"))).toBeInTheDocument();
+    // The pre-F3 card — minus the one promise that was never true without F3:
+    // with no session there is no "fix yesterday's mistake" step to speak of.
+    expect(screen.getByText(t("home.todayTaglineNoDrill"))).toBeInTheDocument();
+    expect(screen.queryByText(t("home.todayTagline"))).not.toBeInTheDocument();
   });
 });
+
+describe("the Home tagline", () => {
+  it("promises yesterday's correction only when today has a drill step", async () => {
+    renderAt("/");
+    expect(await screen.findByText(t("home.todayTagline"))).toBeInTheDocument();
+  });
+
+  it("drops the promise on a day with nothing due", async () => {
+    session = NO_DRILL;
+    renderAt("/");
+    expect(await screen.findByText(t("home.todayTaglineNoDrill"))).toBeInTheDocument();
+    expect(screen.queryByText(t("home.todayTagline"))).not.toBeInTheDocument();
+  });
+});
+
+describe("the session's name", () => {
+  it("is the same on /daily as on Home, whatever the steps add up to", async () => {
+    // FULL adds up to 5 min; NO_DRILL to ~3.5 — the name must not follow the sum.
+    session = NO_DRILL;
+    renderAt("/daily");
+    await screen.findByText(t("daily.steps.warmup.title"));
+    expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent(t("daily.name"));
+    expect(t("daily.name")).toBe(t("home.todayTitle", { min: 5 }));
+  });
+});
+
+describe("the task step", () => {
+  it("opens the task with from=daily, so its result offers the way back", async () => {
+    localStorage.setItem("govori-daily-warmup", FULL.day); // warm-up already read
+    render(
+      <MemoryRouter initialEntries={["/daily"]}>
+        <Routes>
+          <Route path="/daily" element={<DailyPage />} />
+          <Route path="/task" element={<LocationProbe />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+    const cta = await screen.findByRole("button", { name: new RegExp(t("daily.steps.task.cta")) });
+    fireEvent.click(cta);
+    expect(await screen.findByTestId("location")).toHaveTextContent(
+      "/task?task=task-1&from=daily",
+    );
+  });
+});
+
+/** Renders where the router ended up, so a navigation can be asserted. */
+function LocationProbe() {
+  const location = useLocation();
+  return <p data-testid="location">{location.pathname + location.search}</p>;
+}
 
 describe("the flag being on", () => {
   it("puts the session's step count on the Home card", async () => {

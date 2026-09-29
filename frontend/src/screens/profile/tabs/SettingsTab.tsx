@@ -32,6 +32,12 @@ export interface SettingsTabProps {
    * `isPremium` for that would be a lie in the prop rather than an omission.
    */
   hideUpgrade?: boolean;
+  /**
+   * The cheapest real monthly plan's price, already formatted ("49 900 so'm"), for
+   * the card's "…dan boshlab" line. Null/absent → the card shows no price at all:
+   * never a number no plan backs.
+   */
+  proPriceFrom?: string | null;
 }
 
 /** Which sheet is open. Only one at a time. */
@@ -62,6 +68,7 @@ export function SettingsTab({
   onUpgrade,
   onLogout,
   hideUpgrade = false,
+  proPriceFrom = null,
 }: SettingsTabProps) {
   const { t } = useTranslation();
   const [sheet, setSheet] = useState<Sheet>(null);
@@ -131,7 +138,7 @@ export function SettingsTab({
         </ul>
       </Card>
 
-      {!hideUpgrade && !isPremium && <ProCard onUpgrade={onUpgrade} />}
+      {!hideUpgrade && !isPremium && <ProCard onUpgrade={onUpgrade} priceFrom={proPriceFrom} />}
 
       <Card variant="flat" padding="none" className={styles.group}>
         <ul className={styles.groupList}>
@@ -293,7 +300,24 @@ function SettingRow({
 /* PRO upsell                                                                 */
 /* -------------------------------------------------------------------------- */
 
-function ProCard({ onUpgrade }: { onUpgrade?: () => void }) {
+/**
+ * The Premium card, saying only what is true today.
+ *
+ * It used to advertise "35 000 so'm/oy — cheksiz urinish, jonli suhbat, fonema
+ * drill": a price no plan has (the tariffs live in the admin's plan editor) and
+ * three benefits that are either not limited in the first place or free for
+ * everyone. The benefit line now names the one thing Premium actually unlocks —
+ * the official-module tasks past the free ones — and the price is the cheapest
+ * real monthly plan, "…dan boshlab", or no price at all when none is on offer.
+ * The CTA opens /premium, which says honestly whether it can be bought yet.
+ */
+function ProCard({
+  onUpgrade,
+  priceFrom,
+}: {
+  onUpgrade?: () => void;
+  priceFrom?: string | null;
+}) {
   const { t } = useTranslation();
   return (
     <Card variant="flat" padding="lg" className={styles.proCard}>
@@ -308,6 +332,12 @@ function ProCard({ onUpgrade }: { onUpgrade?: () => void }) {
       <Text as="p" variant="body" color="ink-soft">
         {t("profile.pro.body")}
       </Text>
+
+      {priceFrom && (
+        <Text as="p" variant="body-s" color="muted" numeric>
+          {t("profile.pro.priceFrom", { price: priceFrom })}
+        </Text>
+      )}
 
       <Button variant="primary" fullWidth onClick={onUpgrade}>
         {t("profile.pro.cta")}

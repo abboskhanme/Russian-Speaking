@@ -47,15 +47,17 @@ function moduleSpentSec(module: StudentModuleResponse): number {
   return (module as ModuleWithSpent).spent_sec ?? 0;
 }
 
-/** Whether a task reads as done / current / locked in the D2 list. The single
- * actionable task is the one whose id equals the module's `next_task_id`; every
- * other not-done task is locked. */
+/** Whether a task reads as done / current / locked / premium in the D2 list. The
+ * single actionable task is the one whose id equals the module's `next_task_id`;
+ * a not-done task behind the freemium gate is "premium" (labelled Pro), every
+ * other not-done task is sequentially "locked" (Yopiq). */
 function taskState(
   task: StudentTaskResponse,
   nextTaskId: string | null,
 ): ModuleTaskState {
   if (task.done) return "done";
   if (task.id === nextTaskId) return "current";
+  if (task.premium_locked) return "premium";
   return "locked";
 }
 

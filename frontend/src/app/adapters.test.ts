@@ -20,10 +20,12 @@ import {
   clampPct,
   dateParts,
   firstName,
+  gradingFailureKey,
   moduleProgressPct,
   myLeaderboardRow,
   parseCorrections,
   parseFeedback,
+  nextOpenTarget,
   pickPracticeTarget,
   relativeTime,
 } from "./adapters";
@@ -190,8 +192,62 @@ describe("pickPracticeTarget", () => {
     expect(pickPracticeTarget([studentModule({ tasks: [task("a")], next_task_id: "gone" })])).toBeNull();
   });
 
-  it("ignores an unknown explicit id rather than crashing", () => {
-    expect(pickPracticeTarget(modules, "missing")).toMatchObject({ task: { id: "d" } });
+  // This used to fall back to the first open task ("d"), which put a DIFFERENT
+  // question in front of a student who had followed a link to a specific one —
+  // an unpublished assignment was silently answered as some other task. An
+  // unknown id is now "not available", never a substitute.
+  it("resolves an unknown explicit id to null, never to another task", () => {
+    expect(pickPracticeTarget(modules, "missing")).toBeNull();
+  });
+});
+
+describe("nextOpenTarget", () => {
+  function open(id: string, over: Partial<StudentTaskResponse> = {}): StudentTaskResponse {
+    return { ...task(id), ...over };
+  }
+  const modules = [
+    studentModule({
+      id: "m1",
+      tasks: [open("a", { done: true }), open("b"), open("c", { locked: true })],
+    }),
+    studentModule({
+      id: "m2",
+      tasks: [open("d", { premium_locked: true }), open("e"), open("f")],
+    }),
+  ];
+
+  it("moves to the next OPEN task, skipping done and locked ones", () => {
+    expect(nextOpenTarget(modules, "b")).toMatchObject({ task: { id: "e" }, module: { id: "m2" } });
+    expect(nextOpenTarget(modules, "e")).toMatchObject({ task: { id: "f" }, index: 3 });
+  });
+
+  it("wraps round to the start instead of running off the end", () => {
+    expect(nextOpenTarget(modules, "f")).toMatchObject({ task: { id: "b" } });
+  });
+
+  it("never hands back the task being skipped", () => {
+    const single = [studentModule({ tasks: [open("only")] })];
+    expect(nextOpenTarget(single, "only")).toBeNull();
+  });
+
+  it("starts from the top when the current id is not listed", () => {
+    expect(nextOpenTarget(modules, "gone")).toMatchObject({ task: { id: "b" } });
+    expect(nextOpenTarget(modules)).toMatchObject({ task: { id: "b" } });
+  });
+});
+
+describe("gradingFailureKey", () => {
+  it("maps each known machine code to its own sentence", () => {
+    expect(gradingFailureKey("grader_failed")).toBe("results.failure.grader_failed");
+    expect(gradingFailureKey("grading_timeout")).toBe("results.failure.grading_timeout");
+    expect(gradingFailureKey("stt_failed")).toBe("results.failure.stt_failed");
+  });
+
+  it("reads free text (pre-code rows), an unknown code, or none as `internal` — never raw", () => {
+    expect(gradingFailureKey("NullReferenceException: boom")).toBe("results.failure.internal");
+    expect(gradingFailureKey("no_speech")).toBe("results.failure.internal");
+    expect(gradingFailureKey(null)).toBe("results.failure.internal");
+    expect(gradingFailureKey(undefined)).toBe("results.failure.internal");
   });
 });
 

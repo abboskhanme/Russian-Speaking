@@ -10,24 +10,30 @@
  *                 allowed set is bounced to `/`, where {@link RoleHome} sends
  *                 them to the right home for their role.
  *   RoleHome    — the role-aware `/`: admins → the admin panel; teachers → the
- *                 teacher dashboard; students → the student Home.
+ *                 teacher dashboard; students → the student Home (or, once, the
+ *                 placement test straight after a fresh registration).
+ *   JoinLink    — the public `/j/:code` a teacher's invite link opens.
  *
  * The auth guards wait out the boot hydration (a stored token being validated)
  * behind a full-screen Spinner so we never flash the login page for a returning
  * user.
  */
-import { lazy } from "react";
-import { Navigate, Outlet, useLocation } from "react-router-dom";
+import { lazy, useEffect } from "react";
+import { useTranslation } from "react-i18next";
+import { Navigate, Outlet, useLocation, useNavigate, useParams } from "react-router-dom";
 import { Spinner } from "../shared/ui";
 import { useAuth } from "../shared/auth";
 import type { UserRole } from "../shared/api";
+import { clearPlaced } from "../screens/placement/placed";
+import { clearPendingJoin, normalizeJoinCode, savePendingJoin } from "./pendingJoin";
 
 const HomePage = lazy(() => import("./routes/HomePage"));
 
 function BootFallback() {
+  const { t } = useTranslation();
   return (
     <div style={{ minHeight: "100dvh", display: "grid", placeItems: "center", background: "var(--bg)" }}>
-      <Spinner size="lg" label="Yuklanmoqda…" />
+      <Spinner size="lg" label={t("common.loading")} />
     </div>
   );
 }
@@ -74,7 +80,11 @@ export function RequireRole({ allow }: { allow: readonly UserRole[] }) {
  * nav's "home" destination.
  */
 export function RoleHome() {
-  const { user } = useAuth();
+  const { user, justRegistered } = useAuth();
+  // An invite link (`/j/:code`) is a STUDENT's way in. Opened signed-out and then
+  // carried through a teacher's or admin's sign-in, it would sit in the tab and
+  // fire on whichever student signs in next. Idempotent, so safe during render.
+  if (user && user.role !== "student") clearPendingJoin();
   // An admin gets the ADMIN home, not the teacher one. Until the admin panel
   // existed they were folded in with teachers, which meant signing in as an admin
   // landed on a dashboard about someone else's groups.
@@ -84,5 +94,62 @@ export function RoleHome() {
   if (user && TEACHER_ROLES.includes(user.role)) {
     return <Navigate to="/teacher" replace />;
   }
+  if (justRegistered) return <PlacementHop />;
   return <HomePage />;
+}
+
+/**
+ * The one-time hop from a brand-new account into the placement test.
+ *
+ * `justRegistered` used to be set by the auth store and read by nobody, so the
+ * level test a new student is supposed to be offered was never offered. It is
+ * consumed HERE, exactly once: the "placed" flag is device-global, so a previous
+ * account's completion on this device is cleared for the new one (what
+ * `clearPlaced` exists for), the student is sent to `/placement` — which stays
+ * skippable ("Keyinroq") — and the signal is dropped, so the next visit to `/` is
+ * the ordinary Home. The flag lives in memory only: a reload after registering
+ * does not re-prompt.
+ */
+function PlacementHop() {
+  const { clearJustRegistered } = useAuth();
+  const navigate = useNavigate();
+  useEffect(() => {
+    clearPlaced();
+    navigate("/placement", { replace: true });
+    clearJustRegistered();
+  }, [clearJustRegistered, navigate]);
+  return <BootFallback />;
+}
+
+/**
+ * `/j/:code` — where a teacher's invite link lands (`GroupInvitePage` shares
+ * `${origin}/j/${code}`). Until this route existed the link fell through to the
+ * catch-all and the code was silently dropped.
+ *
+ * Public on purpose, because whoever taps the link may be signed out:
+ *   • signed out → the code is remembered for this tab and they go to sign in
+ *     (or register from there); Home files the request once they are in;
+ *   • a student  → the code is remembered and they go to Home, which files the
+ *     join request and shows its outcome (waiting · already a member · bad code);
+ *   • a teacher or admin → their own home and no join: the invite is not for them.
+ * Home is the single place a remembered code is used, so every path joins once.
+ */
+export function JoinLink() {
+  const { code } = useParams<{ code: string }>();
+  const { status, user } = useAuth();
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    if (status === "boot") return;
+    if (user && user.role !== "student") {
+      clearPendingJoin();
+      navigate("/", { replace: true });
+      return;
+    }
+    const clean = normalizeJoinCode(code);
+    if (clean) savePendingJoin(clean);
+    navigate(user ? "/" : "/login", { replace: true });
+  }, [code, navigate, status, user]);
+
+  return <BootFallback />;
 }

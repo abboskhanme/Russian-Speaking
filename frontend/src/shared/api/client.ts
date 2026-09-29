@@ -29,16 +29,47 @@ export interface ApiError extends Error {
   detail: string;
   /** The raw parsed body, for the rare caller that needs more than `detail`. */
   body: unknown;
+  /**
+   * Seconds the server asked us to wait (`Retry-After`), or null when it sent none.
+   * Set on a 429: the OTP request's per-phone cooldown and the verify lockout both
+   * say HOW LONG, and "try again later" without the number sends people straight
+   * back into the same refusal.
+   */
+  retryAfterSec: number | null;
 }
 
 /** Build a typed ApiError (a plain Error subclass carrying status + detail). */
-function makeApiError(status: number, detail: string, body: unknown): ApiError {
+function makeApiError(
+  status: number,
+  detail: string,
+  body: unknown,
+  retryAfterSec: number | null = null,
+): ApiError {
   const err = new Error(detail) as ApiError;
   err.name = "ApiError";
   err.status = status;
   err.detail = detail;
   err.body = body;
+  err.retryAfterSec = retryAfterSec;
   return err;
+}
+
+/**
+ * `Retry-After` → whole seconds from now, or null. The header may be a number of
+ * seconds or an HTTP date (RFC 9110 §10.2.3); both are accepted, and anything
+ * unparseable or already past is null rather than a guess.
+ */
+export function parseRetryAfter(value: string | null, now: number = Date.now()): number | null {
+  if (!value) return null;
+  const trimmed = value.trim();
+  if (/^\d+$/.test(trimmed)) {
+    const sec = Number(trimmed);
+    return sec > 0 ? sec : null;
+  }
+  const at = Date.parse(trimmed);
+  if (Number.isNaN(at)) return null;
+  const sec = Math.ceil((at - now) / 1000);
+  return sec > 0 ? sec : null;
 }
 
 export function isApiError(e: unknown): e is ApiError {
@@ -192,7 +223,12 @@ export async function request<T>(
       (parsed && typeof parsed === "object" && "detail" in parsed
         ? String((parsed as { detail: unknown }).detail)
         : undefined) ?? `http_${res.status}`;
-    throw makeApiError(res.status, detail, parsed);
+    throw makeApiError(
+      res.status,
+      detail,
+      parsed,
+      parseRetryAfter(res.headers?.get?.("Retry-After") ?? null),
+    );
   }
 
   return parsed as T;

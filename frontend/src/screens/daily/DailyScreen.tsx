@@ -155,7 +155,11 @@ export function DailyScreen({
       }}
       headerStart={
         <Text as="h1" variant="title-m">
-          {t("daily.title", { min: totalMinutes })}
+          {/* The feature's NAME, the same words the Home card and the "done" state
+              use. It used to be built from the steps' estimate, so Home said
+              "Bugungi 5 daqiqa" and this header "Bugungi 4 daqiqa" for one session.
+              The estimate is still shown — in the rail, as "~4 daqiqa". */}
+          {t("daily.name")}
         </Text>
       }
       headerEnd={<NotificationsBell />}

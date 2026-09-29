@@ -13,7 +13,12 @@ export interface GroupClassmate {
   id: string;
   rank: number;
   name: string;
-  /** All-time XP — the ranking metric. */
+  /**
+   * GROUP XP — earned on this group's teacher-assigned tasks only (the server
+   * scores the class board from those, so practice elsewhere does not tilt it).
+   * NOT the student's all-time XP: a student with 425 XP on Progress can read 0
+   * here, which is why the label and the hint under the heading say "guruh".
+   */
   xp: number;
   currentStreak: number;
   /** The signed-in student's own row → highlighted. */
@@ -93,6 +98,9 @@ export function GroupScreen({
 
         <Text as="h2" variant="label" color="muted" className={styles.sectionLabel}>
           {t("groupBoard.classmates")}
+        </Text>
+        <Text as="p" variant="body-s" color="muted">
+          {t("groupBoard.xpHint")}
         </Text>
 
         {classmates.length === 0 ? (

@@ -5,7 +5,8 @@
  *   • `GET  /api/billing/plans`        → the tariffs on offer
  *   • `POST /api/billing/checkout`     → start a purchase (only reachable when both gates open)
  *
- * Reached from the profile's PRO card and from the paywall a 402 raises.
+ * Reached from the profile's PRO card, from a premium-locked task's "Premium haqida", and from
+ * the paywall a 402 raises (the fallback when the lock was not visible in time).
  *
  * **The checkout handler exists but is unreachable today**, and that is on purpose rather than an
  * oversight: with no merchant account the server answers 503 `provider_not_configured`, the screen
@@ -27,10 +28,11 @@ import { useNavHandler } from "../nav";
 export default function PremiumPage() {
   const onNavigate = useNavHandler();
   const { t } = useTranslation();
-  // The paywall sends people here with `state.reason = "paywall"`. Without it this screen would
-  // appear out of nowhere mid-recording and leave the student to work out why.
+  // A locked task sends people here with `state.reason` — "locked" from its "Premium haqida", or
+  // "paywall" from a 402 the lock did not foresee. Without it this screen would appear out of
+  // nowhere and leave the student to work out why.
   const { state } = useLocation() as { state?: { reason?: string } };
-  const arrivedFromPaywall = state?.reason === "paywall";
+  const arrivedFromLock = state?.reason === "paywall" || state?.reason === "locked";
 
   const [status, setStatus] = useState<SubscriptionStatusResponse | null>(null);
   const [plans, setPlans] = useState<PlanResponse[]>([]);
@@ -135,8 +137,12 @@ export default function PremiumPage() {
       status={uiStatus}
       plans={uiPlans}
       supportUrl={links?.tg_support_url || null}
+      // The reason states only the FACT (this task needs Premium). It used to add "upgrade to
+      // continue" directly under "Premium cannot be bought yet" — two sentences contradicting each
+      // other. How to actually get Premium is said once, by the screen itself: buy it when payments
+      // are connected, otherwise ask the teacher (the notConnected card).
       notice={
-        notice ?? (arrivedFromPaywall ? { tone: "info", message: t("practice.paywall") } : null)
+        notice ?? (arrivedFromLock ? { tone: "info", message: t("billing.lockedReason") } : null)
       }
       activeNavKey="profile"
       onNavigate={onNavigate}

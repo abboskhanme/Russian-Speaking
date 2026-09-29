@@ -5,21 +5,34 @@
  * (`/api/assignments/mine`), maps them to the presentational HomeScreen, and
  * routes "Boshlash" into Practice. Fault-tolerant: a failed secondary fetch
  * degrades that block, never blanks the page.
+ *
+ * It is also where a teacher's invite link finishes: `/j/:code` remembers the code
+ * (through a sign-in if it has to) and sends the student here, and this page files
+ * the join request ONCE before it reads the group state — so the card below shows
+ * the outcome (waiting for approval, or already a member). A bad code is said in
+ * words, never swallowed.
  */
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
 import { HomeScreen } from "../../screens/home";
 import type { HomeDaily, HomeGroup, HomeStats, HomeToday, HomeUser } from "../../screens/home";
-import { endpoints } from "../../shared/api";
+import { endpoints, isApiError } from "../../shared/api";
 import { useAuth } from "../../shared/auth";
 import { firstName } from "../adapters";
+import { takePendingJoin } from "../pendingJoin";
 import { PageError, PageLoading } from "../PageState";
 import { useNavHandler } from "../nav";
 
 /** Default daily goal in minutes (no per-user goal endpoint yet). */
 const DAILY_GOAL_MIN = 5;
 
+/** What filing an invite link's join request came to: null when it went through
+ * (the group card itself shows the result), else the i18n key of the problem. */
+type JoinOutcome = string | null;
+
 export default function HomePage() {
+  const { t } = useTranslation();
   const { user } = useAuth();
   const navigate = useNavigate();
   const onNavigate = useNavHandler();
@@ -47,22 +60,57 @@ export default function HomePage() {
   const [daily, setDaily] = useState<HomeDaily | null>(null);
   const [loading, setLoading] = useState(true);
   const [reloadKey, setReloadKey] = useState(0);
+  /** The invite link's problem, if it had one (an i18n key). */
+  const [joinNoticeKey, setJoinNoticeKey] = useState<string | null>(null);
+  /**
+   * The invite link's join, started at most once per mount. A ref, not state, so
+   * StrictMode's double-run of the effect below awaits the SAME request instead of
+   * finding the code already taken and loading the page before the join landed.
+   */
+  const pendingJoin = useRef<Promise<JoinOutcome> | null>(null);
 
   useEffect(() => {
     let alive = true;
     setLoading(true);
 
-    // allSettled, not all: one dead section must not blank the page.
-    // The daily probe rides along on the same allSettled rule and rejects with a
-    // 404 whenever `daily_five_enabled` is off — which is exactly how a
-    // flagged-off feature should read here: its entry simply never appears.
-    Promise.allSettled([
-      endpoints.profileStats(),
-      endpoints.myGroups(),
-      endpoints.assignmentsMine().catch(() => []),
-      endpoints.myJoinRequests().catch(() => []),
-      endpoints.dailySession(),
-    ])
+    if (!pendingJoin.current) {
+      const code = takePendingJoin();
+      pendingJoin.current = code
+        ? endpoints.joinGroup(code).then(
+            (): JoinOutcome => null,
+            (e: unknown): JoinOutcome =>
+              isApiError(e) && e.status === 404
+                ? "home.joinLink.invalid"
+                : isApiError(e) && e.status === 0
+                  ? "auth.errors.network"
+                  : "home.joinLink.failed",
+          )
+        : Promise.resolve(null);
+    }
+
+    // The join first: the group reads below must see its result, or the student
+    // who just asked would be shown the join form as if nothing had happened.
+    void pendingJoin.current
+      .then((outcome) => {
+        if (!alive) return;
+        if (outcome) setJoinNoticeKey(outcome);
+        // Reported once. A later reload (a manual join, a retry) must not bring a
+        // dismissed notice back.
+        pendingJoin.current = Promise.resolve(null);
+      })
+      .then(() =>
+        // allSettled, not all: one dead section must not blank the page.
+        // The daily probe rides along on the same allSettled rule and rejects with
+        // a 404 whenever `daily_five_enabled` is off — which is exactly how a
+        // flagged-off feature should read here: its entry simply never appears.
+        Promise.allSettled([
+          endpoints.profileStats(),
+          endpoints.myGroups(),
+          endpoints.assignmentsMine().catch(() => []),
+          endpoints.myJoinRequests().catch(() => []),
+          endpoints.dailySession(),
+        ]),
+      )
       .then(([s, g, a, r, d]) => {
         if (!alive) return;
 
@@ -80,6 +128,9 @@ export default function HomePage() {
                   ? d.value.steps.length
                   : d.value.steps.filter((step) => step.done).length,
                 completed: d.value.completed,
+                // The drill step is ABSENT on a day with nothing due (never present
+                // with a zero), so its presence is the whole test.
+                hasDrill: d.value.steps.some((step) => step.kind === "drill"),
               }
             : null,
         );
@@ -114,7 +165,11 @@ export default function HomePage() {
             name: mine.name,
             memberCount: mine.member_count,
             nextAssignment: pending
-              ? { title: pending.question_title ?? "", dueAt: pending.due_at }
+              ? {
+                  taskId: pending.question_id,
+                  title: pending.question_title ?? "",
+                  dueAt: pending.due_at,
+                }
               : null,
           });
           setPendingGroupName(null);        // a member — nothing to wait for
@@ -168,6 +223,7 @@ export default function HomePage() {
   // join form. Errors propagate to NoGroupCard, which surfaces them inline.
   const onJoinGroup = useCallback(async (code: string) => {
     await endpoints.joinGroup(code);
+    setJoinNoticeKey(null);
     setReloadKey((k) => k + 1);
   }, []);
 
@@ -186,6 +242,9 @@ export default function HomePage() {
       onJoinGroup={onJoinGroup}
       pendingGroupName={pendingGroupName}
       onOpenGroup={() => navigate("/group")}
+      onOpenAssignment={(taskId) => navigate(`/task?task=${encodeURIComponent(taskId)}`)}
+      joinNotice={joinNoticeKey ? t(joinNoticeKey) : null}
+      onDismissJoinNotice={() => setJoinNoticeKey(null)}
       activeNavKey="home"
       onNavigate={onNavigate}
     />

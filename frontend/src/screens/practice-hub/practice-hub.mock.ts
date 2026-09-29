@@ -54,6 +54,7 @@ export const mockHubModules: PracticeModule[] = [
 export const mockHubAssignments: AssignmentsTabProps["assignments"] = [
   {
     id: "a-1",
+    taskId: "q-phone-call",
     title: "Telefon suhbati: uchrashuvni belgilash",
     dueAt: "2026-07-26T13:00:00Z",
     completed: false,
@@ -61,6 +62,7 @@ export const mockHubAssignments: AssignmentsTabProps["assignments"] = [
   },
   {
     id: "a-2",
+    taskId: "q-introduce",
     title: "O'zingni tanishtir",
     dueAt: null,
     completed: true,
@@ -68,6 +70,7 @@ export const mockHubAssignments: AssignmentsTabProps["assignments"] = [
   },
   {
     id: "a-3",
+    taskId: "q-shop-price",
     title: "Do'konda narxni so'rash",
     dueAt: "2026-07-19T09:00:00Z",
     completed: false,

@@ -24,8 +24,11 @@ import styles from "./ModuleDetailScreen.module.css";
 /* Public contract                                                            */
 /* -------------------------------------------------------------------------- */
 
-/** How a task reads in the list: finished, the one to do now, or still locked. */
-export type ModuleTaskState = "done" | "current" | "locked";
+/** How a task reads in the list: finished, the one to do now, still locked behind
+ * the task before it ("Yopiq"), or behind Premium ("Pro"). The two locks are kept
+ * apart because they ask different things of the student: finish the previous
+ * task, or get Premium — one label for both sent people the wrong way. */
+export type ModuleTaskState = "done" | "current" | "locked" | "premium";
 
 export interface ModuleDetailTask {
   id: string;
@@ -133,9 +136,10 @@ function TaskRow({
 }) {
   const { t } = useTranslation();
   const { id, index, title, state, band } = task;
+  const shut = state === "locked" || state === "premium";
 
   return (
-    <li className={cx(styles.taskRow, state === "locked" && styles.taskRowMuted)}>
+    <li className={cx(styles.taskRow, shut && styles.taskRowMuted)}>
       <StateChip state={state} />
 
       <span className={styles.taskText}>
@@ -171,18 +175,22 @@ function TaskRow({
             {t("mashq.detail.locked")}
           </Text>
         )}
+        {state === "premium" && (
+          <span className={styles.proTag}>{t("mashq.detail.premium")}</span>
+        )}
       </span>
     </li>
   );
 }
 
-/** The leading state chip: green check (done) · orange play (current) · lock. */
+/** The leading state chip: green check (done) · orange play (current) · lock
+ * (sequential, grey) · lock (premium, accent). */
 function StateChip({ state }: { state: ModuleTaskState }) {
   return (
     <span className={cx(styles.chip, styles[`chip_${state}`])} aria-hidden>
       {state === "done" && <CheckIcon />}
       {state === "current" && <PlayIcon />}
-      {state === "locked" && <LockIcon />}
+      {(state === "locked" || state === "premium") && <LockIcon />}
     </span>
   );
 }

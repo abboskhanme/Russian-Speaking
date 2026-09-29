@@ -166,6 +166,10 @@ function ConversationFlow({ slug }: { slug: string }) {
   );
 
   const handleFinish = useCallback(async () => {
+    // A turn in flight would be saved AFTER the end and missing from the summary
+    // (which then reported 0 turns). The button is disabled meanwhile; this is the
+    // same rule for any other way in.
+    if (sending) return;
     if (!conversationId) {
       navigate("/chat");
       return;
@@ -175,7 +179,7 @@ function ConversationFlow({ slug }: { slug: string }) {
     } catch {
       setFailure(t("suhbat.turnFailed"));
     }
-  }, [conversationId, navigate, t]);
+  }, [conversationId, navigate, sending, t]);
 
   const handleRetry = useCallback(() => {
     revokeAudio();

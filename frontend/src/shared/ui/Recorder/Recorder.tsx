@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { HTMLAttributes } from "react";
+import { useTranslation } from "react-i18next";
 import { cx } from "../utils/cx";
 import { Button } from "../Button/Button";
 import { Spinner } from "../Spinner/Spinner";
@@ -29,6 +30,7 @@ export interface RecorderLabels {
   cancel: string;
   prepTitle: string;
   prepHint: string;
+  /** Ends the prep countdown early and starts recording ("Tayyorman"). */
   skip: string;
   play: string;
   pause: string;
@@ -40,29 +42,46 @@ export interface RecorderLabels {
   deniedHint: string;
   errorTitle: string;
   errorHint: string;
+  /** Accessible name of the whole recorder region. */
+  region: string;
 }
 
-const DEFAULT_LABELS: RecorderLabels = {
-  idleHint: "Tayyor bo'lsang, yozishni boshla.",
-  start: "Yozishni boshlash",
-  requesting: "Mikrofon so'ralmoqda…",
-  recording: "Yozilyapti",
-  stop: "To'xtatish",
-  cancel: "Bekor qilish",
-  prepTitle: "Fikringni yig'ib ol",
-  prepHint: "Nima demoqchisan? Shoshilma — vaqting yetarli.",
-  skip: "O'tkazib yuborish",
-  play: "Eshitish",
-  pause: "To'xtatish",
-  reRecord: "Qayta yozish",
-  accept: "Tayyor",
-  reviewReady: "Yozuv tayyor. Eshitib ko'r yoki qayta yoz.",
-  retry: "Qayta urinish",
-  deniedTitle: "Mikrofonga ruxsat berilmadi",
-  deniedHint: "Yozish uchun brauzer sozlamalaridan mikrofonga ruxsat bering.",
-  errorTitle: "Yozib bo'lmadi",
-  errorHint: "Qurilmangda mikrofon yozuvi qo'llab-quvvatlanmaydi.",
-};
+/**
+ * The built-in labels, from the `recorder.*` keys in the active language.
+ *
+ * They used to be a hardcoded Uzbek object, and no caller but the phoneme drill
+ * passed any overrides — so a Russian- or English-speaking student recorded every
+ * answer in the app under Uzbek buttons. Every label now follows the language the
+ * rest of the screen is in; `labels` still overrides any of them per call site.
+ */
+function useDefaultLabels(): RecorderLabels {
+  const { t } = useTranslation();
+  return useMemo(
+    () => ({
+      idleHint: t("recorder.idleHint"),
+      start: t("recorder.start"),
+      requesting: t("recorder.requesting"),
+      recording: t("recorder.recording"),
+      stop: t("recorder.stop"),
+      cancel: t("recorder.cancel"),
+      prepTitle: t("recorder.prepTitle"),
+      prepHint: t("recorder.prepHint"),
+      skip: t("recorder.skip"),
+      play: t("recorder.play"),
+      pause: t("recorder.pause"),
+      reRecord: t("recorder.reRecord"),
+      accept: t("recorder.accept"),
+      reviewReady: t("recorder.reviewReady"),
+      retry: t("recorder.retry"),
+      deniedTitle: t("recorder.deniedTitle"),
+      deniedHint: t("recorder.deniedHint"),
+      errorTitle: t("recorder.errorTitle"),
+      errorHint: t("recorder.errorHint"),
+      region: t("recorder.region"),
+    }),
+    [t],
+  );
+}
 
 export interface RecorderProps
   extends Omit<HTMLAttributes<HTMLElement>, "onError"> {
@@ -78,7 +97,7 @@ export interface RecorderProps
   mimeType?: string;
   /** Size of the embedded Govo mascot. */
   mascotSize?: number;
-  /** Override any of the built-in Uzbek strings. */
+  /** Override any of the built-in (localized, `recorder.*`) strings. */
   labels?: Partial<RecorderLabels>;
 }
 
@@ -161,9 +180,10 @@ export function Recorder({
   className,
   ...rest
 }: RecorderProps) {
+  const defaultLabels = useDefaultLabels();
   const labels = useMemo(
-    () => ({ ...DEFAULT_LABELS, ...labelOverrides }),
-    [labelOverrides],
+    () => ({ ...defaultLabels, ...labelOverrides }),
+    [defaultLabels, labelOverrides],
   );
 
   const supported = useMemo(() => {
@@ -460,7 +480,7 @@ export function Recorder({
     <section
       className={cx(styles.root, className)}
       // Grouped control; the mic/stop buttons carry their own labels.
-      aria-label="Ovoz yozish"
+      aria-label={labels.region}
       {...rest}
     >
       {/* Polite live region for transient state changes. */}

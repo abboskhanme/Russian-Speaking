@@ -6,9 +6,12 @@
  *   PracticeScreenDemo  — a self-wired default export, renderable standalone.
  */
 export { PracticeScreen, default as PracticeScreenDemo } from "./PracticeScreen";
+export { PracticeStateScreen } from "./PracticeStateScreen";
+export type { PracticeStateScreenProps } from "./PracticeStateScreen";
 export type {
   PracticeScreenProps,
   PracticePhase,
+  PracticeMedia,
   PracticeTask,
   PracticeProgress,
   PracticeFeedback,
