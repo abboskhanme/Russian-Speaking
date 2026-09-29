@@ -3,12 +3,11 @@
   <ItemGroup>
     <ProjectReference Include="..\..\Govori.Contracts\Govori.Contracts.csproj" />
     <ProjectReference Include="..\..\Govori.Infrastructure\Govori.Infrastructure.csproj" />
-    <!-- NOTE (Administration→Identity boundary): deliberately NOT referenced. The admin surface's
-         only need for the Identity module would be its BCrypt PasswordHasher (to CREATE users or
-         change passwords). Per this module's stated deps (Infrastructure + Contracts) and the
-         codebase convention against module→module edges, those two write paths are DEFERRED rather
-         than pulling in the auth primitive here (see AdministrationService). Everything the task
-         enumerates — list/search users, grant/revoke premium, (de)activate — needs no hashing. -->
+    <!-- NOTE (Administration→Identity boundary): deliberately NOT referenced, and nothing here needs
+         it. Accounts are passwordless (phone + Telegram OTP), so creating a teacher is a plain row
+         insert, and the one shared auth rule it does need — Uzbek phone normalisation — lives in
+         Govori.Contracts (PhoneNumbers) precisely so modules and hosts can use it without an edge
+         into Identity. -->
   </ItemGroup>
 
   <ItemGroup>

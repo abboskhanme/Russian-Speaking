@@ -261,6 +261,12 @@ public sealed class CatalogService
                 // Best graded band (0..100) for this task, or null when never graded.
                 int? band = bestBandByQuestion.TryGetValue(q.Id, out var best) ? Band(best) : null;
 
+                // A locked task (either layer) shows its title/type/level teaser and nothing a
+                // student could answer from — see StudentTaskResponse. Presigning is local HMAC
+                // signing, not a round trip, so doing it per unlocked task costs no I/O.
+                var open = !seqLocked && !premiumLocked;
+                var hasMedia = open && !string.IsNullOrEmpty(q.MediaKey);
+
                 tasks.Add(new StudentTaskResponse(
                     Id: q.Id,
                     Title: q.Title,
@@ -270,7 +276,13 @@ public sealed class CatalogService
                     Done: done,
                     Locked: seqLocked,
                     PremiumLocked: premiumLocked,
-                    Band: band));
+                    Band: band,
+                    PromptText: open ? q.PromptText : null,
+                    InstructionText: open ? q.InstructionText : null,
+                    MediaUrl: hasMedia ? await _storage.GetPresignedUrlAsync(q.MediaKey!, ct: ct) : null,
+                    MediaType: hasMedia ? MediaTypeOf(q) : null,
+                    PrepTimeSec: q.PrepTimeSec,
+                    AnswerTimeLimitSec: q.AnswerTimeLimitSec));
 
                 prevDone = done;
             }
@@ -282,7 +294,7 @@ public sealed class CatalogService
                 Level: b.Level,
                 RuStyle: b.RuStyle,
                 Visibility: b.Visibility,
-                CoverUrl: null,                     // presigned URL → Govori.Platform.Storage (deferred)
+                CoverUrl: null,                     // no route writes a cover yet — see StudentModuleResponse
                 Total: qs.Count,
                 DoneCount: doneCount,
                 NextTaskId: nextId,
@@ -297,12 +309,41 @@ public sealed class CatalogService
     // (same scale as the profile/results band).
     private static int Band(double overallBand)
         => Math.Clamp((int)Math.Round(overallBand, MidpointRounding.AwayFromZero), 0, 100);
+
+    private static readonly HashSet<string> ImageExtensions = new(StringComparer.OrdinalIgnoreCase)
+        { "jpg", "jpeg", "png", "webp", "gif" };
+    private static readonly HashSet<string> VideoExtensions = new(StringComparer.OrdinalIgnoreCase)
+        { "mp4", "webm", "mov" };
+
+    /// <summary>
+    /// "image" / "video" for a task that has media, so the client knows whether to render an
+    /// <c>img</c> or a <c>video</c>. Read from the storage key's extension, which
+    /// <see cref="SetQuestionMediaAsync"/> derives from the VALIDATED content-type (never from the
+    /// client's filename). A key written before that — by the legacy backend — may not say; then the
+    /// task's own <c>type</c> column decides, and if that is plain "text" the answer is null rather
+    /// than a guess that renders a video as a broken image.
+    /// </summary>
+    private static string? MediaTypeOf(Question q)
+    {
+        var ext = Path.GetExtension(q.MediaKey ?? string.Empty).TrimStart('.');
+        if (ImageExtensions.Contains(ext)) return "image";
+        if (VideoExtensions.Contains(ext)) return "video";
+        return q.Type switch
+        {
+            QuestionType.Image => "image",
+            QuestionType.Video => "video",
+            _ => null,
+        };
+    }
+
     // ─── Teacher authoring (Kontent board C1 · C2 · C4 · C5) ────────────────────
     // A write surface over the EXISTING question_blocks / questions tables. Every method is
     // OWNER-SCOPED: a teacher reads and mutates only rows whose TeacherId is theirs, and anything
-    // else answers NotFound rather than Forbidden so ids cannot be probed. Admin sees everything.
+    // else answers NotFound rather than Forbidden so ids cannot be probed. Admin sees everything,
+    // and is the only role that may set visibility "public" (an official module).
 
-    /// <summary>GET /api/blocks — the caller's own modules, newest sort order first. Teacher/admin.</summary>
+    /// <summary>GET /api/blocks — the caller's own modules (an admin: every module), lowest sort
+    /// order first, each with its owner's name. Teacher/admin.</summary>
     public async Task<CatalogResult<IReadOnlyList<TeacherBlockResponse>>> ListBlocksAsync(
         Guid userId, CancellationToken ct = default)
     {
@@ -313,21 +354,27 @@ public sealed class CatalogService
         var q = _db.QuestionBlocks.AsQueryable();
         if (user.Role != UserRole.Admin) q = q.Where(b => b.TeacherId == user.Id);
 
-        var blocks = await q.OrderBy(b => b.SortOrder).ThenByDescending(b => b.CreatedAt).ToListAsync(ct);
+        // The owner's name rides along in the same query (a join, not a lookup per row) — it is what
+        // makes an admin's all-modules list readable.
+        var rows = await q.OrderBy(b => b.SortOrder).ThenByDescending(b => b.CreatedAt)
+            .Select(b => new { Block = b, OwnerName = b.Teacher.FullName })
+            .ToListAsync(ct);
         var reach = await RosterReachAsync(user, ct);
 
-        var ids = blocks.Select(b => b.Id).ToList();
+        var ids = rows.Select(r => r.Block.Id).ToList();
         var counts = await CountsPerBlockAsync(ids, ct);
 
-        return CatalogResult<IReadOnlyList<TeacherBlockResponse>>.Ok(blocks
-            .Select(b => new TeacherBlockResponse(
-                Id: b.Id, Name: b.Name, Topic: b.Topic, Level: b.Level, RuStyle: b.RuStyle,
-                Visibility: b.Visibility, IsPublished: b.IsPublished, SortOrder: b.SortOrder,
-                TaskCount: counts.GetValueOrDefault(b.Id, 0),
+        return CatalogResult<IReadOnlyList<TeacherBlockResponse>>.Ok(rows
+            .Select(r => new TeacherBlockResponse(
+                Id: r.Block.Id, Name: r.Block.Name, Topic: r.Block.Topic, Level: r.Block.Level,
+                RuStyle: r.Block.RuStyle, Visibility: r.Block.Visibility, IsPublished: r.Block.IsPublished,
+                SortOrder: r.Block.SortOrder,
+                TaskCount: counts.GetValueOrDefault(r.Block.Id, 0),
                 // Reach is the same for every module the teacher owns — it is their roster size.
                 // A DRAFT reaches nobody yet, and saying "38 o'quvchi" on a draft would be a lie.
-                StudentCount: b.IsPublished ? reach : 0,
-                CreatedAt: b.CreatedAt, UpdatedAt: b.UpdatedAt))
+                StudentCount: r.Block.IsPublished ? reach : 0,
+                CreatedAt: r.Block.CreatedAt, UpdatedAt: r.Block.UpdatedAt,
+                OwnerName: r.OwnerName))
             .ToList());
     }
 
@@ -349,13 +396,17 @@ public sealed class CatalogService
             .ToListAsync(ct);
         var subCounts = await SubmissionCountsAsync(tasks.Select(t => t.Id).ToList(), ct);
         var reach = await RosterReachAsync(user, ct);
+        var ownerName = b.TeacherId == user.Id
+            ? user.FullName
+            : await _db.Users.Where(u => u.Id == b.TeacherId).Select(u => u.FullName).FirstOrDefaultAsync(ct) ?? "";
 
         return CatalogResult<TeacherBlockDetailResponse>.Ok(new TeacherBlockDetailResponse(
             Id: b.Id, Name: b.Name, Topic: b.Topic, Level: b.Level, RuStyle: b.RuStyle,
             Visibility: b.Visibility, IsPublished: b.IsPublished, SortOrder: b.SortOrder,
             TaskCount: tasks.Count, StudentCount: b.IsPublished ? reach : 0,
             CreatedAt: b.CreatedAt, UpdatedAt: b.UpdatedAt,
-            Tasks: await Task.WhenAll(tasks.Select(q => QuestionOutAsync(q, b.Name, subCounts.GetValueOrDefault(q.Id, 0), ct)))));
+            Tasks: await Task.WhenAll(tasks.Select(q => QuestionOutAsync(q, b.Name, subCounts.GetValueOrDefault(q.Id, 0), ct))),
+            OwnerName: ownerName));
     }
 
     /// <summary>POST /api/blocks — create a module. Starts as a DRAFT so nothing reaches students
@@ -366,6 +417,8 @@ public sealed class CatalogService
         var user = await ActiveUserAsync(userId, ct);
         if (user is null) return CatalogResult<TeacherBlockDetailResponse>.Unauthorized();
         if (!IsTeacher(user)) return CatalogResult<TeacherBlockDetailResponse>.Forbidden();
+        if (body.Visibility == PublicVisibility && user.Role != UserRole.Admin)
+            return PublicRequiresAdmin<TeacherBlockDetailResponse>();
 
         var name = (body.Name ?? string.Empty).Trim();
         if (name.Length == 0) return CatalogResult<TeacherBlockDetailResponse>.BadRequest("name is required");
@@ -379,9 +432,10 @@ public sealed class CatalogService
             Topic = Trimmed(body.Topic),
             Level = Trimmed(body.Level),
             RuStyle = Trimmed(body.RuStyle),
-            // "group" = visible to the teacher's own students; "public" is an official module and
-            // is NOT something a teacher grants themselves, so it is not accepted here.
-            Visibility = body.Visibility == "private" ? "private" : "group",
+            // "group" = visible to the owner's own students (and the default for anything
+            // unrecognised, as it always was); "private" = the owner only; "public" = an official
+            // module every student sees — reachable only by an admin, checked above.
+            Visibility = body.Visibility is "private" or PublicVisibility ? body.Visibility : "group",
             IsPublished = false,
             SortOrder = await NextBlockSortAsync(user.Id, ct),
             CreatedAt = now,
@@ -393,7 +447,17 @@ public sealed class CatalogService
         return await GetBlockAsync(userId, block.Id, ct);
     }
 
-    /// <summary>PATCH /api/blocks/{id} — partial update; absent fields are left alone.</summary>
+    /// <summary>
+    /// PATCH /api/blocks/{id} — partial update; absent fields are left alone.
+    ///
+    /// <para><b>Publishing a module publishes its tasks.</b> A task is created as a draft whenever
+    /// its module is a draft, and a module is hidden from students until it has at least one live
+    /// task — so before this rule, pressing "Nashr qilish" on a new module changed nothing a student
+    /// could see, and there was no UI to publish the tasks one by one. On the false → true edge every
+    /// non-deleted draft task in the module is published in the SAME SaveChanges as the module, so a
+    /// student can never observe a published module whose tasks are still drafts. Unpublishing does
+    /// not touch the tasks: the module flag already hides them.</para>
+    /// </summary>
     public async Task<CatalogResult<TeacherBlockDetailResponse>> UpdateBlockAsync(
         Guid userId, Guid blockId, UpdateBlockRequest body, CancellationToken ct = default)
     {
@@ -404,6 +468,11 @@ public sealed class CatalogService
         var b = await _db.QuestionBlocks.FirstOrDefaultAsync(x => x.Id == blockId, ct);
         if (b is null || (user.Role != UserRole.Admin && b.TeacherId != user.Id))
             return CatalogResult<TeacherBlockDetailResponse>.NotFound();
+
+        // Refused before anything is touched, and after the ownership check so another teacher's
+        // module still answers 404 rather than revealing that it exists.
+        if (body.Visibility == PublicVisibility && user.Role != UserRole.Admin)
+            return PublicRequiresAdmin<TeacherBlockDetailResponse>();
 
         if (body.Name is not null)
         {
@@ -417,14 +486,78 @@ public sealed class CatalogService
         if (body.Topic is not null) b.Topic = Trimmed(body.Topic);
         if (body.Level is not null) b.Level = Trimmed(body.Level);
         if (body.RuStyle is not null) b.RuStyle = Trimmed(body.RuStyle);
-        if (body.Visibility is not null && body.Visibility is "group" or "private")
+        // An unrecognised value is ignored (left as it was), as it always has been.
+        if (body.Visibility is "group" or "private" or PublicVisibility)
             b.Visibility = body.Visibility;
-        if (body.IsPublished is not null) b.IsPublished = body.IsPublished.Value;
         if (body.SortOrder is not null) b.SortOrder = body.SortOrder.Value;
-        b.UpdatedAt = DateTime.UtcNow;
+
+        var now = DateTime.UtcNow;
+        if (body.IsPublished is { } publish)
+        {
+            if (publish && !b.IsPublished)
+            {
+                // Tracked, not ExecuteUpdate: an ExecuteUpdate would commit on its own, before (and
+                // regardless of) the SaveChanges below that publishes the module.
+                var drafts = await _db.Questions
+                    .Where(q => q.BlockId == b.Id && !q.IsDeleted && !q.IsPublished)
+                    .ToListAsync(ct);
+                foreach (var task in drafts)
+                {
+                    task.IsPublished = true;
+                    task.UpdatedAt = now;
+                }
+            }
+            b.IsPublished = publish;
+        }
+        b.UpdatedAt = now;
 
         await _db.SaveChangesAsync(ct);
         return await GetBlockAsync(userId, blockId, ct);
+    }
+
+    /// <summary>
+    /// DELETE /api/blocks/{id} — remove a module without destroying anyone's history.
+    ///
+    /// <para><b>Why the tasks are soft-deleted and the module row is hard-deleted.</b>
+    /// <c>submissions_question_id_fkey</c>, <c>assignments_question_id_fkey</c> and
+    /// <c>review_items_question_id_fkey</c> are all <c>ON DELETE CASCADE</c>, and evaluations and
+    /// transcripts cascade from submissions in turn — so hard-deleting a task would silently erase
+    /// every student's attempts at it, grades included. The tasks are therefore only
+    /// marked deleted (and unpublished). The ONLY foreign key into <c>question_blocks</c> is
+    /// <c>fk_questions_block_id</c>, which is <c>ON DELETE SET NULL</c>: removing the module row
+    /// detaches its (now soft-deleted) tasks and cascades into nothing else, so the row itself can
+    /// go. The one thing lost is the task → module link, which only a deleted module would have
+    /// used.</para>
+    ///
+    /// <para>Both steps happen in ONE SaveChanges (one transaction): there is no moment where the
+    /// module is gone but its tasks are still live, unattached, in the teacher's library.</para>
+    /// </summary>
+    public async Task<CatalogResult<bool>> DeleteBlockAsync(
+        Guid userId, Guid blockId, CancellationToken ct = default)
+    {
+        var user = await ActiveUserAsync(userId, ct);
+        if (user is null) return CatalogResult<bool>.Unauthorized();
+        if (!IsTeacher(user)) return CatalogResult<bool>.Forbidden();
+
+        var b = await _db.QuestionBlocks.FirstOrDefaultAsync(x => x.Id == blockId, ct);
+        if (b is null || (user.Role != UserRole.Admin && b.TeacherId != user.Id))
+            return CatalogResult<bool>.NotFound();
+
+        var now = DateTime.UtcNow;
+        var tasks = await _db.Questions.Where(q => q.BlockId == b.Id && !q.IsDeleted).ToListAsync(ct);
+        foreach (var task in tasks)
+            SoftDelete(task, now);
+
+        // EF mirrors the FK's SET NULL on the tracked tasks; Postgres applies it to any already
+        // soft-deleted ones this query did not load.
+        _db.QuestionBlocks.Remove(b);
+        await _db.SaveChangesAsync(ct);
+
+        // The cover object is unreachable once the row is gone. Best-effort, like task media.
+        if (!string.IsNullOrEmpty(b.CoverKey))
+            await TryDeleteMediaAsync(b.CoverKey, ct);
+
+        return CatalogResult<bool>.Ok(true);
     }
 
     /// <summary>
@@ -461,7 +594,11 @@ public sealed class CatalogService
             await Task.WhenAll(rows.Select(x => QuestionOutAsync(x, x.Block?.Name, subCounts.GetValueOrDefault(x.Id, 0), ct))));
     }
 
-    /// <summary>POST /api/questions — create a task. Starts as a DRAFT.</summary>
+    /// <summary>POST /api/questions — create a task. A task created inside a module inherits the
+    /// module's CURRENT <c>is_published</c>: adding a task to a live module makes it live at once
+    /// (the teacher is extending something students already use), while a task in a draft module
+    /// stays a draft until the module is published — which publishes it
+    /// (<see cref="UpdateBlockAsync"/>). An unattached task starts as a draft.</summary>
     public async Task<CatalogResult<TeacherQuestionResponse>> CreateQuestionAsync(
         Guid userId, CreateQuestionRequest body, CancellationToken ct = default)
     {
@@ -499,7 +636,7 @@ public sealed class CatalogService
             ModelAnswerText = Trimmed(body.ModelAnswerText),
             PrepTimeSec = Math.Clamp(body.PrepTimeSec ?? 30, 0, 600),
             AnswerTimeLimitSec = Math.Clamp(body.AnswerTimeLimitSec ?? 120, 10, 1800),
-            IsPublished = false,
+            IsPublished = block?.IsPublished ?? false,
             IsPublic = false,
             IsDeleted = false,
             BlockId = block?.Id,
@@ -573,6 +710,34 @@ public sealed class CatalogService
 
         var subs = await _db.Submissions.CountAsync(s => s.QuestionId == q.Id, ct);
         return CatalogResult<TeacherQuestionResponse>.Ok(await QuestionOutAsync(q, newBlock?.Name, subs, ct));
+    }
+
+    /// <summary>
+    /// DELETE /api/questions/{id} — SOFT delete. The row is kept because submissions, assignments
+    /// and review items all reference it with <c>ON DELETE CASCADE</c>: a hard delete would erase
+    /// every student's attempts and grades for the task (see <see cref="DeleteBlockAsync"/>).
+    ///
+    /// <para>After this the task is gone from everywhere the catalog lists tasks — every authoring
+    /// query and the student module view filter on <c>is_deleted</c> — and it is also unpublished,
+    /// so any reader that checks only <c>is_published</c> hides it too. The module link and the media
+    /// object are kept: history screens can still say what the task was.</para>
+    ///
+    /// <para>An already-deleted task answers 404, the same as one that never existed.</para>
+    /// </summary>
+    public async Task<CatalogResult<bool>> DeleteQuestionAsync(
+        Guid userId, Guid questionId, CancellationToken ct = default)
+    {
+        var user = await ActiveUserAsync(userId, ct);
+        if (user is null) return CatalogResult<bool>.Unauthorized();
+        if (!IsTeacher(user)) return CatalogResult<bool>.Forbidden();
+
+        var q = await _db.Questions.FirstOrDefaultAsync(x => x.Id == questionId && !x.IsDeleted, ct);
+        if (q is null || (user.Role != UserRole.Admin && q.TeacherId != user.Id))
+            return CatalogResult<bool>.NotFound();
+
+        SoftDelete(q, DateTime.UtcNow);
+        await _db.SaveChangesAsync(ct);
+        return CatalogResult<bool>.Ok(true);
     }
 
     /// <summary>
@@ -670,6 +835,24 @@ public sealed class CatalogService
 
     // ─── authoring helpers ──────────────────────────────────────────────────────
 
+    /// <summary>The <c>question_blocks.visibility</c> value of an official module.</summary>
+    private const string PublicVisibility = "public";
+
+    // A teacher asking for an official module. 403 with a code rather than the bare "Teacher role
+    // required" — the caller IS a teacher, and the UI needs to explain what only an admin may do.
+    private static CatalogResult<T> PublicRequiresAdmin<T>()
+        => CatalogResult<T>.Forbidden(
+            "Only an admin can make a module public (official)", CatalogErrorCodes.PublicRequiresAdmin);
+
+    // Hidden from every listing (is_deleted) AND unpublished, so a reader that only checks
+    // is_published hides it as well.
+    private static void SoftDelete(Question q, DateTime now)
+    {
+        q.IsDeleted = true;
+        q.IsPublished = false;
+        q.UpdatedAt = now;
+    }
+
     /// <summary>
     /// Project one task, minting a PRESIGNED url for its media when it has any.
     ///
@@ -747,12 +930,16 @@ public sealed class CatalogService
 /// <summary>Outcome of a Catalog authoring call.</summary>
 public enum CatalogOutcome { Ok, Unauthorized, Forbidden, NotFound, BadRequest }
 
-/// <summary>A Catalog authoring result: outcome + payload on success, detail on failure.</summary>
-public sealed record CatalogResult<T>(CatalogOutcome Outcome, T? Value = default, string? Detail = null)
+/// <summary>A Catalog authoring result: outcome + payload on success, detail on failure. <c>Code</c>
+/// is set only for a failure the UI must tell apart (a <see cref="CatalogErrorCodes"/> value); the
+/// endpoint then answers with a <see cref="CodedErrorResponse"/>.</summary>
+public sealed record CatalogResult<T>(
+    CatalogOutcome Outcome, T? Value = default, string? Detail = null, string? Code = null)
 {
     public static CatalogResult<T> Ok(T value) => new(CatalogOutcome.Ok, value);
     public static CatalogResult<T> Unauthorized() => new(CatalogOutcome.Unauthorized);
     public static CatalogResult<T> Forbidden() => new(CatalogOutcome.Forbidden);
+    public static CatalogResult<T> Forbidden(string detail, string code) => new(CatalogOutcome.Forbidden, default, detail, code);
     public static CatalogResult<T> NotFound() => new(CatalogOutcome.NotFound);
     public static CatalogResult<T> BadRequest(string detail) => new(CatalogOutcome.BadRequest, default, detail);
 }
