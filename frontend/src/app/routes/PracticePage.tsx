@@ -16,9 +16,11 @@
  *   • failed  → the failure's machine code in words (`results.failure.*`) and a retry.
  *
  * A `?task=` id the student's catalogue does not contain is "not available" — it is
- * never swapped for another task (see `pickPracticeTarget`). A premium-locked task
- * says so BEFORE recording. `?from=daily` (set by the daily session) adds the way back
- * to it on every outcome.
+ * never swapped for another task (see `pickPracticeTarget`); a submit refused 404
+ * (deleted) or 403 (unpublished / not assigned / past deadline / out of attempts)
+ * ends in the same kind of state, worded from the status, never the server's text.
+ * A premium-locked task says so BEFORE recording. `?from=daily` (set by the daily
+ * session) adds the way back to it on every outcome.
  */
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
