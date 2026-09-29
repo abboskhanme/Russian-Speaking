@@ -88,6 +88,15 @@ public sealed partial class CatalogEndpointsTests
             Assert.Equal("public", promoted.GetProperty("visibility").GetString());
             Assert.Equal("Ustoz Karimov", promoted.GetProperty("owner_name").GetString());   // still theirs
 
+            // ── ...and only an admin may take it back OUT of the official catalog; the owner keeps
+            // every other edit ──
+            var demoteRefused = await Api(client, HttpMethod.Patch, $"/api/blocks/{ownId}", tokenT, Body(new { visibility = "group" }));
+            Assert.Equal(HttpStatusCode.Forbidden, demoteRefused.StatusCode);
+            Assert.Equal("public_requires_admin", (await ReadJson(demoteRefused)).GetProperty("code").GetString());
+            var renamed = await ReadJson(await Api(client, HttpMethod.Patch, $"/api/blocks/{ownId}", tokenT, Body(new { name = "O'z moduli (rasmiy)" })));
+            Assert.Equal("public", renamed.GetProperty("visibility").GetString());
+            Assert.Equal("O'z moduli (rasmiy)", renamed.GetProperty("name").GetString());
+
             // ── End to end: a task + publish → a student with NO teacher now sees the official module ──
             Assert.DoesNotContain(await StudentModuleIds(client, AuthToken(loneStudentId)), id => id == officialId);
             Assert.Equal(HttpStatusCode.Created, (await Api(client, HttpMethod.Post, "/api/questions", tokenA,
@@ -181,6 +190,16 @@ public sealed partial class CatalogEndpointsTests
             Assert.Equal(HttpStatusCode.OK,
                 (await Api(client, HttpMethod.Patch, $"/api/blocks/{blockId}", tokenT, Body(new { is_published = true }))).StatusCode);
             Assert.Equal(3, (await StudentModule(client, tokenS, blockId)).GetProperty("total").GetInt32());
+
+            // Rule 1 for a MOVE · a loose draft task attached to the live module goes live with it,
+            // exactly as if it had been created there.
+            var loose = await ReadJson(await Api(client, HttpMethod.Post, "/api/questions", tokenT,
+                Body(new { title = "Tashqaridan", prompt_text = "Что вы любите делать?" })));
+            Assert.False(loose.GetProperty("is_published").GetBoolean());
+            var moved = await ReadJson(await Api(client, HttpMethod.Patch, $"/api/questions/{loose.GetProperty("id").GetGuid()}", tokenT,
+                Body(new { block_id = blockId })));
+            Assert.True(moved.GetProperty("is_published").GetBoolean());
+            Assert.Equal(4, (await StudentModule(client, tokenS, blockId)).GetProperty("total").GetInt32());
         }
         finally
         {

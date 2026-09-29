@@ -473,6 +473,13 @@ public sealed class CatalogService
         // module still answers 404 rather than revealing that it exists.
         if (body.Visibility == PublicVisibility && user.Role != UserRole.Admin)
             return PublicRequiresAdmin<TeacherBlockDetailResponse>();
+        // The same rule read the other way: once an admin has made a teacher's module official,
+        // taking it OUT of the official catalog is also the admin's call. Otherwise the owner could
+        // quietly withdraw a module every teacherless student is working through. The owner keeps
+        // every other edit (name, level, tasks, publish state) — it is still their content.
+        if (b.Visibility == PublicVisibility && body.Visibility is not null
+            && body.Visibility != PublicVisibility && user.Role != UserRole.Admin)
+            return PublicRequiresAdmin<TeacherBlockDetailResponse>();
 
         if (body.Name is not null)
         {
@@ -701,6 +708,11 @@ public sealed class CatalogService
             // Moving into a module puts it at the end unless the caller also set a sort order.
             if (q.BlockId != target.Id && body.SortOrder is null)
                 q.SortOrder = await NextQuestionSortAsync(target.Id, ct);
+            // …and takes on the module's published state, the same rule a task CREATED inside it
+            // follows — otherwise a draft moved into a live module stays invisible while the editor
+            // reports the module as live. An explicit is_published in the same request still wins.
+            if (q.BlockId != target.Id && body.IsPublished is null)
+                q.IsPublished = target.IsPublished;
             q.BlockId = target.Id;
             newBlock = target;
         }
