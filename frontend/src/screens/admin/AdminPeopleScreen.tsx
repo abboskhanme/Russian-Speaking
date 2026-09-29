@@ -10,6 +10,7 @@ import { AdminAccountButton } from "./AdminChrome";
 import { AdminAccountsList } from "./AdminAccountsList";
 import type { AdminAccount } from "./AdminAccountsList";
 import { RoleChangeDialog, roleName } from "./RoleChangeDialog";
+import { adminErrorCode } from "./adminErrors";
 import type { RoleChangeTarget } from "./RoleChangeDialog";
 import { formatPhone } from "./formatPhone";
 import { mockAdminStudents, mockAdminTeachers } from "./admin.mock";
@@ -445,8 +446,11 @@ function ManageSheet({
     setError(null);
     try {
       await fn();
-    } catch {
-      setError(t("admin.saveFailed"));
+    } catch (e) {
+      // A refused rename says why; everything else is the generic line.
+      setError(
+        adminErrorCode(e) === "invalid_full_name" ? t("admin.errInvalidName") : t("admin.saveFailed"),
+      );
     } finally {
       setBusy(false);
     }

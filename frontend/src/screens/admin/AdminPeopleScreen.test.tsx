@@ -142,6 +142,17 @@ describe("O'qituvchi qo'shish", () => {
     expect(screen.queryByText(/Internal english detail/)).not.toBeInTheDocument();
   });
 
+  it("puts invalid_full_name on the name field", async () => {
+    const onCreateTeacher = vi.fn(() => Promise.reject(apiError(400, { code: "invalid_full_name" })));
+    const user = setup({ onCreateTeacher });
+
+    await openAddSheet(user);
+    await fillAndSubmit(user, "X", "90 123 45 67");
+
+    expect(await dialog().findByText(t("admin.errInvalidName"))).toBeInTheDocument();
+    expect(dialog().queryByText(t("admin.errInvalidPhone"))).not.toBeInTheDocument();
+  });
+
   it("offers the add button inside the empty state of a fresh install", async () => {
     const onCreateTeacher = vi.fn(() => Promise.resolve());
     render(<AdminPeopleScreen kind="teachers" people={[]} onCreateTeacher={onCreateTeacher} />);

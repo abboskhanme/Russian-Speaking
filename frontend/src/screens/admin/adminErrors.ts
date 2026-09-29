@@ -49,6 +49,9 @@ export function roleChangeError(e: unknown, t: TFunction): string {
       return typeof body.group_count === "number"
         ? t("admin.role.errOwnsGroups", { count: body.group_count })
         : t("admin.role.errOwnsGroupsUnknown");
+    case "invalid_role":
+      // Only reachable through a client bug — the buttons send the three real roles.
+      return t("admin.role.errInvalidRole");
   }
   if (isNetworkError(e)) return t("auth.errors.network");
   return t("admin.saveFailed");

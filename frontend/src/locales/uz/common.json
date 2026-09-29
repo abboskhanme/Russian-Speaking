@@ -1183,6 +1183,7 @@
     "phone": "Telefon raqami",
     "noPhone": "telefon yo'q",
     "errNameRequired": "Ism va familiyani kiriting.",
+    "errInvalidName": "Ism va familiyani to'g'ri kiriting.",
     "errInvalidPhone": "Telefon raqami noto'g'ri: +998 dan keyin 9 ta raqam bo'lishi kerak.",
     "errPhoneTaken": "Bu raqam bilan allaqachon o'qituvchi yoki admin hisobi bor.",
     "promoteQuestion": "Bu raqam o'quvchi {{name}} ga tegishli — o'qituvchiga aylantirilsinmi?",
@@ -1221,6 +1222,7 @@
       },
       "errLastAdmin": "Bu oxirgi admin — platformada kamida bitta admin qolishi kerak.",
       "errOwnRole": "O'z rolingizni o'zgartira olmaysiz — buni boshqa admin qiladi.",
+      "errInvalidRole": "Bunday rol yo'q. Sahifani yangilab, qayta urinib ko'ring.",
       "errOwnsGroups_one": "Bu o'qituvchida {{count}} ta guruh bor — avval guruhlarni o'chirish kerak. Faqat kirishni to'xtatmoqchi bo'lsangiz, hisobni faolsizlantiring.",
       "errOwnsGroups_other": "Bu o'qituvchida {{count}} ta guruh bor — avval guruhlarni o'chirish kerak. Faqat kirishni to'xtatmoqchi bo'lsangiz, hisobni faolsizlantiring.",
       "errOwnsGroupsUnknown": "Bu o'qituvchining guruhlari bor — avval guruhlarni o'chirish kerak. Faqat kirishni to'xtatmoqchi bo'lsangiz, hisobni faolsizlantiring."

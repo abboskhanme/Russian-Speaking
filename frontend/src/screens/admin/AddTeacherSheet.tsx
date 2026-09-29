@@ -87,6 +87,8 @@ export function AddTeacherSheet({
         setPhoneError(t("admin.errPhoneTaken"));
       } else if (body?.code === "invalid_phone") {
         setPhoneError(t("admin.errInvalidPhone"));
+      } else if (body?.code === "invalid_full_name") {
+        setNameError(t("admin.errInvalidName"));
       } else if (isNetworkError(err)) {
         setError(t("auth.errors.network"));
       } else {

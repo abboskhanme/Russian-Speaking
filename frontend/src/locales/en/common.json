@@ -1183,6 +1183,7 @@
     "phone": "Phone number",
     "noPhone": "no phone",
     "errNameRequired": "Enter the full name.",
+    "errInvalidName": "Enter a valid full name.",
     "errInvalidPhone": "Invalid number: enter 9 digits after +998.",
     "errPhoneTaken": "This number already belongs to a teacher or admin account.",
     "promoteQuestion": "This number belongs to the student {{name}} — make them a teacher?",
@@ -1221,6 +1222,7 @@
       },
       "errLastAdmin": "This is the last admin — the platform must keep at least one.",
       "errOwnRole": "You can't change your own role — another admin has to.",
+      "errInvalidRole": "No such role. Reload the page and try again.",
       "errOwnsGroups_one": "This teacher has {{count}} group — delete it first. If you only need to stop them signing in, deactivate the account.",
       "errOwnsGroups_other": "This teacher has {{count}} groups — delete them first. If you only need to stop them signing in, deactivate the account.",
       "errOwnsGroupsUnknown": "This teacher has groups — delete them first. If you only need to stop them signing in, deactivate the account."
