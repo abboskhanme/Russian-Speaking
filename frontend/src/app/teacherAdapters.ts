@@ -4,6 +4,7 @@
  */
 import { isApiError } from "../shared/api";
 import type {
+  CodedErrorResponse,
   CreateQuestionArgs,
   GroupDetailResponse,
   GroupResponse,
@@ -72,11 +73,12 @@ export function createQuestionArgs(draft: NewTaskDraft, blockId: string | null):
  * Screens branch on this and map it to i18n — the `detail` beside it is English
  * prose for developers and is never shown to a teacher.
  */
-export function apiErrorCode(e: unknown): string | null {
+export function apiErrorCode(e: unknown): CodedErrorResponse["code"] | null {
   if (!isApiError(e)) return null;
   const body = e.body;
   if (body && typeof body === "object" && "code" in body) {
-    const code = (body as { code: unknown }).code;
+    // Checked, not trusted: an older API image sends `{ detail }` alone.
+    const code: unknown = (body as Partial<Record<keyof CodedErrorResponse, unknown>>).code;
     return typeof code === "string" && code ? code : null;
   }
   return null;

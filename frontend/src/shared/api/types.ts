@@ -544,6 +544,16 @@ export interface JoinGroupResponse extends GroupResponse {
  * Every 400 these routes produce carries a machine `code` beside the human `detail`
  * ({ detail, code }); the UI branches on the code and never prints the detail. */
 
+/** The error body of a refusal that carries a machine reason — `due_in_past`,
+ * `name_too_long`, `question_not_published`, `confirm_with_band`, … It arrives on
+ * a non-2xx response, so it is read off `ApiError.body` (see `apiErrorCode` in
+ * app/teacherAdapters), never returned from an endpoint function. `detail` is
+ * developer prose and is never rendered; `code` is mapped to i18n. */
+export interface CodedErrorResponse {
+  detail: string;
+  code: string;
+}
+
 /** PATCH /api/groups/{id} body → {@link GroupResponse}. An absent field is left
  * alone. `name` is trimmed; blank → 400 `name_required`, >128 chars → 400
  * `name_too_long`.
