@@ -17,6 +17,9 @@ export function task(id: string, over: Partial<StudentTaskResponse> = {}): Stude
     locked: false,
     premium_locked: false,
     band: null,
+    // An API that sends no timings for this task: no prep step, the default cap.
+    prep_time_sec: 0,
+    answer_time_limit_sec: 0,
     ...over,
   };
 }

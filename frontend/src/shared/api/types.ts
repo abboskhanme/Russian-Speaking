@@ -227,11 +227,11 @@ export interface StudentTaskResponse {
   /** Best overall band (0..100) the caller earned on this task; null when never graded. */
   band: number | null;
   /* ── The task's own content, so the answer screen can show the QUESTION and not only its
-   *    title. APPEND-ONLY and typed optional on purpose: the fields ship in a parallel backend
-   *    change, and the task screen must keep working (title only, no prep step, the Recorder's
-   *    default cap) against an API image that does not send them yet. A locked task carries
-   *    nulls for the prompt / instruction / media — the words are part of what premium unlocks.
-   *    The model answer is deliberately NOT here: it is revealed only after submitting. ── */
+   *    title. APPEND-ONLY. The four content fields mirror the document exactly (optional AND
+   *    nullable): a locked task carries nulls for the prompt / instruction / media — the words
+   *    are part of what premium unlocks — and the screen still degrades to the title alone
+   *    when they are absent. The two timings are always sent. The model answer is deliberately
+   *    NOT here: it is revealed only after submitting. ── */
   /** The Russian question/prompt the student answers aloud. */
   prompt_text?: string | null;
   /** The instruction ("shart") — how to answer: length, register, what to cover. */
@@ -240,9 +240,9 @@ export interface StudentTaskResponse {
   media_url?: string | null;
   media_type?: "image" | "video" | null;
   /** "Collect your thoughts" seconds before capture starts; 0 = no prep step. */
-  prep_time_sec?: number;
-  /** Hard cap on the answer, seconds; the recorder auto-stops here. 0/absent = the default. */
-  answer_time_limit_sec?: number;
+  prep_time_sec: number;
+  /** Hard cap on the answer, seconds; the recorder auto-stops here. 0 = the Recorder's default. */
+  answer_time_limit_sec: number;
 }
 
 export type ModuleVisibility = "public" | "group";

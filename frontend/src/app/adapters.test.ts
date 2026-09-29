@@ -66,6 +66,8 @@ function task(id: string): StudentTaskResponse {
     locked: false,
     premium_locked: false,
     band: null,
+    prep_time_sec: 0,
+    answer_time_limit_sec: 0,
   };
 }
 
