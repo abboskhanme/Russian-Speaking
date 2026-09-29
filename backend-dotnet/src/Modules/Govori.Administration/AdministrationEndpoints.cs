@@ -16,7 +16,9 @@ namespace Govori.Administration;
 /// <para>Endpoints are thin (§7.2): parse the access-token <c>sub</c> → gate via
 /// <see cref="AdministrationService"/> (admin-only, or any active user) → act via
 /// <see cref="AdministrationService"/> or <see cref="AppSettingsService"/> → map the outcome to
-/// HTTP. Error bodies use the <c>{ "detail": ... }</c> shape used across the API.</para>
+/// HTTP. Error bodies use the <c>{ "detail": ... }</c> shape used across the API; where the admin UI
+/// has to react differently per failure (creating a teacher, changing a role, saving a link) the
+/// body also carries a stable <c>code</c> from <see cref="AdminErrorCodes"/>.</para>
 ///
 /// <para>Routes live under <c>/api/admin/…</c> and <c>/api/settings/links</c> — unversioned, matching
 /// the sibling modules' <c>/api/…</c> convention.</para>
@@ -49,11 +51,21 @@ public static class AdministrationEndpoints
             return Map(await svc.StatsAsync(uid, ct), StatusCodes.Status200OK);
         }).RequireAuthorization();
 
-        // GET /api/admin/teachers[?search] — teacher list, each with its question count.
+        // GET /api/admin/teachers[?search] — teacher list, each with its question count and phone.
+        // `search` matches name/email, and the phone too once it holds 3+ digits.
         admin.MapGet("/teachers", async (string? search, ClaimsPrincipal p, AdministrationService svc, CancellationToken ct) =>
         {
             if (!TryGetUserId(p, out var uid)) return Results.Unauthorized();
             return Map(await svc.ListTeachersAsync(uid, search, ct), StatusCodes.Status200OK);
+        }).RequireAuthorization();
+
+        // POST /api/admin/teachers — create a teacher for a phone nobody uses yet → 201 TeacherResponse.
+        // 400 invalid_phone / invalid_full_name; 409 phone_taken_by_student (with user_id + full_name,
+        // so the UI can offer "promote" instead) or phone_taken.
+        admin.MapPost("/teachers", async (CreateTeacherRequest body, ClaimsPrincipal p, AdministrationService svc, CancellationToken ct) =>
+        {
+            if (!TryGetUserId(p, out var uid)) return Results.Unauthorized();
+            return Map(await svc.CreateTeacherAsync(uid, body, ct), StatusCodes.Status201Created);
         }).RequireAuthorization();
 
         // PATCH /api/admin/teachers/{id} — edit a teacher (full_name/is_active).
@@ -90,6 +102,22 @@ public static class AdministrationEndpoints
         {
             if (!TryGetUserId(p, out var uid)) return Results.Unauthorized();
             return MapNoContent(await svc.DeleteStudentAsync(uid, id, ct), notFound: "Student not found");
+        }).RequireAuthorization();
+
+        // GET /api/admin/admins — every admin, each flagged is_self for the caller's own row.
+        admin.MapGet("/admins", async (ClaimsPrincipal p, AdministrationService svc, CancellationToken ct) =>
+        {
+            if (!TryGetUserId(p, out var uid)) return Results.Unauthorized();
+            return Map(await svc.ListAdminsAsync(uid, ct), StatusCodes.Status200OK);
+        }).RequireAuthorization();
+
+        // PATCH /api/admin/users/{id}/role — { "role": "student"|"teacher"|"admin" } → 200 { id, role }.
+        // 400 invalid_role / cannot_change_own_role; 404 unknown user; 409 last_admin /
+        // teacher_owns_groups (with group_count). Same role → 200, nothing written.
+        admin.MapPatch("/users/{id:guid}/role", async (Guid id, UserRoleUpdateRequest body, ClaimsPrincipal p, AdministrationService svc, CancellationToken ct) =>
+        {
+            if (!TryGetUserId(p, out var uid)) return Results.Unauthorized();
+            return Map(await svc.ChangeRoleAsync(uid, id, body, ct), StatusCodes.Status200OK, notFound: "User not found");
         }).RequireAuthorization();
     }
 
@@ -262,15 +290,27 @@ public static class AdministrationEndpoints
             return deny ?? Results.Ok(await svc.ResolveLinksAsync(ct));
         }).RequireAuthorization();
 
-        // PATCH /api/admin/settings/links — tri-state upsert of the links.
+        // PATCH /api/admin/settings/links — tri-state upsert of the links. Each SENT value must be a
+        // link (see OutboundLinks): https/http is kept, `t.me/x` and `@x` become https://t.me/x, ""
+        // still clears, anything else is 400 invalid_link naming the field. Nothing is written unless
+        // every sent field passes, so a half-valid request cannot half-apply.
         settings.MapPatch("/links", async (LinksUpdate body, ClaimsPrincipal p, AdministrationService admin, AppSettingsService svc, CancellationToken ct) =>
         {
             var (uid, deny) = await AdminGate(p, admin, ct);
             if (deny is not null) return deny;
 
             var vals = new Dictionary<string, string?>();
-            Add(vals, "tg_support_url", body.TgSupportUrl);
-            Add(vals, "tg_channel_url", body.TgChannelUrl);
+            foreach (var (key, raw) in new[] { ("tg_support_url", body.TgSupportUrl), ("tg_channel_url", body.TgChannelUrl) })
+            {
+                if (raw is null) continue;                          // omitted = leave unchanged
+                if (!OutboundLinks.TryNormalize(raw, out var link))
+                    return Results.Json(
+                        new InvalidLinkResponse(
+                            $"{key} must be a link: https://…, t.me/… or @username",
+                            AdminErrorCodes.InvalidLink, key),
+                        statusCode: StatusCodes.Status400BadRequest);
+                vals[key] = link;
+            }
             await svc.SetManyAsync(vals, ct);
             return Results.Ok(await svc.ResolveLinksAsync(ct));
         }).RequireAuthorization();
@@ -318,6 +358,7 @@ public static class AdministrationEndpoints
         };
     }
 
+    // 400/409 send the service's own error record (detail + code + any extra fields) verbatim.
     private static IResult Map<T>(AdminResult<T> r, int okStatus, string? notFound = null)
         => r.Outcome switch
         {
@@ -325,6 +366,8 @@ public static class AdministrationEndpoints
             AdminOutcome.Unauthorized => Results.Unauthorized(),
             AdminOutcome.Forbidden => Detail("Admin role required", StatusCodes.Status403Forbidden),
             AdminOutcome.NotFound => Detail(notFound ?? "Not found", StatusCodes.Status404NotFound),
+            AdminOutcome.BadRequest => Results.Json(r.Error, statusCode: StatusCodes.Status400BadRequest),
+            AdminOutcome.Conflict => Results.Json(r.Error, statusCode: StatusCodes.Status409Conflict),
             _ => Results.StatusCode(StatusCodes.Status500InternalServerError),
         };
 
