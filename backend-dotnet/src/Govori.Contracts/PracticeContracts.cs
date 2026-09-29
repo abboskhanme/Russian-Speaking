@@ -192,3 +192,19 @@ public sealed record ReviewSubmissionRequest
     [System.Text.Json.Serialization.JsonIgnore]
     public bool HasTeacherComment { get; private init; }
 }
+
+/// <summary>
+/// The <c>code</c> values PATCH /api/submissions/{id}/review puts in a
+/// <see cref="CodedErrorResponse"/> (all 400s). Wire contract: renaming one is a breaking change.
+/// </summary>
+public static class ReviewErrorCodes
+{
+    /// <summary>No <c>teacher_band</c>, no <c>teacher_comment</c>, no <c>confirm: true</c>.</summary>
+    public const string EmptyReview = "empty_review";
+
+    /// <summary><c>confirm</c> sent together with a <c>teacher_band</c> key.</summary>
+    public const string ConfirmWithBand = "confirm_with_band";
+
+    /// <summary><c>teacher_band</c> outside 0..100.</summary>
+    public const string BandOutOfRange = "band_out_of_range";
+}

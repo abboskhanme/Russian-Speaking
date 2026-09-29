@@ -396,13 +396,13 @@ public sealed class PracticeService
 
         var confirm = body.Confirm == true;
         if (!body.HasTeacherBand && !body.HasTeacherComment && !confirm)
-            return ReviewResult.BadRequest("empty_review",
+            return ReviewResult.BadRequest(ReviewErrorCodes.EmptyReview,
                 "Provide teacher_band (0..100), teacher_comment, or confirm: true");
         if (confirm && body.HasTeacherBand)
-            return ReviewResult.BadRequest("confirm_with_band",
+            return ReviewResult.BadRequest(ReviewErrorCodes.ConfirmWithBand,
                 "confirm accepts the AI's score; it cannot be sent together with teacher_band");
         if (body.TeacherBand is { } band && (band < 0 || band > 100))
-            return ReviewResult.BadRequest("band_out_of_range", "teacher_band must be between 0 and 100");
+            return ReviewResult.BadRequest(ReviewErrorCodes.BandOutOfRange, "teacher_band must be between 0 and 100");
 
         var sub = await _db.Submissions.FirstOrDefaultAsync(s => s.Id == submissionId, ct);
         if (sub is null || sub.StudentId == user.Id)

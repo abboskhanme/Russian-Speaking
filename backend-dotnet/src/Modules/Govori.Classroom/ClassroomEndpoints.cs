@@ -299,11 +299,11 @@ public static class ClassroomEndpoints
             ClassroomOutcome.Unauthorized => Results.Unauthorized(),
             ClassroomOutcome.Forbidden => Detail(forbidden ?? "Forbidden", StatusCodes.Status403Forbidden),
             ClassroomOutcome.NotFound => Detail(notFound ?? "Not found", StatusCodes.Status404NotFound),
-            // { detail, code } when the service named a machine code; the older 400s have none and
-            // keep their exact { detail } body.
+            // A CodedErrorResponse { detail, code } when the service named a ClassroomErrorCodes
+            // value; the older 400s have none and keep their exact { detail } body.
             ClassroomOutcome.BadRequest => r.Code is null
                 ? Detail(r.Detail ?? "Bad request", StatusCodes.Status400BadRequest)
-                : Results.Json(new { detail = r.Detail ?? "Bad request", code = r.Code },
+                : Results.Json(new CodedErrorResponse(r.Detail ?? "Bad request", r.Code),
                     statusCode: StatusCodes.Status400BadRequest),
             _ => Results.StatusCode(StatusCodes.Status500InternalServerError),
         };

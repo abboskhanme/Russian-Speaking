@@ -323,8 +323,36 @@ public sealed record InsightsRemediationStudent(Guid Id, string FullName);
 // A teacher could create a group and hand out work, and then could change neither: no rename, no
 // fresh join code, no way to remove one student or the whole group, no way to take an assignment
 // back or move its deadline. These are the bodies and results of those routes. Every 400 they
-// produce carries a machine `code` beside the human `detail` ({ "detail": ..., "code": ... }) so a
-// client can branch on the reason without parsing prose.
+// produce is a CodedErrorResponse — a machine `code` (ClassroomErrorCodes) beside the human
+// `detail` — so a client can branch on the reason without parsing prose.
+
+/// <summary>
+/// The <c>code</c> values the Classroom endpoints put in a <see cref="CodedErrorResponse"/> (all
+/// 400s). Wire contract: the teacher panel branches on these, so renaming one is a breaking change.
+/// </summary>
+public static class ClassroomErrorCodes
+{
+    /// <summary>PATCH /groups/{id}: <c>name</c> was sent blank.</summary>
+    public const string NameRequired = "name_required";
+
+    /// <summary>PATCH /groups/{id}: <c>name</c> is longer than the 128-character column.</summary>
+    public const string NameTooLong = "name_too_long";
+
+    /// <summary>PATCH /groups/{id}: <c>level</c> was sent; groups have no stored level.</summary>
+    public const string LevelNotSupported = "level_not_supported";
+
+    /// <summary>PATCH /assignments/group: the body has no <c>due_at</c> key at all.</summary>
+    public const string DueAtRequired = "due_at_required";
+
+    /// <summary>PATCH /assignments/group: <c>due_at</c> is already in the past.</summary>
+    public const string DueInPast = "due_in_past";
+
+    /// <summary>PATCH /classroom/students/{id}/premium: <c>is_premium</c> is missing.</summary>
+    public const string IsPremiumRequired = "is_premium_required";
+
+    /// <summary>POST /assignments: the task is an unpublished draft — publish it first.</summary>
+    public const string QuestionNotPublished = "question_not_published";
+}
 
 /// <summary>
 /// Body of PATCH /api/groups/{id}. Both fields are optional; an absent or <c>null</c> one leaves the

@@ -425,17 +425,17 @@ public sealed class ClassroomService
         if (payload.Level is not null)
             return ClassroomResult<GroupResponse>.BadRequest(
                 "A group has no stored level — its CEFR badge is derived from its students' scores",
-                "level_not_supported");
+                ClassroomErrorCodes.LevelNotSupported);
 
         string? name = null;
         if (payload.Name is not null)
         {
             name = payload.Name.Trim();
             if (name.Length == 0)
-                return ClassroomResult<GroupResponse>.BadRequest("name must not be blank", "name_required");
+                return ClassroomResult<GroupResponse>.BadRequest("name must not be blank", ClassroomErrorCodes.NameRequired);
             if (name.Length > GroupNameMax)
                 return ClassroomResult<GroupResponse>.BadRequest(
-                    $"name must be at most {GroupNameMax} characters", "name_too_long");
+                    $"name must be at most {GroupNameMax} characters", ClassroomErrorCodes.NameTooLong);
         }
 
         var group = await OwnedGroupAsync(user, groupId, ct);
@@ -586,7 +586,7 @@ public sealed class ClassroomService
         // to the owner (the 404 above came first), and with a code so the UI can say "publish it".
         if (!q.IsPublished)
             return ClassroomResult<IReadOnlyList<AssignmentResponse>>.BadRequest(
-                "Publish the task before assigning it", "question_not_published");
+                "Publish the task before assigning it", ClassroomErrorCodes.QuestionNotPublished);
 
         var targetIds = await ResolveTargetsAsync(payload.StudentIds, payload.GroupId, ct);
         var validIds = await RosterStudentIds(user, targetIds, ct);               // S1 fix
@@ -797,13 +797,13 @@ public sealed class ClassroomService
 
         if (!payload.HasDueAt)
             return ClassroomResult<UpdateGroupAssignmentsResponse>.BadRequest(
-                "due_at is required — send null to remove the deadline", "due_at_required");
+                "due_at is required — send null to remove the deadline", ClassroomErrorCodes.DueAtRequired);
 
         var now = DateTime.UtcNow;
         DateTime? dueAt = payload.DueAt is { } raw ? AsUtc(raw) : null;
         if (dueAt < now)
             return ClassroomResult<UpdateGroupAssignmentsResponse>.BadRequest(
-                "due_at is in the past", "due_in_past");
+                "due_at is in the past", ClassroomErrorCodes.DueInPast);
 
         var group = await OwnedGroupAsync(user, payload.GroupId, ct);
         if (group is null) return ClassroomResult<UpdateGroupAssignmentsResponse>.NotFound();
@@ -1410,7 +1410,7 @@ public sealed class ClassroomService
 
         if (payload.IsPremium is not { } grant)
             return ClassroomResult<StudentPremiumResponse>.BadRequest(
-                "is_premium (true or false) is required", "is_premium_required");
+                "is_premium (true or false) is required", ClassroomErrorCodes.IsPremiumRequired);
 
         var student = await ReachableStudentAsync(user, studentId, ct);
         if (student is null) return ClassroomResult<StudentPremiumResponse>.NotFound();

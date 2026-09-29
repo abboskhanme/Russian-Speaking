@@ -148,7 +148,7 @@ public static class PracticeEndpoints
                 ReviewStatus.Forbidden => Detail("Teacher role required", StatusCodes.Status403Forbidden),
                 ReviewStatus.NotFound => Detail("Submission not found", StatusCodes.Status404NotFound),
                 ReviewStatus.BadRequest => Results.Json(
-                    new { detail = outcome.Detail, code = outcome.Code },
+                    new CodedErrorResponse(outcome.Detail ?? "Bad request", outcome.Code ?? ReviewErrorCodes.EmptyReview),
                     statusCode: StatusCodes.Status400BadRequest),
                 _ => Results.StatusCode(StatusCodes.Status500InternalServerError),
             };
