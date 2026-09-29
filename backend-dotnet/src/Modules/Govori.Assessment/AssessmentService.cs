@@ -143,6 +143,10 @@ public sealed class AssessmentService
         try
         {
             sub.Status = SubmissionStatus.Processing;                       // claim it before any slow work
+            // Stamped at the claim because the stuck-submission sweeper measures "15 min in
+            // processing" from updated_at. Left alone it still held the upload time, so an answer
+            // that waited in the queue and was then claimed could be failed moments into grading.
+            sub.UpdatedAt = DateTime.UtcNow;
             // A re-run (the job re-queued after a worker restart) may find the code a previous
             // attempt, or the stuck-submission sweeper, left behind. This run's outcome replaces it.
             sub.ErrorMessage = null;

@@ -223,6 +223,11 @@ public sealed class AssessmentPipelineTests
         var events = new RecordingGradingEvents();
         using var shutdown = new CancellationTokenSource();
 
+        // The answer sat in the queue for 30 minutes before a worker claimed it.
+        await using (var ctx = CreateContext())
+            await ctx.Submissions.Where(s => s.Id == ids.SubmissionId)
+                .ExecuteUpdateAsync(set => set.SetProperty(s => s.UpdatedAt, DateTime.UtcNow.AddMinutes(-30)));
+
         try
         {
             await using (var ctx = CreateContext())
@@ -236,6 +241,9 @@ public sealed class AssessmentPipelineTests
                 var sub = await ctx.Submissions.SingleAsync(s => s.Id == ids.SubmissionId);
                 Assert.Equal(SubmissionStatus.Processing, sub.Status);   // not failed: nothing was wrong
                 Assert.Null(sub.ErrorMessage);
+                // The claim restamped updated_at, so the stuck-submission sweeper counts its
+                // 15 minutes from the claim — not from the upload, which would fail it at once.
+                Assert.True(sub.UpdatedAt > DateTime.UtcNow.AddMinutes(-1));
             }
             Assert.DoesNotContain(events.Events, e => e.State == GradingState.Failed);
 
