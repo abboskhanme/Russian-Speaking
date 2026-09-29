@@ -25,9 +25,13 @@ namespace Govori.IntegrationTests;
 ///   <item><c>next_task_id</c> is the first done-able task (null when only locked tasks remain).</item>
 /// </list>
 /// Every seeded row is deleted in a finally so the run is idempotent.
+///
+/// <para>PARTIAL: official modules, publish cascade, deletion and the student task content live in
+/// CatalogEndpointsTests.Lifecycle.cs — same class, so they share this class's one
+/// <see cref="CatalogApiFactory"/> instead of booting another host.</para>
 /// </summary>
 [Collection(PerRunDatabaseFixture.CollectionName)]
-public sealed class CatalogEndpointsTests : IClassFixture<CatalogEndpointsTests.CatalogApiFactory>, IDisposable
+public sealed partial class CatalogEndpointsTests : IClassFixture<CatalogEndpointsTests.CatalogApiFactory>, IDisposable
 {
     private readonly CatalogApiFactory _factory;
     private readonly NpgsqlDataSource _dataSource;
