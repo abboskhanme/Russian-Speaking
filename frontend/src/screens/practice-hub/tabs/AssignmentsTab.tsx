@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import type { TFunction } from "i18next";
 import { Button, Card, Text } from "../../../shared/ui";
 import styles from "./AssignmentsTab.module.css";
+import { formatDayMonth } from "../../../app/adapters";
 
 /* -------------------------------------------------------------------------- */
 /* Public contract — imported by the hub shell (Agent 1).                     */
@@ -217,10 +218,8 @@ function formatDue(
     return { text: t("mashq.assignments.when.tomorrow", { time }), overdue: false };
   }
 
-  const date = new Intl.DateTimeFormat(lang, {
-    day: "numeric",
-    month: "short",
-  }).format(due);
+  // Not Intl for the month: Chromium has no Uzbek month names ("M07 30").
+  const date = formatDayMonth(dueAt, t);
   return { text: t("mashq.assignments.when.date", { date, time }), overdue: false };
 }
 

@@ -103,6 +103,28 @@ export function dateParts(iso: string): DateParts | null {
   };
 }
 
+/**
+ * "30-iyul" / "30 июля" / "Jul 30" (with `withTime`: "30-iyul 21:00" …) — a day and
+ * month in the active language, for deadlines and "when" lines.
+ *
+ * The month comes from `time.monthOf*`, not `time.month*`: Russian needs the
+ * GENITIVE after a day number ("30 июля", never "30 июль"), while the nominative
+ * `time.month*` stays right for a month on its own ("Июль 2026", a chart axis).
+ * Uzbek and English have one form, so their `monthOf*` repeat it (English short).
+ */
+export function formatDayMonth(
+  iso: string,
+  t: (key: string, opts?: Record<string, unknown>) => string,
+  withTime = false,
+): string {
+  const p = dateParts(iso);
+  if (!p) return "";
+  const month = t(`time.monthOf${p.month}`);
+  return withTime
+    ? t("time.dayMonthTime", { day: p.day, month, time: p.time })
+    : t("time.dayMonth", { day: p.day, month });
+}
+
 export function clampPct(n: number): number {
   return Math.max(0, Math.min(100, Math.round(n)));
 }

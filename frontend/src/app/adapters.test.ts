@@ -20,6 +20,7 @@ import {
   clampPct,
   dateParts,
   firstName,
+  formatDayMonth,
   gradingFailureKey,
   moduleProgressPct,
   myLeaderboardRow,
@@ -29,6 +30,9 @@ import {
   pickPracticeTarget,
   relativeTime,
 } from "./adapters";
+import enCommon from "../locales/en/common.json";
+import ruCommon from "../locales/ru/common.json";
+import uzCommon from "../locales/uz/common.json";
 
 /** Fixed clock, so "2 soat oldin" means the same thing in CI as it does here. */
 const NOW = new Date("2026-07-30T21:00:00Z");
@@ -149,6 +153,29 @@ describe("dateParts", () => {
 
   it("returns null for an unparseable value so the caller can omit the line", () => {
     expect(dateParts("nope")).toBeNull();
+  });
+});
+
+describe("formatDayMonth", () => {
+  // A `t` over the REAL locale files, so the test pins what users read — the
+  // genitive lives in the JSON, and a fake dictionary would only test itself.
+  const tFor = (time: Record<string, string>) => (key: string, opts: Record<string, unknown> = {}) =>
+    (time[key.replace(/^time\./, "")] ?? key).replace(/\{\{(\w+)\}\}/g, (_, k: string) => String(opts[k]));
+  const iso = new Date(2026, 6, 30, 21, 0).toISOString();
+
+  it("puts Russian in the genitive after a day number — «30 июля», never «30 июль»", () => {
+    const t = tFor(ruCommon.time);
+    expect(formatDayMonth(iso, t)).toBe("30 июля");
+    expect(formatDayMonth(iso, t, true)).toBe("30 июля, 21:00");
+  });
+
+  it("writes Uzbek and English in their own order", () => {
+    expect(formatDayMonth(iso, tFor(uzCommon.time), true)).toBe("30-iyul 21:00");
+    expect(formatDayMonth(iso, tFor(enCommon.time))).toBe("Jul 30");
+  });
+
+  it("is empty for an unparseable value", () => {
+    expect(formatDayMonth("nope", tFor(uzCommon.time))).toBe("");
   });
 });
 

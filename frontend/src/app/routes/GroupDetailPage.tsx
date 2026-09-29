@@ -42,7 +42,7 @@ import type {
 } from "../../shared/api";
 import { PageError, PageLoading } from "../PageState";
 import { TEACHER_NAV_PATH, useTeacherNavHandler } from "../nav";
-import { dateParts } from "../adapters";
+import { formatDayMonth } from "../adapters";
 import { apiErrorCode, errorRowsFromInsights, levelFromBand } from "../teacherAdapters";
 
 export default function GroupDetailPage() {
@@ -298,16 +298,10 @@ export default function GroupDetailPage() {
 /**
  * A deadline → "30-iyul 21:00" in the active language.
  *
- * Built from `time.month*` + the per-language `time.dayMonthTime` pattern rather
- * than `Intl.DateTimeFormat`: Chromium's reduced ICU has no Uzbek month names and
- * renders `{ month: "short" }` as `"M07"`.
+ * Built by `formatDayMonth` rather than `Intl.DateTimeFormat`: Chromium's reduced
+ * ICU has no Uzbek month names and renders `{ month: "short" }` as `"M07"`. It also
+ * puts Russian in the genitive ("30 июля"), which `time.month*` could not.
  */
 function formatDue(iso: string, t: TFunction): string {
-  const p = dateParts(iso);
-  if (!p) return "";
-  return t("time.dayMonthTime", {
-    day: p.day,
-    month: t(`time.month${p.month}`),
-    time: p.time,
-  });
+  return formatDayMonth(iso, t, true);
 }
