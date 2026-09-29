@@ -337,9 +337,9 @@ Muhim:
 
 - Faqat **o'zingiz yaratgan** vazifa va modullarni bera olasiz. Rasmiy katalog
   vazifalari bu ro'yxatda yo'q.
-- Topshiriq qilib beradigan vazifangiz **nashr qilingan modul ichida** bo'lsin.
-  Modulsiz yoki qoralama moduldagi vazifani berish mumkin, lekin o'quvchi uni
-  ochganda "Bu vazifa mavjud emas" ko'radi.
+- Ro'yxatda faqat **nashr qilingan modul ichidagi** nashr qilingan vazifalar
+  chiqadi — o'quvchi topshiriqni o'z modullari orqali ochadi. Modulsiz yoki
+  qoralama moduldagi vazifani berish uchun avval uni modulga qo'shib, nashr qiling.
 
 **Berilgan topshiriqni o'zgartirish** — guruh sahifasi → **Faol topshiriqlar** →
 qatordagi menyu:
@@ -636,8 +636,8 @@ juftligini aytasiz, tizim qaysi so'z eshitilganini aytadi.
 
 - Admin yoqqan va nutqni tanish xizmati ulangan bo'lishi kerak.
 - Kuniga urinishlar soni cheklangan; ertasi kuni yangilanadi.
-- Hozircha ilova menyusida bu mashqqa tugma yo'q. U **govorim.uz/drill** manzili
-  orqali ochiladi.
+- **Mashq** bo'limining yuqorisidagi **Tovushlar mashqi** kartasi → **Mashq qilish**.
+  Mashq o'chiq yoki xizmat ulanmagan bo'lsa, karta ko'rinmaydi.
 
 ### 4.11 AI Suhbat
 
