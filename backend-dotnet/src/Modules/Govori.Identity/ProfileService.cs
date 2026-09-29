@@ -58,10 +58,12 @@ public sealed class ProfileService
     {
         // Streaks and lifetime XP come off the user row; the projection keeps this to the columns we
         // need and doubles as the missing/inactive check. Xp is the denormalised running total the
-        // grading pipeline maintains — here it is only read.
+        // grading pipeline maintains — here it is only read. The current streak is reported as it
+        // stands TODAY (StreakRules.Effective, hence the two extra columns), never the raw column,
+        // which keeps a broken streak until the student's next practice resets it.
         var streaks = await _db.Users
             .Where(u => u.Id == userId && u.IsActive)
-            .Select(u => new { u.CurrentStreak, u.LongestStreak, u.Xp })
+            .Select(u => new { u.CurrentStreak, u.LastPracticeDate, u.StreakFreezes, u.LongestStreak, u.Xp })
             .FirstOrDefaultAsync(ct);
         if (streaks is null) return null;
 
@@ -99,7 +101,8 @@ public sealed class ProfileService
         return new ProfileStatsResponse(
             Attempts: totals?.Attempts ?? 0,
             AvgBand: rounded,
-            CurrentStreak: streaks.CurrentStreak,
+            CurrentStreak: StreakRules.Effective(
+                streaks.CurrentStreak, streaks.LastPracticeDate, streaks.StreakFreezes, StreakRules.Today()),
             LongestStreak: streaks.LongestStreak,
             TotalPracticeSec: (int)Math.Round(totals?.Seconds ?? 0d, MidpointRounding.AwayFromZero),
             Level: level,

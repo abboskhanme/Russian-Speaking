@@ -254,9 +254,10 @@ try
     // over HTTP. Scoped (scoped DbContext).
     builder.Services.AddScoped<EngagementService>();
 
-    // The grading job's XP reward seam (IGradingRewarder → SubmissionRewarder). Registered here too
-    // because the API can run grading INLINE (InlineGradingQueue) when it hosts no separate Worker,
-    // and GradingJob resolves the rewarder from whichever host runs it.
+    // The grading job's engagement seam (IGradingRewarder → SubmissionRewarder: XP, streak, SRS
+    // review). Registered here too because the API can grade INLINE (InlineGradingQueue, selected by
+    // GOVORI_HANGFIRE=false) — and InlineGradingQueue runs GradingJob, which resolves the rewarder
+    // from whichever host runs it.
     builder.Services.AddScoped<Govori.Contracts.IGradingRewarder, Govori.Engagement.SubmissionRewarder>();
 
     // Classroom/Practice → notifications seam (IClassroomNotifier → ClassroomNotifier): join
@@ -313,12 +314,17 @@ try
     builder.Services.AddGovoriRateLimiter(builder.Configuration);
 
     // ── Identity providers + config (docs/07 §7.5, Faza 3.1) ────────────────
-    // OTP generation config — TTL/length/attempts reused as-is for phone codes.
+    // OTP generation config — TTL/length/attempts reused as-is for phone codes. The last three are
+    // the per-PHONE brakes (request cooldown, and wrong guesses per window across every code); see
+    // OtpOptions for why the per-code attempt limit alone was not one.
     builder.Services.AddSingleton(new OtpOptions
     {
         CodeLength = builder.Configuration.GetValue("EMAIL_OTP_LENGTH", 6),
         TtlSeconds = builder.Configuration.GetValue("EMAIL_OTP_TTL_SEC", 600),
         MaxAttempts = builder.Configuration.GetValue("EMAIL_OTP_MAX_ATTEMPTS", 5),
+        RequestCooldownSeconds = builder.Configuration.GetValue("OTP_REQUEST_COOLDOWN_SEC", 60),
+        MaxFailuresPerWindow = builder.Configuration.GetValue("OTP_MAX_FAILURES", 10),
+        FailureWindowSeconds = builder.Configuration.GetValue("OTP_FAILURE_WINDOW_SEC", 3600),
     });
     builder.Services.AddSingleton(new GoogleAuthOptions
     {
@@ -476,6 +482,11 @@ try
     app.UseGovoriSecurityHeaders();
 
     app.UseSerilogRequestLogging();
+
+    // A client that hung up is a 499 at Debug, not a 500 at Error. Must sit INSIDE the request
+    // logger (i.e. right after it) — see Startup/ClientAbort.cs for why the exception handler above
+    // cannot do this on its own.
+    app.UseGovoriClientAbortHandling();
 
     // CORS must precede authentication: a browser's preflight OPTIONS carries no Authorization
     // header, so anything that runs earlier and rejects it turns every cross-origin call into a

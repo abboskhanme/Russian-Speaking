@@ -776,7 +776,222 @@ public sealed class EngagementEndpointsTests : IClassFixture<EngagementEndpoints
         }
     }
 
+    // ─── SRS scheduled BY THE GRADING REWARD (legacy schedule_review, finally wired) ──
+
+    /// <summary>
+    /// The grading reward is what puts a weak answer on the review queue. ScheduleReviewAsync existed
+    /// but had no production caller, so nothing ever reached the queue on its own; the rewarder now runs
+    /// it after the XP award, as legacy's worker did.
+    /// </summary>
+    [Fact]
+    public async Task A_weak_graded_answer_is_queued_for_review_once_and_a_rerun_adds_nothing()
+    {
+        var studentId = Guid.NewGuid();
+        var teacherId = Guid.NewGuid();
+        var questionId = Guid.NewGuid();
+        var subId = Guid.NewGuid();
+        var olderReviewId = Guid.NewGuid();
+        var now = DateTime.UtcNow;
+
+        await using (var ctx = CreateContext())
+        {
+            var hasher = new PasswordHasher();
+            ctx.Users.Add(NewUser(studentId, UserRole.Student, hasher.Hash(Password)));
+            ctx.Users.Add(NewUser(teacherId, UserRole.Teacher, hasher.Hash(Password)));
+            ctx.Questions.Add(NewQuestion(questionId, teacherId));
+            ctx.Submissions.Add(NewSubmission(subId, studentId, questionId));
+            // Two dims below 67; grammar (55) is the weakest. Pronunciation is not one of the four.
+            SeedGraded(ctx, subId, fluency: 80, lexical: 60, grammar: 55, relevance: 90, transcript: "я иду домой");
+            // An older open review of the same question: this graded attempt supersedes it.
+            ctx.ReviewItems.Add(new ReviewItem
+            {
+                Id = olderReviewId, StudentId = studentId, QuestionId = questionId, WeaknessDim = "teacher",
+                IntervalIndex = 2, DueAt = now, Completed = false, CreatedAt = now.AddDays(-3), UpdatedAt = now.AddDays(-3),
+            });
+            await ctx.SaveChangesAsync();
+        }
+
+        try
+        {
+            await using (var ctx = CreateContext())
+                await new SubmissionRewarder(ctx, new EngagementService(ctx)).RewardGradedAsync(subId);
+
+            Guid scheduledId;
+            await using (var ctx = CreateContext())
+            {
+                var items = await ctx.ReviewItems.Where(r => r.StudentId == studentId).ToListAsync();
+                Assert.Equal(2, items.Count);
+                Assert.True(items.Single(r => r.Id == olderReviewId).Completed);
+
+                var scheduled = items.Single(r => !r.Completed);
+                scheduledId = scheduled.Id;
+                Assert.Equal("grammar", scheduled.WeaknessDim);
+                Assert.Equal(questionId, scheduled.QuestionId);
+                Assert.Equal(0, scheduled.IntervalIndex);
+                // First rung of [1, 3, 7, 16, 35]: due a day out.
+                Assert.InRange(scheduled.DueAt, now.AddDays(1).AddMinutes(-5), DateTime.UtcNow.AddDays(1).AddMinutes(5));
+                // Freshly enqueued, not "answered": the Daily drill step tells them apart this way.
+                Assert.Equal(scheduled.CreatedAt, scheduled.UpdatedAt);
+                // And the XP was awarded alongside it, exactly once.
+                Assert.Equal(1, await ctx.XpEvents.CountAsync(e => e.SubmissionId == subId));
+            }
+
+            // Re-run (Hangfire crash-resume / retry): nothing new, and the scheduled item is left
+            // alone rather than superseded by a copy of itself.
+            await using (var ctx = CreateContext())
+                await new SubmissionRewarder(ctx, new EngagementService(ctx)).RewardGradedAsync(subId);
+
+            await using (var ctx = CreateContext())
+            {
+                var items = await ctx.ReviewItems.Where(r => r.StudentId == studentId).ToListAsync();
+                Assert.Equal(2, items.Count);
+                Assert.Equal(scheduledId, items.Single(r => !r.Completed).Id);
+                Assert.Equal(1, await ctx.XpEvents.CountAsync(e => e.SubmissionId == subId));
+            }
+        }
+        finally
+        {
+            await using var ctx = CreateContext();
+            await ctx.ReviewItems.Where(r => r.StudentId == studentId).ExecuteDeleteAsync();
+            await CleanupUsersAsync(studentId, teacherId);
+        }
+    }
+
+    [Fact]
+    public async Task A_strong_or_a_silent_answer_is_not_queued_for_review()
+    {
+        var studentId = Guid.NewGuid();
+        var teacherId = Guid.NewGuid();
+        var strongQuestion = Guid.NewGuid();
+        var silentQuestion = Guid.NewGuid();
+        var strongSub = Guid.NewGuid();
+        var silentSub = Guid.NewGuid();
+
+        await using (var ctx = CreateContext())
+        {
+            var hasher = new PasswordHasher();
+            ctx.Users.Add(NewUser(studentId, UserRole.Student, hasher.Hash(Password)));
+            ctx.Users.Add(NewUser(teacherId, UserRole.Teacher, hasher.Hash(Password)));
+            ctx.Questions.Add(NewQuestion(strongQuestion, teacherId));
+            ctx.Questions.Add(NewQuestion(silentQuestion, teacherId));
+            ctx.Submissions.Add(NewSubmission(strongSub, studentId, strongQuestion));
+            ctx.Submissions.Add(NewSubmission(silentSub, studentId, silentQuestion));
+            // Every dim at or above the 67 threshold (67 itself is NOT weak: the rule is "< 67").
+            SeedGraded(ctx, strongSub, fluency: 67, lexical: 80, grammar: 90, relevance: 75, transcript: "всё хорошо");
+            // Weak everywhere, but nothing was said: no weakness to replay (and no XP either).
+            SeedGraded(ctx, silentSub, fluency: 10, lexical: 10, grammar: 10, relevance: 10, transcript: "   ");
+            await ctx.SaveChangesAsync();
+        }
+
+        try
+        {
+            foreach (var sub in new[] { strongSub, silentSub })
+                await using (var ctx = CreateContext())
+                    await new SubmissionRewarder(ctx, new EngagementService(ctx)).RewardGradedAsync(sub);
+
+            await using (var ctx = CreateContext())
+            {
+                Assert.Equal(0, await ctx.ReviewItems.CountAsync(r => r.StudentId == studentId));
+                Assert.Equal(1, await ctx.XpEvents.CountAsync(e => e.SubmissionId == strongSub));
+                Assert.Equal(0, await ctx.XpEvents.CountAsync(e => e.SubmissionId == silentSub));
+            }
+        }
+        finally
+        {
+            await using var ctx = CreateContext();
+            await ctx.ReviewItems.Where(r => r.StudentId == studentId).ExecuteDeleteAsync();
+            await CleanupUsersAsync(studentId, teacherId);
+        }
+    }
+
+    // ─── Streak READ paths report the streak alive today, not the stored column ──
+
+    /// <summary>
+    /// The stored streak only changes on the student's next award, so a student who stopped
+    /// practising kept a "live" streak on every screen (43 such rows in the dev DB). Every read path
+    /// now reports StreakRules.Effective — and reading must never spend a freeze.
+    /// </summary>
+    [Fact]
+    public async Task A_broken_streak_reads_as_zero_on_every_surface_and_reading_spends_no_freeze()
+    {
+        var brokenId = Guid.NewGuid();    // last practised 10 days ago, 2 freezes: 9 missed days → broken
+        var coveredId = Guid.NewGuid();   // last practised 3 days ago, 2 freezes: 2 missed days → alive
+        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+
+        await using (var ctx = CreateContext())
+        {
+            var hasher = new PasswordHasher();
+            // Huge XP so both sit in the global top 50 whatever else the run has seeded.
+            var broken = NewUser(brokenId, UserRole.Student, hasher.Hash(Password), "Broken Streak", xp: 9_000_000);
+            broken.CurrentStreak = 9;
+            broken.LongestStreak = 9;
+            broken.StreakFreezes = 2;
+            broken.LastPracticeDate = today.AddDays(-10);
+            var covered = NewUser(coveredId, UserRole.Student, hasher.Hash(Password), "Covered Streak", xp: 8_999_999);
+            covered.CurrentStreak = 6;
+            covered.LongestStreak = 6;
+            covered.StreakFreezes = 2;
+            covered.LastPracticeDate = today.AddDays(-3);
+            ctx.Users.AddRange(broken, covered);
+            await ctx.SaveChangesAsync();
+        }
+
+        try
+        {
+            var client = _factory.CreateClient();
+            var brokenToken = TokenFor(brokenId);
+
+            // Global leaderboard — both rows.
+            var board = await GetLeaderboard(client, brokenToken, "/api/leaderboard?period=all");
+            Assert.Equal(0, board.Single(e => e.GetProperty("id").GetGuid() == brokenId).GetProperty("current_streak").GetInt32());
+            Assert.Equal(6, board.Single(e => e.GetProperty("id").GetGuid() == coveredId).GetProperty("current_streak").GetInt32());
+
+            // Progress leaderboard — the caller's own streak.
+            using (var doc = JsonDocument.Parse(await (await Send(client, HttpMethod.Get, "/api/progress/leaderboard?period=all", brokenToken)).Content.ReadAsStringAsync()))
+                Assert.Equal(0, doc.RootElement.GetProperty("current_streak").GetInt32());
+            using (var doc = JsonDocument.Parse(await (await Send(client, HttpMethod.Get, "/api/progress/leaderboard?period=all", TokenFor(coveredId))).Content.ReadAsStringAsync()))
+                Assert.Equal(6, doc.RootElement.GetProperty("current_streak").GetInt32());
+
+            // Profile stats (Identity module — same rule through Govori.Contracts). The best run
+            // ever is history and stays.
+            using (var doc = JsonDocument.Parse(await (await Send(client, HttpMethod.Get, "/api/profile/stats", brokenToken)).Content.ReadAsStringAsync()))
+            {
+                Assert.Equal(0, doc.RootElement.GetProperty("current_streak").GetInt32());
+                Assert.Equal(9, doc.RootElement.GetProperty("longest_streak").GetInt32());
+            }
+
+            // Nothing was written by reading: the columns and — above all — the freezes are intact.
+            // They are spent only when the student actually comes back (UpdateStreak).
+            await AssertStreak(brokenId, current: 9, longest: 9, freezes: 2);
+            await AssertStreak(coveredId, current: 6, longest: 6, freezes: 2);
+        }
+        finally
+        {
+            await using var ctx = CreateContext();
+            await ctx.Users.Where(u => u.Id == brokenId || u.Id == coveredId).ExecuteDeleteAsync();
+        }
+    }
+
     // ── helpers ──
+
+    // A graded submission as the pipeline leaves it: an Evaluation plus a Transcript whose text
+    // decides whether the student "answered".
+    private static void SeedGraded(
+        GovoriDbContext ctx, Guid subId, double fluency, double lexical, double grammar, double relevance, string transcript)
+    {
+        var now = DateTime.UtcNow;
+        ctx.Evaluations.Add(new Evaluation
+        {
+            Id = Guid.NewGuid(), SubmissionId = subId,
+            FluencyScore = fluency, LexicalScore = lexical, GrammarScore = grammar, RelevanceScore = relevance,
+            PronunciationScore = 20,      // deliberately weak: pronunciation must NOT drive a review
+            OverallBand = 70, LevelScore = 75, CreatedAt = now, UpdatedAt = now,
+        });
+        ctx.Transcripts.Add(new Transcript
+        {
+            Id = Guid.NewGuid(), SubmissionId = subId, Text = transcript, CreatedAt = now, UpdatedAt = now,
+        });
+    }
 
     private async Task Practice(Guid subId, Guid studentId, DateOnly today)
     {

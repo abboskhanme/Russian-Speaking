@@ -165,6 +165,11 @@ x-backend-env: &backend-env
   EMAIL_OTP_LENGTH: "${EMAIL_OTP_LENGTH:-6}"
   EMAIL_OTP_TTL_SEC: "${EMAIL_OTP_TTL_SEC:-600}"
   EMAIL_OTP_MAX_ATTEMPTS: "${EMAIL_OTP_MAX_ATTEMPTS:-5}"
+  # Per-PHONE OTP brakes (Govori.Identity OtpOptions): cooldown between codes, and wrong codes
+  # allowed per window across every code. Neither resets when a new code is sent.
+  OTP_REQUEST_COOLDOWN_SEC: "${OTP_REQUEST_COOLDOWN_SEC:-60}"
+  OTP_MAX_FAILURES: "${OTP_MAX_FAILURES:-10}"
+  OTP_FAILURE_WINDOW_SEC: "${OTP_FAILURE_WINDOW_SEC:-3600}"
   EMAIL_VERIFY_TOKEN_EXPIRE_MINUTES: "${EMAIL_VERIFY_TOKEN_EXPIRE_MINUTES:-20}"
 
   GOVORI_SIGNALR_BACKPLANE: "true"

@@ -78,7 +78,10 @@ public sealed class MinioObjectStorage : IObjectStorage, IDisposable
             BucketName = _bucket,
             Key = key,
             InputStream = content,
-            ContentType = contentType,
+            // The bare media type, never the caller's raw header: MediaRecorder's
+            // `audio/webm;codecs=opus` makes MinIO reject the SigV4 signature, which failed every
+            // Chrome/Android answer with a 500. See ContentTypes.
+            ContentType = ContentTypes.Essence(contentType),
             AutoCloseStream = false,
         };
         await _internal.PutObjectAsync(request, ct).ConfigureAwait(false);

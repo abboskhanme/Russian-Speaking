@@ -19,11 +19,13 @@ public enum AssessmentOutcome
     Done,
     /// <summary>Shadowing (reference_text set): Transcript persisted, submission <c>done</c>, no Evaluation.</summary>
     Shadowing,
-    /// <summary>An error occurred: submission marked <c>failed</c> with a message.</summary>
+    /// <summary>An error occurred: submission marked <c>failed</c> with a
+    /// <see cref="SubmissionErrorCodes">machine code</see> in <c>error_message</c>.</summary>
     Failed,
     /// <summary>No submission with that id.</summary>
     NotFound,
-    /// <summary>No real STT/Grader wired (guard) — attempt left <c>pending</c> for a durable worker.</summary>
+    /// <summary>No real STT/Grader wired (guard) — attempt left <c>pending</c>. Nothing re-runs it: if
+    /// no key arrives, the stuck-submission sweeper fails it after 20 minutes.</summary>
     Deferred,
 }
 
@@ -44,10 +46,18 @@ public enum AssessmentOutcome
 ///   <item><b>Faithful transcript</b> — the STT text is written verbatim (memory: transcript must stay faithful).</item>
 /// </list>
 ///
-/// <para><b>Deferred (TODO):</b> the 5 circuit breakers; the best-effort orthoepy audio pass (its own
-/// breaker) — orthoepyErrors is 0 for now; the durable queue (Hangfire, Faza 3.9) with
-/// terminal-vs-transient retry; gamification/notification side-effects (Stage 6); real
-/// Azure/Whisper/Gemini/OpenAI providers.</para>
+/// <para><b>How a run ends.</b> Every failure is TERMINAL here: the row goes <c>failed</c> with a stable
+/// <see cref="SubmissionErrorCodes">code</see> (the exception itself goes to the log, never to the
+/// student), and the student records again. The one exception is the job's own token being cancelled
+/// — the worker is shutting down — which is rethrown untouched so Hangfire re-queues the job for the
+/// next worker start (see the catch at the end of <see cref="RunAsync"/>). The engagement reward is
+/// not this class's business: <see cref="GradingJob"/> hands a finished grade to
+/// <see cref="IGradingRewarder"/>.</para>
+///
+/// <para><b>Deferred (TODO):</b> the per-vendor circuit breakers docs/07 §7.7 describes — today the
+/// provider chain's fallback and the per-vendor timeouts are the only protection against a failing
+/// vendor; and the best-effort orthoepy audio pass on its own breaker — orthoepyErrors is 0 for now
+/// (see the two TODO(orthoepy) markers below).</para>
 /// </summary>
 public sealed class AssessmentService
 {
@@ -107,8 +117,10 @@ public sealed class AssessmentService
 
         // GUARD (Faza 3.4/3.9): the provider chain reports false when NO backend in the admin's
         // configured order has a key. When nothing real is wired, DEFER — leave the attempt pending
-        // for the durable worker (Hangfire) to pick up once a key lands, rather than failing it.
-        // Fakes (tests) report true, so the full pipeline runs.
+        // rather than burning it on a vendor call that cannot happen. Nothing re-enqueues a deferred
+        // attempt: the job completes, and if no key lands the stuck-submission sweeper
+        // (MaintenanceJobs) fails it after 20 minutes as grading_timeout, which is what the student
+        // then sees. Fakes (tests) report true, so the full pipeline runs.
         if (!await _stt.IsConfiguredAsync(ct) || (!isShadowing && !await _grader.IsConfiguredAsync(ct)))
         {
             _logger.LogInformation(
@@ -123,9 +135,21 @@ public sealed class AssessmentService
         // Real-time progress (docs/08 Faza 3.10): the job has been picked up — still pending.
         await EmitAsync(submissionId, GradingState.Queued, "pending", null);
 
+        // Which stage is running decides the code a failure is stored under: set just before each
+        // vendor stage and put back just after it, so a failure anywhere else — the claim, a
+        // persistence write — reads as `internal` rather than being blamed on a vendor.
+        var failureCode = SubmissionErrorCodes.Internal;
+
         try
         {
             sub.Status = SubmissionStatus.Processing;                       // claim it before any slow work
+            // Stamped at the claim because the stuck-submission sweeper measures "15 min in
+            // processing" from updated_at. Left alone it still held the upload time, so an answer
+            // that waited in the queue and was then claimed could be failed moments into grading.
+            sub.UpdatedAt = DateTime.UtcNow;
+            // A re-run (the job re-queued after a worker restart) may find the code a previous
+            // attempt, or the stuck-submission sweeper, left behind. This run's outcome replaces it.
+            sub.ErrorMessage = null;
             await _db.SaveChangesAsync(ct);
             await EmitAsync(submissionId, GradingState.Transcribing, "processing", null);
 
@@ -154,9 +178,11 @@ public sealed class AssessmentService
             }
             else
             {
+                failureCode = SubmissionErrorCodes.SttFailed;               // reading the audio counts too
                 var bytes = await LoadAudioAsync();
                 var sttStarted = DateTime.UtcNow;
                 stt = await _stt.TranscribeAsync(bytes, filename, sub.ReferenceText, ct);
+                failureCode = SubmissionErrorCodes.Internal;
                 GradingMetrics.RecordStage("transcribe", (DateTime.UtcNow - sttStarted).TotalSeconds);
                 var nowT = DateTime.UtcNow;
                 transcript = new Transcript
@@ -185,7 +211,10 @@ public sealed class AssessmentService
                 sub.Status = SubmissionStatus.Done;
                 sub.CompletedAt = DateTime.UtcNow;
                 await _db.SaveChangesAsync(ct);
-                // TODO(gamification, C8): award_practice (fixed PRACTICE_XP) when reference_match.on_topic.
+                // The fixed practice XP is granted by GradingJob (IGradingRewarder.RewardShadowingAsync)
+                // once this returns Shadowing. NOTE: legacy granted it only when
+                // reference_match.on_topic; the rewarder does not check that yet. No route creates a
+                // shadowing submission today, so nothing reaches that difference.
                 await EmitAsync(submissionId, GradingState.Done, "done", null);
                 var shadowTtfs = GradingMetrics.RecordTtfs(sub.CreatedAt, shadowing: true);
                 GradingMetrics.RecordOutcome("shadowing");
@@ -216,6 +245,7 @@ public sealed class AssessmentService
                 }
             }
 
+            failureCode = SubmissionErrorCodes.GraderFailed;
             var graderStarted = DateTime.UtcNow;
             var grade = await _grader.AnalyzeAsync(new GraderRequest
             {
@@ -229,6 +259,7 @@ public sealed class AssessmentService
                 ImageBytes = imageBytes,
                 ImageMime = imageMime,
             }, ct);
+            failureCode = SubmissionErrorCodes.Internal;
             GradingMetrics.RecordStage("grade", (DateTime.UtcNow - graderStarted).TotalSeconds);
 
             await EmitAsync(submissionId, GradingState.Scoring, "processing", null);
@@ -280,8 +311,10 @@ public sealed class AssessmentService
             await _db.SaveChangesAsync(ct);
             await EmitAsync(submissionId, GradingState.Done, "done", null);
 
-            // TODO(Stage 6): gamification (award_submission/schedule_review, C8 xp_for_band) +
-            //   notifications — best-effort engagement side-effects, must never break the pipeline.
+            // The engagement side-effects — XP, the streak, the spaced-repetition review — are NOT
+            // run here: GradingJob hands a Done outcome to IGradingRewarder, so this module never
+            // references Engagement. TODO(notifications): legacy also raised a "result ready"
+            // notification here (and an assignment-completed one); that is not ported yet.
             // TTFS (docs/08 Faza 3.10). Measured here, at the moment the score becomes visible to the
             // student, and from Submission.CreatedAt — so the queue wait the student also waited
             // through is inside the number, not excluded from it.
@@ -292,19 +325,36 @@ public sealed class AssessmentService
                 submissionId, levelScore, ttfs, grade.Model);
             return AssessmentOutcome.Done;
         }
+        catch (OperationCanceledException) when (ct.IsCancellationRequested)
+        {
+            // The job's OWN token fired: the worker is shutting down (a deploy, a container restart).
+            // That says nothing about this answer, so it must not be recorded as a failure — and it
+            // must not be swallowed either. Returning normally would tell Hangfire the job SUCCEEDED,
+            // and nothing would ever grade this attempt again: it would sit in `processing` until the
+            // stuck-submission sweeper failed it, a quarter of an hour later, for a restart the
+            // student had nothing to do with. Rethrown, the cancellation reaches Hangfire while the
+            // server is stopping, which leaves the job in its queue for the next worker start. That
+            // re-run is cheap and safe: a persisted transcript is reused (STT is not re-billed) and
+            // the evaluation is DELETE-then-INSERT. The row stays `processing` until then.
+            _logger.LogWarning(
+                "grading interrupted by shutdown; the job stays queued for the next worker start (submission {SubmissionId})",
+                submissionId);
+            GradingMetrics.RecordOutcome("interrupted");
+            throw;
+        }
         catch (Exception ex)
         {
-            // Hangfire (Faza 3.9): AssessmentService owns the status decision and marks the
-            // submission failed here; the pipeline is idempotent (resume-from-transcript +
-            // Evaluation DELETE-then-INSERT), so a Hangfire auto-retry (worker crash / transient
-            // error) safely re-runs from where it left off without re-billing STT.
-            // TODO: terminal-vs-transient split — SoftTimeLimit / CircuitOpen must NOT be retried
-            //   (they would hit the same wall); only genuinely transient errors should retry.
-            _logger.LogError(ex, "grading failed (submission {SubmissionId})", submissionId);
+            // Every other failure is TERMINAL: the row goes `failed` and the student records again.
+            // Nothing retries it — the exception does not escape, so Hangfire's retry never sees it.
+            //
+            // What is stored (and pushed to the client) is the stable CODE for the stage that failed,
+            // never ex.Message: that text is English, often a vendor's raw error body, and the
+            // student's screen used to print it verbatim. The whole exception goes to the log
+            // instead, where the submission id ties it back to the row.
+            _logger.LogError(ex, "grading failed: {ErrorCode} (submission {SubmissionId})", failureCode, submissionId);
             GradingMetrics.RecordOutcome("failed");
-            await MarkFailedAsync(submissionId, ex.Message, ct);
-            var message = ex.Message.Length > 1000 ? ex.Message[..1000] : ex.Message;
-            await EmitAsync(submissionId, GradingState.Failed, "failed", message);
+            await MarkFailedAsync(submissionId, failureCode);
+            await EmitAsync(submissionId, GradingState.Failed, "failed", failureCode);
             return AssessmentOutcome.Failed;
         }
     }
@@ -331,16 +381,19 @@ public sealed class AssessmentService
     // Mark the submission failed via a direct UPDATE so a poisoned change-tracker (from the failed
     // SaveChanges) can't get in the way: the status write must land even when the tracked entities
     // are unusable, or the attempt would be left stuck in `processing`.
-    private async Task MarkFailedAsync(Guid submissionId, string message, CancellationToken ct)
+    //
+    // CancellationToken.None, deliberately — this is the terminal write, made from a catch block. If
+    // the job's token were cancelled by then, passing it would make the UPDATE throw before it ever
+    // reached the database, and the attempt would be stranded in `processing` behind a "failed" event.
+    private async Task MarkFailedAsync(Guid submissionId, string errorCode)
     {
         try
         {
-            var msg = message.Length > 1000 ? message[..1000] : message;
             await _db.Submissions
                 .Where(s => s.Id == submissionId)
                 .ExecuteUpdateAsync(setters => setters
                     .SetProperty(s => s.Status, SubmissionStatus.Failed)
-                    .SetProperty(s => s.ErrorMessage, msg), ct);
+                    .SetProperty(s => s.ErrorMessage, errorCode), CancellationToken.None);
         }
         catch (Exception inner)
         {

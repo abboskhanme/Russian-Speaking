@@ -112,6 +112,13 @@ public sealed class AuthService
     /// <para>Because the id is minted UNCONDITIONALLY, before any user lookup, and its initial state
     /// is identical for every phone, it leaks nothing about whether an account exists — the
     /// "never reveal" property of this endpoint is preserved.</para>
+    ///
+    /// <para><b>Per-phone cooldown first.</b> Before anything is minted the phone must win the
+    /// request slot (<see cref="IOtpStore.ClaimRequestSlotAsync"/>); a phone sent a code too recently
+    /// gets <see cref="OtpRequestStatus.TooSoon"/> and nothing is generated or delivered. It is keyed
+    /// by the phone only — never by whether an account exists — so the "never reveal" property holds
+    /// here too; all it tells a caller is that SOMEONE asked for a code for this number a moment ago.
+    /// A store outage throws, as the code write right after it would: no slot, no code.</para>
     /// </summary>
     public async Task<OtpRequestResult> RequestOtpAsync(string rawPhone, CancellationToken ct = default)
     {
@@ -124,6 +131,9 @@ public sealed class AuthService
         {
             return new OtpRequestResult(OtpRequestStatus.InvalidPhone, Error: ex.Message);
         }
+
+        if (await _otpStore.ClaimRequestSlotAsync(phone, ct) is { } retryAfter)
+            return new OtpRequestResult(OtpRequestStatus.TooSoon, RetryAfter: retryAfter);
 
         var requestId = Guid.NewGuid().ToString("N");
         var code = await _otpStore.GenerateAndStoreAsync(phone, ct);
@@ -148,6 +158,10 @@ public sealed class AuthService
     /// <para><b>FAIL-CLOSED:</b> the Redis check denies on any store failure. The ONLY way to pass
     /// without a Redis match is the dev bypass (<see cref="IOtpDeliverySender.AcceptsDevCode"/>),
     /// which the real Telegram sender always refuses — so <c>000000</c> can never work in prod.</para>
+    ///
+    /// <para>A phone with too many wrong codes in the current window is
+    /// <see cref="OtpVerifyStatus.LockedOut"/> before any user is looked up, so the lock is the same
+    /// answer for every number and says nothing about which ones have accounts.</para>
     /// </summary>
     public async Task<OtpVerifyOutcome> VerifyOtpAsync(
         string rawPhone, string code, string? fullName, CancellationToken ct = default)
@@ -162,7 +176,10 @@ public sealed class AuthService
             return new OtpVerifyOutcome(OtpVerifyStatus.InvalidPhone, Error: ex.Message);
         }
 
-        if (!await VerifyCodeAsync(phone, code, ct))
+        var check = await VerifyCodeAsync(phone, code, ct);
+        if (check.Verdict == OtpVerdict.LockedOut)
+            return new OtpVerifyOutcome(OtpVerifyStatus.LockedOut, RetryAfter: check.RetryAfter);
+        if (check.Verdict != OtpVerdict.Matched)
             return new OtpVerifyOutcome(OtpVerifyStatus.InvalidCode);
 
         return await CompleteLoginAsync(phone, fullName, ct);
@@ -249,12 +266,12 @@ public sealed class AuthService
     }
 
     /// <summary>Dev bypass first (dev-only, gated by the sender), else the fail-closed Redis check.</summary>
-    private async Task<bool> VerifyCodeAsync(string phone, string code, CancellationToken ct)
+    private async Task<OtpVerification> VerifyCodeAsync(string phone, string code, CancellationToken ct)
     {
         // The dev stub accepts a fixed code; the real Telegram sender never does. This is the ONLY
         // path that skips Redis, so it can only ever pass in dev delivery.
         if (_otpDelivery.AcceptsDevCode(code))
-            return true;
+            return OtpVerification.Match;
 
         try
         {
@@ -266,7 +283,7 @@ public sealed class AuthService
         }
         catch
         {
-            return false; // fail-closed: a broken store denies, never approves
+            return OtpVerification.Reject; // fail-closed: a broken store denies, never approves
         }
     }
 
@@ -613,7 +630,7 @@ public sealed class AuthService
     /// </summary>
     internal static AvatarValidation ValidateAvatarUpload(string? contentType, long length)
     {
-        var normalizedType = (contentType ?? string.Empty).Split(';')[0].Trim().ToLowerInvariant();
+        var normalizedType = ContentTypes.Essence(contentType);   // the one parameter-stripping rule, shared with storage
         if (!AvatarContentTypes.TryGetValue(normalizedType, out var ext))
         {
             return AvatarValidation.Reject(
@@ -638,6 +655,9 @@ public sealed class AuthService
     ///   <item><b>Refuse a number owned by someone else (409) BEFORE any code exists.</b> Sending
     ///         first and checking later would walk the user through a full verification that is
     ///         guaranteed to fail — and would put a live code on a number they cannot claim.</item>
+    ///   <item>Claim the new number's request slot (the same per-phone cooldown as login — it is the
+    ///         same code key). Too soon → 429 and NOTHING below runs, so a refused request leaves no
+    ///         binding behind.</item>
     ///   <item>Write the user→phone binding BEFORE minting the code, so there is never a live code
     ///         with no owner recorded for it.</item>
     ///   <item>Only then generate + deliver, through the SAME <see cref="IOtpStore"/> /
@@ -674,6 +694,9 @@ public sealed class AuthService
 
         if (await IsPhoneTakenByAnotherAsync(phone, userId, ct))
             return new PhoneChangeRequestResult(PhoneChangeRequestStatus.Taken);
+
+        if (await _otpStore.ClaimRequestSlotAsync(phone, ct) is { } retryAfter)
+            return new PhoneChangeRequestResult(PhoneChangeRequestStatus.TooSoon, RetryAfter: retryAfter);
 
         await _pendingPhoneChanges.SetAsync(userId, phone, _otpOptions.TtlSeconds, ct);
 
@@ -720,7 +743,10 @@ public sealed class AuthService
         if (user is null || !user.IsActive)
             return new PhoneChangeConfirmOutcome(PhoneChangeConfirmStatus.Unauthorized);
 
-        if (!await VerifyCodeAsync(phone, code, ct))
+        var check = await VerifyCodeAsync(phone, code, ct);
+        if (check.Verdict == OtpVerdict.LockedOut)
+            return new PhoneChangeConfirmOutcome(PhoneChangeConfirmStatus.LockedOut, RetryAfter: check.RetryAfter);
+        if (check.Verdict != OtpVerdict.Matched)
             return new PhoneChangeConfirmOutcome(PhoneChangeConfirmStatus.InvalidCode);
 
         if (await IsPhoneTakenByAnotherAsync(phone, userId, ct))

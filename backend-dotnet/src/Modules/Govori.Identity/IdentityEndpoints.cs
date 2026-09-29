@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Security.Claims;
 using Govori.Contracts;
 using Govori.Identity.Providers;
@@ -35,17 +36,23 @@ public static class IdentityEndpoints
             Results.Ok(new AuthConfigResponse(!string.IsNullOrEmpty(google.ClientId), delivery.Channel)));
 
         // POST /api/auth/otp/request → 200 { ok, delivery, expires_in, telegram_link? | dev_hint?,
-        // request_id }, or 400 on a malformed phone. NEVER reveals whether the phone already has an
-        // account. RATE LIMIT: reuses the email_code scope (5/600, per-user-or-IP, FAIL-OPEN — a
-        // store outage ALLOWS the request; policy registered in Govori.Api/RateLimiting).
+        // request_id }, 400 on a malformed phone, or 429 + Retry-After when this PHONE was sent a
+        // code less than the cooldown ago (nothing is sent). NEVER reveals whether the phone already
+        // has an account — the cooldown is keyed by the number alone. RATE LIMIT: reuses the
+        // email_code scope (5/600, per-user-or-IP, FAIL-OPEN — a store outage ALLOWS the request;
+        // policy registered in Govori.Api/RateLimiting). The two limits are different brakes: that
+        // one is per caller, the cooldown is per target, so rotating IPs does not get around it.
         auth.MapPost("/otp/request", async (OtpRequestRequest req, AuthService svc, CancellationToken ct) =>
         {
             var result = await svc.RequestOtpAsync(req.Phone, ct);
-            return result.Status == OtpRequestStatus.InvalidPhone
-                ? Detail(result.Error!, StatusCodes.Status400BadRequest)
-                : Results.Ok(new OtpSentResponse(
+            return result.Status switch
+            {
+                OtpRequestStatus.InvalidPhone => Detail(result.Error!, StatusCodes.Status400BadRequest),
+                OtpRequestStatus.TooSoon => RetryLater(CodeJustSent, result.RetryAfter),
+                _ => Results.Ok(new OtpSentResponse(
                     true, result.Channel, result.ExpiresInSeconds, result.TelegramLink, result.DevHint,
-                    result.RequestId, result.TelegramMode));
+                    result.RequestId, result.TelegramMode)),
+            };
         }).RequireRateLimiting(RateLimitPolicyNames.EmailCode);
 
         // GET /api/auth/otp/status?request_id=… → 200 { state } — where Telegram delivery stands.
@@ -113,6 +120,9 @@ public static class IdentityEndpoints
         //   • wrong/expired code     → 401
         //   • matched but inactive   → 403 (teacher-awaiting-approval vs blocked)
         //   • malformed phone        → 400
+        //   • phone locked out       → 429 + Retry-After (too many wrong codes for THIS phone in the
+        //                              window, across every code issued in it; the code is not even
+        //                              compared, so the right one is refused too until it lifts)
         // FAIL-CLOSED: a broken OTP store denies (401), never approves.
         // RATE LIMIT: reuses the login scope (10/300), the OTP analogue of password login.
         auth.MapPost("/otp/verify", async (OtpVerifyRequest req, AuthService svc, CancellationToken ct) =>
@@ -249,7 +259,8 @@ public static class IdentityEndpoints
         // POST /api/auth/phone/change/request → start a VERIFIED change of the caller's own phone.
         // 200 mirrors otp/request field-for-field (delivery, expires_in, telegram_link | dev_hint,
         // request_id) because it IS the same OTP flow — the client reuses its login OTP step,
-        // GET /api/auth/otp/status polling included. 400 malformed number, 409 already taken.
+        // GET /api/auth/otp/status polling included. 400 malformed number, 409 already taken, 429 +
+        // Retry-After inside the new number's request cooldown (shared with login: same code key).
         //
         // WHY THIS IS SAFE TO EXPOSE: the code is minted for the NEW number and, in bot delivery,
         // released only to a Telegram account that PROVES it owns that number via a contact share.
@@ -268,6 +279,7 @@ public static class IdentityEndpoints
                 PhoneChangeRequestStatus.Taken => Detail(
                     "Bu raqam boshqa hisobga biriktirilgan", StatusCodes.Status409Conflict),
                 PhoneChangeRequestStatus.Unauthorized => Results.Unauthorized(),
+                PhoneChangeRequestStatus.TooSoon => RetryLater(CodeJustSent, result.RetryAfter),
                 _ => Results.Ok(new OtpSentResponse(
                     true, result.Channel, result.ExpiresInSeconds, result.TelegramLink, result.DevHint,
                     result.RequestId, result.TelegramMode)),
@@ -276,7 +288,8 @@ public static class IdentityEndpoints
 
         // POST /api/auth/phone/change/confirm → redeem the code and write the new number.
         // 200 the updated MeResponse, 401 wrong/expired code (or no pending change for this user),
-        // 409 if another account claimed the number in the meantime.
+        // 409 if another account claimed the number in the meantime, 429 + Retry-After while the
+        // new number is locked out for too many wrong codes (the same per-phone lock as login).
         //
         // The body carries ONLY the code. The number being claimed is read from the server-side
         // pending change, keyed by the caller's user id — so a code can never be paired with a
@@ -295,6 +308,7 @@ public static class IdentityEndpoints
                 PhoneChangeConfirmStatus.Taken => Detail(
                     "Bu raqam boshqa hisobga biriktirilgan", StatusCodes.Status409Conflict),
                 PhoneChangeConfirmStatus.Unauthorized => Results.Unauthorized(),
+                PhoneChangeConfirmStatus.LockedOut => RetryLater(TooManyWrongCodes, result.RetryAfter),
                 _ => Results.Ok(result.Me),
             };
         }).RequireAuthorization().RequireRateLimiting(RateLimitPolicyNames.PhoneChange);
@@ -331,9 +345,31 @@ public static class IdentityEndpoints
                     : "Account is blocked",
                 StatusCodes.Status403Forbidden),
             OtpVerifyStatus.NeedsRegistration => Results.Ok(new NeedsRegistrationResponse(true)),
+            OtpVerifyStatus.LockedOut => RetryLater(TooManyWrongCodes, result.RetryAfter),
             _ => Results.Ok(result.Tokens), // LoggedIn or Registered
         };
 
+    // The two per-phone OTP brakes, in the same language as the other OTP messages here. The client
+    // is expected to read Retry-After for the wait rather than parse a number out of this text.
+    private const string CodeJustSent = "Kod yaqinda yuborilgan. Birozdan so'ng qayta urinib ko'ring.";
+    private const string TooManyWrongCodes = "Juda ko'p noto'g'ri urinish. Keyinroq qayta urinib ko'ring.";
+
     private static IResult Detail(string message, int statusCode)
         => Results.Json(new { detail = message }, statusCode: statusCode);
+
+    // 429 in the usual { "detail": ... } shape plus Retry-After in whole seconds, rounded UP so a
+    // client that waits exactly that long is never early. 429 and never 503, for the same reason the
+    // rate limiter answers 429: clients read 503 as "server down" and retry straight into it.
+    private static IResult RetryLater(string message, TimeSpan? retryAfter)
+        => new RetryLaterResult(message, retryAfter ?? TimeSpan.FromSeconds(1));
+
+    private sealed class RetryLaterResult(string message, TimeSpan retryAfter) : IResult
+    {
+        public Task ExecuteAsync(HttpContext httpContext)
+        {
+            var seconds = Math.Max(1, (int)Math.Ceiling(retryAfter.TotalSeconds));
+            httpContext.Response.Headers.RetryAfter = seconds.ToString(CultureInfo.InvariantCulture);
+            return Detail(message, StatusCodes.Status429TooManyRequests).ExecuteAsync(httpContext);
+        }
+    }
 }

@@ -112,9 +112,22 @@ public sealed record RevealResponse(string Key, string Value);
 /// <summary>Outbound links shown in the sidebar contact menu.</summary>
 public sealed record LinksResponse(string TgSupportUrl, string TgChannelUrl);
 
-/// <summary>Partial update of the outbound links (tri-state, same rules as
-/// <see cref="AiSettingsUpdate"/>).</summary>
+/// <summary>
+/// Partial update of the outbound links (tri-state, same rules as <see cref="AiSettingsUpdate"/>).
+///
+/// <para>A non-empty value must be a link: <c>https://…</c> or <c>http://…</c> is stored as sent,
+/// and the two shapes people actually paste for Telegram — a bare <c>t.me/x</c> or an
+/// <c>@x</c> handle — are normalised to <c>https://t.me/x</c>. Anything else is a 400
+/// <see cref="InvalidLinkResponse"/> naming the field. These values become <c>href</c>s in every
+/// student's sidebar, so an unvalidated one is either a dead menu item or a <c>javascript:</c>
+/// link.</para>
+/// </summary>
 public sealed record LinksUpdate(string? TgSupportUrl = null, string? TgChannelUrl = null);
+
+/// <summary>400 body when a link in <see cref="LinksUpdate"/> is not a link. <c>Field</c> is the
+/// wire name of the offending field (<c>tg_support_url</c> / <c>tg_channel_url</c>), so the UI can
+/// mark the one input that is wrong. <c>Code</c> is <see cref="AdminErrorCodes.InvalidLink"/>.</summary>
+public sealed record InvalidLinkResponse(string Detail, string Code, string Field);
 
 // ─── "Does this key actually work?" ─────────────────────────────────────────
 
@@ -199,29 +212,124 @@ public sealed record FeatureFlagsUpdate(
 
 // ─── Admin user management ───────────────────────────────────────────────────
 
-/// <summary>Dashboard counters for the admin landing page.</summary>
+/// <summary>
+/// Dashboard counters for the admin landing page.
+///
+/// <para><c>Questions</c> / <c>PublishedQuestions</c> count only tasks that are not soft-deleted:
+/// <c>DELETE /api/questions/{id}</c> keeps the row (student history points at it), and a counter
+/// that still included it would tell the admin a deleted task exists.</para>
+/// </summary>
 public sealed record AdminStatsResponse(
     int Teachers,
     int Students,
     int Questions,
     int PublishedQuestions,
     int Submissions,
-    int EvaluatedSubmissions);
+    int EvaluatedSubmissions,
+    /// <summary>ADDITIVE · submissions still waiting for a grade (status <c>pending</c> or
+    /// <c>processing</c>). A number that only grows means the grading worker is not draining the
+    /// queue.</summary>
+    int PendingSubmissions = 0,
+    /// <summary>ADDITIVE · submissions whose grading failed (status <c>failed</c>) — the student
+    /// saw an error instead of a score.</summary>
+    int FailedSubmissions = 0);
 
-/// <summary>A teacher row with their authored-question count.</summary>
+/// <summary>A teacher row with their authored-question count (soft-deleted tasks excluded).</summary>
 public sealed record TeacherResponse(
     Guid Id,
     string Email,
     string FullName,
     bool IsActive,
     DateTime CreatedAt,
-    int QuestionCount);
+    int QuestionCount,
+    /// <summary>ADDITIVE · the canonical <c>+998XXXXXXXXX</c> the teacher signs in with, or null
+    /// for an account that has none (a legacy email/Google account). Phone is the login now, so it is
+    /// the identifier an admin actually recognises.</summary>
+    string? Phone = null);
 
-/// <summary>Admin edit of a teacher. There is deliberately <b>no</b> password field
-/// (see the deferral note in AdministrationService: setting a password requires the frozen auth
-/// hasher, an Identity-module primitive this module intentionally does not
-/// reference). Null = leave unchanged.</summary>
+/// <summary>
+/// Body of <c>POST /api/admin/teachers</c> — the only way to create a teacher (self-service sign-up
+/// always makes a student). <c>phone</c> is normalised exactly as sign-up does
+/// (<see cref="PhoneNumbers.NormalizeUz"/>); the teacher then signs in with that number through the
+/// normal Telegram OTP flow. There is no password: accounts are passwordless.
+/// </summary>
+public sealed record CreateTeacherRequest(string? Phone, string? FullName);
+
+/// <summary>409 body when <c>POST /api/admin/teachers</c> names a phone that already belongs to a
+/// STUDENT. Carries the student's id and name so the UI can offer to promote that account
+/// (<c>PATCH /api/admin/users/{id}/role</c>) instead of creating a duplicate person. <c>Code</c> is
+/// <see cref="AdminErrorCodes.PhoneTakenByStudent"/>.</summary>
+public sealed record PhoneTakenByStudentResponse(string Detail, string Code, Guid UserId, string FullName);
+
+/// <summary>Admin edit of a teacher. Null = leave unchanged. There is no password field because
+/// accounts are passwordless (phone + Telegram OTP), and no role field: a role change has its own
+/// guarded route, <c>PATCH /api/admin/users/{id}/role</c>.</summary>
 public sealed record TeacherUpdateRequest(string? FullName = null, bool? IsActive = null);
+
+/// <summary>Body of <c>PATCH /api/admin/users/{id}/role</c>: <c>"student"</c>, <c>"teacher"</c> or
+/// <c>"admin"</c>.</summary>
+public sealed record UserRoleUpdateRequest(string? Role);
+
+/// <summary>Result of a role change: the user and the role they now hold.</summary>
+public sealed record UserRoleResponse(Guid Id, string Role);
+
+/// <summary>409 body when demoting a user to student who still owns groups: their students would be
+/// left in classes nobody can teach. <c>GroupCount</c> is how many to hand over or delete first.
+/// <c>Code</c> is <see cref="AdminErrorCodes.TeacherOwnsGroups"/>.</summary>
+public sealed record TeacherOwnsGroupsResponse(string Detail, string Code, int GroupCount);
+
+/// <summary>
+/// One row of <c>GET /api/admin/admins</c> — the same core fields as <see cref="TeacherResponse"/>
+/// (admins author official modules too, so the question count is meaningful), plus
+/// <c>IsSelf</c>: the caller's own row, whose role control the UI must disable because
+/// <c>cannot_change_own_role</c> would refuse it anyway.
+/// </summary>
+public sealed record AdminUserResponse(
+    Guid Id,
+    string Email,
+    string FullName,
+    string? Phone,
+    bool IsActive,
+    DateTime CreatedAt,
+    int QuestionCount,
+    bool IsSelf);
+
+/// <summary>
+/// The <c>code</c> values the Administration endpoints put in an error body
+/// (<see cref="CodedErrorResponse"/> and its richer siblings). Wire contract: the admin UI branches
+/// on these, so renaming one is a breaking change.
+/// </summary>
+public static class AdminErrorCodes
+{
+    /// <summary>400 · the phone is not a valid Uzbek number.</summary>
+    public const string InvalidPhone = "invalid_phone";
+
+    /// <summary>400 · <c>full_name</c> is blank or longer than the 255-character column.</summary>
+    public const string InvalidFullName = "invalid_full_name";
+
+    /// <summary>409 · the phone belongs to a teacher or an admin already (or its derived login email
+    /// is held by an account that has since changed number).</summary>
+    public const string PhoneTaken = "phone_taken";
+
+    /// <summary>409 · the phone belongs to a student — see <see cref="PhoneTakenByStudentResponse"/>.</summary>
+    public const string PhoneTakenByStudent = "phone_taken_by_student";
+
+    /// <summary>400 · <c>role</c> is not student / teacher / admin.</summary>
+    public const string InvalidRole = "invalid_role";
+
+    /// <summary>400 · an admin tried to change their own role.</summary>
+    public const string CannotChangeOwnRole = "cannot_change_own_role";
+
+    /// <summary>409 · the change would leave no active admin.</summary>
+    public const string LastAdmin = "last_admin";
+
+    /// <summary>409 · demoting to student a user who still owns groups — see
+    /// <see cref="TeacherOwnsGroupsResponse"/>.</summary>
+    public const string TeacherOwnsGroups = "teacher_owns_groups";
+
+    /// <summary>400 · a contact link is not a link — see <see cref="InvalidLinkResponse"/>.</summary>
+    public const string InvalidLink = "invalid_link";
+}
 
 /// <summary>A student row for the admin management table.</summary>
 public sealed record StudentResponse(
@@ -238,8 +346,8 @@ public sealed record StudentResponse(
     int SubmissionCount);
 
 /// <summary>Admin edit of a student — the freemium <c>is_premium</c> grant/revoke
-/// and account (de)activation both flow through here. No password field, for the
-/// same deferral reason as <see cref="TeacherUpdateRequest"/>. Null = leave unchanged.</summary>
+/// and account (de)activation both flow through here. No password or role field, for the
+/// same reasons as <see cref="TeacherUpdateRequest"/>. Null = leave unchanged.</summary>
 public sealed record StudentUpdateRequest(
     string? FullName = null,
     bool? IsActive = null,

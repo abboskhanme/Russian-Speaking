@@ -6,11 +6,17 @@ namespace Govori.IntegrationTests;
 
 /// <summary>
 /// In-memory <see cref="IOtpStore"/> for tests — no Redis. Generates a fixed code, stores it
-/// keyed by email, and verifies one-shot. Mirrors the real store's observable contract.
+/// keyed by email, and verifies one-shot. Mirrors the real store's observable contract for ONE code;
+/// it has no request cooldown and no per-phone lock (the request slot is always granted), because
+/// the suites that use it resend codes freely. Those two brakes are pinned against the real
+/// <see cref="RedisOtpStore"/> in <c>OtpBrakesTests</c>.
 /// </summary>
 public sealed class FakeOtpStore : IOtpStore
 {
     private readonly ConcurrentDictionary<string, string> _codes = new(StringComparer.OrdinalIgnoreCase);
+
+    public Task<TimeSpan?> ClaimRequestSlotAsync(string key, CancellationToken ct = default)
+        => Task.FromResult<TimeSpan?>(null);
 
     public Task<string> GenerateAndStoreAsync(string email, CancellationToken ct = default)
     {
@@ -19,12 +25,12 @@ public sealed class FakeOtpStore : IOtpStore
         return Task.FromResult(code);
     }
 
-    public Task<bool> VerifyAsync(string email, string code, CancellationToken ct = default)
+    public Task<OtpVerification> VerifyAsync(string email, string code, CancellationToken ct = default)
     {
         var ok = _codes.TryGetValue(email, out var stored) && stored == (code ?? string.Empty).Trim();
         if (ok)
             _codes.TryRemove(email, out _); // one-shot
-        return Task.FromResult(ok);
+        return Task.FromResult(ok ? OtpVerification.Match : OtpVerification.Reject);
     }
 
 }
@@ -35,10 +41,13 @@ public sealed class FakeOtpStore : IOtpStore
 /// </summary>
 public sealed class ThrowingOtpStore : IOtpStore
 {
+    public Task<TimeSpan?> ClaimRequestSlotAsync(string key, CancellationToken ct = default)
+        => throw new InvalidOperationException("simulated OTP store outage");
+
     public Task<string> GenerateAndStoreAsync(string email, CancellationToken ct = default)
         => throw new InvalidOperationException("simulated OTP store outage");
 
-    public Task<bool> VerifyAsync(string email, string code, CancellationToken ct = default)
+    public Task<OtpVerification> VerifyAsync(string email, string code, CancellationToken ct = default)
         => throw new InvalidOperationException("simulated OTP store outage");
 }
 

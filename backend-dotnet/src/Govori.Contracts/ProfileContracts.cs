@@ -26,8 +26,10 @@ namespace Govori.Contracts;
 /// <para><c>Attempts</c> counts the user's submissions (graded or not) and
 /// <c>TotalPracticeSec</c> sums <c>Submission.AudioDurationSec</c>; both are DB aggregates.
 /// <c>AvgBand</c> is the mean <c>Evaluation.OverallBand</c> rounded to 1 decimal place, or
-/// <c>null</c> when nothing has been graded yet. <c>CurrentStreak</c>/<c>LongestStreak</c> are read
-/// straight off the user row. <c>Level</c>/<c>LevelLabel</c> are derived from <c>AvgBand</c> and are
+/// <c>null</c> when nothing has been graded yet. <c>LongestStreak</c> is read straight off the user
+/// row; <c>CurrentStreak</c> is the EFFECTIVE streak as of today (<see cref="StreakRules.Effective"/>)
+/// — the stored column only resets on the next practice, so read raw it would show a broken streak
+/// as live. <c>Level</c>/<c>LevelLabel</c> are derived from <c>AvgBand</c> and are
 /// <c>null</c> together with it (the UI hides the badge).</para>
 ///
 /// <para>The UI renders <c>total_practice_sec</c> as hours to 1dp ("6.4 soat"); the API stays in

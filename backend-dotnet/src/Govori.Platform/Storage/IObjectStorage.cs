@@ -17,9 +17,12 @@ public interface IObjectStorage
     string NewKey(string prefix, string ext);
 
     /// <summary>
-    /// Server-side upload of a stream under <paramref name="key"/>. Returns the key.
-    /// Used by seeding/admin tasks, NOT the normal browser flow — that uploads directly
-    /// via <see cref="GetUploadUrlAsync"/> so audio never transits the API.
+    /// Server-side upload of a stream under <paramref name="key"/>. Returns the key. This IS the
+    /// normal path today: answers (<c>POST /api/submissions</c>), avatars and question media all
+    /// arrive as multipart uploads and are stored through here. <paramref name="contentType"/> may be
+    /// the client's raw header — the object is stored under its bare media type
+    /// (<see cref="ContentTypes.Essence"/>), because a parameter such as <c>;codecs=opus</c> breaks
+    /// the S3 signature against MinIO.
     /// </summary>
     Task<string> PutAsync(string key, Stream content, string contentType, CancellationToken ct = default);
 
@@ -32,7 +35,10 @@ public interface IObjectStorage
     /// <summary>
     /// Presigned PUT URL for a direct browser upload. MUST be signed for the PUBLIC host,
     /// not the internal one, or SigV4 verification fails in the browser.
-    /// Default expiry 30 minutes (1800 s).
+    /// Default expiry 30 minutes (1800 s). Nothing calls this today. Unlike <see cref="PutAsync"/>
+    /// it signs <paramref name="contentType"/> EXACTLY as given, because the browser must then send
+    /// that same header byte for byte — a caller should pass a bare media type and have the client
+    /// upload with it.
     /// </summary>
     Task<string> GetUploadUrlAsync(string key, string contentType, TimeSpan? expiry = null, CancellationToken ct = default);
 

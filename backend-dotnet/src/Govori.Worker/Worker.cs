@@ -1,10 +1,11 @@
 namespace Govori.Worker;
 
 /// <summary>
-/// Placeholder heartbeat host. docs/07 §7.7 — this evolves into the grading pipeline
-/// (RESUME → transcribe → pronounce → orthoepy → analyze → score → award), driven by
-/// Hangfire jobs. For now it only proves the host process is alive and
-/// logging via Serilog.
+/// Liveness heartbeat: one log line every 30 s, so a Worker that is up but idle is observably up.
+/// It does no work of its own. Everything this process actually does runs elsewhere — grading as
+/// Hangfire jobs (<c>GradingJob</c>, docs/07 §7.7), the recurring maintenance schedule
+/// (<c>MaintenanceJobs</c>, registered in Program.cs via <c>AddGovoriRecurringJobs</c>) and, when a
+/// bot token is configured, the Telegram OTP poller.
 /// </summary>
 public class Worker : BackgroundService
 {
@@ -18,8 +19,6 @@ public class Worker : BackgroundService
         _logger.LogInformation(
             "Govori.Worker started; heartbeat every {IntervalSeconds}s", HeartbeatInterval.TotalSeconds);
 
-        // TODO Faza 2/3 (docs/07 §7.7): replace this loop with Hangfire recurring /
-        // queued jobs — grading pipeline, SRS rollups, backup verification (§7.9).
         while (!stoppingToken.IsCancellationRequested)
         {
             _logger.LogInformation("Worker heartbeat at {Timestamp:o}", DateTimeOffset.UtcNow);
