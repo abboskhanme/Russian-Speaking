@@ -235,6 +235,119 @@ public sealed class ClassroomRemediationTests
         }
     }
 
+    /// <summary>
+    /// A class on the OFFICIAL catalog makes most of its errors on official questions, and the drill
+    /// for an error is the task it happened on — so an official live question is a valid drill even
+    /// though the teacher did not write it, and the confirm then goes through. Another teacher's
+    /// GROUP question is still never offered: the plan and the assign route share one rule, and that
+    /// route 404s it.
+    /// </summary>
+    [Fact]
+    public async Task Remediation_offers_an_official_task_but_never_another_teachers_group_task()
+    {
+        var teacherId = Guid.NewGuid();
+        var otherTeacherId = Guid.NewGuid();
+        var authorId = Guid.NewGuid();              // an admin — owns the official module
+        var groupId = Guid.NewGuid();
+        var s1 = Guid.NewGuid();
+        var s2 = Guid.NewGuid();
+        var s3 = Guid.NewGuid();
+        var officialBlock = Guid.NewGuid();
+        var foreignBlock = Guid.NewGuid();
+        var officialQ = Guid.NewGuid();             // word_order happened here → the drill
+        var foreignQ = Guid.NewGuid();              // case_error happened here → another teacher's group task
+
+        var userIds = new[] { teacherId, otherTeacherId, authorId, s1, s2, s3 };
+        var questionIds = new[] { officialQ, foreignQ };
+        var blockIds = new[] { officialBlock, foreignBlock };
+
+        await using (var ctx = CreateContext())
+        {
+            ctx.Users.Add(NewUser(teacherId, UserRole.Teacher, "Ustoz"));
+            ctx.Users.Add(NewUser(otherTeacherId, UserRole.Teacher, "Boshqa ustoz"));
+            ctx.Users.Add(NewUser(authorId, UserRole.Admin, "Muallif"));
+            ctx.Users.Add(NewUser(s1, UserRole.Student, "Anvar A."));
+            ctx.Users.Add(NewUser(s2, UserRole.Student, "Bobur B."));
+            ctx.Users.Add(NewUser(s3, UserRole.Student, "Charos C."));
+            ctx.Groups.Add(NewGroup(groupId, teacherId, "F6O"));
+            foreach (var sid in new[] { s1, s2, s3 })
+                ctx.GroupMembers.Add(NewMember(groupId, sid));
+
+            ctx.QuestionBlocks.Add(Block(officialBlock, authorId, "public"));
+            ctx.QuestionBlocks.Add(Block(foreignBlock, otherTeacherId, "group"));
+            var official = NewQuestion(officialQ, authorId, "Rasmiy: Мой день", isPublished: true);
+            official.BlockId = officialBlock;
+            var foreign = NewQuestion(foreignQ, otherTeacherId, "Boshqa ustozniki", isPublished: true);
+            foreign.BlockId = foreignBlock;
+            ctx.Questions.AddRange(official, foreign);
+            await ctx.SaveChangesAsync();
+
+            foreach (var sid in new[] { s1, s2, s3 })
+            {
+                Grade(ctx, sid, officialQ, "word_order");
+                Grade(ctx, sid, foreignQ, "case_error");
+            }
+            await ctx.SaveChangesAsync();
+        }
+
+        try
+        {
+            await SetFlag(true);
+            var client = _factory.CreateClient();
+            var token = TokenFor(teacherId);
+
+            using (var doc = await ReadInsights(client, token))
+            {
+                var errors = doc.RootElement.GetProperty("errors").EnumerateArray().ToList();
+
+                var plan = Single(errors, "word_order").GetProperty("remediation");
+                Assert.Equal(JsonValueKind.Object, plan.ValueKind);
+                Assert.Equal(officialQ, plan.GetProperty("question_id").GetGuid());
+                Assert.Equal(new[] { s1, s2, s3 }.OrderBy(x => x), StudentIds(plan).OrderBy(x => x));
+
+                // The error is real and stays on screen; there is just nothing this teacher may send.
+                var caseError = Single(errors, "case_error");
+                Assert.Equal(3, caseError.GetProperty("student_count").GetInt32());
+                Assert.Equal(JsonValueKind.Null, caseError.GetProperty("remediation").ValueKind);
+            }
+
+            // The confirm writes exactly what the plan named…
+            var sent = await Send(client, HttpMethod.Post, "/api/assignments", token,
+                JsonContent.Create(new { question_id = officialQ, student_ids = new[] { s1, s2, s3 } }));
+            Assert.Equal(HttpStatusCode.Created, sent.StatusCode);
+            using (var sentDoc = JsonDocument.Parse(await sent.Content.ReadAsStringAsync()))
+                Assert.Equal(3, sentDoc.RootElement.GetArrayLength());
+            // …and the task the plan would never offer is refused by the route too.
+            Assert.Equal(HttpStatusCode.NotFound, (await Send(client, HttpMethod.Post, "/api/assignments", token,
+                JsonContent.Create(new { question_id = foreignQ, student_ids = new[] { s1 } }))).StatusCode);
+        }
+        finally
+        {
+            await SetFlag(null);
+            await using var ctx = CreateContext();
+            await ctx.Evaluations.Where(e => userIds.Contains(e.Submission.StudentId)).ExecuteDeleteAsync();
+            await ctx.Submissions.Where(s => userIds.Contains(s.StudentId)).ExecuteDeleteAsync();
+            await ctx.Assignments.Where(a => a.TeacherId == teacherId).ExecuteDeleteAsync();
+            await ctx.GroupMembers.Where(gm => gm.GroupId == groupId).ExecuteDeleteAsync();
+            await ctx.Groups.Where(g => g.Id == groupId).ExecuteDeleteAsync();
+            await ctx.Questions.Where(q => questionIds.Contains(q.Id)).ExecuteDeleteAsync();
+            await ctx.QuestionBlocks.Where(b => blockIds.Contains(b.Id)).ExecuteDeleteAsync();
+            await ctx.Users.Where(u => userIds.Contains(u.Id)).ExecuteDeleteAsync();
+        }
+
+        static QuestionBlock Block(Guid id, Guid ownerId, string visibility) => new()
+        {
+            Id = id,
+            TeacherId = ownerId,
+            Name = $"F6 {visibility}",
+            Visibility = visibility,
+            IsPublished = true,
+            SortOrder = 0,
+            CreatedAt = DateTime.UtcNow,
+            UpdatedAt = DateTime.UtcNow,
+        };
+    }
+
     // ── helpers ──
 
     /// <summary>Writes (or clears) the <c>class_insights_enabled</c> override. The service reads the

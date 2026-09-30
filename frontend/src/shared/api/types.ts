@@ -861,6 +861,29 @@ export interface AssignmentResponse {
   attempts_used: number;
 }
 
+/** One live task of an official module — a row of D3's "Rasmiy katalog". Only
+ * what identifies it; the prompt stays out of a list this long. */
+export interface OfficialCatalogTaskResponse {
+  id: string;
+  title: string;
+  level: string | null;
+  topic: string | null;
+}
+
+/** GET /api/catalog/official → one official LIVE module (public + published)
+ * with its live tasks (published, not deleted), in the order students see them.
+ * A module with no live task is omitted. Every id here is assignable by ANY
+ * teacher — a task through `POST /api/assignments`, the module through
+ * `POST /api/assignments/module` — and an open assignment unlocks that task for
+ * the student even past the free preview. */
+export interface OfficialCatalogModuleResponse {
+  id: string;
+  name: string;
+  level: string | null;
+  topic: string | null;
+  tasks: OfficialCatalogTaskResponse[];
+}
+
 /* ── Settings (SettingsContracts.cs) ─────────────────────────────────────── */
 
 /** GET /api/settings/links → the deployment's Telegram destinations, powering

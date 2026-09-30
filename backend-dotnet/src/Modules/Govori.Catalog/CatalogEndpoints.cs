@@ -13,9 +13,10 @@ namespace Govori.Catalog;
 /// composition root calls, keeping <c>Program.cs</c> free of per-domain route wiring.
 ///
 /// <para>Endpoints are thin by design (§7.2 — no <c>DbContext</c> here): parse claims →
-/// <see cref="CatalogService"/> → serialize. Two surfaces: the STUDENT READ PATH
-/// (<c>GET /api/blocks/student</c>) and the teacher/admin AUTHORING surface over modules and tasks
-/// (see <see cref="MapAuthoring"/>). Topics are not part of either.</para>
+/// <see cref="CatalogService"/> → serialize. Three surfaces: the STUDENT READ PATH
+/// (<c>GET /api/blocks/student</c>), the teacher/admin AUTHORING surface over modules and tasks
+/// (see <see cref="MapAuthoring"/>), and the teachers' read of the OFFICIAL catalog they may assign
+/// from (see <see cref="MapOfficialCatalog"/>). Topics are not part of any.</para>
 ///
 /// <para>Path note: routes are mounted at <c>/api/blocks/...</c> with no <c>/v1</c> segment, to
 /// match the sibling Identity module's <c>/api/auth</c> convention. Versioning is
@@ -44,7 +45,24 @@ public static class CatalogEndpoints
         }).RequireAuthorization();
 
         MapAuthoring(app);
+        MapOfficialCatalog(app);
         return app;
+    }
+
+    /// <summary>
+    /// <c>GET /api/catalog/official</c> — the official live catalog (public + published modules, each
+    /// with its published, not-deleted tasks) for the D3 assign picker's "Rasmiy katalog" section.
+    /// Teacher/admin → 200; student → 403; anonymous → 401. Read-only: every id it lists is one
+    /// <c>POST /api/assignments</c> (task) or <c>POST /api/assignments/module</c> (module) accepts
+    /// from ANY teacher, by the same <c>OfficialCatalog</c> definition.
+    /// </summary>
+    private static void MapOfficialCatalog(IEndpointRouteBuilder app)
+    {
+        app.MapGet("/api/catalog/official", async (ClaimsPrincipal principal, CatalogService svc, CancellationToken ct) =>
+        {
+            if (!TryUserId(principal, out var userId)) return Results.Unauthorized();
+            return Map(await svc.ListOfficialCatalogAsync(userId, ct));
+        }).RequireAuthorization();
     }
 
     /// <summary>

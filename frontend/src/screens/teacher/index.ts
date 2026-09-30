@@ -138,6 +138,7 @@ export { AssignTaskScreen, default as AssignTaskDemo } from "./AssignTaskScreen"
 export type {
   AssignTaskProps,
   AssignSelection,
+  AssignOfficialModule,
   AssignGroupOption,
   AssignOutcome,
   AssignStudentTarget,

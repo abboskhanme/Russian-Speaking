@@ -139,6 +139,13 @@ public sealed class CatalogService
     /// plus the student's own teachers' GROUP modules, each with its ordered tasks carrying the
     /// two-layer lock.
     ///
+    /// <para><b>One exception to both layers:</b> a task the student holds an OPEN assignment for
+    /// (<see cref="AssignmentAccess"/>) is neither <c>locked</c> nor <c>premium_locked</c>, and its
+    /// content is served. That is what lets a teacher set task 7 of an official module as homework.
+    /// Submit applies the same exception to its 402, so the two can never disagree. The positional
+    /// gate itself (<see cref="NeedsPremiumAsync"/>, C4-frozen) is not touched: the exception is
+    /// layered on top of it, never folded into it.</para>
+    ///
     /// <para>Returns <c>null</c> when the user is missing or inactive; the endpoint turns that
     /// into a 401. Activity is re-checked here against the DB rather than trusted from the
     /// token, so deactivating a user takes effect on their very next request.</para>
@@ -184,7 +191,17 @@ public sealed class CatalogService
         // (PremiumAccess: teacher grant OR active subscription). Once, not per module: the module
         // list must not be able to disagree with itself about whether this student has premium, and
         // one EXISTS query is not worth repeating per row.
-        var hasPremium = await PremiumAccess.HasPremiumAsync(_db, user, DateTime.UtcNow, ct);
+        var now = DateTime.UtcNow;
+        var hasPremium = await PremiumAccess.HasPremiumAsync(_db, user, now, ct);
+
+        // The tasks this student holds an OPEN assignment for — the ONE thing that lifts either lock
+        // (AssignmentAccess: an open assignment unlocks THAT task for THAT student). Read by the same
+        // definition submit reads, so a task this view opens is a task submit accepts. One query for
+        // the whole view.
+        var assigned = (await AssignmentAccess.OpenQuestionIds(_db, userId, now)
+            .Distinct()
+            .ToListAsync(ct))
+            .ToHashSet();
 
         // All published, live tasks for these modules in one query, then group in memory (rather
         // than one query per module) — the per-block ordering key is (sort_order, created_at),
@@ -247,8 +264,12 @@ public sealed class CatalogService
             {
                 var q = qs[idx];
                 var done = doneQids.Contains(q.Id);
-                var seqLocked = !prevDone;
-                var premiumLocked = gated && idx >= freeN;
+                // Homework opens its task: a teacher can already grant this student premium
+                // outright, so an assignment opens no new door — and homework a student cannot open
+                // is worse than useless. Only THIS task; the chain after it is judged as before.
+                var isAssigned = assigned.Contains(q.Id);
+                var seqLocked = !prevDone && !isAssigned;
+                var premiumLocked = gated && idx >= freeN && !isAssigned;
 
                 if (done)
                     doneCount++;
@@ -835,6 +856,62 @@ public sealed class CatalogService
 
         var subs = await _db.Submissions.CountAsync(s => s.QuestionId == q.Id, ct);
         return CatalogResult<TeacherQuestionResponse>.Ok(await QuestionOutAsync(q, q.Block?.Name, subs, ct));
+    }
+
+    // ─── Official catalog for teachers (D3 "Rasmiy katalog") ─────────────────────
+
+    /// <summary>
+    /// GET /api/catalog/official — every official live module with its live tasks, for the D3
+    /// assign picker. Teacher/admin; a student is Forbidden.
+    ///
+    /// <para><b>Why a teacher reads content they do not own.</b> The authoring reads above are
+    /// owner-scoped, so a teacher whose class works through the official catalog had nothing of it
+    /// to hand out. Official live content is assignable by every teacher (Classroom accepts it by
+    /// the same <see cref="OfficialCatalog"/> definition this list is built from, so the picker can
+    /// never offer something the assign route refuses). It is read-only here: nothing about
+    /// authoring ownership changes.</para>
+    ///
+    /// <para>Ordered like the student catalog — modules by <c>(sort_order, created_at)</c>, tasks by
+    /// <c>(sort_order, created_at)</c>, the key <see cref="TaskIndexAsync"/> and the freemium gate
+    /// use — so "task 5" in the picker is task 5 in the student's module. Two queries for the whole
+    /// list, not one per module.</para>
+    /// </summary>
+    public async Task<CatalogResult<IReadOnlyList<OfficialCatalogModuleResponse>>> ListOfficialCatalogAsync(
+        Guid userId, CancellationToken ct = default)
+    {
+        var user = await ActiveUserAsync(userId, ct);
+        if (user is null) return CatalogResult<IReadOnlyList<OfficialCatalogModuleResponse>>.Unauthorized();
+        if (!IsTeacher(user)) return CatalogResult<IReadOnlyList<OfficialCatalogModuleResponse>>.Forbidden();
+
+        var modules = await OfficialCatalog.LiveModules(_db)
+            .AsNoTracking()
+            .OrderBy(b => b.SortOrder)
+            .ThenBy(b => b.CreatedAt)
+            .Select(b => new { b.Id, b.Name, b.Level, b.Topic })
+            .ToListAsync(ct);
+        if (modules.Count == 0)
+            return CatalogResult<IReadOnlyList<OfficialCatalogModuleResponse>>.Ok([]);
+
+        // Every live task of every live module; LiveTasks already requires the live module, so no
+        // id list is needed to scope it.
+        var tasks = await OfficialCatalog.LiveTasks(_db)
+            .AsNoTracking()
+            .OrderBy(q => q.SortOrder)
+            .ThenBy(q => q.CreatedAt)
+            .Select(q => new { q.Id, BlockId = q.BlockId!.Value, q.Title, q.Level, q.Topic })
+            .ToListAsync(ct);
+        var byModule = tasks
+            .GroupBy(t => t.BlockId)
+            .ToDictionary(
+                g => g.Key,
+                g => (IReadOnlyList<OfficialCatalogTaskResponse>)g
+                    .Select(t => new OfficialCatalogTaskResponse(t.Id, t.Title, t.Level, t.Topic))
+                    .ToList());
+
+        return CatalogResult<IReadOnlyList<OfficialCatalogModuleResponse>>.Ok(modules
+            .Where(m => byModule.ContainsKey(m.Id))                 // nothing live ⇒ nothing to assign
+            .Select(m => new OfficialCatalogModuleResponse(m.Id, m.Name, m.Level, m.Topic, byModule[m.Id]))
+            .ToList());
     }
 
     // Best-effort object cleanup: the row already points elsewhere, so a storage hiccup must not

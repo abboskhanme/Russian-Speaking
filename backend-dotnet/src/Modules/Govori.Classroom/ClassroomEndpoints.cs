@@ -171,7 +171,8 @@ public static class ClassroomEndpoints
 
         // POST /api/assignments — assign a task to students/a group → 201 listing only the rows
         // created (students who still owe the task are skipped). S1 roster fix in the service.
-        // 404 missing/deleted/not-theirs; 400 { detail, code: "question_not_published" }.
+        // The task is the caller's own OR an official live one (GET /api/catalog/official).
+        // 404 missing/deleted/neither-theirs-nor-official; 400 { detail, code: "question_not_published" }.
         assignments.MapPost("", async (CreateAssignmentRequest body, ClaimsPrincipal principal, ClassroomService svc, CancellationToken ct) =>
         {
             if (!TryGetUserId(principal, out var userId)) return Results.Unauthorized();
@@ -179,7 +180,8 @@ public static class ClassroomEndpoints
             return Map(r, StatusCodes.Status201Created, notFound: "Question not found", forbidden: "Teacher role required");
         }).RequireAuthorization();
 
-        // POST /api/assignments/module — assign a whole module → 201.
+        // POST /api/assignments/module — assign a whole module → 201. The caller's own module or an
+        // official live one (public + published); anything else is 404.
         assignments.MapPost("/module", async (CreateModuleAssignmentRequest body, ClaimsPrincipal principal, ClassroomService svc, CancellationToken ct) =>
         {
             if (!TryGetUserId(principal, out var userId)) return Results.Unauthorized();

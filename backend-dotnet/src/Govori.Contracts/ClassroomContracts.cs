@@ -21,7 +21,9 @@ public sealed record JoinGroupRequest(string? Code);
 /// an OPEN assignment for this question (not yet answered, deadline not passed) is skipped, and the
 /// 201 body lists only the rows actually created — so an empty array means "everyone already had
 /// it", which is what the UI's "takror berilmaydi" promises. A soft-deleted question is a 404 like
-/// a missing one; an unpublished one is a 400 <c>question_not_published</c>.
+/// a missing one; an unpublished one is a 400 <c>question_not_published</c>. The question must be
+/// the caller's own OR an official live one (<c>GET /api/catalog/official</c>); another teacher's
+/// group/private question is a 404 (admin: any).
 /// </summary>
 public sealed record CreateAssignmentRequest(
     Guid QuestionId,
@@ -34,7 +36,8 @@ public sealed record CreateAssignmentRequest(
 
 /// <summary>
 /// Body of POST /api/assignments/module — assign every published task of a module to a
-/// group / students in one call.
+/// group / students in one call. The module must be the caller's own OR an official live one
+/// (public and published); anything else is a 404 (admin: any).
 /// </summary>
 public sealed record CreateModuleAssignmentRequest(
     Guid BlockId,
@@ -291,8 +294,8 @@ public sealed record InsightsErrorResponse(
 /// type→topic table would be invention: nothing says the "Еда и вкусы" prompt drills word order.</para>
 ///
 /// <para>So the mapping is the one the graded answers already MEASURED: the task is the question the
-/// caller may assign (their own; admin: any) on which this error type occurred most often inside the
-/// caller's scope — the prompt this class demonstrably stumbles on. Re-assigning it is remediation with no invented data, and it composes
+/// caller may assign (their own or an official live one; admin: any) on which this error type
+/// occurred most often inside the caller's scope — the prompt this class demonstrably stumbles on. Re-assigning it is remediation with no invented data, and it composes
 /// with the existing completion rule (<see cref="AssignmentResponse.Completed"/> counts an answer
 /// given AFTER the assignment), so a question a student has already answered once is still a real,
 /// open task the second time it is set.</para>
