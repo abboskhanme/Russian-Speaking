@@ -11,6 +11,9 @@ namespace Govori.Contracts;
 ///   <item><c>PremiumLocked</c> — FREEMIUM: this task is beyond the free preview of an
 ///   official PUBLIC module and the student is non-premium.</item>
 /// </list>
+/// <para>A task the student holds an OPEN assignment for (not yet answered since it was set,
+/// deadline not passed) carries NEITHER lock, whatever its position: homework opens its task.
+/// Submit honours the same exception, so an unlocked row is always answerable.</para>
 /// <c>Type</c> is the lowercase PG enum label ("text"/"image"/"video"), stringified so it never
 /// serializes as an int.
 ///
@@ -246,6 +249,38 @@ public sealed record UpdateQuestionRequest(
     /// <summary>Set true to apply <c>BlockId = null</c> (detach). Without this flag an absent
     /// <c>block_id</c> and an explicit null are indistinguishable over JSON.</summary>
     bool? DetachBlock);
+
+/* ── Official catalog for teachers (D3 «Topshiriq berish» → "Rasmiy katalog") ── */
+// A read over the SAME question_blocks / questions rows the student catalog shows — no schema
+// change. Serialized snake_case like everything else.
+
+/// <summary>One live task of an official module, as the D3 picker offers it. Only what a teacher
+/// needs to recognise and pick it — the prompt stays out of a list that can hold every official
+/// task on the platform.</summary>
+public sealed record OfficialCatalogTaskResponse(
+    Guid Id,
+    string Title,
+    string? Level,
+    string? Topic);
+
+/// <summary>
+/// One official live module (<c>visibility = "public"</c> AND published) with its live tasks
+/// (published, not deleted), in the order students see them — modules by
+/// <c>(sort_order, created_at)</c>, tasks by <c>(sort_order, created_at)</c>. A module with no live
+/// task is omitted: there would be nothing to assign from it. The body of
+/// <c>GET /api/catalog/official</c> is an array of these (teacher/admin; 403 for a student).
+///
+/// <para>Everything listed here is assignable by ANY teacher: <c>POST /api/assignments</c> accepts
+/// a task id from <c>tasks</c> and <c>POST /api/assignments/module</c> the module <c>id</c>, beside
+/// the caller's own content. An open assignment then unlocks that task for the student even past
+/// the free preview or the module's sequence.</para>
+/// </summary>
+public sealed record OfficialCatalogModuleResponse(
+    Guid Id,
+    string Name,
+    string? Level,
+    string? Topic,
+    IReadOnlyList<OfficialCatalogTaskResponse> Tasks);
 
 /// <summary>
 /// The <c>code</c> values the Catalog authoring endpoints put in a <see cref="CodedErrorResponse"/>.

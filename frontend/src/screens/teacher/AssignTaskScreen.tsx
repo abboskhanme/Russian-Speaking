@@ -32,6 +32,17 @@ export interface AssignSelection {
   disabledReason?: string;
 }
 
+/**
+ * One module of the OFFICIAL catalog with its live tasks — D3's "Rasmiy katalog".
+ * The teacher did not author these, and may hand out either: the module goes out
+ * as a module assign, a task as a single assign — exactly like their own content
+ * (`kind` decides, as everywhere else).
+ */
+export interface AssignOfficialModule {
+  module: AssignSelection;
+  tasks: AssignSelection[];
+}
+
 /** One student as the assign target — A6's "Topshiriq berish" (`?student=`). */
 export interface AssignStudentTarget {
   id: string;
@@ -61,6 +72,9 @@ export interface AssignOutcome {
 export interface AssignTaskProps {
   tasks: AssignSelection[];
   modules: AssignSelection[];
+  /** The official catalog, listed in its own labelled section after the
+   * teacher's own content. Empty (or absent) when there is none. */
+  official?: AssignOfficialModule[];
   groups: AssignGroupOption[];
   /** Preselected group, from `?group=` when arriving from A2 / A5. */
   initialGroupId?: string | null;
@@ -125,10 +139,16 @@ export interface AssignTaskProps {
  *
  * **A6 targets ONE student** (`?student=`): "Kimga" then names that student instead
  * of offering groups, and the write goes out as `student_ids`.
+ *
+ * **The official catalog is offered beside the teacher's own content**, in its own
+ * "Rasmiy katalog" section: most classes work through it, and a teacher who has
+ * authored nothing must still be able to set homework from it. The "no content"
+ * empty state is therefore shown only when BOTH sources are empty.
  */
 export function AssignTaskScreen({
   tasks,
   modules,
+  official = [],
   groups,
   initialGroupId = null,
   student = null,
@@ -160,7 +180,9 @@ export function AssignTaskScreen({
 
   const group = useMemo(() => groups.find((g) => g.id === groupId) ?? null, [groups, groupId]);
   const hasTarget = student !== null || group !== null;
-  const nothingToAssign = tasks.length === 0 && modules.length === 0;
+  // Own content AND the official catalog — a teacher with no content of their own
+  // can still assign from the official one.
+  const nothingToAssign = tasks.length === 0 && modules.length === 0 && official.length === 0;
   const ready = selection !== null && hasTarget && !busy && !done;
 
   /** Any change re-arms the button and clears the last outcome. */
@@ -418,6 +440,7 @@ export function AssignTaskScreen({
           open={pickerOpen}
           tasks={tasks}
           modules={modules}
+          official={official}
           onClose={() => setPickerOpen(false)}
           onPick={(s) => {
             setSelection(s);
@@ -456,17 +479,21 @@ function EmptyState({
 }
 
 /** C5-style full-size picker: the task library and the module list, searchable.
- * Modules come first — a module is the coarser, more common bulk action. */
+ * Modules come first — a module is the coarser, more common bulk action. The
+ * official catalog follows in its own labelled section, each module with its
+ * tasks under it. */
 function PickerModal({
   open,
   tasks,
   modules,
+  official,
   onClose,
   onPick,
 }: {
   open: boolean;
   tasks: AssignSelection[];
   modules: AssignSelection[];
+  official: AssignOfficialModule[];
   onClose: () => void;
   onPick: (s: AssignSelection) => void;
 }) {
@@ -477,7 +504,12 @@ function PickerModal({
     s.title.toLowerCase().includes(query.trim().toLowerCase());
   const shownModules = modules.filter(match);
   const shownTasks = tasks.filter(match);
-  const nothing = shownModules.length === 0 && shownTasks.length === 0;
+  // A module whose NAME matches keeps all its tasks; otherwise it stays only as
+  // the heading of whichever of its tasks match.
+  const shownOfficial = official
+    .map((o) => (match(o.module) ? o : { ...o, tasks: o.tasks.filter(match) }))
+    .filter((o) => match(o.module) || o.tasks.length > 0);
+  const nothing = shownModules.length === 0 && shownTasks.length === 0 && shownOfficial.length === 0;
 
   return (
     <Modal
@@ -512,6 +544,36 @@ function PickerModal({
             {shownTasks.length > 0 && (
               <PickerGroup label={t("teacher.tabTasks")} items={shownTasks} onPick={onPick} />
             )}
+            {shownOfficial.length > 0 && (
+              <section
+                className={styles.pickerSection}
+                aria-label={t("teacher.assignTask.officialSection")}
+                data-testid="assign-official"
+              >
+                <Text as="h3" variant="label" color="muted" className={styles.legend}>
+                  {t("teacher.assignTask.officialSection")}
+                </Text>
+                <Text as="p" variant="body-s" color="muted">
+                  {t("teacher.assignTask.officialHint")}
+                </Text>
+                <ul className={styles.pickerList}>
+                  {shownOfficial.map((o) => (
+                    <li key={`official:${o.module.id}`} className={styles.officialModule}>
+                      <PickerRow item={o.module} onPick={onPick} />
+                      {o.tasks.length > 0 && (
+                        <ul className={cx(styles.pickerList, styles.officialTasks)}>
+                          {o.tasks.map((task) => (
+                            <li key={`${task.kind}:${task.id}`}>
+                              <PickerRow item={task} onPick={onPick} />
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            )}
           </>
         )}
       </div>
@@ -536,40 +598,47 @@ function PickerGroup({
       <ul className={styles.pickerList}>
         {items.map((s) => (
           <li key={`${s.kind}:${s.id}`}>
-            <button
-              type="button"
-              className={styles.pickerRow}
-              disabled={Boolean(s.disabledReason)}
-              onClick={() => onPick(s)}
-            >
-              <span
-                className={cx(styles.pickIcon, s.kind === "module" && styles.pickIconModule)}
-                aria-hidden
-              >
-                {s.kind === "module" ? <ModuleGlyph /> : <TaskGlyph />}
-              </span>
-              <span className={styles.pickBody}>
-                <Text as="span" variant="body" weight="bold" truncate>
-                  {s.title}
-                </Text>
-                {s.subtitle && (
-                  <Text as="span" variant="body-s" color="muted" truncate>
-                    {s.subtitle}
-                  </Text>
-                )}
-                {/* Visible text, not a tooltip: a disabled button takes no focus and
-                    shows no tooltip on touch. */}
-                {s.disabledReason && (
-                  <Text as="span" variant="body-s" color="warn">
-                    {s.disabledReason}
-                  </Text>
-                )}
-              </span>
-            </button>
+            <PickerRow item={s} onPick={onPick} />
           </li>
         ))}
       </ul>
     </section>
+  );
+}
+
+/** One pickable row — a task or a module, own or official. */
+function PickerRow({ item: s, onPick }: { item: AssignSelection; onPick: (s: AssignSelection) => void }) {
+  return (
+    <button
+      type="button"
+      className={styles.pickerRow}
+      disabled={Boolean(s.disabledReason)}
+      onClick={() => onPick(s)}
+    >
+      <span
+        className={cx(styles.pickIcon, s.kind === "module" && styles.pickIconModule)}
+        aria-hidden
+      >
+        {s.kind === "module" ? <ModuleGlyph /> : <TaskGlyph />}
+      </span>
+      <span className={styles.pickBody}>
+        <Text as="span" variant="body" weight="bold" truncate>
+          {s.title}
+        </Text>
+        {s.subtitle && (
+          <Text as="span" variant="body-s" color="muted" truncate>
+            {s.subtitle}
+          </Text>
+        )}
+        {/* Visible text, not a tooltip: a disabled button takes no focus and
+            shows no tooltip on touch. */}
+        {s.disabledReason && (
+          <Text as="span" variant="body-s" color="warn">
+            {s.disabledReason}
+          </Text>
+        )}
+      </span>
+    </button>
   );
 }
 

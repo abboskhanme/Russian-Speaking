@@ -756,7 +756,9 @@
       "liveTasks_one": "{{count}} active task",
       "liveTasks_other": "{{count}} active tasks",
       "moduleNoLive": "This module has no published tasks",
-      "questionNotPublished": "This task isn't published yet — make it active in Content first."
+      "questionNotPublished": "This task isn't published yet — make it active in Content first.",
+      "officialSection": "Official catalog",
+      "officialHint": "The platform's official modules. A task you assign opens for the student, even without premium."
     },
     "joinRequests_one": "{{count}} join request",
     "joinRequests_other": "{{count}} join requests",

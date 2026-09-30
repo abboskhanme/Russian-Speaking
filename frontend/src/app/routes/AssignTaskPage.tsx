@@ -1,12 +1,14 @@
 /**
  * AssignTaskPage (`/teacher/assign`) — D3 «Topshiriq berish» (plan Phase 6).
  *
- * Reads three lists the teacher already owns, and writes through whichever
- * assignment endpoint the selection calls for:
+ * Reads three lists the teacher already owns plus the official catalog, and
+ * writes through whichever assignment endpoint the selection calls for:
  *
  *   • `GET  /api/groups`         → the "Kimga" list, with the roster counts
  *   • `GET  /api/questions`      → the task library (and which module tasks are live)
  *   • `GET  /api/blocks`         → the modules
+ *   • `GET  /api/catalog/official` → the "Rasmiy katalog" section (live official
+ *                                  modules + their live tasks)
  *   • `GET  /api/classroom/students/{id}` → the one student, for `?student=`
  *   • `POST /api/assignments`         ← a single task
  *   • `POST /api/assignments/module`  ← a whole module's published tasks
@@ -21,6 +23,14 @@
  * published task is shown DISABLED with the reason — `/assignments/module` refuses
  * it, and the server's English "Module has no published tasks" used to reach the
  * teacher verbatim.
+ *
+ * **The official catalog is assignable too.** Most classes work through it, and
+ * the server accepts its live content from any teacher (and unlocks an assigned
+ * task for the student even past the free preview). It is its own section, so a
+ * teacher who has authored nothing still has something to give. Its list is live
+ * content only by construction, so `assignableTasks` is not applied to it. A
+ * module the teacher's own list already shows (theirs, or everything for an admin)
+ * is not repeated there.
  */
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
@@ -28,6 +38,7 @@ import { useTranslation } from "react-i18next";
 import { AssignTaskScreen } from "../../screens/teacher";
 import type {
   AssignGroupOption,
+  AssignOfficialModule,
   AssignOutcome,
   AssignSelection,
   AssignStudentTarget,
@@ -35,6 +46,7 @@ import type {
 import { endpoints } from "../../shared/api";
 import type {
   GroupResponse,
+  OfficialCatalogModuleResponse,
   TeacherBlockResponse,
   TeacherQuestionResponse,
 } from "../../shared/api";
@@ -58,6 +70,7 @@ export default function AssignTaskPage() {
   const [groups, setGroups] = useState<GroupResponse[]>([]);
   const [questions, setQuestions] = useState<TeacherQuestionResponse[]>([]);
   const [blocks, setBlocks] = useState<TeacherBlockResponse[]>([]);
+  const [catalog, setCatalog] = useState<OfficialCatalogModuleResponse[]>([]);
   const [student, setStudent] = useState<AssignStudentTarget | null>(null);
   const [studentMissing, setStudentMissing] = useState(false);
   const [queued, setQueued] = useState(0);
@@ -72,12 +85,13 @@ export default function AssignTaskPage() {
     setStudentMissing(false);
 
     (async () => {
-      const [g, q, b, rq, st] = await Promise.allSettled([
+      const [g, q, b, rq, st, oc] = await Promise.allSettled([
         endpoints.teacherGroups(),
         endpoints.teacherQuestions({ limit: QUESTION_LIMIT }),
         endpoints.teacherBlocks(),
         endpoints.teacherReviewCount(),
         studentId ? endpoints.classroomStudent(studentId) : Promise.resolve(null),
+        endpoints.officialCatalog(),
       ]);
       if (!alive) return;
 
@@ -92,6 +106,7 @@ export default function AssignTaskPage() {
       setGroups(g.value);
       setQuestions(q.status === "fulfilled" ? q.value : []);
       setBlocks(b.status === "fulfilled" ? b.value : []);
+      setCatalog(oc.status === "fulfilled" ? oc.value : []);
       setQueued(rq.status === "fulfilled" ? rq.value.count : 0);
 
       if (studentId) {
@@ -171,6 +186,32 @@ export default function AssignTaskPage() {
     );
   }, [blocks, questions, t]);
 
+  const official = useMemo<AssignOfficialModule[]>(() => {
+    // Own content already lists these (an admin's /api/blocks is every module).
+    const own = new Set(blocks.map((b) => b.id));
+    return catalog
+      .filter((m) => !own.has(m.id) && m.tasks.length > 0)
+      .map((m) => ({
+        module: {
+          id: m.id,
+          kind: "module" as const,
+          title: m.name,
+          subtitle: [m.level, t("teacher.assignTask.liveTasks", { count: m.tasks.length })]
+            .filter(Boolean)
+            .join(" · "),
+          taskCount: m.tasks.length,
+        },
+        tasks: m.tasks.map((task) => ({
+          id: task.id,
+          kind: "task" as const,
+          title: task.title,
+          // Nested under its module, so the module name would only repeat; `topic`
+          // is a raw key, not a label, and is left out like on own tasks.
+          subtitle: task.level ?? m.level ?? undefined,
+        })),
+      }));
+  }, [catalog, blocks, t]);
+
   const assign = useCallback(
     async ({
       selection,
@@ -240,6 +281,7 @@ export default function AssignTaskPage() {
     <AssignTaskScreen
       tasks={tasks}
       modules={modules}
+      official={official}
       groups={groupOptions}
       initialGroupId={initialGroupId}
       student={student}

@@ -756,7 +756,9 @@
       "liveTasks_one": "{{count}} ta faol vazifa",
       "liveTasks_other": "{{count}} ta faol vazifa",
       "moduleNoLive": "Bu modulda nashr qilingan vazifa yo‘q",
-      "questionNotPublished": "Bu vazifa hali nashr qilinmagan — avval uni Kontentda faol qiling."
+      "questionNotPublished": "Bu vazifa hali nashr qilinmagan — avval uni Kontentda faol qiling.",
+      "officialSection": "Rasmiy katalog",
+      "officialHint": "Platformaning rasmiy modullari. Siz bergan vazifa o‘quvchiga ochiladi, u premium bo‘lmasa ham."
     },
     "joinRequests_one": "{{count}} ta guruhga qo‘shilish so‘rovi",
     "joinRequests_other": "{{count}} ta guruhga qo‘shilish so‘rovi",

@@ -279,3 +279,13 @@
 .pickerRow:disabled:hover {
   background: var(--surface-2);
 }
+/* "Rasmiy katalog": each official module with its tasks under it, indented so
+   the module reads as the heading it is — both are pickable rows. */
+.officialModule {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+}
+.officialTasks {
+  padding-inline-start: var(--s-5);
+}

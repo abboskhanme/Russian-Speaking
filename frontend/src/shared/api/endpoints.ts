@@ -60,6 +60,7 @@ import type {
   RevealResponse,
   MeResponse,
   NotificationResponse,
+  OfficialCatalogModuleResponse,
   OtpRequestResponse,
   OtpStatusResponse,
   OtpVerifyResponse,
@@ -743,6 +744,15 @@ export function createModuleAssignments(
   args: CreateModuleAssignmentArgs,
 ): Promise<AssignmentResponse[]> {
   return apiClient.post<AssignmentResponse[]>("/assignments/module", args);
+}
+
+/** GET /api/catalog/official → the official LIVE catalog (public + published
+ * modules, each with its live tasks), for D3's "Rasmiy katalog". Teacher/admin
+ * only (403 for a student). Anything listed is assignable by this teacher through
+ * {@link createAssignments} (a task) or {@link createModuleAssignments} (the
+ * module) exactly like their own content, although they did not author it. */
+export function officialCatalog(): Promise<OfficialCatalogModuleResponse[]> {
+  return apiClient.get<OfficialCatalogModuleResponse[]>("/catalog/official");
 }
 
 /** GET /api/submissions?student_id=… → one student's attempts, newest first.

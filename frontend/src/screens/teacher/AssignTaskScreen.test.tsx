@@ -123,3 +123,101 @@ describe("a module with nothing to send", () => {
     expect(within(empty).getByText("Bu modulda nashr qilingan vazifa yo'q")).toBeInTheDocument();
   });
 });
+
+/*
+ * The official catalog ("Rasmiy katalog"). Most classes work through it, so a
+ * teacher must be able to set homework from content they did not author — and a
+ * teacher who has authored NOTHING must not be told "no content" while the
+ * official catalog is right there.
+ */
+describe("the official catalog", () => {
+  const OFFICIAL: NonNullable<AssignTaskProps["official"]> = [
+    {
+      module: { id: "om-1", kind: "module", title: "Rasmiy: Kundalik hayot", subtitle: "A2", taskCount: 2 },
+      tasks: [
+        { id: "oq-1", kind: "task", title: "Nonvoyxonada", subtitle: "A2" },
+        { id: "oq-2", kind: "task", title: "Metroda", subtitle: "A2" },
+      ],
+    },
+  ];
+
+  async function openPicker(user: ReturnType<typeof userEvent.setup>) {
+    await user.click(screen.getByRole("button", { name: new RegExp(t("teacher.assignTask.pickPrompt")) }));
+    return screen.getByRole("dialog", { name: t("teacher.assignTask.pickTitle") });
+  }
+
+  it("is its own labelled section beside the teacher's own content, module and tasks alike", async () => {
+    const user = userEvent.setup();
+    render(<AssignTaskScreen {...BASE} official={OFFICIAL} />);
+    const picker = await openPicker(user);
+
+    // Own content is still offered as before…
+    expect(within(picker).getByRole("button", { name: /Do'konda xarid/ })).toBeInTheDocument();
+    // …and the official catalog sits in its own, named section.
+    const section = within(picker).getByRole("region", { name: t("teacher.assignTask.officialSection") });
+    expect(within(section).getByText(t("teacher.assignTask.officialSection"))).toBeInTheDocument();
+    expect(within(section).getByRole("button", { name: /Rasmiy: Kundalik hayot/ })).toBeEnabled();
+    expect(within(section).getByRole("button", { name: /Nonvoyxonada/ })).toBeEnabled();
+    expect(within(section).getByRole("button", { name: /Metroda/ })).toBeEnabled();
+    // Own content never lands inside it.
+    expect(within(section).queryByRole("button", { name: /Do'konda xarid/ })).toBeNull();
+  });
+
+  it("assigns an official task and an official module exactly like own content", async () => {
+    const onAssign = vi.fn().mockResolvedValue({ created: 5, alreadyHad: 0 });
+    const user = userEvent.setup();
+    render(<AssignTaskScreen {...BASE} official={OFFICIAL} onAssign={onAssign} />);
+
+    let picker = await openPicker(user);
+    await user.click(within(picker).getByRole("button", { name: /Metroda/ }));
+    await user.click(screen.getByRole("button", { name: t("teacher.assignTask.submit", { count: 5 }) }));
+    expect(onAssign).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        selection: expect.objectContaining({ id: "oq-2", kind: "task" }),
+        groupId: "g-1",
+      }),
+    );
+
+    // The module re-arms the button (a different assignment) and goes out as a module.
+    // The pick row now names the current choice instead of the prompt.
+    await user.click(screen.getByRole("button", { name: /Metroda/ }));
+    picker = screen.getByRole("dialog", { name: t("teacher.assignTask.pickTitle") });
+    await user.click(within(picker).getByRole("button", { name: /Rasmiy: Kundalik hayot/ }));
+    await user.click(screen.getByRole("button", { name: t("teacher.assignTask.submit", { count: 5 }) }));
+    expect(onAssign).toHaveBeenLastCalledWith(
+      expect.objectContaining({ selection: expect.objectContaining({ id: "om-1", kind: "module" }) }),
+    );
+    expect(onAssign).toHaveBeenCalledTimes(2);
+  });
+
+  it("filters by the search box — a module name keeps its tasks, a task name keeps its module", async () => {
+    const user = userEvent.setup();
+    render(<AssignTaskScreen {...BASE} official={OFFICIAL} />);
+    const picker = await openPicker(user);
+    await user.type(within(picker).getByRole("searchbox"), "metro");
+    const section = within(picker).getByRole("region", { name: t("teacher.assignTask.officialSection") });
+    expect(within(section).getByRole("button", { name: /Metroda/ })).toBeInTheDocument();
+    expect(within(section).queryByRole("button", { name: /Nonvoyxonada/ })).toBeNull();
+    expect(within(section).getByRole("button", { name: /Rasmiy: Kundalik hayot/ })).toBeInTheDocument();
+  });
+
+  it("lets a teacher with NO own content assign from it — the empty state is not shown", async () => {
+    const onAssign = vi.fn().mockResolvedValue({ created: 5, alreadyHad: 0 });
+    const user = userEvent.setup();
+    render(<AssignTaskScreen {...BASE} tasks={[]} modules={[]} official={OFFICIAL} onAssign={onAssign} />);
+
+    expect(screen.queryByText(t("teacher.assignTask.noContent"))).toBeNull();
+    const picker = await openPicker(user);
+    await user.click(within(picker).getByRole("button", { name: /Nonvoyxonada/ }));
+    await user.click(screen.getByRole("button", { name: t("teacher.assignTask.submit", { count: 5 }) }));
+    expect(onAssign).toHaveBeenCalledWith(
+      expect.objectContaining({ selection: expect.objectContaining({ id: "oq-1", kind: "task" }) }),
+    );
+  });
+
+  it("shows the no-content empty state only when BOTH sources are empty", () => {
+    render(<AssignTaskScreen {...BASE} tasks={[]} modules={[]} official={[]} />);
+    expect(screen.getByText(t("teacher.assignTask.noContent"))).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: new RegExp(t("teacher.assignTask.pickPrompt")) })).toBeNull();
+  });
+});

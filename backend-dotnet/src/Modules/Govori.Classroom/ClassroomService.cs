@@ -551,8 +551,19 @@ public sealed class ClassroomService
 
     /// <summary>
     /// POST /assignments — assign one task, with a deadline, to explicit students and/or a whole
-    /// group. A teacher may only assign their OWN question (admin: any).
+    /// group. A teacher may assign their OWN question or an OFFICIAL live one
+    /// (<see cref="OfficialCatalog"/> — published, not deleted, in a public published module); an
+    /// admin any. Another teacher's non-official content is 404, exactly like a missing id.
     /// <b>S1 fix</b>: targets are filtered through the teacher's roster before rows are written.
+    ///
+    /// <para><b>Why official content is assignable.</b> The official catalog is the product's main
+    /// content, and a class that works through it is still the teacher's class — they already see
+    /// and grade every roster answer to it (<see cref="TeacherScope"/>). The assignment row stays the
+    /// ASSIGNING teacher's (<c>teacher_id = user.Id</c>), so the D3/A5 lists, cancel and deadline
+    /// moves keep working on it as on any other, and the roster filter below is untouched: official
+    /// content widens WHAT may be sent, never WHO it may be sent to. An open assignment is also what
+    /// lets the student open a task the freemium gate would otherwise lock
+    /// (<see cref="AssignmentAccess"/>).</para>
     ///
     /// <para><b>No second copy of a task a student still owes.</b> A target who already has an
     /// <see cref="OpenAssignments">OPEN</see> assignment for this question — not yet answered,
@@ -579,11 +590,12 @@ public sealed class ClassroomService
             return ClassroomResult<IReadOnlyList<AssignmentResponse>>.BadRequest(badLimit);
 
         var q = await _db.Questions.FirstOrDefaultAsync(x => x.Id == payload.QuestionId, ct);
-        if (q is null || q.IsDeleted || (user.Role != UserRole.Admin && q.TeacherId != user.Id))
-            return ClassroomResult<IReadOnlyList<AssignmentResponse>>.NotFound();  // missing, deleted, or not theirs
+        if (q is null || q.IsDeleted || !await MayAssignQuestionAsync(user, q, ct))
+            return ClassroomResult<IReadOnlyList<AssignmentResponse>>.NotFound();  // missing, deleted, or neither theirs nor official
         // A draft is the owner's to finish, not a class's to answer: submit refuses an unpublished
         // task, so an assignment to one would be a task the student is shown and cannot do. Told only
-        // to the owner (the 404 above came first), and with a code so the UI can say "publish it".
+        // to the owner (the 404 above came first — an official task is live by definition, so another
+        // teacher's draft never gets this far), and with a code so the UI can say "publish it".
         if (!q.IsPublished)
             return ClassroomResult<IReadOnlyList<AssignmentResponse>>.BadRequest(
                 "Publish the task before assigning it", ClassroomErrorCodes.QuestionNotPublished);
@@ -626,7 +638,10 @@ public sealed class ClassroomService
 
     /// <summary>POST /assignments/module — assign every published, not-deleted task of a module in
     /// one go (a soft-deleted or draft task is skipped — submit would refuse it anyway).
-    /// A teacher must own the module (admin: any). Skips every task a student has EVER been
+    /// A teacher must own the module or it must be an OFFICIAL live one — public AND published
+    /// (<see cref="OfficialCatalog"/>, and see <see cref="CreateAssignmentsAsync"/> for why); an
+    /// admin any. Another teacher's group/private module, or an official module that is still a
+    /// draft, is 404. Skips every task a student has EVER been
     /// assigned, answered or not: assigning a module is enrolment, and the everyday repeat —
     /// re-assigning it to the whole group after a newcomer joins — must hand the newcomer the module
     /// without handing everyone else their finished tasks again. (The single-task path skips only
@@ -643,8 +658,9 @@ public sealed class ClassroomService
             return ClassroomResult<IReadOnlyList<AssignmentResponse>>.BadRequest(badLimit);
 
         var block = await _db.QuestionBlocks.FirstOrDefaultAsync(b => b.Id == payload.BlockId, ct);
-        if (block is null || (user.Role != UserRole.Admin && block.TeacherId != user.Id))
-            return ClassroomResult<IReadOnlyList<AssignmentResponse>>.NotFound();  // missing, or not theirs
+        if (block is null
+            || (user.Role != UserRole.Admin && block.TeacherId != user.Id && !OfficialCatalog.IsLiveModule(block)))
+            return ClassroomResult<IReadOnlyList<AssignmentResponse>>.NotFound();  // missing, or neither theirs nor official
 
         var tasks = await _db.Questions
             .Where(x => x.BlockId == block.Id && !x.IsDeleted && x.IsPublished)
@@ -1274,17 +1290,21 @@ public sealed class ClassroomService
             .ToList();
         if (top.Count == 0) return rows;
 
-        // Only questions that can still be handed out. A teacher may assign their OWN questions
-        // (admin: any) — the same ownership rule CreateAssignmentsAsync enforces, applied here so the
-        // button is never offered for a task the confirm would then be refused for.
+        // Only questions that can still be handed out. A teacher may assign their OWN questions or
+        // OFFICIAL live ones (admin: any) — the same rule CreateAssignmentsAsync enforces
+        // (MayAssignQuestionAsync), applied here so the button is never offered for a task the
+        // confirm would then be refused for. Official content matters here more than anywhere: a
+        // class on the official catalog makes most of its errors on official questions, and the
+        // drill for an error is the task it happened on.
         var candidateIds = top.SelectMany(x => x.Tally.PerQuestion.Keys).Distinct().ToList();
         if (candidateIds.Count == 0) return rows;                 // free-practice errors only
         var isAdmin = user.Role == UserRole.Admin;
+        var official = OfficialCatalog.LiveTaskIds(_db);
         var assignable = await _db.Questions
             .Where(q => candidateIds.Contains(q.Id)
                         && !q.IsDeleted
                         && q.IsPublished
-                        && (isAdmin || q.TeacherId == user.Id))
+                        && (isAdmin || q.TeacherId == user.Id || official.Contains(q.Id)))
             .ToDictionaryAsync(q => q.Id, ct);
 
         // Pick each row's task first, so the assignment/name lookups below cover exactly the pairs
@@ -1465,26 +1485,35 @@ public sealed class ClassroomService
     }
 
     /// <summary>
+    /// May this teacher hand out this (existing, not deleted) task? Their OWN, or an OFFICIAL live
+    /// one (<see cref="OfficialCatalog"/>); an admin any. The single-task path's ownership test — the
+    /// F6 plan applies the same three-way rule in its one batched query, so the "Mashq ber" button
+    /// and the assign route it calls can never disagree about a task.
+    /// </summary>
+    private async Task<bool> MayAssignQuestionAsync(User user, Question q, CancellationToken ct)
+        => user.Role == UserRole.Admin
+           || q.TeacherId == user.Id
+           || await OfficialCatalog.LiveTasks(_db).AnyAsync(x => x.Id == q.Id, ct);
+
+    /// <summary>
     /// Assignments the student has not answered yet — by the SAME rule
     /// <see cref="AssignmentResponse.Completed"/> reports (any answer to that question given at or
     /// after the assignment was set closes it), so a list that shows a task as done and a delete that
     /// treats it as history can never disagree. Deadline-blind on purpose: this is "what is not the
-    /// student's record", used when an arrangement is dismantled.
+    /// student's record", used when an arrangement is dismantled. The definition itself lives in
+    /// <see cref="AssignmentAccess.Unanswered"/> — shared, because the unlock rule reads it too.
     /// </summary>
-    private IQueryable<Assignment> Unanswered()
-        => _db.Assignments.Where(a => !_db.Submissions.Any(
-            s => s.StudentId == a.StudentId
-                 && s.QuestionId == a.QuestionId
-                 && s.CreatedAt >= a.CreatedAt));
+    private IQueryable<Assignment> Unanswered() => AssignmentAccess.Unanswered(_db);
 
     /// <summary>
     /// OPEN assignments — the ones a student still owes: <see cref="Unanswered"/> AND the deadline
     /// has not passed. The one definition of "they already have this task", shared by the
-    /// single-task create path and the F6 remediation plan. A lapsed deadline is not open: submit no
-    /// longer attributes answers to it, so it is not something the student can still do.
+    /// single-task create path and the F6 remediation plan — and, through
+    /// <see cref="AssignmentAccess.Open"/>, by the student module view and submit, where an open
+    /// assignment unlocks its task. A lapsed deadline is not open: submit no longer attributes
+    /// answers to it, so it is not something the student can still do.
     /// </summary>
-    private IQueryable<Assignment> OpenAssignments(DateTime now)
-        => Unanswered().Where(a => a.DueAt == null || a.DueAt >= now);
+    private IQueryable<Assignment> OpenAssignments(DateTime now) => AssignmentAccess.Open(_db, now);
 
     /// <summary>The (student, question) pairs among these that have an <see cref="OpenAssignments">
     /// OPEN</see> assignment — one query for the whole set, never one per student.</summary>
