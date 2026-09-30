@@ -38,7 +38,7 @@ Uchta cheklov tartibni belgilaydi, va ular muzokaraga ochiq emas:
 | **S4** | **Yangi funksiyalar (flag ortida)** | **6.1 · 6.2 · 6.3 · 6.5 · 6.7 · 6.8** ✅ · **6.6** 🟡 (skelet) | ✅ |
 | **S5** | **Zaxira skriptlari, tozalash, hujjatlar, yakuniy QA** | **0.5** ✅ (zaxira **va** tiklash, sinalgan) · 7.x · **prodga tayyorlik** ✅ | 🟡 |
 | **S6** | **Prodga tayyorlik qattiqlashtirishi** *(2026-08-23 kechasi, rejada yo'q edi)* | Sirlar · CORS · token bekor qilish · vendor timeout · rate limit · readiness · log · cutover minalari · ErrorBoundary · uchala rol uchun E2E · kontrast | ✅ |
-| **S8** | **Uch rol bo'yicha yakuniy audit va tuzatish** *(2026-09-29)* | Pastdagi "S8" bo'limi — 7 ta P0, ~30 ta P1 | ✅ kod · 🟡 jonli tekshiruv |
+| **S8** | **Uch rol bo'yicha yakuniy audit va tuzatish** *(2026-09-29)* | Pastdagi "S8" bo'limi — 7 ta P0, ~30 ta P1 | ✅ |
 | **S7** | **Noldan o'rnatish** *(egasining 2026-08-23 qarori)* | `INSTALL.md` · `bootstrap-admin.sh` · `smoke.sh` · `preflight.sh` rejimlari · sertifikat zanjiri | ✅ |
 
 > **S4 — yakuniy holat (2026-08-23).** Sprint yopildi. Uch band reja yozganidan boshqacha chiqdi,
@@ -217,8 +217,8 @@ kontent seed qilinmaydi; C3/C6 — launch'dan keyin; brend rangi o'zgarmaydi (16
 kontrast tuguni qabul qilingan cheklov).
 
 **O'lchov (2026-09-29):** backend build **0 warning / 0 error**, to'rtala suite **553 passed,
-0 failed, 4 skipped** (430 dan) · frontend **355 vitest** (189 dan), build yashil, bundle
-**141.7 / 180 KB gz** (o'sish — asosan uch tildagi yangi matnlar entry chunk'da) ·
+0 failed, 4 skipped** (430 dan) · frontend **356 vitest** (189 dan), **Playwright 14/14** qayta qurilgan stack'da, build yashil, bundle
+**142.2 / 180 KB gz** (o'sish — asosan uch tildagi yangi matnlar entry chunk'da) · Playwright birinchi yugurishda **haqiqiy xato** topdi: navbat nishoni sahifa uzunligini ko'rsatardi (125 o'rniga "100") — `GET /api/submissions/review-count` bilan tuzatildi ·
 `check:contract` **0 xato** (OpenAPI qayta generatsiya qilindi; emitter `[JsonIgnore]`
 maydonlarni endi hujjatga chiqarmaydi).
 
