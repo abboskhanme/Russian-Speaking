@@ -37,7 +37,8 @@ public static class GuestPlacementEndpoints
 
         // POST /api/guest/placement/submit (multipart: question_index + audio) → { index, band }.
         // No auth; RATE LIMIT guest_placement (per-IP, fail-open). Reads the form manually to sidestep
-        // antiforgery, exactly like the authed placement submit. Stores nothing.
+        // antiforgery, exactly like the authed placement submit. Stores nothing. 503 placement_unavailable
+        // when the answer cannot be scored right now (never an invented band).
         placement.MapPost("/submit", async (HttpRequest request, PlacementService svc, CancellationToken ct) =>
         {
             if (!request.HasFormContentType)
@@ -59,7 +60,13 @@ public static class GuestPlacementEndpoints
             await stream.CopyToAsync(buffer, ct);
 
             var band = await svc.GradeAnswerAsync(index, buffer.ToArray(), ct);
-            return Results.Ok(new PlacementSubmitResponse(index, band));
+            // No band is ever invented: an answer that cannot be scored right now is a 503 the
+            // screen turns into "retry or skip", not a level made of file size (see PlacementService).
+            return band is { } b
+                ? Results.Ok(new PlacementSubmitResponse(index, b))
+                : Results.Json(
+                    new CodedErrorResponse("Placement cannot be assessed right now", PlacementErrorCodes.Unavailable),
+                    statusCode: StatusCodes.Status503ServiceUnavailable);
         }).RequireRateLimiting(RateLimitPolicyNames.GuestPlacement).DisableAntiforgery();
 
         // POST /api/guest/placement/complete { bands: [...] } → { level, label_uz, band }. No auth;

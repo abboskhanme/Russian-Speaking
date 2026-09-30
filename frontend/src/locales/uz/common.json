@@ -208,7 +208,7 @@
   "placement": {
     "kicker": "Dastlabki sinov · bir martalik",
     "introTitle": "Darajangizni aniqlaymiz",
-    "introBody": "3 ta savolga ovozli javob bering (~2 daqiqa). Natija saqlanadi — keyingi safar so'ralmaydi.",
+    "introBody": "3 ta savolga ovozli javob bering (~2 daqiqa) va taxminiy darajangizni bilib oling.",
     "firstQuestion": "1-savol",
     "startCta": "Sinovni boshlash →",
     "skipCta": "Keyinroq — hozircha kirish",
@@ -218,6 +218,7 @@
     "grading": "Baholayapmiz…",
     "gradingMascotLabel": "Govo javobingizni baholayapti",
     "submitError": "Javobni yuborib bo'lmadi. Qayta urinib ko'ring.",
+    "unavailable": "Hozir javobni baholab bo'lmadi. Birozdan keyin qayta urinib ko'ring yoki testni keyinroqqa qoldiring.",
     "resultKicker": "Joylashtiruv tugadi",
     "resultTitle": "Yaxshi boshladik!",
     "resultBody": "Siz allaqachon gapira olasiz. Har kuni 5 daqiqa — 8 haftada seziladi.",

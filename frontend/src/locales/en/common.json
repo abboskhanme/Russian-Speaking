@@ -208,7 +208,7 @@
   "placement": {
     "kicker": "Placement test · one time",
     "introTitle": "Let's find your level",
-    "introBody": "Answer 3 questions by voice (~2 minutes). Your result is saved — we won't ask again.",
+    "introBody": "Answer 3 questions by voice (~2 minutes) and find your approximate level.",
     "firstQuestion": "Question 1",
     "startCta": "Start the test →",
     "skipCta": "Later — just go in for now",
@@ -218,6 +218,7 @@
     "grading": "Grading…",
     "gradingMascotLabel": "Govo is grading your answer",
     "submitError": "Couldn't send your answer. Please try again.",
+    "unavailable": "Your answer can't be assessed right now. Try again in a moment, or take the test later.",
     "resultKicker": "Placement complete",
     "resultTitle": "Great start!",
     "resultBody": "You can already speak. Five minutes a day — you'll feel it in 8 weeks.",

@@ -33,8 +33,8 @@ public static class PlacementEndpoints
             .RequireAuthorization();
 
         // POST /api/placement/submit (multipart: question_index + audio file) → { index, band }.
-        // 400 (bad form / index), else 200. Reads the form manually to sidestep antiforgery, exactly
-        // like Practice's submit. Stores nothing.
+        // 400 (bad form / index), 503 placement_unavailable (cannot be scored now), else 200. Reads the
+        // form manually to sidestep antiforgery, exactly like Practice's submit. Stores nothing.
         placement.MapPost("/submit", async (HttpRequest request, ClaimsPrincipal principal, PlacementService svc, CancellationToken ct) =>
         {
             if (!IsAccess(principal))
@@ -58,7 +58,13 @@ public static class PlacementEndpoints
             await stream.CopyToAsync(buffer, ct);
 
             var band = await svc.GradeAnswerAsync(index, buffer.ToArray(), ct);
-            return Results.Ok(new PlacementSubmitResponse(index, band));
+            // No band is ever invented: an answer that cannot be scored right now is a 503 the
+            // screen turns into "retry or skip", not a level made of file size (see PlacementService).
+            return band is { } b
+                ? Results.Ok(new PlacementSubmitResponse(index, b))
+                : Results.Json(
+                    new CodedErrorResponse("Placement cannot be assessed right now", PlacementErrorCodes.Unavailable),
+                    statusCode: StatusCodes.Status503ServiceUnavailable);
             // RATE LIMIT placement_submit (30/hour, per user, FAIL-OPEN). This route runs the SAME
             // STT + grader seams as a real submission, so it costs the same money — but because it
             // stores nothing, none of the freemium or attempt-budget logic that bounds

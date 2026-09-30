@@ -12,11 +12,15 @@ namespace Govori.Assessment;
 /// the client collected.
 ///
 /// <para>Grading reuses the SAME <see cref="ISttProvider"/> + <see cref="IGraderProvider"/> seams the
-/// real grading pipeline uses (<see cref="Scoring"/> blend). Today both are STUB providers reporting
-/// <see cref="ISttProvider.IsConfigured"/> = <c>false</c> (no Azure/Gemini keys), so this service
-/// falls back to a DETERMINISTIC placeholder band — the placement flow works end-to-end and shows a
-/// sane, approximate level until real keys land (Faza 3.4). The moment the real providers are wired,
-/// the same code path grades for real with no change here.</para>
+/// real grading pipeline uses (<see cref="Scoring"/> blend).</para>
+///
+/// <para><b>No answer is ever invented.</b> When the providers are not configured, or one fails
+/// mid-call, <see cref="GradeAnswerAsync"/> returns <c>null</c> and the endpoints answer 503
+/// <c>placement_unavailable</c>. This service used to return a "deterministic placeholder band"
+/// (40–56, derived from the recording's byte length) in both cases, which the screen then presented
+/// as the student's measured level — an A2 or B1 made of file size, on the first screen a new
+/// student sees, and a number they would carry into choosing what to practise. A test that cannot
+/// be scored right now says so, and the student can retry or skip it.</para>
 /// </summary>
 public sealed class PlacementService
 {
@@ -49,36 +53,32 @@ public sealed class PlacementService
     public static bool IsValidIndex(int index) => index >= 0 && index < Prompts.Length;
 
     /// <summary>
-    /// Grade one answer → a 0–100 band (<c>POST /api/placement/submit</c>). Stores nothing. When the
-    /// STT + grader providers are BOTH configured, runs the real transcribe→grade→blend; otherwise
-    /// (today's stubs, or a provider fault) returns a deterministic placeholder band so the flow never
-    /// breaks. <paramref name="index"/> is assumed already validated by the endpoint.
+    /// Grade one answer → a 0–100 band (<c>POST /api/placement/submit</c>). Stores nothing. Runs the
+    /// real transcribe→grade→blend, and returns <c>null</c> — never a made-up band — when STT or the
+    /// grader is not configured or a vendor call fails. <paramref name="index"/> is assumed already
+    /// validated by the endpoint. A cancelled request is not a vendor failure and propagates.
     /// </summary>
-    public async Task<double> GradeAnswerAsync(int index, byte[] audio, CancellationToken ct)
+    public async Task<double?> GradeAnswerAsync(int index, byte[] audio, CancellationToken ct)
     {
-        // Unscripted open questions → no reference text (memory: transcript stays faithful).
-        if (await _stt.IsConfiguredAsync(ct) && await _grader.IsConfiguredAsync(ct))
-        {
-            try
-            {
-                var stt = await _stt.TranscribeAsync(audio, $"placement-{index}.webm", referenceText: null, ct);
-                var graded = await _grader.AnalyzeAsync(new GraderRequest
-                {
-                    QuestionPrompt = Prompts[index],
-                    TranscriptText = stt.Text,
-                }, ct);
-                // Same C5 blend the app uses: fold Azure's PronScore in as a 5th criterion.
-                return Scoring.WithPron(graded.Scores.Overall, stt.Pronunciation?.Pronunciation);
-            }
-            catch
-            {
-                // A real provider faulted mid-call — degrade to the placeholder rather than fail the
-                // placement (an approximate level beats a broken onboarding).
-                return DeterministicBand(index, audio.Length);
-            }
-        }
+        if (!await _stt.IsConfiguredAsync(ct) || !await _grader.IsConfiguredAsync(ct))
+            return null;
 
-        return DeterministicBand(index, audio.Length);
+        try
+        {
+            // Unscripted open questions → no reference text (memory: transcript stays faithful).
+            var stt = await _stt.TranscribeAsync(audio, $"placement-{index}.webm", referenceText: null, ct);
+            var graded = await _grader.AnalyzeAsync(new GraderRequest
+            {
+                QuestionPrompt = Prompts[index],
+                TranscriptText = stt.Text,
+            }, ct);
+            // Same C5 blend the app uses: fold Azure's PronScore in as a 5th criterion.
+            return Scoring.WithPron(graded.Scores.Overall, stt.Pronunciation?.Pronunciation);
+        }
+        catch (Exception) when (!ct.IsCancellationRequested)
+        {
+            return null;
+        }
     }
 
     /// <summary>
@@ -104,12 +104,4 @@ public sealed class PlacementService
     /// buckets exist in exactly one place, so they cannot drift.</para>
     /// </summary>
     private static (string Level, string LabelUz) MapCefr(double band) => CefrScale.FromBand(band);
-
-    /// <summary>
-    /// Deterministic placeholder band for when the AI providers are stubbed (no keys). Not random:
-    /// stable for the same recording + question so a re-submit reproduces the number. Lands in a
-    /// sane mid window (~40–56) so the 3-answer average shows a plausible A2/B1 during the demo.
-    /// </summary>
-    private static double DeterministicBand(int index, int audioLength) =>
-        40 + (audioLength + index * 7) % 17; // 40..56, stable per (audio, index)
 }

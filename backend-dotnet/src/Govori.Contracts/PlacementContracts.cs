@@ -30,3 +30,12 @@ public sealed record PlacementCompleteRequest(IReadOnlyList<double> Bands);
 /// <c>level</c>, <c>label_uz</c>, <c>band</c>.
 /// </summary>
 public sealed record PlacementResultResponse(string Level, string LabelUz, double Band);
+
+/// <summary>Machine codes for placement refusals (<see cref="CodedErrorResponse"/>).</summary>
+public static class PlacementErrorCodes
+{
+    /// <summary>POST …/placement/submit: the answer could not be assessed right now — speech
+    /// recognition or the grader is not configured, or a vendor failed. 503; the client offers a
+    /// retry or skipping the test. Never answered with an invented band.</summary>
+    public const string Unavailable = "placement_unavailable";
+}

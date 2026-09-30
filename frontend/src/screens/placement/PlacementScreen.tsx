@@ -19,7 +19,7 @@ import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
 import { Button, Card, Mascot, Recorder, Spinner, Text } from "../../shared/ui";
 import { ThemeToggle } from "../../widgets";
-import { endpoints } from "../../shared/api";
+import { endpoints, isApiError } from "../../shared/api";
 import type { PlacementQuestionResponse, PlacementResultResponse } from "../../shared/api";
 import { useAuth } from "../../shared/auth";
 import { PageError } from "../../app/PageState";
@@ -71,6 +71,8 @@ export default function PlacementScreen({ mode = "auth" }: PlacementScreenProps)
   const [bands, setBands] = useState<number[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [answerError, setAnswerError] = useState<string | null>(null);
+  /** The last failure was "cannot be scored right now" — offer leaving the test for later. */
+  const [canDefer, setCanDefer] = useState(false);
   const [recorderKey, setRecorderKey] = useState(0);
   const [result, setResult] = useState<PlacementResultResponse | null>(null);
 
@@ -113,6 +115,7 @@ export default function PlacementScreen({ mode = "auth" }: PlacementScreenProps)
       const index = questions[current].index;
       setSubmitting(true);
       setAnswerError(null);
+      setCanDefer(false);
       try {
         const res = await api.submit({ index, audio });
         const nextBands = [...bands, res.band];
@@ -127,8 +130,14 @@ export default function PlacementScreen({ mode = "auth" }: PlacementScreenProps)
           setPhase("result");
           setSubmitting(false);
         }
-      } catch {
-        setAnswerError(t("placement.submitError"));
+      } catch (e) {
+        // 503 = the answer could not be SCORED right now (no AI key, or a vendor failed). The
+        // server used to answer that with a band made of the recording's byte length, shown here
+        // as the student's level; now it refuses, and the screen offers a retry or leaving the
+        // test for later — never a number it does not have.
+        const unavailable = isApiError(e) && e.status === 503;
+        setAnswerError(t(unavailable ? "placement.unavailable" : "placement.submitError"));
+        setCanDefer(unavailable);
         setRecorderKey((k) => k + 1); // remount the Recorder so they can retry
         setSubmitting(false);
       }
@@ -193,6 +202,11 @@ export default function PlacementScreen({ mode = "auth" }: PlacementScreenProps)
             <div className={styles.error} role="alert">
               {answerError}
             </div>
+          )}
+          {answerError && canDefer && (
+            <Button variant="ghost" fullWidth onClick={isGuest ? goRegister : finishAuth}>
+              {isGuest ? t("placement.guest.introSkip") : t("placement.skipCta")}
+            </Button>
           )}
 
           <div className={styles.stage} aria-live="polite">
