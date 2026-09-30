@@ -140,13 +140,12 @@ public sealed class PracticeService
 
             // Positional freemium gate — the ONLY 402 in the app, raised here at submit and
             // BEFORE any upload. Reuses Catalog's frozen decision, then applies the one exception
-            // the student module view applies too: an OPEN assignment for THIS task
-            // (AssignmentAccess — not yet answered since it was set, deadline not passed) lifts the
-            // gate for THIS student. A teacher can already grant them premium outright, so this
-            // opens no new door, and homework the student is shown but cannot submit is worse than
-            // none. Asked only when the gate would refuse, so a premium student costs no query.
-            if (await _catalog.NeedsPremiumAsync(student, question, ct)
-                && !await AssignmentAccess.HasOpenAsync(_db, student.Id, question.Id, now, ct))
+            // the student module view applies too: a LIVE assignment for THIS task lifts the gate
+            // for THIS student (AssignmentAccess.Live — deadline not passed, answered or not). That
+            // is exactly `assignment` above, the row this answer is attributed to, so retries the
+            // attempt budget allows — and a redo after OUR grading failed — are not re-gated. A
+            // teacher can already grant premium outright, so this opens no new door.
+            if (assignment is null && await _catalog.NeedsPremiumAsync(student, question, ct))
                 return new SubmitResult(SubmitStatus.PaymentRequired);
         }
 

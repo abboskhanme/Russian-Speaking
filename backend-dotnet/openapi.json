@@ -1155,6 +1155,21 @@
         ]
       }
     },
+    "/api/catalog/official": {
+      "get": {
+        "summary": "HTTP: GET /api/catalog/official",
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
     "/api/classroom/students/{id}": {
       "get": {
         "summary": "HTTP: GET /api/classroom/students/{id:guid}",
@@ -4881,6 +4896,61 @@
           "title",
           "is_read",
           "created_at"
+        ]
+      },
+      "OfficialCatalogModuleResponse": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string"
+          },
+          "level": {
+            "type": "string",
+            "nullable": true
+          },
+          "topic": {
+            "type": "string",
+            "nullable": true
+          },
+          "tasks": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/OfficialCatalogTaskResponse"
+            }
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "tasks"
+        ]
+      },
+      "OfficialCatalogTaskResponse": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "title": {
+            "type": "string"
+          },
+          "level": {
+            "type": "string",
+            "nullable": true
+          },
+          "topic": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "required": [
+          "id",
+          "title"
         ]
       },
       "OtpRequestRequest": {

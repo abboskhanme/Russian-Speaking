@@ -135,6 +135,30 @@ public sealed partial class PracticeEndpointsTests
                 Assert.Equal(q[4], row.QuestionId);
                 Assert.Equal(assignmentId, row.AssignmentId);
             }
+
+            // ── Answering does NOT re-lock it. The unlock is the LIVE assignment (deadline not
+            // passed), the same rule that attributes answers — so a retry is a retry, not a 402. ──
+            AssertLocks((await StudentTasks())[q[4]], locked: false, premium: false);
+            Assert.Equal(HttpStatusCode.Created, (await SubmitTo(q[4])).StatusCode);
+
+            // ── What bounds retries is the teacher's attempt budget, and running out of it is the
+            // honest 403 "attempts used", never a paywall. ──
+            await using (var ctx = CreateContext())
+                await ctx.Assignments.Where(a => a.Id == assignmentId)
+                    .ExecuteUpdateAsync(set => set.SetProperty(a => a.MaxAttempts, 2));
+            var exhausted = await SubmitTo(q[4]);
+            Assert.Equal(HttpStatusCode.Forbidden, exhausted.StatusCode);
+            Assert.Contains("attempts", await exhausted.Content.ReadAsStringAsync());
+
+            // ── An answer whose grading failed on OUR side costs nothing, so it can be redone. ──
+            await using (var ctx = CreateContext())
+            {
+                var first = await ctx.Submissions.Where(s => s.StudentId == studentId)
+                    .OrderBy(s => s.CreatedAt).FirstAsync();
+                await ctx.Submissions.Where(s => s.Id == first.Id)
+                    .ExecuteUpdateAsync(set => set.SetProperty(s => s.Status, SubmissionStatus.Failed));
+            }
+            Assert.Equal(HttpStatusCode.Created, (await SubmitTo(q[4])).StatusCode);
         }
         finally
         {

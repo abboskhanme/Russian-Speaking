@@ -139,7 +139,7 @@ public sealed class CatalogService
     /// plus the student's own teachers' GROUP modules, each with its ordered tasks carrying the
     /// two-layer lock.
     ///
-    /// <para><b>One exception to both layers:</b> a task the student holds an OPEN assignment for
+    /// <para><b>One exception to both layers:</b> a task the student holds a LIVE assignment for
     /// (<see cref="AssignmentAccess"/>) is neither <c>locked</c> nor <c>premium_locked</c>, and its
     /// content is served. That is what lets a teacher set task 7 of an official module as homework.
     /// Submit applies the same exception to its 402, so the two can never disagree. The positional
@@ -194,11 +194,12 @@ public sealed class CatalogService
         var now = DateTime.UtcNow;
         var hasPremium = await PremiumAccess.HasPremiumAsync(_db, user, now, ct);
 
-        // The tasks this student holds an OPEN assignment for — the ONE thing that lifts either lock
-        // (AssignmentAccess: an open assignment unlocks THAT task for THAT student). Read by the same
-        // definition submit reads, so a task this view opens is a task submit accepts. One query for
+        // The tasks this student holds a LIVE assignment for — the ONE thing that lifts either lock
+        // (AssignmentAccess: a live assignment unlocks THAT task for THAT student, answered or not, so
+        // a retry the attempt budget allows is not re-locked). Read by the same definition submit
+        // attributes answers with, so a task this view opens is a task submit accepts. One query for
         // the whole view.
-        var assigned = (await AssignmentAccess.OpenQuestionIds(_db, userId, now)
+        var assigned = (await AssignmentAccess.LiveQuestionIds(_db, userId, now)
             .Distinct()
             .ToListAsync(ct))
             .ToHashSet();
