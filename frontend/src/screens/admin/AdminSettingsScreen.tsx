@@ -594,19 +594,11 @@ export function AdminSettingsScreen({
               ready={settings.readyGraderBackends}
               onChange={setGraderChain}
             />
-            {/* Orthoepy sits with the chain, not in a backend card: it changes what the
-                grader is ASKED, whichever backend ends up answering. */}
-            <div className={styles.switchRow}>
-              <span className={styles.switchText}>
-                <Text as="span" variant="body" weight="semibold">
-                  {t("admin.orthoepy")}
-                </Text>
-                <Text as="span" variant="body-s" color="muted">
-                  {t("admin.orthoepyHint")}
-                </Text>
-              </span>
-              <Switch checked={orthoepy} onChange={setOrthoepy} aria-label={t("admin.orthoepy")} />
-            </div>
+            {/* No "Orfoepiya tekshiruvi" switch here, on purpose. `orthoepy_enabled` is stored
+                and read back, but grading never consults it — the orthoepy pass is not built
+                (AssessmentService writes `orthoepy_errors: []`). A switch that changes nothing
+                tells an admin a check is running when none is. Restore the row in the same
+                change that makes the grader read the flag. */}
           </Card>
 
           {/* The probe key is `kind:name` and `name` is the server's own backend id —
