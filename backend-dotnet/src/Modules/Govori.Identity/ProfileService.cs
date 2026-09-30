@@ -82,9 +82,12 @@ public sealed class ProfileService
             .AverageAsync(e => (double?)e.OverallBand, ct);
 
         // Practice seconds TODAY and THIS WEEK — the Home screen's "Bugungi N daqiqa" progress and the
-        // "Bu hafta" tile. Windowed by UTC (same basis as streaks/XP); one SUM each, no list load.
+        // "Bu hafta" tile. "Today" starts at the product day's midnight (ProductDay — Tashkent local
+        // midnight, the same day the streak is kept on); at UTC midnight the tile would read 0 at
+        // 05:00 and count 00:30 practice into yesterday. "This week" is a rolling 7×24 h window, so
+        // it has no day boundary to move. One SUM each, no list load.
         var now = DateTime.UtcNow;
-        var dayStart = now.Date;                 // 00:00 UTC today
+        var dayStart = ProductDay.StartOfTodayUtc(now);
         var weekStart = now.AddDays(-7);
         var todaySec = await _db.Submissions
             .Where(s => s.StudentId == userId && s.CreatedAt >= dayStart)

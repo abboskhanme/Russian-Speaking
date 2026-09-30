@@ -27,14 +27,24 @@ namespace Govori.Contracts;
 /// nothing: reading NEVER consumes a freeze — freezes are spent lazily, only by UpdateStreak, only
 /// when the student actually comes back.</para>
 ///
-/// <para><b>Days are UTC</b> (the documented S6 decision): the writer keys off
-/// <c>DateOnly.FromDateTime(DateTime.UtcNow)</c>, so every reader must too, or a student in
-/// Tashkent would see their streak break five hours before the writer thinks it has.</para>
+/// <para><b>Days are product days</b> — <see cref="ProductDay"/>: local midnight in Tashkent,
+/// UTC+05:00 (Uzbekistan-only product, no stored timezone, and a writer that runs in the worker with
+/// no request to ask; the reasoning lives on <see cref="ProductDay"/>). The writer and every reader
+/// take "today" from <see cref="Today()"/>, so the two sides cannot disagree about which day it is.
+/// These used to be UTC days (docs/07 §7.8, S6): a student who answered at 23:30 and again at 00:30
+/// Tashkent time earned ONE streak day for two evenings, and practice at 00:30 was credited to the
+/// day before.</para>
 /// </summary>
 public static class StreakRules
 {
-    /// <summary>Today's streak day — UTC, matching the writer (S6).</summary>
-    public static DateOnly Today() => DateOnly.FromDateTime(DateTime.UtcNow);
+    /// <summary>Today's streak day — the product day. The writer (EngagementService.UpdateStreak, in
+    /// the worker) and every reader call this rather than doing their own clock arithmetic, so a
+    /// streak can never look broken to one side and alive to the other.</summary>
+    public static DateOnly Today() => ProductDay.Today();
+
+    /// <summary>The streak day the instant <paramref name="utcNow"/> falls in — the deterministic
+    /// seam of <see cref="Today()"/>.</summary>
+    public static DateOnly Today(DateTime utcNow) => ProductDay.Today(utcNow);
 
     /// <summary>
     /// Whether a streak whose last practice was <paramref name="gapDays"/> days ago can still be

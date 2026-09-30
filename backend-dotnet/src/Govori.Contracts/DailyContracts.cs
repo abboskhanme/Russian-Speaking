@@ -82,8 +82,9 @@ public sealed record DailyStepResponse(
 /// <para><b><c>Day</c> is the STUDENT's day</b> (<c>yyyy-MM-dd</c> in their local time, resolved
 /// from the <c>tz_offset</c> the client sends), not the server's UTC day. A session that rolls over
 /// at UTC midnight ends someone's evening practice mid-sentence, which is the one thing a habit
-/// feature must never do. Note this deliberately differs from the streak, which still keys off UTC
-/// (docs/07 §7.8 bug S6) until user-timezone plumbing lands.</para>
+/// feature must never do. With no <c>tz_offset</c> it is the product day (<see cref="ProductDay"/>,
+/// Tashkent local midnight) — the same calendar the streak is kept on, so for every client in
+/// Tashkent the session day and the streak day are one and the same.</para>
 ///
 /// <para><b>A 404 from this route means the <c>daily_five_enabled</c> flag is off</b> in this
 /// deployment — the same "not shipped here" signal <c>/api/review/drill</c> uses (docs/08 Faza 6:
@@ -91,7 +92,7 @@ public sealed record DailyStepResponse(
 /// </summary>
 /// <param name="Day">The student's local day, <c>yyyy-MM-dd</c>. The session is stable for it.</param>
 /// <param name="Streak">The student's current streak, so the card can show 🔥 without a second call.
-/// The EFFECTIVE streak (<see cref="StreakRules.Effective"/>, UTC day): 0 once the missed days
+/// The EFFECTIVE streak (<see cref="StreakRules.Effective"/>, product day): 0 once the missed days
 /// outrun the student's freezes, even though the stored column only resets on their next practice.</param>
 /// <param name="Completed">True when every step the server can observe is already done today.
 /// A session whose only step is the warm-up is never "completed" — nothing observable was asked.</param>

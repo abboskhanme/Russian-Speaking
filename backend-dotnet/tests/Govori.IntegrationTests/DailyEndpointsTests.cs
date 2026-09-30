@@ -189,6 +189,57 @@ public sealed class DailyEndpointsTests : IClassFixture<DailyEndpointsTests.Dail
         }
     }
 
+    /// <summary>
+    /// With no <c>tz_offset</c> the session's day is the PRODUCT day (Tashkent, +300), not UTC —
+    /// whose midnight is 05:00 local and would cut a Tashkent evening in half for any client that
+    /// omits the parameter. An explicit offset is still honoured, clamped.
+    /// </summary>
+    [Theory]
+    [InlineData(null, 300)]      // absent ⇒ ProductDay (was 0, i.e. UTC)
+    [InlineData(300, 300)]       // Tashkent, explicit
+    [InlineData(0, 0)]           // an explicit UTC client is believed
+    [InlineData(-600, -600)]     // so is anyone else's browser
+    [InlineData(999_999, 840)]   // clamped to +14 h, never refused
+    [InlineData(-999_999, -840)] // clamped to −14 h
+    public void Session_offset_defaults_to_the_product_day_and_honours_an_explicit_one(
+        int? tzOffset, int expectedMinutes)
+        => Assert.Equal(TimeSpan.FromMinutes(expectedMinutes), DailyService.SessionOffset(tzOffset));
+
+    [Fact]
+    public async Task Without_an_offset_the_route_reports_the_product_day()
+    {
+        var studentId = Guid.NewGuid();
+        await using (var ctx = CreateContext())
+        {
+            ctx.Users.Add(NewUser(studentId, UserRole.Student));
+            ctx.ShadowingPhrases.Add(NewPhrase("Привет"));
+            await ctx.SaveChangesAsync();
+        }
+
+        try
+        {
+            await SetFlagAsync(DailyService.EnabledKey, "true");
+            var client = _factory.CreateClient();
+
+            // The live clock can cross midnight mid-request, so the answer is bracketed rather than
+            // raced; the deterministic half of this rule is the theory above.
+            var before = Govori.Contracts.ProductDay.Today().ToString("yyyy-MM-dd");
+            var resp = await Get(client, "/api/daily", TokenFor(studentId));
+            var after = Govori.Contracts.ProductDay.Today().ToString("yyyy-MM-dd");
+
+            var body = await resp.Content.ReadAsStringAsync();
+            Assert.True(resp.StatusCode == HttpStatusCode.OK, $"GET /api/daily → {(int)resp.StatusCode}: {body}");
+            using var doc = JsonDocument.Parse(body);
+            var day = doc.RootElement.GetProperty("day").GetString();
+            Assert.True(day == before || day == after, $"day {day}, product day {before}..{after}");
+        }
+        finally
+        {
+            await ClearFlagsAsync();
+            await CleanupAsync(studentId);
+        }
+    }
+
     [Fact]
     public async Task Drill_step_is_absent_when_nothing_is_due_and_when_the_drill_is_off()
     {

@@ -572,6 +572,101 @@ public sealed class EngagementEndpointsTests : IClassFixture<EngagementEndpoints
         }
     }
 
+    /// <summary>
+    /// The S6 fix, through the real writer: an answer at 23:30 and another at 00:30 Tashkent time
+    /// (18:30Z and 19:30Z) are TWO consecutive streak days. Under the old UTC-day rule both instants
+    /// were the same date, the second award hit "already counted today", and the student's evening
+    /// earned one day instead of two. The instants go through <c>StreakRules.Today(utcNow)</c> — the
+    /// same function the writer's default and every reader call.
+    /// </summary>
+    [Fact]
+    public async Task Answers_either_side_of_Tashkent_midnight_are_two_streak_days()
+    {
+        var studentId = Guid.NewGuid();
+        var teacherId = Guid.NewGuid();
+        var questionId = Guid.NewGuid();
+        var subId = Guid.NewGuid();
+        var lateEvening = new DateTime(2025, 3, 1, 18, 30, 0, DateTimeKind.Utc);   // 23:30 local, 1 Mar
+        var afterMidnight = new DateTime(2025, 3, 1, 19, 30, 0, DateTimeKind.Utc); // 00:30 local, 2 Mar
+
+        await using (var ctx = CreateContext())
+        {
+            var hasher = new PasswordHasher();
+            ctx.Users.Add(NewUser(studentId, UserRole.Student, hasher.Hash(Password)));
+            ctx.Users.Add(NewUser(teacherId, UserRole.Teacher, hasher.Hash(Password)));
+            ctx.Questions.Add(NewQuestion(questionId, teacherId));
+            ctx.Submissions.Add(NewSubmission(subId, studentId, questionId));
+            await ctx.SaveChangesAsync();
+        }
+
+        try
+        {
+            // The contrast being fixed: one UTC date for both answers.
+            Assert.Equal(DateOnly.FromDateTime(lateEvening), DateOnly.FromDateTime(afterMidnight));
+
+            await Practice(subId, studentId, Govori.Contracts.StreakRules.Today(lateEvening));
+            await AssertStreak(studentId, current: 1, longest: 1, freezes: 0);
+
+            await Practice(subId, studentId, Govori.Contracts.StreakRules.Today(afterMidnight));
+            await AssertStreak(studentId, current: 2, longest: 2, freezes: 0);
+
+            await using var ctx = CreateContext();
+            Assert.Equal(
+                new DateOnly(2025, 3, 2),
+                await ctx.Users.Where(u => u.Id == studentId).Select(u => u.LastPracticeDate).FirstAsync());
+        }
+        finally
+        {
+            await using var ctx = CreateContext();
+            await ctx.XpEvents.Where(e => e.StudentId == studentId).ExecuteDeleteAsync();
+            await CleanupSubmissionsQuestionUsers(ctx, questionId, studentId, teacherId);
+        }
+    }
+
+    /// <summary>
+    /// The worker passes no <c>today</c>: the day it records must be the one the READ paths judge the
+    /// streak against (<c>StreakRules.Today()</c>, the product day), never a separately computed UTC
+    /// date — a writer and readers on different calendars disagree for five hours of every day. The
+    /// clock is live here, so the check brackets the call rather than racing midnight.
+    /// </summary>
+    [Fact]
+    public async Task The_workers_default_day_is_the_day_the_readers_use()
+    {
+        var studentId = Guid.NewGuid();
+        var teacherId = Guid.NewGuid();
+        var questionId = Guid.NewGuid();
+        var subId = Guid.NewGuid();
+
+        await using (var ctx = CreateContext())
+        {
+            var hasher = new PasswordHasher();
+            ctx.Users.Add(NewUser(studentId, UserRole.Student, hasher.Hash(Password)));
+            ctx.Users.Add(NewUser(teacherId, UserRole.Teacher, hasher.Hash(Password)));
+            ctx.Questions.Add(NewQuestion(questionId, teacherId));
+            ctx.Submissions.Add(NewSubmission(subId, studentId, questionId));
+            await ctx.SaveChangesAsync();
+        }
+
+        try
+        {
+            var before = Govori.Contracts.StreakRules.Today();
+            await using (var ctx = CreateContext())
+                await new EngagementService(ctx).AwardPracticeAsync(new Submission { Id = subId, StudentId = studentId });
+            var after = Govori.Contracts.StreakRules.Today();
+
+            await using var read = CreateContext();
+            var written = await read.Users.Where(u => u.Id == studentId).Select(u => u.LastPracticeDate).FirstAsync();
+            Assert.NotNull(written);
+            Assert.True(written == before || written == after, $"wrote {written}, product day was {before}..{after}");
+        }
+        finally
+        {
+            await using var ctx = CreateContext();
+            await ctx.XpEvents.Where(e => e.StudentId == studentId).ExecuteDeleteAsync();
+            await CleanupSubmissionsQuestionUsers(ctx, questionId, studentId, teacherId);
+        }
+    }
+
     // ─── SRS review queue + scheduling + notifications + auth negatives ─────────
 
     [Fact]
@@ -916,7 +1011,9 @@ public sealed class EngagementEndpointsTests : IClassFixture<EngagementEndpoints
     {
         var brokenId = Guid.NewGuid();    // last practised 10 days ago, 2 freezes: 9 missed days → broken
         var coveredId = Guid.NewGuid();   // last practised 3 days ago, 2 freezes: 2 missed days → alive
-        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+        // "Today" as the server judges it — the product day. A bare UTC date here would put the
+        // covered student's gap at 4 (not 3) between 19:00Z and midnight and fail for five hours a day.
+        var today = Govori.Contracts.StreakRules.Today();
 
         await using (var ctx = CreateContext())
         {

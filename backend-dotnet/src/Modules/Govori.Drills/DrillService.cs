@@ -1,3 +1,4 @@
+using System.Runtime.CompilerServices;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using Govori.Contracts;
@@ -7,6 +8,11 @@ using Govori.Platform.Stt;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
+
+// The daily budget's day boundary (DrillService.SpentTodayAsync with an explicit clock) is pinned
+// against real rows by the integration tests: "resets at 19:00Z, not 00:00Z" can only be shown with a
+// clock the test controls. Internal stays internal; this only widens visibility to that test assembly.
+[assembly: InternalsVisibleTo("Govori.IntegrationTests")]
 
 namespace Govori.Drills;
 
@@ -60,7 +66,8 @@ public sealed class DrillService
     /// (docs/08 Faza 6, and the <c>roleplay_enabled</c> precedent).</summary>
     public const string EnabledKey = "phoneme_drill_enabled";
 
-    /// <summary>Attempts per student per UTC day. The cost ceiling.</summary>
+    /// <summary>Attempts per student per product day (<see cref="ProductDay"/>: resets at local
+    /// midnight in Tashkent, not at UTC midnight). The cost ceiling.</summary>
     public const string DailyAttemptsKey = "phoneme_drill_daily_attempts";
 
     private const bool DefaultEnabled = false;
@@ -390,11 +397,23 @@ public sealed class DrillService
         return int.TryParse(raw, out var parsed) ? Math.Clamp(parsed, min, max) : fallback;
     }
 
-    /// <summary>Attempts spent since UTC midnight, counted from the rows — a budget one process can
-    /// forget is not a budget.</summary>
+    /// <summary>Attempts spent today, counted from the rows — a budget one process can forget is not
+    /// a budget.</summary>
     private Task<int> SpentTodayAsync(Guid userId, CancellationToken ct)
+        => SpentTodayAsync(userId, DateTime.UtcNow, ct);
+
+    /// <summary>
+    /// Attempts spent since the start of the product day containing <paramref name="utcNow"/> — local
+    /// midnight in Tashkent (<see cref="ProductDay"/>), i.e. 19:00Z. It used to be UTC midnight, which
+    /// is 05:00 in Tashkent, so the allowance "reset" in the middle of the night instead of when the
+    /// student's day turns over. Uzbekistan-only product, no stored timezone — see
+    /// <see cref="ProductDay"/> for why one fixed offset is the rule.
+    /// <para>The explicit clock is the test seam (production passes <c>DateTime.UtcNow</c> through
+    /// the overload above); it is internal, visible only to the integration tests.</para>
+    /// </summary>
+    internal Task<int> SpentTodayAsync(Guid userId, DateTime utcNow, CancellationToken ct = default)
     {
-        var since = DateTime.UtcNow.Date;
+        var since = ProductDay.StartOfTodayUtc(utcNow);
         return _db.Drills.AsNoTracking()
             .CountAsync(d => d.StudentId == userId && d.CreatedAt >= since, ct);
     }

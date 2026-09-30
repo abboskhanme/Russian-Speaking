@@ -24,7 +24,8 @@ public static class RoleplayState
     /// Assessment pipeline performs: the student is told plainly, and nothing is consumed.</summary>
     public const string Unconfigured = "unconfigured";
 
-    /// <summary>The per-user daily turn budget is spent. Resets at the next UTC midnight.</summary>
+    /// <summary>The per-user daily turn budget is spent. Resets at the next product-day midnight —
+    /// local midnight in Tashkent (<see cref="ProductDay"/>), 19:00Z.</summary>
     public const string BudgetSpent = "budget_spent";
 
     /// <summary>The conversation has already been closed by the turn limit or by "Tugatish".</summary>

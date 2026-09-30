@@ -199,7 +199,8 @@ public sealed record InsightsResponse(
     /// <c>null</c> when fewer than two months have anything graded — one point is not a trend, and an
     /// unknown change is not a change of zero.</summary>
     double? TrendDelta,
-    /// <summary>Exactly 3 entries, oldest first, ending with the current calendar month. Always 3
+    /// <summary>Exactly 3 entries, oldest first, ending with the current calendar month (a product
+    /// month — it starts at Tashkent local midnight on the 1st, <see cref="ProductDay"/>). Always 3
     /// even when empty, so the chart has a fixed x-axis.</summary>
     IReadOnlyList<InsightsMonthPoint> Trend,
     /// <summary>Roster students with at least one answer in the last 7×24h.</summary>
@@ -216,8 +217,8 @@ public sealed record InsightsResponse(
     /// <summary>Answers whose <c>reviewed_at</c> falls in the last 7×24h.</summary>
     int ReviewedWeek,
     InsightsSkillsResponse Skills,
-    /// <summary>Exactly 7 entries, oldest first, ending today (UTC) — an all-zero week still renders
-    /// its axis.</summary>
+    /// <summary>Exactly 7 entries, oldest first, ending today — product days (<see cref="ProductDay"/>,
+    /// Tashkent local midnight) — an all-zero week still renders its axis.</summary>
     IReadOnlyList<InsightsDayPoint> Week,
     /// <summary>Top 5 correction types by frequency; empty when nothing has been corrected.</summary>
     IReadOnlyList<InsightsErrorResponse> Errors,

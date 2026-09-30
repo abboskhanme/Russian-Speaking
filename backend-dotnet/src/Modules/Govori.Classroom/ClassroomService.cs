@@ -927,9 +927,11 @@ public sealed class ClassroomService
     /// Student ⇒ 403.
     ///
     /// <para>Every number is composed from rows that already exist — no new table, no migration. The
-    /// windows are UTC and rolling (<c>now - 7×24h</c>), not calendar weeks: a calendar week would
-    /// make Monday morning report a near-empty class, which reads as a data outage rather than a
-    /// fresh week.</para>
+    /// windows are rolling (<c>now - 7×24h</c>), not calendar weeks: a calendar week would make
+    /// Monday morning report a near-empty class, which reads as a data outage rather than a fresh
+    /// week. Where the screen DOES show calendar units — the seven day bars and the three month
+    /// points — they are product days and months (<see cref="ProductDay"/>, Tashkent local midnight),
+    /// so an answer given at 00:30 lands on the day the teacher and the student both call today.</para>
     ///
     /// <para>The whole scoped submission set is materialised once and every statistic is computed off
     /// it in memory. That is deliberate: the set is already bounded by one teacher's roster, and the
@@ -1005,19 +1007,25 @@ public sealed class ClassroomService
     /// a fixed x-axis. Each point is the mean effective band of the answers GIVEN that month —
     /// volume-weighted on purpose (see <see cref="InsightsResponse"/>), and <c>null</c> for a month
     /// with nothing graded so the client draws a gap instead of a plunge to zero.
+    ///
+    /// <para>Months are PRODUCT months: they begin at local midnight in Tashkent on the 1st
+    /// (<see cref="ProductDay"/>), converted back to UTC instants for the comparison. Cut at UTC
+    /// midnight, an answer given before 05:00 local on the 1st was counted in the month before.</para>
     /// </summary>
     private static IReadOnlyList<InsightsMonthPoint> MonthlyTrend(List<Submission> subs, DateTime now)
     {
-        var thisMonth = new DateTime(now.Year, now.Month, 1, 0, 0, 0, now.Kind);
+        var today = ProductDay.Today(now);
+        var thisMonth = new DateOnly(today.Year, today.Month, 1);
         var points = new List<InsightsMonthPoint>(3);
         for (var back = 2; back >= 0; back--)
         {
-            var start = thisMonth.AddMonths(-back);
-            var end = start.AddMonths(1);
+            var month = thisMonth.AddMonths(-back);
+            var start = ProductDay.StartUtc(month);
+            var end = ProductDay.StartUtc(month.AddMonths(1));
             var inMonth = subs.Where(s => s.CreatedAt >= start && s.CreatedAt < end).ToList();
             points.Add(new InsightsMonthPoint(
-                Year: start.Year,
-                Month: start.Month,
+                Year: month.Year,
+                Month: month.Month,
                 Avg: ClassroomScoring.MeanOrNull(inMonth.Select(ClassroomScoring.EffectiveBand)),
                 Attempts: inMonth.Count));
         }
@@ -1045,13 +1053,15 @@ public sealed class ClassroomService
             : Math.Round(graded[^1] - graded[^2], 2, MidpointRounding.ToEven);
     }
 
-    /// <summary>Exactly 7 day buckets, oldest first, ending today (UTC). Days with no answers are
-    /// present with <c>0</c> rather than omitted — a missing day would silently shrink the chart.</summary>
+    /// <summary>Exactly 7 day buckets, oldest first, ending today — PRODUCT days
+    /// (<see cref="ProductDay"/>, Tashkent local midnight), so a 00:30 answer is on the bar for the
+    /// day it was given rather than the one before. Days with no answers are present with <c>0</c>
+    /// rather than omitted — a missing day would silently shrink the chart.</summary>
     private static IReadOnlyList<InsightsDayPoint> DailyActivity(List<Submission> subs, DateTime now)
     {
-        var perDay = subs.GroupBy(s => DateOnly.FromDateTime(s.CreatedAt))
+        var perDay = subs.GroupBy(s => ProductDay.Of(s.CreatedAt))
                          .ToDictionary(g => g.Key, g => g.Count());
-        var today = DateOnly.FromDateTime(now);
+        var today = ProductDay.Today(now);
         var days = new List<InsightsDayPoint>(7);
         for (var back = 6; back >= 0; back--)
         {
