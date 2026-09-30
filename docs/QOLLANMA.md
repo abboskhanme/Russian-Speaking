@@ -334,8 +334,10 @@ Vazifa o'quvchida ochiq bo'lsa, ikkinchi marta berilmaydi.
 
 Muhim:
 
-- Faqat **o'zingiz yaratgan** vazifa va modullarni bera olasiz. Rasmiy katalog
-  vazifalari bu ro'yxatda yo'q.
+- Ro'yxatda o'zingiz yaratgan vazifa va modullar, hamda alohida **Rasmiy katalog**
+  bo'limi bor. Rasmiy katalogdan berilgan vazifa, u Premium qismida bo'lsa ham, shu
+  o'quvchi uchun muddat tugaguncha ochiq bo'ladi. Qayta urinishlar sonini
+  **Urinish** tanlovi belgilaydi.
 - Ro'yxatda faqat **nashr qilingan modul ichidagi** nashr qilingan vazifalar
   chiqadi — o'quvchi topshiriqni o'z modullari orqali ochadi. Modulsiz yoki
   qoralama moduldagi vazifani berish uchun avval uni modulga qo'shib, nashr qiling.

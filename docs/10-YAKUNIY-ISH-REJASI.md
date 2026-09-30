@@ -222,11 +222,16 @@ kontrast tuguni qabul qilingan cheklov).
 `check:contract` **0 xato** (OpenAPI qayta generatsiya qilindi; emitter `[JsonIgnore]`
 maydonlarni endi hujjatga chiqarmaydi).
 
-**Ochiq (keyingi raund):** o'qituvchi rasmiy katalog vazifalarini topshiriq qilib bera olmaydi ·
-guruhni boshqa o'qituvchiga o'tkazish yo'q · admin audit trail yo'q · model izohlari serverda
-aralash tilda · anonim `/api/guest/assess` (frontend chaqirmaydi, lekin Azure'ga pul sarflaydi —
-rate-limit ortida) · presigned URL'lar MinIO root kaliti bilan imzolanadi · placement STT/grader
-ishlamasa deterministik "ball" ko'rsatadi · streak kuni UTC bo'yicha (Toshkentda 05:00).
+**Launch oldidan yopildi (2026-09-30):** o'qituvchi rasmiy katalogdan topshiriq bera oladi va
+berilgan vazifa shu o'quvchi uchun ochiladi (muddat tugaguncha, cheklovi — `max_attempts`) ·
+placement baholab bo'lmasa soxta ball o'rniga 503 va "keyinroq" · ishlamaydigan orfoepiya kaliti
+admin panelidan olindi · kun Toshkent yarim tunida almashadi (`ProductDay`). O'lchov: backend
+**591 passed, 0 failed**, frontend **367 vitest**, kontrakt 0 xato.
+
+**Ochiq (keyingi raund):** guruhni boshqa o'qituvchiga o'tkazish yo'q · admin audit trail yo'q ·
+model izohlari serverda aralash tilda · anonim `/api/guest/assess` (frontend chaqirmaydi, lekin
+Azure'ga pul sarflaydi — rate-limit ortida) · presigned URL'lar MinIO root kaliti bilan imzolanadi ·
+ketma-ketlik qulfi faqat UI'da · kirish bitta Telegram botga bog'liq (Google tugmasi UI'da yo'q).
 
 ## 🔴 Bloklangan — foydalanuvchisiz bajarilmaydi
 
