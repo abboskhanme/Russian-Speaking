@@ -250,7 +250,11 @@ test("a teacher triages the queue, grades an attempt and assigns follow-up work"
     await expect(submit, "the assign button never became actionable").toBeEnabled();
     await submit.click();
 
-    await expectVisibleText(page, /topshiriq berildi/i);
+    // The result names RECIPIENTS ("6 ta o‘quvchiga berildi"), and on a re-run the
+    // de-duplicating API creates nothing and the screen says so ("allaqachon
+    // berilgan") — both are the honest outcome of pressing the button. Matched
+    // without the apostrophe, which is U+2018 in this copy.
+    await expectVisibleText(page, /quvchiga berildi|allaqachon berilgan/i);
 
     // DB truth: the task now appears in this teacher's assignments. Stated as
     // presence rather than as a delta because the API de-duplicates — a second
