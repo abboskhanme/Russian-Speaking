@@ -471,7 +471,75 @@ public sealed class DrillEndpointsTests : IClassFixture<DrillEndpointsTests.Dril
         }
     }
 
+    /// <summary>
+    /// The daily allowance resets at local midnight in Tashkent — 19:00Z — and NOT at UTC midnight
+    /// (05:00 local). Driven against real rows through the budget's own count with a clock the test
+    /// controls: an attempt at 23:30 local still counts one second before 19:00Z and is gone at
+    /// 19:00Z; an attempt at 01:00 local still counts at 05:30 local, where UTC midnight would already
+    /// have wiped it.
+    /// </summary>
+    [Fact]
+    public async Task The_daily_budget_resets_at_Tashkent_midnight_not_UTC_midnight()
+    {
+        var studentId = Guid.NewGuid();
+        await SeedStudentAsync(studentId);
+        await SetFlagAsync(DrillService.EnabledKey, "true");
+
+        try
+        {
+            // The pairs are seeded lazily by the catalogue; an attempt row needs one to point at.
+            await GetJsonAsync(_factory.CreateClient(), "/api/drills/pairs", TokenFor(studentId));
+            Guid pairId;
+            await using (var ctx = CreateContext())
+                pairId = await ctx.MinimalPairs.Select(p => p.Id).FirstAsync();
+
+            // 23:30 local on 1 Mar.
+            await SeedAttemptAsync(studentId, pairId, new DateTime(2025, 3, 1, 18, 30, 0, DateTimeKind.Utc));
+
+            using (var scope = _factory.Services.CreateScope())
+            {
+                var svc = scope.ServiceProvider.GetRequiredService<DrillService>();
+                // 23:59:59 local — the same day: it counts.
+                Assert.Equal(1, await svc.SpentTodayAsync(studentId, new DateTime(2025, 3, 1, 18, 59, 59, DateTimeKind.Utc)));
+                // 00:00 local — a new day: it no longer does. (Under UTC it would until 00:00Z.)
+                Assert.Equal(0, await svc.SpentTodayAsync(studentId, new DateTime(2025, 3, 1, 19, 0, 0, DateTimeKind.Utc)));
+            }
+
+            // 01:00 local on 2 Mar — after Tashkent midnight, before UTC midnight.
+            await SeedAttemptAsync(studentId, pairId, new DateTime(2025, 3, 1, 20, 0, 0, DateTimeKind.Utc));
+
+            using (var scope = _factory.Services.CreateScope())
+            {
+                var svc = scope.ServiceProvider.GetRequiredService<DrillService>();
+                // 05:30 local on 2 Mar: the 01:00 attempt is today's; the 23:30 one is yesterday's.
+                // UTC midnight (05:00 local) would have reset the count to 0 half an hour ago.
+                Assert.Equal(1, await svc.SpentTodayAsync(studentId, new DateTime(2025, 3, 2, 0, 30, 0, DateTimeKind.Utc)));
+            }
+        }
+        finally
+        {
+            await CleanupAsync(studentId);
+        }
+    }
+
     // ─────────────────────────── helpers ───────────────────────────
+
+    private async Task SeedAttemptAsync(Guid studentId, Guid pairId, DateTime createdAtUtc)
+    {
+        await using var ctx = CreateContext();
+        ctx.Drills.Add(new Drill
+        {
+            Id = Guid.NewGuid(),
+            StudentId = studentId,
+            PairId = pairId,
+            TargetWord = "мышка",
+            HeardText = "мышка",
+            Outcome = "correct",
+            CreatedAt = createdAtUtc,
+            UpdatedAt = createdAtUtc,
+        });
+        await ctx.SaveChangesAsync();
+    }
 
     private GovoriDbContext CreateContext()
     {

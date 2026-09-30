@@ -366,13 +366,15 @@ public sealed partial class ClassroomEndpointsTests : IClassFixture<ClassroomEnd
                 Assert.Equal(3, root.GetProperty("trend").GetArrayLength());
                 Assert.Equal(7, root.GetProperty("week").GetArrayLength());
                 var thisMonth = root.GetProperty("trend").EnumerateArray().Last();
-                Assert.Equal(DateTime.UtcNow.Month, thisMonth.GetProperty("month").GetInt32());
+                // Months and days on this screen are product (Tashkent) months and days, so "this
+                // month" / "today" are read off the same rule — not off the UTC date.
+                Assert.Equal(Govori.Contracts.ProductDay.Today().Month, thisMonth.GetProperty("month").GetInt32());
                 Assert.Equal(80, thisMonth.GetProperty("avg").GetDouble());
                 // Only one month has anything graded, so there is no movement to report — one data
                 // point is not a trend, and the chip must stay absent rather than read "+0".
                 Assert.Equal(JsonValueKind.Null, root.GetProperty("trend_delta").ValueKind);
                 var today = root.GetProperty("week").EnumerateArray().Last();
-                Assert.Equal(DateOnly.FromDateTime(DateTime.UtcNow).ToString("yyyy-MM-dd"), today.GetProperty("date").GetString());
+                Assert.Equal(Govori.Contracts.ProductDay.Today().ToString("yyyy-MM-dd"), today.GetProperty("date").GetString());
                 Assert.True(today.GetProperty("attempts").GetInt32() >= 1);
 
                 Assert.Equal(75, root.GetProperty("skills").GetProperty("fluency").GetDouble());

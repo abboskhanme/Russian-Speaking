@@ -1,3 +1,4 @@
+using System.Runtime.CompilerServices;
 using System.Text.Json;
 using Govori.Contracts;
 using Govori.Infrastructure;
@@ -7,6 +8,13 @@ using Govori.Platform.Stt;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
+
+// The product-day boundaries in this assembly are pinned by the integration tests: the roleplay
+// budget's (RoleplayService.SpentTodayAsync with an explicit clock — "resets at 19:00Z, not 00:00Z"
+// can only be shown with a clock the test controls) and /api/daily's default offset
+// (DailyService.SessionOffset). Internal stays internal; this only widens visibility to that sibling
+// test assembly.
+[assembly: InternalsVisibleTo("Govori.IntegrationTests")]
 
 namespace Govori.Practice;
 
@@ -20,7 +28,8 @@ public enum RoleplayStatus { Ok, NotFound, BadRequest, Unauthorized }
 /// <summary>The three numbers and one boolean that decide whether a turn may run at all.</summary>
 /// <param name="Enabled">The <c>roleplay_enabled</c> flag.</param>
 /// <param name="MaxTurns">Hard turn ceiling for one conversation.</param>
-/// <param name="DailyTurns">Hard per-student ceiling for one UTC day.</param>
+/// <param name="DailyTurns">Hard per-student ceiling for one product day (local midnight in
+/// Tashkent, <see cref="ProductDay"/>).</param>
 public sealed record RoleplayLimits(bool Enabled, int MaxTurns, int DailyTurns);
 
 /// <summary>
@@ -80,7 +89,8 @@ public sealed class RoleplayService
     /// run up a bill.</summary>
     public const string MaxTurnsKey = "roleplay_max_turns";
 
-    /// <summary>Per-student turns per UTC day. Twenty-four is three full conversations — generous
+    /// <summary>Per-student turns per product day (<see cref="ProductDay"/>: resets at local midnight
+    /// in Tashkent, not at UTC midnight). Twenty-four is three full conversations — generous
     /// for practice, bounded for the invoice.</summary>
     public const string DailyTurnsKey = "roleplay_daily_turns";
 
@@ -469,12 +479,24 @@ public sealed class RoleplayService
         return int.TryParse(raw, out var parsed) ? Math.Clamp(parsed, min, max) : fallback;
     }
 
-    /// <summary>Turns this student has spent since UTC midnight. Counted from the rows rather than
-    /// held in memory, so it is the same number after a restart and across both hosts — a budget one
-    /// process can forget is not a budget.</summary>
+    /// <summary>Turns this student has spent today. Counted from the rows rather than held in
+    /// memory, so it is the same number after a restart and across both hosts — a budget one process
+    /// can forget is not a budget.</summary>
     private Task<int> SpentTodayAsync(Guid userId, CancellationToken ct)
+        => SpentTodayAsync(userId, DateTime.UtcNow, ct);
+
+    /// <summary>
+    /// Turns spent since the start of the product day containing <paramref name="utcNow"/> — local
+    /// midnight in Tashkent (<see cref="ProductDay"/>), i.e. 19:00Z. It used to be UTC midnight, which
+    /// is 05:00 in Tashkent: the budget "reset" in the middle of the night and an evening's
+    /// conversation at 23:30 and one at 00:30 drew on the same allowance. Uzbekistan-only product, no
+    /// stored timezone — see <see cref="ProductDay"/> for why one fixed offset is the rule.
+    /// <para>The explicit clock is the test seam (production passes <c>DateTime.UtcNow</c> through
+    /// the overload above); it is internal, visible only to the integration tests.</para>
+    /// </summary>
+    internal Task<int> SpentTodayAsync(Guid userId, DateTime utcNow, CancellationToken ct = default)
     {
-        var since = DateTime.UtcNow.Date;
+        var since = ProductDay.StartOfTodayUtc(utcNow);
         return _db.RoleplayTurns
             .AsNoTracking()
             .CountAsync(t => t.StudentId == userId && t.CreatedAt >= since && t.StudentText != null, ct);

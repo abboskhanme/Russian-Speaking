@@ -102,7 +102,9 @@ public sealed class DailyService
     /// </summary>
     /// <param name="userId">The caller, from the access token's <c>sub</c>.</param>
     /// <param name="tzOffsetMinutes">Minutes to ADD to UTC to get the student's local time (Tashkent
-    /// = +300). Null ⇒ UTC. Clamped to ±14 h. The client sends
+    /// = +300). Null ⇒ the product day, <see cref="ProductDay.OffsetMinutes"/> (Tashkent) — NOT UTC,
+    /// whose midnight is 05:00 local and would cut a Tashkent evening in half for any client that
+    /// omits the parameter. Clamped to ±14 h. The client sends
     /// <c>-new Date().getTimezoneOffset()</c>, which is the same convention with JavaScript's sign
     /// flipped once, at the edge, where it is visible.</param>
     /// <param name="ct">Cancellation.</param>
@@ -115,7 +117,7 @@ public sealed class DailyService
         var user = await _db.Users.FirstOrDefaultAsync(u => u.Id == userId, ct);
         if (user is null || !user.IsActive) return null;
 
-        var offset = TimeSpan.FromMinutes(Math.Clamp(tzOffsetMinutes ?? 0, -MaxOffsetMinutes, MaxOffsetMinutes));
+        var offset = SessionOffset(tzOffsetMinutes);
         var localDay = DateOnly.FromDateTime(DateTime.UtcNow + offset);
         // The student's day expressed back in UTC, which is what every timestamp column stores.
         // The Kind is set EXPLICITLY: DateOnly.ToDateTime yields Unspecified, and Npgsql refuses to
@@ -147,14 +149,27 @@ public sealed class DailyService
 
         return new DailySessionResponse(
             Day: localDay.ToString("yyyy-MM-dd"),
-            // The streak as it stands today — and today in UTC, NOT the student's local day used
-            // above: the streak's writer counts UTC days (S6), and judging "did they miss a day" on a
-            // different calendar than the one that recorded it would disagree with it twice a day.
+            // The streak as it stands today — and "today" is the PRODUCT day (StreakRules.Today), not
+            // the client-offset day used above: the streak's writer records product days, and judging
+            // "did they miss a day" on a different calendar than the one that recorded it would
+            // disagree with it. For every client in Tashkent the two are the same day anyway.
             Streak: StreakRules.Effective(
                 user.CurrentStreak, user.LastPracticeDate, user.StreakFreezes, StreakRules.Today()),
             Completed: completed,
             Steps: steps);
     }
+
+    /// <summary>
+    /// The offset that decides which local day this session is for. An explicit client
+    /// <c>tz_offset</c> is honoured (clamped to ±14 h) — the browser knows its own clock best, and
+    /// this view is per-request. With none, it is the ONE server-side day rule,
+    /// <see cref="ProductDay"/> (Tashkent, +300): Uzbekistan-only product, no stored timezone. It used
+    /// to fall back to UTC, whose midnight is 05:00 in Tashkent, so any client that omitted the
+    /// parameter had its evening session cut in half.
+    /// </summary>
+    internal static TimeSpan SessionOffset(int? tzOffsetMinutes)
+        => TimeSpan.FromMinutes(Math.Clamp(
+            tzOffsetMinutes ?? ProductDay.OffsetMinutes, -MaxOffsetMinutes, MaxOffsetMinutes));
 
     // ─── Step 1 · Isinish (warm-up) ───────────────────────────────────────────
 

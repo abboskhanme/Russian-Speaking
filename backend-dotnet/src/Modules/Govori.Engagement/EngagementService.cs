@@ -36,14 +36,19 @@ namespace Govori.Engagement;
 /// via <see cref="RosterStudentIds"/>. Do not widen it — it is what stops one teacher pushing review
 /// work onto another teacher's students.</para>
 ///
-/// <para><b>S6 (known limitation, deliberately not fixed here).</b> <c>UpdateStreak</c> keys off the
-/// SERVER date — <c>DateOnly.FromDateTime(DateTime.UtcNow)</c> — and NOT the user's timezone
-/// (docs/07 §7.8 bug S6), so a student's day rolls over at UTC midnight rather than their local one.
-/// The award methods expose an optional <c>today</c> seam so the worker (and deterministic tests) can
-/// supply the date explicitly; a TZ-correct fix is deferred to when user-timezone plumbing lands.
-/// Every READ of the streak (both leaderboards here, plus Profile and Daily in other modules) reports
-/// <see cref="StreakRules.Effective"/> on the same UTC day rather than the stored column, which only
-/// changes on the next award and so would otherwise show a long-broken streak as live.</para>
+/// <para><b>Streak days are PRODUCT days (the S6 fix).</b> <c>UpdateStreak</c> keys off
+/// <see cref="StreakRules.Today()"/>, which is <see cref="ProductDay"/>: the day turns over at local
+/// midnight in Tashkent (UTC+05:00), not at UTC midnight (05:00 local), which is where docs/07 §7.8
+/// bug S6 left it — two answers at 23:30 and 00:30 local counted as ONE day, and a student practising
+/// after midnight was credited to the day before. It is one fixed offset rather than the student's own
+/// timezone because the product is Uzbekistan-only (UTC+5, no DST), the schema stores no timezone,
+/// and this writer runs in the grading worker with no request to take a browser hint from; revisit
+/// if the product ever serves another timezone. The award methods keep their optional <c>today</c>
+/// seam so deterministic tests can supply the day explicitly; production passes <c>null</c>. Every
+/// READ of the streak (both leaderboards here, plus Profile and Daily in other modules) reports
+/// <see cref="StreakRules.Effective"/> on the SAME product day, through the same
+/// <see cref="StreakRules.Today()"/>, rather than the stored column, which only changes on the next
+/// award and so would otherwise show a long-broken streak as live.</para>
 ///
 /// <para>Role/auth: the leaderboard, the review list and every notification route accept any active
 /// user (null ⇒ 401). <see cref="CreateReviewsAsync"/> requires teacher OR admin (403 otherwise).
@@ -128,7 +133,9 @@ public sealed class EngagementService
             UpdatedAt = now,
         });
         user.Xp += amount;                                          // denormalised running total
-        UpdateStreak(user, today ?? DateOnly.FromDateTime(DateTime.UtcNow));
+        // The streak day is the PRODUCT day of the same instant the XP event is stamped with — the
+        // same StreakRules.Today every reader uses, never a bare UTC date (S6).
+        UpdateStreak(user, today ?? StreakRules.Today(now));
         await _db.SaveChangesAsync(ct);
     }
 
@@ -153,7 +160,7 @@ public sealed class EngagementService
             UpdatedAt = now,
         });
         user.Xp += PracticeXp;
-        UpdateStreak(user, today ?? DateOnly.FromDateTime(DateTime.UtcNow));
+        UpdateStreak(user, today ?? StreakRules.Today(now));        // product day, as above
         await _db.SaveChangesAsync(ct);
     }
 
@@ -285,8 +292,10 @@ public sealed class EngagementService
         if (user is null) return EngagementResult<IReadOnlyList<LeaderboardEntryResponse>>.Unauthorized();
 
         var allTime = period == "all";                              // anything else ⇒ weekly
-        var weekAgo = DateTime.UtcNow.AddDays(-7);                  // rolling 7 days, not a calendar week
-        var today = StreakRules.Today();                            // streaks are shown as of today (UTC)
+        // "This week" is a ROLLING 7×24 h window, not a calendar week, so it has no day boundary for a
+        // timezone to move — it reads the same in Tashkent as anywhere. Only the streak needs a day.
+        var weekAgo = DateTime.UtcNow.AddDays(-7);
+        var today = StreakRules.Today();                            // streaks are shown as of today (product day)
 
         // ── Group/class board: scored from this group's ASSIGNED tasks only ──
         if (groupId is not null)
@@ -439,8 +448,9 @@ public sealed class EngagementService
     /// graded.</para>
     ///
     /// <para><b>Trend + delta.</b> The caller's evaluations are bucketed by ISO week (keyed on the
-    /// submission date), averaged per week and emitted oldest→newest, capped to the last
-    /// <see cref="TrendWeekCap"/> points; <c>WeekIndex</c> is a 0-based x-axis sequence.
+    /// submission's Tashkent-local date, <see cref="ProductDay"/>), averaged per week and emitted
+    /// oldest→newest, capped to the last <see cref="TrendWeekCap"/> points; <c>WeekIndex</c> is a
+    /// 0-based x-axis sequence.
     /// <c>BandDelta</c> is <c>Band</c> minus the earliest trend point's band; with fewer than 2 weekly
     /// points it is <c>null</c> and <c>DeltaWeeks</c> is <c>0</c>, else <c>DeltaWeeks</c> is the number
     /// of weekly points spanned.</para>
@@ -482,14 +492,17 @@ public sealed class EngagementService
         var (level, levelLabel) = CefrScale.FromAverageBand(band);
 
         // Weekly band trend: pull the caller's (date, band) pairs and bucket by ISO week in memory —
-        // this is one student's own history (bounded), and ISOWeek has no SQL translation.
+        // this is one student's own history (bounded), and ISOWeek has no SQL translation. The week
+        // is taken on Tashkent wall-clock time (ProductDay), so it starts at Monday 00:00 local — on
+        // the raw UTC timestamp a Monday-morning answer before 05:00 fell into the previous week.
         var points = await _db.Evaluations
             .Where(e => e.Submission.StudentId == userId)
             .Select(e => new { e.Submission.CreatedAt, e.OverallBand })
             .ToListAsync(ct);
 
         var weekly = points
-            .GroupBy(p => (Year: ISOWeek.GetYear(p.CreatedAt), Week: ISOWeek.GetWeekOfYear(p.CreatedAt)))
+            .Select(p => new { Local = ProductDay.LocalTime(p.CreatedAt), p.OverallBand })
+            .GroupBy(p => (Year: ISOWeek.GetYear(p.Local), Week: ISOWeek.GetWeekOfYear(p.Local)))
             .Select(gr => new { gr.Key.Year, gr.Key.Week, Avg = gr.Average(x => x.OverallBand) })
             .OrderBy(x => x.Year).ThenBy(x => x.Week)   // ISO year+week ⇒ chronological
             .ToList();

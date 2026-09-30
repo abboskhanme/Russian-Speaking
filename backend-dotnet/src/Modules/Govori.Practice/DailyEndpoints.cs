@@ -36,7 +36,8 @@ public static class DailyEndpoints
         // `tz_offset` is minutes to ADD to UTC to reach the student's local time. It decides which
         // DAY's session this is — the student's day, not the server's — so evening practice in
         // Tashkent is not cut in half by UTC midnight. It is clamped, never rejected: a bad value
-        // costs the caller the server's day, which is not worth an error screen.
+        // costs the caller the server's day, which is not worth an error screen. When it is ABSENT
+        // the day is the product day (ProductDay — Tashkent local midnight), never UTC.
         app.MapGet("/api/daily", async (
             int? tz_offset, ClaimsPrincipal principal, DailyService svc, CancellationToken ct) =>
         {

@@ -49,8 +49,9 @@ public sealed record ProfileStatsResponse(
     string? Level,
     string? LevelLabel,
     int Xp,
-    // APPEND-ONLY. Practice seconds in the last day / 7 days — the Home screen's "Bugungi N daqiqa"
-    // progress and the "Bu hafta" tile. Windowed by UTC, same basis as the streak.
+    // APPEND-ONLY. Practice seconds today / in the last 7 days — the Home screen's "Bugungi N daqiqa"
+    // progress and the "Bu hafta" tile. "Today" is the product day (ProductDay, Tashkent local
+    // midnight), the same day the streak is kept on; the week is a rolling 7×24 h window.
     int TodayPracticeSec = 0,
     int WeekPracticeSec = 0);
 

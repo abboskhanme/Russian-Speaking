@@ -11,6 +11,7 @@ using Govori.Platform.Storage;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 using Npgsql;
 
 namespace Govori.IntegrationTests;
@@ -425,6 +426,83 @@ public sealed class PracticeEndpointsTests : IClassFixture<PracticeEndpointsTest
             audio.Headers.ContentType = new MediaTypeHeaderValue("audio/webm");
             form.Add(audio, "audio", "turn.webm");
             return form;
+        }
+    }
+
+    /// <summary>
+    /// The AI-conversation daily turn budget resets at local midnight in Tashkent — 19:00Z — and NOT
+    /// at UTC midnight (05:00 local). Driven against real <c>roleplay_turns</c> rows through the
+    /// budget's own count with a clock the test controls: a turn at 23:30 local still counts one second
+    /// before 19:00Z and is gone at 19:00Z; a turn at 01:00 local still counts at 05:30 local, where
+    /// UTC midnight would already have handed the student a fresh allowance.
+    /// </summary>
+    [Fact]
+    public async Task Roleplay_daily_budget_resets_at_Tashkent_midnight_not_UTC_midnight()
+    {
+        var studentId = Guid.NewGuid();
+        var scenarioId = Guid.NewGuid();
+        var conversationId = Guid.NewGuid();
+        var seededAt = DateTime.UtcNow;
+
+        await using (var ctx = CreateContext())
+        {
+            ctx.Users.Add(NewUser(studentId, $"rp-day-{studentId:N}@example.test", UserRole.Student, null, premium: false));
+            // A private, INACTIVE scenario for the turns to point at: never listed in the catalogue,
+            // and removed again below.
+            ctx.Scenarios.Add(new Scenario
+            {
+                Id = scenarioId, Slug = $"pd-{scenarioId:N}", TitleRu = "Тест", GoalUz = "Test",
+                Level = "A1", Minutes = 1, Tone = "neutral", Icon = "test", PersonaRu = "—",
+                OpeningRu = "Здравствуйте.", Beats = "[]", Phrases = "[]", SortOrder = 0, IsActive = false,
+                CreatedAt = seededAt, UpdatedAt = seededAt,
+            });
+            await ctx.SaveChangesAsync();
+        }
+
+        try
+        {
+            // 23:30 local on 1 Mar.
+            await SeedTurnAsync(0, new DateTime(2025, 3, 1, 18, 30, 0, DateTimeKind.Utc));
+
+            using (var scope = _factory.Services.CreateScope())
+            {
+                var svc = scope.ServiceProvider.GetRequiredService<Govori.Practice.RoleplayService>();
+                // 23:59:59 local — the same day: it counts.
+                Assert.Equal(1, await svc.SpentTodayAsync(studentId, new DateTime(2025, 3, 1, 18, 59, 59, DateTimeKind.Utc)));
+                // 00:00 local — a new day: it no longer does. (Under UTC it would until 00:00Z.)
+                Assert.Equal(0, await svc.SpentTodayAsync(studentId, new DateTime(2025, 3, 1, 19, 0, 0, DateTimeKind.Utc)));
+            }
+
+            // 01:00 local on 2 Mar — after Tashkent midnight, before UTC midnight.
+            await SeedTurnAsync(1, new DateTime(2025, 3, 1, 20, 0, 0, DateTimeKind.Utc));
+
+            using (var scope = _factory.Services.CreateScope())
+            {
+                var svc = scope.ServiceProvider.GetRequiredService<Govori.Practice.RoleplayService>();
+                // 05:30 local on 2 Mar: the 01:00 turn is today's; the 23:30 one is yesterday's.
+                Assert.Equal(1, await svc.SpentTodayAsync(studentId, new DateTime(2025, 3, 2, 0, 30, 0, DateTimeKind.Utc)));
+            }
+        }
+        finally
+        {
+            await using var ctx = CreateContext();
+            await ctx.RoleplayTurns.Where(t => t.StudentId == studentId).ExecuteDeleteAsync();
+            await ctx.Scenarios.Where(s => s.Id == scenarioId).ExecuteDeleteAsync();
+            await ctx.Users.Where(u => u.Id == studentId).ExecuteDeleteAsync();
+        }
+
+        async Task SeedTurnAsync(int turnIndex, DateTime createdAtUtc)
+        {
+            await using var ctx = CreateContext();
+            ctx.RoleplayTurns.Add(new RoleplayTurn
+            {
+                Id = Guid.NewGuid(), ConversationId = conversationId, StudentId = studentId,
+                ScenarioId = scenarioId, TurnIndex = turnIndex, BeatIndex = 0,
+                // A SPOKEN turn — only those spend the budget (the partner's opener has no text).
+                StudentText = "Здравствуйте", PartnerText = "Здравствуйте!",
+                CreatedAt = createdAtUtc, UpdatedAt = createdAtUtc,
+            });
+            await ctx.SaveChangesAsync();
         }
     }
 

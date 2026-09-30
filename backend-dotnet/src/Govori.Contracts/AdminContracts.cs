@@ -181,8 +181,8 @@ public sealed record FeatureFlagsResponse(
     /// <summary>F2 · the phoneme drill on minimal pairs. ADDITIVE (appended last), default off —
     /// the attempt route spends Azure calls.</summary>
     bool PhonemeDrillEnabled = false,
-    /// <summary>F2 · attempts per student per UTC day. Mirrors <c>DrillService</c>'s default of
-    /// 40.</summary>
+    /// <summary>F2 · attempts per student per product day (<see cref="ProductDay"/>, Tashkent local
+    /// midnight). Mirrors <c>DrillService</c>'s default of 40.</summary>
     int PhonemeDrillDailyAttempts = 40,
     /// <summary>Faza 6.6 · the payment surface. ADDITIVE (appended last), default OFF — and OFF is
     /// not the only gate: with no configured provider a checkout is refused even when this is on,
