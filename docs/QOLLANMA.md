@@ -204,7 +204,6 @@ Har bir bo'limning o'z saqlash tugmasi bor. Bir bo'limni saqlash boshqasiga ta's
   kiritsangizgina almashadi.
 - **Tekshirish** tugmasi kaliti bor har bir xizmatga bitta haqiqiy so'rov yuboradi.
   **Bu pul sarflaydi.**
-- **Orfoepiya tekshiruvi** — baholashda urg'u va talaffuz qoidalarini ham tekshirish.
 - Oxirida **AI sozlamalarini saqlash** ni bosing.
 
 <!-- SCREENSHOT: Sozlamalar — "Hozir ishlayapti" belgisi va baholash zanjiri -->
@@ -224,7 +223,7 @@ Chegaralar:
 
 - **Tovushlar mashqi — kunlik urinishlar** — bir o'quvchiga kuniga nechta urinish.
 - **Bitta suhbatdagi eng ko'p tur** va **Bir o'quvchiga kunlik tur** — AI Suhbat
-  xarajatini cheklaydi. Kunlik hisob Toshkent vaqti bilan soat 05:00 da yangilanadi.
+  xarajatini cheklaydi. Kunlik hisob Toshkent vaqti bilan yarim tunda (00:00) yangilanadi.
 
 Oxirida **Funksiyalarni saqlash** ni bosing.
 
@@ -508,6 +507,9 @@ Ro'yxatdan o'tgach bir marta taklif qilinadi.
 3. Natijada taxminiy darajangiz (masalan, A2) chiqadi. **Boshlash** ni bosing.
 
 **Keyinroq — hozircha kirish** bilan o'tkazib yuborish mumkin.
+Agar "Hozir javobni baholab bo'lmadi" chiqsa, AI xizmati vaqtincha ishlamayapti:
+birozdan keyin qayta yozing yoki testni keyinroqqa qoldiring — soxta daraja
+ko'rsatilmaydi.
 Bu daraja faqat bir martalik taxmin. Profil va bosh sahifadagi daraja keyin
 baholangan javoblaringiz o'rtachasidan hisoblanadi.
 
@@ -674,7 +676,7 @@ Juda past baholangan javobga XP berilmaydi.
 - Har 5-kun ketma-ket mashq qilganingizda 1 ta **muzlatish** olasiz.
 - O'tkazib yuborilgan har bir kun uchun bitta muzlatish avtomatik sarflanadi va
   seriya saqlanadi.
-- Kun Toshkent vaqti bilan ertalab soat 05:00 da almashadi.
+- Kun Toshkent vaqti bilan yarim tunda (00:00) almashadi.
 
 ### 4.13 Profil
 
@@ -767,4 +769,4 @@ Kodni qayta tekshiring. O'qituvchi kodni yangilagan bo'lsa, eski kod ishlamaydi.
 Hali nashr qilingan modul yo'q. Admin rasmiy modul yaratib, nashr qilishi kerak (2.2).
 
 **Seriyam uzilib qoldi.**
-Kun ertalab soat 05:00 da almashadi. Muzlatish bo'lmasa, o'tkazilgan kun seriyani uzadi.
+Kun Toshkent vaqti bilan yarim tunda almashadi. Muzlatish bo'lmasa, o'tkazilgan kun seriyani uzadi.

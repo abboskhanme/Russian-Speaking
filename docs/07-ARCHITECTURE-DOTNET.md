@@ -276,7 +276,7 @@ Attempt(pending)
 | S3 | Refresh token **7 kun bekor qilib bo'lmaydi** — store yo'q, `jti` yo'q, rotatsiya yo'q | `auth.py:210-219` | ✅ `jti` + Redis denylist qo'shiladi |
 | S4 | `GET /admin/settings/reveal/{key}` — **xom sirlarni** API orqali qaytaradi | `admin_settings.py:145` | ✅ Audit log + qayta ko'rib chiqish |
 | S5 | SMTP sozlanmagan bo'lsa — ro'yxatdan o'tish **email tasdiqlashsiz** o'tadi, OTP **ochiq logga** yoziladi | `auth.py:109`, `email.py:20` | ✅ Prod'da fail-closed |
-| S6 | `_update_streak` `date.today()` — **server vaqti**, foydalanuvchi zonasi emas | `gamification.py:67` | ✅ Foydalanuvchi TZ |
+| S6 | `_update_streak` `date.today()` — **server vaqti**, foydalanuvchi zonasi emas | `gamification.py:67` | ✅ **Yopildi 2026-09-30** — foydalanuvchi TZ saqlanmaydi va streak worker'da yoziladi, shuning uchun yagona "mahsulot kuni": Toshkent, UTC+05:00 (`Govori.Contracts/ProductDay`). Streak, kunlik limitlar va haftalik trendlar mahalliy yarim tunda almashadi |
 | S7 | Audio — **biometrik ma'lumot**, saqlash siyosati yo'q | — | ✅ 90 kun + S3 lifecycle (docs/02 §2.8) |
 | S8 | `nginx.conf` — HSTS yo'q, `server_name _` | `nginx/nginx.conf` | ✅ |
 | S9 | `.dockerignore` yo'q → `.env` va `backups/` build context'ga ketadi | — | ✅ |
