@@ -11,7 +11,10 @@
  * That distinction is the whole point of showing them.
  */
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { AdminSettingsScreen } from "../../screens/admin";
+import { asSettingsTab } from "../../screens/admin/AdminSettingsScreen";
+import type { SettingsTab } from "../../screens/admin/AdminSettingsScreen";
 import type { AdminAiBudgetPatch, AdminSettings, AdminSettingsPatch } from "../../screens/admin";
 import { endpoints } from "../../shared/api";
 import type {
@@ -26,6 +29,18 @@ import { toAdminAiBudget } from "../adapters";
 
 export default function AdminSettingsPage() {
   const onNavigate = useAdminNavHandler();
+  // The open tab lives in the URL (`?tab=stt`), so a link or a reload lands on it.
+  const [params, setParams] = useSearchParams();
+  const tab = asSettingsTab(params.get("tab"));
+  const setTab = useCallback(
+    (next: SettingsTab) => {
+      const p = new URLSearchParams(params);
+      if (next === "ai") p.delete("tab");
+      else p.set("tab", next);
+      setParams(p, { replace: true });
+    },
+    [params, setParams],
+  );
 
   const [ai, setAi] = useState<AiSettingsResponse | null>(null);
   const [links, setLinks] = useState<LinksResponse | null>(null);
@@ -266,6 +281,8 @@ export default function AdminSettingsPage() {
       onSaveFeatures={saveFeatures}
       aiBudget={aiBudget}
       onSaveAiBudget={saveBudget}
+      tab={tab}
+      onTabChange={setTab}
     />
   );
 }

@@ -31,7 +31,7 @@ import { act, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import i18n, { SUPPORTED_LANGS, resources } from "../../shared/i18n";
 import { AdminSettingsScreen } from "./AdminSettingsScreen";
-import type { AdminProbe } from "./AdminSettingsScreen";
+import type { AdminProbe, SettingsTab } from "./AdminSettingsScreen";
 import { mockAdminSettings } from "./admin.mock";
 
 const t = i18n.getFixedT("uz", "common");
@@ -45,12 +45,18 @@ const probe = (over: Partial<AdminProbe> & Pick<AdminProbe, "name" | "kind">): A
   ...over,
 });
 
-function setup(onTestAi?: () => Promise<AdminProbe[]>) {
-  render(<AdminSettingsScreen settings={mockAdminSettings} onTestAi={onTestAi} />);
+/** Uncontrolled unless `tab` is given: the tests that move between AI baholash and
+ * Nutq (STT) click the real tabs, which is also what proves a probe round survives
+ * the switch. */
+function setup(onTestAi?: () => Promise<AdminProbe[]>, tab?: SettingsTab) {
+  render(<AdminSettingsScreen settings={mockAdminSettings} onTestAi={onTestAi} tab={tab} />);
   return { user: userEvent.setup() };
 }
 
-/** Both buttons are the same control — the endpoint takes no scope argument. */
+const openTab = (user: ReturnType<typeof userEvent.setup>, key: SettingsTab) =>
+  user.click(screen.getByRole("tab", { name: t(`admin.settingsTabs.${key}`) }));
+
+/** One per tab (grader, STT) — the same control: the endpoint takes no scope argument. */
 const testButtons = () => screen.getAllByRole("button", { name: t("admin.testAi") });
 const card = (name: string) => within(screen.getByRole("group", { name }));
 
@@ -94,8 +100,8 @@ describe("probe results", () => {
   });
 
   it("falls back to a house sentence when the vendor gave none", async () => {
-    const { user } = setup(async () => [probe({ name: "whisper", kind: "stt", ok: false, error: "" })]);
-    await user.click(testButtons()[1]);
+    const { user } = setup(async () => [probe({ name: "whisper", kind: "stt", ok: false, error: "" })], "stt");
+    await user.click(testButtons()[0]);
     await waitFor(() => expect(card("Whisper").getByText(t("admin.probeFailedUnknown"))).toBeInTheDocument());
   });
 
@@ -113,10 +119,11 @@ describe("probe results", () => {
     await waitFor(() =>
       expect(card("Claude").getByText(t("admin.probeOk", { model: "claude-opus-5", ms: 0 }))).toBeInTheDocument(),
     );
-    expect(card("Azure Speech").getByText(t("admin.probeOk", { model: "azure-speech", ms: 0 }))).toBeInTheDocument();
     // Azure OpenAI is not a chain backend and gets no line of its own.
     expect(card("Azure OpenAI").queryByText(/azure-speech/)).toBeNull();
     expect(card("Gemini").queryByRole("status")).toBeNull();
+    await openTab(user, "stt");
+    expect(card("Azure Speech").getByText(t("admin.probeOk", { model: "azure-speech", ms: 0 }))).toBeInTheDocument();
   });
 
   it("announces every result to a screen reader", async () => {
@@ -149,7 +156,7 @@ describe("spending guard", () => {
     for (const button of testButtons()) expect(button).toBeEnabled();
 
     // ...and a press after it settles is a NEW, deliberate round.
-    await user.click(testButtons()[1]);
+    await user.click(testButtons()[0]);
     expect(onTestAi).toHaveBeenCalledTimes(2);
   });
 
@@ -160,7 +167,11 @@ describe("spending guard", () => {
 
     // The grader button was pressed, but the endpoint has no scope argument: the STT
     // cards are genuinely being probed too, and saying otherwise would be a lie.
-    for (const name of ["Claude", "Gemini", "OpenAI", "Azure Speech", "Whisper"]) {
+    for (const name of ["Claude", "Gemini", "OpenAI"]) {
+      expect(card(name).getByText(t("admin.probePending"))).toBeInTheDocument();
+    }
+    await openTab(user, "stt");
+    for (const name of ["Azure Speech", "Whisper"]) {
       expect(card(name).getByText(t("admin.probePending"))).toBeInTheDocument();
     }
   });
@@ -179,8 +190,8 @@ describe("transport failure", () => {
   });
 
   it("prints the line once, beside the button that was pressed", async () => {
-    const { user } = setup(vi.fn().mockRejectedValue(new Error("network")));
-    await user.click(testButtons()[1]);
+    const { user } = setup(vi.fn().mockRejectedValue(new Error("network")), "stt");
+    await user.click(testButtons()[0]);
 
     await waitFor(() => expect(screen.getAllByText(t("admin.probeRequestFailed"))).toHaveLength(1));
     const stt = within(screen.getByRole("region", { name: t("admin.stt") }));
