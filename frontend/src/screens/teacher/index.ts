@@ -19,6 +19,9 @@ export type {
   TeacherProfile,
   TeacherStats,
   TeacherAttentionItem,
+  TeacherRecentItem,
+  TeacherBehindItem,
+  TeacherQuickAction,
   AttentionTone,
 } from "./TeacherDashboardScreen";
 export { mockTeacher, mockTeacherStats, mockTeacherAttention } from "./teacher.mock";

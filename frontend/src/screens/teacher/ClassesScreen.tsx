@@ -73,6 +73,8 @@ export interface ClassesScreenProps {
   queuedCount?: number;
   /** Create a group from the "+ Yangi guruh" tile. Resolves when the server has it. */
   onCreateGroup?: (name: string) => Promise<void> | void;
+  /** Open the "new group" sheet on arrival (the Obzor's "Yangi guruh" quick action). */
+  startCreating?: boolean;
   /** Decide a join request. Resolves once the server has accepted the decision. */
   onDecideRequest?: (id: string, approve: boolean) => Promise<void> | void;
   /** Open a group's detail (A5 — Phase 3). */
@@ -109,6 +111,7 @@ export function ClassesScreen({
   onNavigate,
   queuedCount = 0,
   onCreateGroup,
+  startCreating = false,
   onDecideRequest,
   onOpenGroup,
   onAssignGroup,
@@ -155,6 +158,7 @@ export function ClassesScreen({
           <GroupsTab
             groups={groups}
             onCreateGroup={onCreateGroup}
+            startCreating={startCreating}
             onOpenGroup={onOpenGroup}
             onAssignGroup={onAssignGroup}
           />
@@ -177,16 +181,18 @@ export function ClassesScreen({
 function GroupsTab({
   groups,
   onCreateGroup,
+  startCreating = false,
   onOpenGroup,
   onAssignGroup,
 }: {
   groups: ClassGroup[];
   onCreateGroup?: (name: string) => Promise<void> | void;
+  startCreating?: boolean;
   onOpenGroup?: (id: string, group: ClassGroup) => void;
   onAssignGroup?: (id: string, group: ClassGroup) => void;
 }) {
   const { t } = useTranslation();
-  const [creating, setCreating] = useState(false);
+  const [creating, setCreating] = useState(startCreating);
   const [name, setName] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
