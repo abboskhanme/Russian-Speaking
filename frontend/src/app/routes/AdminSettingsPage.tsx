@@ -3,6 +3,7 @@
  *
  *   • `GET/PATCH /api/admin/ai`    → grader + STT providers, models, secrets
  *   • `GET/PATCH /api/admin/links` → the outbound Telegram links
+ *   • `GET/PATCH /api/admin/settings/ai-budget` → the AI kill switch, caps and spend
  *
  * Both are fetched together because the screen shows them on one page, and both
  * are re-read after any save so the read-only status fields (`active_provider`,
@@ -11,11 +12,17 @@
  */
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { AdminSettingsScreen } from "../../screens/admin";
-import type { AdminSettings, AdminSettingsPatch } from "../../screens/admin";
+import type { AdminAiBudgetPatch, AdminSettings, AdminSettingsPatch } from "../../screens/admin";
 import { endpoints } from "../../shared/api";
-import type { AiSettingsResponse, FeatureFlagsResponse, LinksResponse } from "../../shared/api";
+import type {
+  AiBudgetResponse,
+  AiSettingsResponse,
+  FeatureFlagsResponse,
+  LinksResponse,
+} from "../../shared/api";
 import { PageError, PageLoading } from "../PageState";
 import { useAdminNavHandler } from "../nav";
+import { toAdminAiBudget } from "../adapters";
 
 export default function AdminSettingsPage() {
   const onNavigate = useAdminNavHandler();
@@ -23,6 +30,9 @@ export default function AdminSettingsPage() {
   const [ai, setAi] = useState<AiSettingsResponse | null>(null);
   const [links, setLinks] = useState<LinksResponse | null>(null);
   const [flags, setFlags] = useState<FeatureFlagsResponse | null>(null);
+  // Null when the read failed (or an older API has no such route): the card is then
+  // left out rather than showing a cap of $0 that nobody set.
+  const [budget, setBudget] = useState<AiBudgetResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [failed, setFailed] = useState(false);
   const [reloadKey, setReloadKey] = useState(0);
@@ -34,9 +44,15 @@ export default function AdminSettingsPage() {
     setLoading(true);
     setFailed(false);
 
-    Promise.allSettled([endpoints.adminAiSettings(), endpoints.adminLinks(), endpoints.adminFeatureFlags()])
-      .then(([a, l, f]) => {
+    Promise.allSettled([
+      endpoints.adminAiSettings(),
+      endpoints.adminLinks(),
+      endpoints.adminFeatureFlags(),
+      endpoints.adminAiBudget(),
+    ])
+      .then(([a, l, f, b]) => {
         if (!alive) return;
+        setBudget(b.status === "fulfilled" ? b.value : null);
         // The AI settings are load-bearing; the links are not, so a failing links
         // read costs that card its values, not the page.
         if (a.status !== "fulfilled") {
@@ -224,6 +240,18 @@ export default function AdminSettingsPage() {
     [],
   );
 
+  const saveBudget = useCallback(async (patch: AdminAiBudgetPatch) => {
+    setBudget(
+      await endpoints.adminUpdateAiBudget({
+        ai_paused: patch.aiPaused,
+        daily_cap_usd: patch.dailyCapUsd,
+        monthly_cap_usd: patch.monthlyCapUsd,
+      }),
+    );
+  }, []);
+
+  const aiBudget = useMemo(() => (budget ? toAdminAiBudget(budget) : null), [budget]);
+
   if (loading) return <PageLoading />;
   if (failed || !settings) return <PageError onRetry={refetch} />;
 
@@ -236,6 +264,8 @@ export default function AdminSettingsPage() {
       onTestAi={testAi}
       onSaveLinks={saveLinks}
       onSaveFeatures={saveFeatures}
+      aiBudget={aiBudget}
+      onSaveAiBudget={saveBudget}
     />
   );
 }

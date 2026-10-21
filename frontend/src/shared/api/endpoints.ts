@@ -60,6 +60,8 @@ import type {
   LinksResponse,
   FeatureFlagsResponse,
   FeatureFlagsUpdateArgs,
+  AiBudgetResponse,
+  AiBudgetUpdateArgs,
   LinksUpdateArgs,
   RevealResponse,
   MeResponse,
@@ -1070,6 +1072,16 @@ export function adminUpdateFeatureFlags(
   args: FeatureFlagsUpdateArgs,
 ): Promise<FeatureFlagsResponse> {
   return apiClient.patch<FeatureFlagsResponse>("/admin/settings/features", args);
+}
+
+/** GET /api/admin/settings/ai-budget → the AI kill switch, caps and estimated spend. */
+export function adminAiBudget(): Promise<AiBudgetResponse> {
+  return apiClient.get<AiBudgetResponse>("/admin/settings/ai-budget");
+}
+
+/** PATCH /api/admin/settings/ai-budget → tri-state update of the switch and caps. */
+export function adminUpdateAiBudget(args: AiBudgetUpdateArgs): Promise<AiBudgetResponse> {
+  return apiClient.patch<AiBudgetResponse>("/admin/settings/ai-budget", args);
 }
 
 /** GET /api/admin/settings/links → the outbound Telegram links (admin view). */

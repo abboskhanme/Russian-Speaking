@@ -1104,7 +1104,8 @@
       "grading_timeout": "Grading took too long.",
       "stt_failed": "We couldn't transcribe the recording.",
       "grader_failed": "The AI couldn't grade the answer.",
-      "internal": "A technical error occurred."
+      "internal": "A technical error occurred.",
+      "ai_unavailable": "AI grading is temporarily unavailable. Please record again a little later."
     },
     "notGraded": "Not graded",
     "notGradedReason": "Not graded · {{reason}}",
@@ -1692,7 +1693,29 @@
       "errSame": "The group already belongs to this teacher.",
       "errTarget": "The chosen teacher is suspended or no longer a teacher. Refresh the list and choose again.",
       "errNotFound": "This group no longer exists — refresh the list."
-    }
+    },
+    "aiBudget": "AI budget",
+    "aiBudgetState": {
+      "open": "Open",
+      "paused": "Paused",
+      "daily_cap": "Daily cap reached",
+      "monthly_cap": "Monthly cap reached"
+    },
+    "aiPaused": "Pause all AI",
+    "aiPausedHint": "Stops every new AI call at once — grading, placement, conversations, drills. Students are told to try again later; recordings are kept.",
+    "aiSpentToday": "Today ({{day}})",
+    "aiSpentMonth": "This month",
+    "aiDailyCap": "Daily cap, USD",
+    "aiMonthlyCap": "Monthly cap, USD",
+    "aiSpendBreakdown": "This month by service",
+    "aiOperation": {
+      "stt": "speech recognition",
+      "grader": "grading"
+    },
+    "aiCalls": "{{calls}} calls · {{failed}} failed",
+    "aiBudgetHint": "Amounts are estimates from configured unit prices, not a vendor invoice. When a cap is reached, new AI work stops until the day (Tashkent midnight) or month resets, or the cap is raised.",
+    "aiBudgetInvalid": "Not saved: a cap must be a dollar amount above 0.",
+    "saveAiBudget": "Save AI budget"
   },
   "billing": {
     "title": "Premium",

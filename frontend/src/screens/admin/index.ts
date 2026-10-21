@@ -45,5 +45,7 @@ export type {
   AdminSettingsPatch,
   AdminSecret,
 } from "./AdminSettingsScreen";
+export { AiBudgetCard } from "./AiBudgetCard";
+export type { AdminAiBudget, AdminAiBudgetPatch, AdminAiSpendLine } from "./AiBudgetCard";
 
 export { mockAdminStats, mockAdminTeachers, mockAdminStudents, mockAdminSettings } from "./admin.mock";
