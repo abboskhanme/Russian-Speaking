@@ -1,5 +1,5 @@
 import { useTranslation } from "react-i18next";
-import { Card, StatTile, Text } from "../../shared/ui";
+import { Button, Card, StatTile, Text } from "../../shared/ui";
 import { AppShell, Brand, NotificationsBell, adminNavItems } from "../../widgets";
 import type { NavItem } from "../../widgets";
 import { AdminAccountButton } from "./AdminChrome";
@@ -27,6 +27,9 @@ export interface AdminStats {
 
 export interface AdminDashboardProps {
   stats: AdminStats;
+  /** Opens Jurnal (the audit trail). The nav lists it in the sidebar only, so on a
+   * phone this is the way in; absent (a demo, a test), the card is not rendered. */
+  onOpenAudit?: () => void;
   activeNavKey?: string;
   onNavigate?: (key: string, item: NavItem) => void;
 }
@@ -61,6 +64,7 @@ export interface AdminDashboardProps {
  */
 export function AdminDashboardScreen({
   stats,
+  onOpenAudit,
   activeNavKey = "home",
   onNavigate,
 }: AdminDashboardProps) {
@@ -194,6 +198,24 @@ export function AdminDashboardScreen({
             )}
           </Card>
         </section>
+
+        {onOpenAudit && (
+          <section className={styles.section} aria-label={t("admin.audit.title")}>
+            <Text as="h2" variant="label" color="muted" className={styles.legend}>
+              {t("admin.audit.title")}
+            </Text>
+            <Card variant="flat" padding="md" className={styles.notes}>
+              <Text as="p" variant="body-s" color="muted">
+                {t("admin.audit.dashboardHint")}
+              </Text>
+              <div>
+                <Button variant="secondary" size="sm" onClick={onOpenAudit}>
+                  {t("admin.audit.open")}
+                </Button>
+              </div>
+            </Card>
+          </section>
+        )}
       </div>
     </AppShell>
   );

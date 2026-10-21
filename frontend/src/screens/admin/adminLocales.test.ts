@@ -25,6 +25,7 @@ import content from "./AdminContentExtras.tsx?raw";
 import profile from "./AdminProfileScreen.tsx?raw";
 import dashboard from "./AdminDashboardScreen.tsx?raw";
 import billing from "./AdminBillingScreen.tsx?raw";
+import audit from "./AdminAuditScreen.tsx?raw";
 import settings from "./AdminSettingsScreen.tsx?raw";
 import errors from "./adminErrors.ts?raw";
 import navItems from "../../widgets/Nav/navItems.tsx?raw";
@@ -39,6 +40,7 @@ const SOURCES: Record<string, string> = {
   AdminProfileScreen: profile,
   AdminDashboardScreen: dashboard,
   AdminBillingScreen: billing,
+  AdminAuditScreen: audit,
   AdminSettingsScreen: settings,
   adminErrors: errors,
   navItems,
@@ -64,6 +66,7 @@ describe("admin locale coverage", () => {
     expect(ALL_KEYS).toContain("admin.addTeacher");
     expect(ALL_KEYS).toContain("admin.role.errLastAdmin");
     expect(ALL_KEYS).toContain("admin.catalog.emptyTitle");
+    expect(ALL_KEYS).toContain("admin.audit.action.secretReveal");
     expect(ALL_KEYS.length).toBeGreaterThan(100);
   });
 

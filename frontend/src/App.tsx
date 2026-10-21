@@ -57,6 +57,7 @@ const AdminTeachersPage = lazy(() => import("./app/routes/AdminTeachersPage"));
 const AdminStudentsPage = lazy(() => import("./app/routes/AdminStudentsPage"));
 const AdminSettingsPage = lazy(() => import("./app/routes/AdminSettingsPage"));
 const AdminBillingPage = lazy(() => import("./app/routes/AdminBillingPage"));
+const AdminAuditPage = lazy(() => import("./app/routes/AdminAuditPage"));
 const AdminLayout = lazy(() => import("./app/routes/AdminLayout"));
 const AdminContentPage = lazy(() => import("./app/routes/AdminContentPage"));
 const AdminModuleEditorPage = lazy(() => import("./app/routes/AdminModuleEditorPage"));
@@ -189,6 +190,8 @@ export default function App() {
                   <Route path="/admin/settings" element={<AdminSettingsPage />} />
                   {/* Tariflar — the plan editor + who holds a subscription. */}
                   <Route path="/admin/billing" element={<AdminBillingPage />} />
+                  {/* Jurnal — who did what in this panel (GET /api/admin/audit). */}
+                  <Route path="/admin/audit" element={<AdminAuditPage />} />
                   {/* Profil — reached from the header avatar, NOT from the nav bar. */}
                   <Route path="/admin/profile" element={<AdminProfilePage />} />
                 </Route>

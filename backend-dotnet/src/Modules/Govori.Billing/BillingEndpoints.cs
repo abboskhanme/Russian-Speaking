@@ -1,5 +1,6 @@
 using System.Security.Claims;
 using Govori.Contracts;
+using Govori.Infrastructure.Audit;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
@@ -22,6 +23,10 @@ namespace Govori.Billing;
 /// </summary>
 public static class BillingEndpoints
 {
+    // Recorded VERBATIM on the admin audit trail for a tariff change: what it costs, for how long,
+    // and whether it is on sale — the fields a "who changed the price?" question is about.
+    private static readonly string[] PlanAuditValues = ["code", "price_minor", "currency", "duration_days", "is_active"];
+
     public static IEndpointRouteBuilder MapBillingEndpoints(this IEndpointRouteBuilder app)
     {
         MapStudent(app);
@@ -112,14 +117,16 @@ public static class BillingEndpoints
         {
             if (!TryGetUserId(p, out var uid)) return Results.Unauthorized();
             return Map(await svc.CreatePlanAsync(uid, body, ct), okStatus: StatusCodes.Status201Created);
-        }).RequireAuthorization();
+        }).RequireAuthorization()
+            .AdminAudited("plan.create", AdminAuditTargets.Plan, values: PlanAuditValues);
 
         // PATCH /api/admin/billing/plans/{id} — partial update.
         admin.MapPatch("/plans/{id:guid}", async (Guid id, PlanUpsertRequest body, ClaimsPrincipal p, BillingService svc, CancellationToken ct) =>
         {
             if (!TryGetUserId(p, out var uid)) return Results.Unauthorized();
             return Map(await svc.UpdatePlanAsync(uid, id, body, ct), notFound: "plan_not_found");
-        }).RequireAuthorization();
+        }).RequireAuthorization()
+            .AdminAudited("plan.update", AdminAuditTargets.Plan, values: PlanAuditValues);
 
         // DELETE /api/admin/billing/plans/{id} — 204, and refused when anything was sold under it.
         admin.MapDelete("/plans/{id:guid}", async (Guid id, ClaimsPrincipal p, BillingService svc, CancellationToken ct) =>
@@ -129,7 +136,8 @@ public static class BillingEndpoints
             return result.Outcome == BillingOutcome.Ok
                 ? Results.NoContent()
                 : Map(result, notFound: "plan_not_found");
-        }).RequireAuthorization();
+        }).RequireAuthorization()
+            .AdminAudited("plan.delete", AdminAuditTargets.Plan);
 
         // GET /api/admin/billing/subscriptions — who holds what, newest first.
         admin.MapGet("/subscriptions", async (int? limit, ClaimsPrincipal p, BillingService svc, CancellationToken ct) =>

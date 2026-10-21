@@ -1,6 +1,7 @@
 import type { TFunction } from "i18next";
 import type { NavItem } from "./Nav";
 import {
+  AuditIcon,
   ContentIcon,
   GroupsIcon,
   HomeIcon,
@@ -87,13 +88,21 @@ export function teacherNavItems(t: TFunction, pendingReviews = 0): NavItem[] {
 
 /** Stable keys for the admin destinations (`Govorim - Admin.dc.html`, plus Tariflar
  *  from Faza 6.6). */
-export type AdminNavKey = "home" | "teachers" | "students" | "content" | "billing" | "settings";
+export type AdminNavKey =
+  | "home"
+  | "teachers"
+  | "students"
+  | "content"
+  | "billing"
+  | "settings"
+  | "audit";
 
 /**
  * The admin nav model: **Boshqaruv · O'qituvchilar · O'quvchilar · Kontent · Tariflar ·
  * Sozlamalar**.
  *
- * Six items and **no raised centre FAB**, unlike the other two bars. That is a
+ * Six bar items — plus **Jurnal** (the audit trail), which only the sidebar shows; see
+ * the item below — and **no raised centre FAB**, unlike the other two bars. That is a
  * judgement, not an oversight: the student's FAB is "record", the teacher's is
  * "grade the queue" — each panel has one dominant, repeated action. Administration
  * has no such action; promoting one of these would invent an emphasis the work does
@@ -129,6 +138,10 @@ export function adminNavItems(t: TFunction): NavItem[] {
     // Sozlamalar is the drawer everything configuration-shaped ends up in — a nav
     // bar reads better when the settings item stays last.
     { key: "billing", label: t("nav.adminBilling"), icon: <TariffIcon /> },
+    // Jurnal — who did what in this panel. SIDEBAR ONLY: a seventh slot does not fit a
+    // 390px bar (7 × 54px items + gaps overflow it), and reading an audit trail is desk
+    // work, not something done one-handed. On a phone it opens from Boshqaruv instead.
+    { key: "audit", label: t("nav.adminAudit"), icon: <AuditIcon />, sidebarOnly: true },
     { key: "settings", label: t("nav.adminSettings"), icon: <SettingsIcon /> },
   ];
 }

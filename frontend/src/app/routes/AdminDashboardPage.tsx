@@ -2,19 +2,23 @@
  * AdminDashboardPage (`/admin`) — Boshqaruv.
  *
  *   • `GET /api/admin/stats` → the six counters
+ *   • a card that opens Jurnal (`/admin/audit`) — the phone's way in, since the nav
+ *     lists it in the sidebar only
  *
  * One fetch, and it is load-bearing: with no stats there is no dashboard, so a
  * failure is a real error state rather than a page of dashes.
  */
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { AdminDashboardScreen } from "../../screens/admin";
 import type { AdminStats } from "../../screens/admin";
 import { endpoints } from "../../shared/api";
 import { PageError, PageLoading } from "../PageState";
-import { useAdminNavHandler } from "../nav";
+import { ADMIN_NAV_PATH, useAdminNavHandler } from "../nav";
 
 export default function AdminDashboardPage() {
   const onNavigate = useAdminNavHandler();
+  const navigate = useNavigate();
   const [stats, setStats] = useState<AdminStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [failed, setFailed] = useState(false);
@@ -54,5 +58,12 @@ export default function AdminDashboardPage() {
   if (loading) return <PageLoading />;
   if (failed || !stats) return <PageError onRetry={() => setReloadKey((k) => k + 1)} />;
 
-  return <AdminDashboardScreen stats={stats} activeNavKey="home" onNavigate={onNavigate} />;
+  return (
+    <AdminDashboardScreen
+      stats={stats}
+      onOpenAudit={() => navigate(ADMIN_NAV_PATH.audit)}
+      activeNavKey="home"
+      onNavigate={onNavigate}
+    />
+  );
 }

@@ -1,5 +1,6 @@
 using System.Security.Claims;
 using Govori.Contracts;
+using Govori.Infrastructure.Audit;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
@@ -72,6 +73,11 @@ public static class CatalogEndpoints
     /// caller does not own answers <b>404, not 403</b>, so module/task ids cannot be probed. An admin
     /// is the exception that owns everything: they see and edit every module, and only they can make
     /// one an official <c>public</c> module.
+    ///
+    /// <para>Every write here carries <c>.AdminAudited(...)</c>. These routes are shared with teachers,
+    /// and the filter records only an ADMIN caller — the admin Kontent section is these same routes,
+    /// so this is where "who published that official module" gets answered. A teacher editing their
+    /// own module is product activity and leaves no audit row.</para>
     /// </summary>
     private static void MapAuthoring(IEndpointRouteBuilder app)
     {
@@ -91,7 +97,8 @@ public static class CatalogEndpoints
         {
             if (!TryUserId(principal, out var userId)) return Results.Unauthorized();
             return Map(await svc.CreateBlockAsync(userId, body, ct), StatusCodes.Status201Created);
-        }).RequireAuthorization();
+        }).RequireAuthorization()
+            .AdminAudited("module.create", AdminAuditTargets.Module, values: ["visibility"]);
 
         // GET /api/blocks/{id} — module + its ordered tasks (the C4 editor).
         blocks.MapGet("/{id:guid}", async (Guid id, ClaimsPrincipal principal, CatalogService svc, CancellationToken ct) =>
@@ -107,7 +114,8 @@ public static class CatalogEndpoints
         {
             if (!TryUserId(principal, out var userId)) return Results.Unauthorized();
             return Map(await svc.UpdateBlockAsync(userId, id, body, ct));
-        }).RequireAuthorization();
+        }).RequireAuthorization()
+            .AdminAudited("module.update", AdminAuditTargets.Module, values: ["is_published", "visibility"]);
 
         // DELETE /api/blocks/{id} → 204. The module's tasks are SOFT-deleted (student history keeps
         // pointing at them) and the module row itself is removed. Owner or admin; another teacher
@@ -116,7 +124,8 @@ public static class CatalogEndpoints
         {
             if (!TryUserId(principal, out var userId)) return Results.Unauthorized();
             return MapNoContent(await svc.DeleteBlockAsync(userId, id, ct));
-        }).RequireAuthorization();
+        }).RequireAuthorization()
+            .AdminAudited("module.delete", AdminAuditTargets.Module);
 
         // GET /api/questions (?q= search, ?block_id, ?unassigned, ?limit=1..200) — the Vazifalar
         // tab and C5's library picker. `unassigned=true` is what the picker offers, so a task
@@ -135,14 +144,16 @@ public static class CatalogEndpoints
         {
             if (!TryUserId(principal, out var userId)) return Results.Unauthorized();
             return Map(await svc.CreateQuestionAsync(userId, body, ct), StatusCodes.Status201Created);
-        }).RequireAuthorization();
+        }).RequireAuthorization()
+            .AdminAudited("task.create", AdminAuditTargets.Task);
 
         // PATCH /api/questions/{id} — partial update; `detach_block: true` removes the module link.
         questions.MapPatch("/{id:guid}", async (Guid id, UpdateQuestionRequest body, ClaimsPrincipal principal, CatalogService svc, CancellationToken ct) =>
         {
             if (!TryUserId(principal, out var userId)) return Results.Unauthorized();
             return Map(await svc.UpdateQuestionAsync(userId, id, body, ct));
-        }).RequireAuthorization();
+        }).RequireAuthorization()
+            .AdminAudited("task.update", AdminAuditTargets.Task, values: ["is_published"]);
 
         // DELETE /api/questions/{id} → 204. SOFT delete: the row stays so submissions, evaluations and
         // assignments that point at it keep working; it disappears from every catalog listing.
@@ -151,7 +162,8 @@ public static class CatalogEndpoints
         {
             if (!TryUserId(principal, out var userId)) return Results.Unauthorized();
             return MapNoContent(await svc.DeleteQuestionAsync(userId, id, ct));
-        }).RequireAuthorization();
+        }).RequireAuthorization()
+            .AdminAudited("task.delete", AdminAuditTargets.Task);
 
         // POST /api/questions/{id}/media — set/replace the task's image or short video
         // (multipart/form-data, field "media"). → 200 the updated task with a fresh `media_url`;
@@ -177,7 +189,8 @@ public static class CatalogEndpoints
 
             await using var stream = file.OpenReadStream();
             return Map(await svc.SetQuestionMediaAsync(userId, id, stream, file.ContentType, file.Length, ct));
-        }).RequireAuthorization().DisableAntiforgery();
+        }).RequireAuthorization().DisableAntiforgery()
+            .AdminAudited("task.media_set", AdminAuditTargets.Task);
 
         // DELETE /api/questions/{id}/media — clear the task's media → 200 the updated task
         // (`media_url` now null). Idempotent: a task with no media is still a 200.
@@ -186,7 +199,8 @@ public static class CatalogEndpoints
         {
             if (!TryUserId(principal, out var userId)) return Results.Unauthorized();
             return Map(await svc.RemoveQuestionMediaAsync(userId, id, ct));
-        }).RequireAuthorization();
+        }).RequireAuthorization()
+            .AdminAudited("task.media_remove", AdminAuditTargets.Task);
     }
 
     /// <summary>A valid ACCESS token carrying a parseable `sub`; a refresh token is rejected.</summary>
