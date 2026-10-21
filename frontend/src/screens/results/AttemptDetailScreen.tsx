@@ -182,6 +182,7 @@ export function AttemptDetailScreen({
         {detail.feedback && (
           <Section title={t("results.feedback")}>
             <div className={styles.fbBlock}>
+              <FeedbackLangNote lang={detail.feedback.lang} />
               {detail.feedback.summary && (
                 <Text as="p" variant="body" className={styles.prose}>
                   {detail.feedback.summary}
@@ -205,7 +206,6 @@ export function AttemptDetailScreen({
                   ))}
                 </ul>
               )}
-              <FeedbackLangNote lang={detail.feedback.lang} />
             </div>
           </Section>
         )}

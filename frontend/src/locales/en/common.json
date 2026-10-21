@@ -974,7 +974,8 @@
       "streetPlaceholder": "Amir Temur street, 12, apt 34",
       "finish": "Finish and start"
     },
-    "joinPendingNote": "Sign in to join the group — the request is sent for you."
+    "joinPendingNote": "Sign in to join the group — the request is sent for you.",
+    "langSwitch": "Interface language"
   },
   "notifications": {
     "title": "Notifications",

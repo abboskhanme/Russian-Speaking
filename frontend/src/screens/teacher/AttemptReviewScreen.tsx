@@ -239,6 +239,7 @@ export function AttemptReviewScreen({
             <Text as="h3" variant="label" color="muted">
               {t("teacher.aiFeedback")}
             </Text>
+            <FeedbackLangNote lang={feedback.lang} />
             {feedback.summary && (
               <Text as="p" variant="body-s">
                 {feedback.summary}
@@ -250,7 +251,6 @@ export function AttemptReviewScreen({
             {feedback.improvements.length > 0 && (
               <FeedbackList label={t("teacher.improvements")} items={feedback.improvements} tone="warn" />
             )}
-            <FeedbackLangNote lang={feedback.lang} />
             {feedback.vocabulary.length > 0 && (
               <div className={styles.vocabWrap}>
                 <Text as="h4" variant="label" color="muted">

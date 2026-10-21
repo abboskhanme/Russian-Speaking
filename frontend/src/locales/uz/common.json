@@ -974,7 +974,8 @@
       "streetPlaceholder": "Amir Temur ko'chasi, 12-uy, 34-xonadon",
       "finish": "Tugatish va boshlash"
     },
-    "joinPendingNote": "Guruhga qo'shilish uchun hisobingizga kiring — so'rov o'zi yuboriladi."
+    "joinPendingNote": "Guruhga qo'shilish uchun hisobingizga kiring — so'rov o'zi yuboriladi.",
+    "langSwitch": "Interfeys tili"
   },
   "notifications": {
     "title": "Bildirishnomalar",
