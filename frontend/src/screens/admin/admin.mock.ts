@@ -1,4 +1,9 @@
-import type { AdminStats } from "./AdminDashboardScreen";
+import type {
+  AdminActivityPoint,
+  AdminBudgetGlance,
+  AdminFailedItem,
+  AdminStats,
+} from "./AdminDashboardScreen";
 import type { AdminPerson } from "./AdminPeopleScreen";
 import type { AdminSettings } from "./AdminSettingsScreen";
 
@@ -91,3 +96,22 @@ export const mockAdminSettings: AdminSettings = {
   tgSupportUrl: "https://t.me/govori_support",
   tgChannelUrl: "https://t.me/govori_channel",
 };
+
+/** 14 days of activity, oldest first — the dashboard demo's trend tiles. */
+export const mockAdminActivity: AdminActivityPoint[] = [
+  3, 5, 2, 6, 4, 0, 1, 7, 9, 6, 8, 5, 2, 11,
+].map((n, i) => ({
+  date: `2026-10-${String(8 + i).padStart(2, "0")}`,
+  submissions: n,
+  graded: Math.max(0, n - (i % 5 === 0 ? 1 : 0)),
+  failed: i % 5 === 0 && n > 0 ? 1 : 0,
+  activeStudents: Math.ceil(n / 2),
+  newStudents: i % 3 === 0 ? 1 : 0,
+  aiCostUsd: n * 0.012,
+}));
+
+export const mockAdminBudget: AdminBudgetGlance = { spentTodayUsd: 0.13, dailyCapUsd: 5, state: "open" };
+
+export const mockAdminFailed: AdminFailedItem[] = [
+  { id: "f-1", studentName: "Dilnoza Rahimova", taskTitle: "Еда и вкусы", reason: "Baholash juda uzoq davom etdi.", when: "21.10.2026 11:30", canRegrade: true },
+];

@@ -25,7 +25,9 @@ import {
   AdminModuleMeta,
   AdminVisibilityCard,
 } from "../../screens/admin/AdminContentExtras";
+import { AdminModulesTable } from "../../screens/admin/AdminModulesTable";
 import { NotificationsBell, adminNavItems } from "../../widgets";
+import { formatDayMonth } from "../adapters";
 import { ContentPanelContext } from "../contentPanel";
 import type { ContentPanel } from "../contentPanel";
 import { ADMIN_NAV_PATH, useAdminNavHandler } from "../nav";
@@ -62,6 +64,13 @@ export function AdminContentPanel({ children }: { children: ReactNode }) {
         />
       ),
       renderModulesEmpty: (create) => <AdminCatalogEmpty onCreate={create} />,
+      renderModulesTable: (blocks, open) => (
+        <AdminModulesTable
+          rows={blocks}
+          onOpen={open}
+          formatDate={(iso) => formatDayMonth(iso, t)}
+        />
+      ),
     }),
     [t, onNavigate],
   );

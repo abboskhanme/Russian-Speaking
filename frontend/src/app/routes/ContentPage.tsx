@@ -26,6 +26,7 @@ import type {
   TaskPatch,
 } from "../../screens/teacher";
 import { endpoints } from "../../shared/api";
+import { WIDE_QUERY, useMediaQuery } from "../../shared/ui";
 import type { TeacherBlockResponse, TeacherQuestionResponse } from "../../shared/api";
 import { PageError, PageLoading } from "../PageState";
 import { useTeacherNavHandler } from "../nav";
@@ -43,6 +44,7 @@ export default function ContentPage() {
   const teacherNavigate = useTeacherNavHandler();
   const onNavigate = panel.onNavigate ?? teacherNavigate;
   const [params, setParams] = useSearchParams();
+  const wide = useMediaQuery(WIDE_QUERY);
 
   const raw = params.get("tab");
   const tab: ContentTabKey = TABS.includes(raw as ContentTabKey)
@@ -179,6 +181,11 @@ export default function ContentPage() {
     [refetch],
   );
 
+  const openModule = useCallback(
+    (id: string) => navigate(`${panel.basePath}/${encodeURIComponent(id)}`),
+    [navigate, panel.basePath],
+  );
+
   if (!loaded) return <PageLoading />;
   if (failed) return <PageError onRetry={refetch} />;
 
@@ -200,9 +207,10 @@ export default function ContentPage() {
           : undefined
       }
       modulesEmpty={panel.renderModulesEmpty?.(() => void createModule())}
+      modulesView={wide ? panel.renderModulesTable?.(blocks, openModule) : undefined}
       queuedCount={queued}
       onCreate={() => void createModule()}
-      onOpenModule={(id) => navigate(`${panel.basePath}/${encodeURIComponent(id)}`)}
+      onOpenModule={openModule}
       onCreateTask={createTask}
       onUpdateTask={updateTask}
       onToggleTaskPublished={toggleTaskPublished}

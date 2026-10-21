@@ -1,6 +1,8 @@
 import type { ReactNode } from "react";
 import { useTranslation } from "react-i18next";
-import { Card, Text, cx } from "../../shared/ui";
+import { Button, Card, Text, cx } from "../../shared/ui";
+import { MiniBars } from "../../shared/ui/Chart";
+import type { MiniBar } from "../../shared/ui/Chart";
 import { Page } from "../../widgets";
 import type { NavItem } from "../../widgets";
 import { mockTeacher, mockTeacherAttention, mockTeacherStats } from "./teacher.mock";
@@ -51,6 +53,28 @@ export interface TeacherAttentionItem {
   hint: string;
 }
 
+/** One answer waiting for this teacher's review (newest first). */
+export interface TeacherRecentItem {
+  id: string;
+  studentName: string;
+  taskTitle: string;
+  /** AI band 0–100, null when the attempt has none. */
+  score: number | null;
+  /** Localized "when", already formatted. */
+  when: string;
+}
+
+/** A student who is falling behind, and why (already localized). */
+export interface TeacherBehindItem {
+  id: string;
+  name: string;
+  /** "8 kundan beri mashq qilmadi" / "Ball 7 ga tushdi" / "Hali boshlamagan". */
+  reason: string;
+  tone: "warn" | "danger";
+}
+
+export type TeacherQuickAction = "new-group" | "assign" | "queue";
+
 export interface TeacherDashboardProps {
   teacher: TeacherProfile;
   stats: TeacherStats;
@@ -66,6 +90,15 @@ export interface TeacherDashboardProps {
   onOpenAttention?: (id: string, item: TeacherAttentionItem) => void;
   /** The header avatar — the teacher panel's profile entry (there is no nav item). */
   onOpenProfile?: () => void;
+  /** Answers waiting for review (the first few). Absent ⇒ section hidden. */
+  recent?: TeacherRecentItem[];
+  /** Students falling behind. Absent ⇒ section hidden. */
+  behind?: TeacherBehindItem[];
+  /** This week's class activity, 7 days oldest first. Absent ⇒ no chart. */
+  week?: MiniBar[];
+  onOpenSubmission?: (id: string) => void;
+  onOpenStudent?: (id: string) => void;
+  onQuickAction?: (action: TeacherQuickAction) => void;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -92,14 +125,50 @@ export function TeacherDashboardScreen({
   attention,
   onOpenAttention,
   onOpenProfile,
+  recent,
+  behind,
+  week,
+  onOpenSubmission,
+  onOpenStudent,
+  onQuickAction,
 }: TeacherDashboardProps) {
+  const { t } = useTranslation();
   return (
     <Page width="wide">
       {/* data-density mirrors the DS compact contract; the scale is also set on
           .page so it stays scoped to this screen (docs/03 §3.5). */}
       <div className={styles.page} data-density="compact">
         <ObzorHeader teacher={teacher} onOpenProfile={onOpenProfile} />
+        {onQuickAction && <QuickActions onQuickAction={onQuickAction} />}
         <AttentionSection attention={attention} onOpenAttention={onOpenAttention} />
+        {(recent || behind) && (
+          <div className={styles.grid}>
+            {recent && (
+              <RecentSection
+                items={recent}
+                total={stats.queued}
+                onOpen={onOpenSubmission}
+                onOpenQueue={onQuickAction ? () => onQuickAction("queue") : undefined}
+              />
+            )}
+            {behind && <BehindSection items={behind} onOpen={onOpenStudent} />}
+          </div>
+        )}
+        {week && week.length > 0 && (
+          <section className={styles.section} aria-label={t("uiDash.teacher.weekTitle")}>
+            <Text as="h2" variant="label" color="muted">
+              {t("uiDash.teacher.weekTitle")}
+            </Text>
+            <Card variant="outline" padding="md">
+              <MiniBars
+                bars={week}
+                label={t("uiDash.teacher.weekAria", {
+                  values: week.map((b) => `${b.label} ${b.value}`).join(", "),
+                })}
+              />
+            </Card>
+          </section>
+        )}
         <StatsRow stats={stats} />
       </div>
     </Page>
@@ -134,16 +203,16 @@ function ObzorHeader({
       {/* Only when asked for: inside the teacher layout the top bar already carries
           the account avatar, and two avatars on one screen is one too many. */}
       {onOpenProfile && (
-      <button
-        type="button"
-        className={styles.avatar}
-        onClick={onOpenProfile}
-        aria-label={t("teacher.avatarAria")}
-      >
-        <Text as="span" variant="body" weight="black">
-          {initials}
-        </Text>
-      </button>
+        <button
+          type="button"
+          className={styles.avatar}
+          onClick={onOpenProfile}
+          aria-label={t("teacher.avatarAria")}
+        >
+          <Text as="span" variant="body" weight="black">
+            {initials}
+          </Text>
+        </button>
       )}
     </header>
   );
@@ -217,6 +286,157 @@ function AttentionCard({
         <ChevronGlyph />
       </span>
     </button>
+  );
+}
+
+/* -------------------------------------------------------------------------- */
+/* Quick actions                                                              */
+/* -------------------------------------------------------------------------- */
+
+function QuickActions({ onQuickAction }: { onQuickAction: (a: TeacherQuickAction) => void }) {
+  const { t } = useTranslation();
+  return (
+    <nav className={styles.quick} aria-label={t("uiDash.teacher.quickAria")}>
+      <Button variant="primary" size="sm" className={styles.quickBtn} onClick={() => onQuickAction("assign")}>
+        <PlusGlyph />
+        {t("uiDash.teacher.assign")}
+      </Button>
+      <Button variant="secondary" size="sm" className={styles.quickBtn} onClick={() => onQuickAction("new-group")}>
+        <GroupGlyph />
+        {t("uiDash.teacher.newGroup")}
+      </Button>
+    </nav>
+  );
+}
+
+/* -------------------------------------------------------------------------- */
+/* Waiting for review · Falling behind                                        */
+/* -------------------------------------------------------------------------- */
+
+function RecentSection({
+  items,
+  total,
+  onOpen,
+  onOpenQueue,
+}: {
+  items: TeacherRecentItem[];
+  total: number;
+  onOpen?: (id: string) => void;
+  onOpenQueue?: () => void;
+}) {
+  const { t } = useTranslation();
+  return (
+    <section className={styles.section} aria-label={t("uiDash.teacher.recentTitle")}>
+      <div className={styles.sectionHead}>
+        <Text as="h2" variant="label" color="muted">
+          {t("uiDash.teacher.recentTitle")}
+        </Text>
+        {onOpenQueue && total > items.length && (
+          <button type="button" className={styles.linkBtn} onClick={onOpenQueue}>
+            {t("uiDash.teacher.seeAll", { count: total })}
+          </button>
+        )}
+      </div>
+      <Card variant="outline" padding="none" className={styles.listCard}>
+        {items.length === 0 ? (
+          <Text as="p" variant="body-s" color="muted" className={styles.listEmpty}>
+            {t("uiDash.teacher.recentEmpty")}
+          </Text>
+        ) : (
+          <ul className={styles.list}>
+            {items.map((it) => (
+              <li key={it.id}>
+                <button type="button" className={styles.row} onClick={() => onOpen?.(it.id)}>
+                  <span className={cx(styles.scoreDot, it.score === null && styles.scoreDotNone)} aria-hidden>
+                    <Text as="span" variant="body-s" weight="black" numeric>
+                      {it.score === null ? "—" : Math.round(it.score)}
+                    </Text>
+                  </span>
+                  <span className={styles.rowText}>
+                    <Text as="span" variant="body-s" weight="bold" truncate>
+                      {it.studentName}
+                    </Text>
+                    <Text as="span" variant="body-s" color="muted" truncate>
+                      {it.taskTitle} · {it.when}
+                    </Text>
+                  </span>
+                  <span className={styles.chevron} aria-hidden>
+                    <ChevronGlyph />
+                  </span>
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+      </Card>
+    </section>
+  );
+}
+
+function BehindSection({ items, onOpen }: { items: TeacherBehindItem[]; onOpen?: (id: string) => void }) {
+  const { t } = useTranslation();
+  return (
+    <section className={styles.section} aria-label={t("uiDash.teacher.behindTitle")}>
+      <div className={styles.sectionHead}>
+        <Text as="h2" variant="label" color="muted">
+          {t("uiDash.teacher.behindTitle")}
+        </Text>
+      </div>
+      <Card variant="outline" padding="none" className={styles.listCard}>
+        {items.length === 0 ? (
+          <Text as="p" variant="body-s" color="muted" className={styles.listEmpty}>
+            {t("uiDash.teacher.behindEmpty")}
+          </Text>
+        ) : (
+          <ul className={styles.list}>
+            {items.map((it) => (
+              <li key={it.id}>
+                <button type="button" className={styles.row} onClick={() => onOpen?.(it.id)}>
+                  <span className={cx(styles.initials, styles[`initials-${it.tone}` as const])} aria-hidden>
+                    <Text as="span" variant="body-s" weight="black">
+                      {deriveInitials(it.name)}
+                    </Text>
+                  </span>
+                  <span className={styles.rowText}>
+                    <Text as="span" variant="body-s" weight="bold" truncate>
+                      {it.name}
+                    </Text>
+                    <Text as="span" variant="body-s" color={it.tone === "danger" ? "danger" : "muted"}>
+                      {it.reason}
+                    </Text>
+                  </span>
+                  <span className={styles.chevron} aria-hidden>
+                    <ChevronGlyph />
+                  </span>
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+      </Card>
+    </section>
+  );
+}
+
+function PlusGlyph() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden>
+      <path d="M12 5v14M5 12h14" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+function GroupGlyph() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden>
+      <circle cx="9" cy="8" r="3.5" stroke="currentColor" strokeWidth="1.9" />
+      <path
+        d="M3 19c.8-3 3.2-4.5 6-4.5s5.2 1.5 6 4.5M16 5.5a3 3 0 0 1 0 5.5M18 14.5c1.6.6 2.6 2 3 4.5"
+        stroke="currentColor"
+        strokeWidth="1.9"
+        strokeLinecap="round"
+      />
+    </svg>
   );
 }
 

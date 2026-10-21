@@ -366,6 +366,9 @@ export interface AttemptDetailResponse {
    * identify it — this DTO was written for the student's own result screen, where
    * their own name would be redundant. */
   student_name: string | null;
+  /** On a FAILED attempt, the pipeline's error code (`ai_unavailable`,
+   * `grading_timeout`, …); null otherwise. Optional: an older API image omits it. */
+  error_message?: string | null;
 }
 
 /** One transcript word with its pronunciation accuracy. */
@@ -1276,9 +1279,47 @@ export interface AdminStatsResponse {
   failed_submissions: number;
 }
 
+/** GET /api/admin/stats/activity → 14 product days (Tashkent), oldest first,
+ * ending today; an empty day is zeros, never missing. Drives the dashboard's
+ * week-over-week deltas and sparklines. */
+export interface AdminActivityResponse {
+  days: AdminActivityDay[];
+}
+
+/** One product day. Answers are bucketed by the day they were SUBMITTED;
+ * `graded` / `failed` are how those answers stand now. `ai_cost_usd` is the
+ * AI ledger's estimate for that day. */
+export interface AdminActivityDay {
+  date: string;
+  submissions: number;
+  graded: number;
+  failed: number;
+  active_students: number;
+  new_students: number;
+  ai_cost_usd: number;
+}
+
+/** POST /api/submissions/{id}/regrade refusal codes (in a {@link CodedErrorResponse}):
+ * 409 not_failed | audio_expired | attempts_exhausted · 402 payment_required ·
+ * 503 ai_unavailable. */
+export type RegradeErrorCode =
+  | "not_failed"
+  | "audio_expired"
+  | "attempts_exhausted"
+  | "payment_required"
+  | "ai_unavailable";
+
 /** GET /api/admin/teachers (?search) → one row per teacher. `?search=` matches the
  * name, the email AND the phone digits. */
-export interface AdminTeacherResponse {
+export interface AdminTeacherResponse extends AdminAccountRow {
+  /** Groups they own. Additive — optional so an older API image still type-checks. */
+  group_count?: number;
+  /** Distinct students across their groups. Additive. */
+  student_count?: number;
+}
+
+/** The fields a teacher row and an admin row share. */
+export interface AdminAccountRow {
   id: string;
   email: string;
   full_name: string;
@@ -1292,7 +1333,7 @@ export interface AdminTeacherResponse {
 }
 
 /** GET /api/admin/admins → one row per admin: the teacher row plus `is_self`. */
-export interface AdminUserResponse extends AdminTeacherResponse {
+export interface AdminUserResponse extends AdminAccountRow {
   /** True for the caller's own row — the one row that offers no role change (the
    * server refuses `cannot_change_own_role`). */
   is_self: boolean;
@@ -1389,6 +1430,20 @@ export interface AdminStudentResponse {
   created_at: string;
   /** Answers recorded — also what a deletion would destroy. */
   submission_count: number;
+  /** Their latest answer; null when they never answered. Additive. */
+  last_active_at?: string | null;
+  /** Mean AI band (0–100) over graded answers, 1dp; null when nothing is graded. Additive. */
+  avg_band?: number | null;
+  /** Groups they belong to, with each group's teacher, by name. Additive. */
+  groups?: AdminStudentGroupRef[];
+}
+
+/** One group on an admin student row. */
+export interface AdminStudentGroupRef {
+  id: string;
+  name: string;
+  teacher_id: string;
+  teacher_name: string;
 }
 
 /** PATCH /api/admin/students/{id}. The freemium grant/revoke rides `is_premium`. */

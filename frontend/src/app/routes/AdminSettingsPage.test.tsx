@@ -127,9 +127,10 @@ vi.mock("../../shared/api", async (importOriginal) => {
   };
 });
 
-function renderPage() {
+/** The page keeps its open tab in `?tab=`, so a test opens one the way a link would. */
+function renderPage(tab?: string) {
   render(
-    <MemoryRouter>
+    <MemoryRouter initialEntries={[tab ? `/admin/settings?tab=${tab}` : "/admin/settings"]}>
       <AdminSettingsPage />
     </MemoryRouter>,
   );
@@ -154,7 +155,7 @@ describe("saving a feature switch", () => {
     // comes back — and 20 is the only honest thing to display, because 20 is what
     // the roleplay will actually do.
     flagsAfterSave = { ...FLAGS, roleplay_enabled: true, roleplay_max_turns: 20 };
-    const user = renderPage();
+    const user = renderPage("features");
     await screen.findByRole("switch", { name: t("admin.roleplay") });
 
     await user.clear(maxTurnsInput());
@@ -171,15 +172,19 @@ describe("flipping a switch", () => {
     // The regression that the obvious fix for the test above would introduce. A key
     // is write-only: once this input is cleared the characters are gone, and the
     // person is left retyping a production secret they may not have to hand.
+    // Since the page became tabs, the key and the switch are a tab apart — which is
+    // also the second way to lose the key: a tab switch that unmounts its state.
     flagsAfterSave = { ...FLAGS, review_drill_enabled: true };
     const user = renderPage();
-    await screen.findByRole("switch", { name: t("admin.reviewDrill") });
+    await screen.findByRole("tab", { name: t("admin.settingsTabs.ai"), selected: true });
 
     await user.type(claudeKeyInput(), "sk-ant-half-ty");
+    await user.click(screen.getByRole("tab", { name: t("admin.settingsTabs.features") }));
     await user.click(screen.getByRole("switch", { name: t("admin.reviewDrill") }));
     await user.click(screen.getByRole("button", { name: t("admin.saveFeatures") }));
 
     await waitFor(() => expect(screen.getByText(t("admin.saved"))).toBeInTheDocument());
+    await user.click(screen.getByRole("tab", { name: t("admin.settingsTabs.ai") }));
     expect(claudeKeyInput().value).toBe("sk-ant-half-ty");
   });
 });
@@ -187,7 +192,7 @@ describe("flipping a switch", () => {
 describe("the AI budget card", () => {
   it("pauses AI with the switch alone and shows the state the server stored", async () => {
     budgetPatches.length = 0;
-    const user = renderPage();
+    const user = renderPage("budget");
     const pause = await screen.findByRole("switch", { name: t("admin.aiPaused") });
     expect(screen.getByText("$1.25 / $10.00")).toBeInTheDocument();
 
@@ -196,5 +201,20 @@ describe("the AI budget card", () => {
 
     await waitFor(() => expect(screen.getByText(t("admin.aiBudgetState.paused"))).toBeInTheDocument());
     expect(budgetPatches).toEqual([{ ai_paused: "true", daily_cap_usd: undefined, monthly_cap_usd: undefined }]);
+  });
+});
+
+describe("the tabs", () => {
+  it("opens the tab the URL names, and shows only that section", async () => {
+    renderPage("links");
+    expect(await screen.findByRole("tab", { name: t("admin.settingsTabs.links"), selected: true })).toBeInTheDocument();
+    expect(screen.getByRole("tabpanel")).toHaveAttribute("id", "settings-links");
+    expect(screen.getByLabelText(t("admin.tgSupport"))).toBeInTheDocument();
+    expect(screen.queryByLabelText(t("admin.anthropicKey"))).not.toBeInTheDocument();
+  });
+
+  it("falls back to AI baholash for an unknown tab", async () => {
+    renderPage("nope");
+    expect(await screen.findByRole("tab", { name: t("admin.settingsTabs.ai"), selected: true })).toBeInTheDocument();
   });
 });

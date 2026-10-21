@@ -286,6 +286,25 @@ public sealed record AdminStatsResponse(
     /// saw an error instead of a score.</summary>
     int FailedSubmissions = 0);
 
+/// <summary>
+/// GET /api/admin/stats/activity — the admin dashboard's trend layer: one row per product day
+/// (<see cref="ProductDay"/>, Tashkent midnight), oldest first, ending today. Always exactly
+/// <c>days</c> rows (an empty day is zeros, never missing) so sparklines have a fixed x-axis and the
+/// client can compare the last 7 days with the 7 before them.
+/// </summary>
+public sealed record AdminActivityResponse(IReadOnlyList<AdminActivityDay> Days);
+
+/// <summary>One product day. Answers are counted by the day they were SUBMITTED; <c>Graded</c> and
+/// <c>Failed</c> are how those same answers stand now. <c>AiCostUsd</c> is the ledger's estimate.</summary>
+public sealed record AdminActivityDay(
+    DateOnly Date,
+    int Submissions,
+    int Graded,
+    int Failed,
+    int ActiveStudents,
+    int NewStudents,
+    double AiCostUsd);
+
 /// <summary>A teacher row with their authored-question count (soft-deleted tasks excluded).</summary>
 public sealed record TeacherResponse(
     Guid Id,
@@ -297,7 +316,13 @@ public sealed record TeacherResponse(
     /// <summary>ADDITIVE · the canonical <c>+998XXXXXXXXX</c> the teacher signs in with, or null
     /// for an account that has none (a legacy email/Google account). Phone is the login now, so it is
     /// the identifier an admin actually recognises.</summary>
-    string? Phone = null);
+    string? Phone = null,
+    /// <summary>ADDITIVE · how many groups the teacher owns — the admin table's "Guruhlar" column,
+    /// and what a demotion (<c>teacher_owns_groups</c>) asks to be handed over first.</summary>
+    int GroupCount = 0,
+    /// <summary>ADDITIVE · distinct students across all of the teacher's groups (a student in two
+    /// of their groups counts once).</summary>
+    int StudentCount = 0);
 
 /// <summary>
 /// Body of <c>POST /api/admin/teachers</c> — the only way to create a teacher (self-service sign-up
@@ -427,7 +452,19 @@ public sealed record StudentResponse(
     bool IsActive,
     bool IsPremium,
     DateTime CreatedAt,
-    int SubmissionCount);
+    int SubmissionCount,
+    /// <summary>ADDITIVE · when the student last submitted an answer; null when they never have.
+    /// The admin table's "So'nggi faollik" column.</summary>
+    DateTime? LastActiveAt = null,
+    /// <summary>ADDITIVE · mean <c>Evaluation.OverallBand</c> (0–100) over every graded answer, 1dp;
+    /// null — never 0 — when nothing is graded yet.</summary>
+    double? AvgBand = null,
+    /// <summary>ADDITIVE · the groups the student belongs to, each with its teacher, by group name.
+    /// Empty when the student is in no group.</summary>
+    IReadOnlyList<AdminStudentGroupRef>? Groups = null);
+
+/// <summary>One group on an admin student row: the group and the teacher who runs it.</summary>
+public sealed record AdminStudentGroupRef(Guid Id, string Name, Guid TeacherId, string TeacherName);
 
 /// <summary>Admin edit of a student — the freemium <c>is_premium</c> grant/revoke
 /// and account (de)activation both flow through here. No password or role field, for the

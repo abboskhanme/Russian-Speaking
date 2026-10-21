@@ -172,3 +172,117 @@
     padding: var(--s-3);
   }
 }
+
+/* ---- Quick actions ---- */
+.quick {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-2);
+}
+/* 44px: the shared "sm" button is 40px, under the mobile tap-target floor. */
+.quickBtn {
+  min-height: 44px;
+  gap: var(--s-2);
+}
+
+/* ---- Waiting for review · Falling behind: two columns once there is room ---- */
+.grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--s-4);
+  align-items: start;
+}
+.sectionHead {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--s-3);
+  min-height: 20px;
+}
+.linkBtn {
+  padding: var(--s-2) 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  font-size: var(--t-body-s-size);
+  font-weight: var(--fw-bold);
+  color: var(--primary-ink);
+  cursor: pointer;
+}
+.linkBtn:focus-visible {
+  outline: var(--focus-ring-width) solid var(--focus-ring);
+  outline-offset: var(--focus-ring-offset);
+  border-radius: var(--r-xs);
+}
+.listCard {
+  overflow: hidden;
+}
+.list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.list > li:not(:last-child) {
+  border-bottom: 1px solid var(--line);
+}
+.listEmpty {
+  padding: var(--s-4);
+  text-align: center;
+}
+.row {
+  width: 100%;
+  min-height: 56px;
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  padding: var(--s-2) var(--s-4);
+  border: 0;
+  background: none;
+  font: inherit;
+  color: inherit;
+  text-align: start;
+  cursor: pointer;
+  transition: background var(--m-fast);
+}
+.row:hover {
+  background: var(--surface-2);
+}
+.row:focus-visible {
+  outline: var(--focus-ring-width) solid var(--focus-ring);
+  outline-offset: calc(-1 * var(--focus-ring-width));
+}
+.rowText {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+.scoreDot,
+.initials {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border-radius: var(--r-pill);
+  background: var(--primary-tint);
+  color: var(--primary-ink);
+}
+.scoreDotNone {
+  background: var(--surface-3);
+  color: var(--muted);
+}
+.initials-warn {
+  background: var(--warn-tint);
+  color: var(--warn-ink);
+}
+.initials-danger {
+  background: var(--danger-tint);
+  color: var(--danger);
+}
+
+@media (max-width: 900px) {
+  .grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

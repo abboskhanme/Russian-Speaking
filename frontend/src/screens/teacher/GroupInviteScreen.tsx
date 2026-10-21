@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { lazy, Suspense, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Badge, Button, Card, Text, copyText } from "../../shared/ui";
 import { Page } from "../../widgets";
@@ -6,6 +6,9 @@ import type { NavItem } from "../../widgets";
 import { mockGroupInvite } from "./classes.mock";
 import { BackGlyph, initialsOf } from "./TeacherGroupDetailScreen";
 import styles from "./GroupInviteScreen.module.css";
+
+/** The QR encoder is only needed here — split it out of the route chunk too. */
+const QrCode = lazy(() => import("../../shared/ui/Qr/QrCode").then((m) => ({ default: m.QrCode })));
 
 /* -------------------------------------------------------------------------- */
 /* Public contract                                                            */
@@ -81,24 +84,7 @@ export function GroupInviteScreen({
           </Text>
         </header>
 
-        <section className={styles.section}>
-          <Text as="h2" variant="label" color="muted">
-            {t("teacher.inviteLink")}
-          </Text>
-          <CopyRow value={inviteLink} mono variant="plain" />
-        </section>
-
-        <section className={styles.section}>
-          <CopyRow
-            value={joinCode}
-            label={t("teacher.joinCodeLabel")}
-            mono
-            variant="tint"
-          />
-          <Text as="p" variant="body-s" color="muted">
-            {t("teacher.inviteHint")}
-          </Text>
-        </section>
+        <JoinPanel joinCode={joinCode} inviteLink={inviteLink} groupName={groupName} />
 
         <section className={styles.section} aria-label={t("teacher.waiting")}>
           <div className={styles.sectionHead}>
@@ -137,58 +123,185 @@ export function GroupInviteScreen({
 /* Parts                                                                      */
 /* -------------------------------------------------------------------------- */
 
-function CopyRow({
-  value,
-  label,
-  mono,
-  variant,
+/**
+ * The hand-off: the join code BIG (students copy it off a projector or a phone
+ * held up across a room), a QR of the invite link beside it, and copy buttons
+ * that say what happened. "Sinfga ko'rsatish" opens the same code + QR full
+ * screen for projecting.
+ */
+function JoinPanel({
+  joinCode,
+  inviteLink,
+  groupName,
 }: {
-  value: string;
-  label?: string;
-  mono?: boolean;
-  variant: "plain" | "tint";
+  joinCode: string;
+  inviteLink: string;
+  groupName: string;
 }) {
   const { t } = useTranslation();
-  const [copied, setCopied] = useState(false);
-  const [failed, setFailed] = useState(false);
+  const [presenting, setPresenting] = useState(false);
+
+  return (
+    <section className={styles.joinPanel} aria-label={t("teacher.joinCodeLabel")}>
+      <div className={styles.joinMain}>
+        <Text as="h2" variant="label" color="primary">
+          {t("teacher.joinCodeLabel")}
+        </Text>
+        <p className={styles.bigCode} aria-label={spelled(joinCode)}>
+          {joinCode}
+        </p>
+        <div className={styles.joinActions}>
+          <CopyButton value={joinCode} label={t("uiDash.invite.copyCode")} primary />
+          <CopyButton value={inviteLink} label={t("uiDash.invite.copyLink")} />
+          <Button variant="ghost" size="sm" className={styles.actionBtn} onClick={() => setPresenting(true)}>
+            <PresentGlyph />
+            {t("uiDash.invite.present")}
+          </Button>
+        </div>
+        <Text as="p" variant="body-s" color="muted" className={styles.linkLine}>
+          {inviteLink}
+        </Text>
+        <Text as="p" variant="body-s" color="muted">
+          {t("teacher.inviteHint")}
+        </Text>
+      </div>
+      <figure className={styles.qrBox}>
+        <Suspense fallback={<span className={styles.qrPlaceholder} />}>
+          <QrCode value={inviteLink} label={t("uiDash.invite.qrAria", { group: groupName })} />
+        </Suspense>
+        <figcaption className={styles.qrCaption}>
+          {t("uiDash.invite.qrCaption")}
+        </figcaption>
+      </figure>
+      {presenting && (
+        <PresentOverlay
+          joinCode={joinCode}
+          inviteLink={inviteLink}
+          groupName={groupName}
+          onClose={() => setPresenting(false)}
+        />
+      )}
+    </section>
+  );
+}
+
+/** "PFDHMP" → "P F D H M P", so a screen reader spells the code. */
+function spelled(code: string): string {
+  return code.split("").join(" ");
+}
+
+function PresentOverlay({
+  joinCode,
+  inviteLink,
+  groupName,
+  onClose,
+}: {
+  joinCode: string;
+  inviteLink: string;
+  groupName: string;
+  onClose: () => void;
+}) {
+  const { t } = useTranslation();
+  const closeRef = useRef<HTMLButtonElement>(null);
+
+  useEffect(() => {
+    closeRef.current?.focus();
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
+
+  return (
+    <div className={styles.present} role="dialog" aria-modal="true" aria-label={t("uiDash.invite.present")}>
+      <Button ref={closeRef} variant="secondary" size="sm" className={styles.presentClose} onClick={onClose}>
+        {t("uiDash.invite.close")}
+      </Button>
+      <Text as="p" variant="title-m" align="center">
+        {t("uiDash.invite.presentTitle", { group: groupName })}
+      </Text>
+      <div className={styles.presentBody}>
+        <div className={styles.presentQr}>
+          <Suspense fallback={<span className={styles.qrPlaceholder} />}>
+            <QrCode value={inviteLink} label={t("uiDash.invite.qrAria", { group: groupName })} />
+          </Suspense>
+        </div>
+        <div className={styles.presentCodeCol}>
+          <Text as="p" variant="label" color="muted">
+            {t("teacher.joinCodeLabel")}
+          </Text>
+          <p className={styles.presentCode} aria-label={spelled(joinCode)}>
+            {joinCode}
+          </p>
+          <Text as="p" variant="body" color="muted" className={styles.linkLine}>
+            {inviteLink}
+          </Text>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/** Copy with visible feedback — the label turns into "✓ Nusxa olindi" for 2 s and
+ * is announced (aria-live) — or into a failure note when the clipboard refused. */
+function CopyButton({ value, label, primary = false }: { value: string; label: string; primary?: boolean }) {
+  const { t } = useTranslation();
+  const [state, setState] = useState<"idle" | "done" | "failed">("idle");
 
   const copy = async () => {
     const ok = await copyText(value);
-    setCopied(ok);
-    setFailed(!ok);
-    // Reset so the button is reusable; the value stays selectable either way.
-    window.setTimeout(() => {
-      setCopied(false);
-      setFailed(false);
-    }, 2000);
+    setState(ok ? "done" : "failed");
+    window.setTimeout(() => setState("idle"), 2000);
   };
 
   return (
-    <div className={variant === "tint" ? styles.copyRowTint : styles.copyRow}>
-      <span className={styles.copyBody}>
-        {label && (
-          <Text as="span" variant="label" color="primary">
+    <Button
+      variant={primary ? "primary" : "secondary"}
+      size="sm"
+      className={styles.actionBtn}
+      onClick={() => void copy()}
+    >
+      <span aria-live="polite" className={styles.copyLabel}>
+        {state === "done" ? (
+          <>
+            <CheckGlyph />
+            {t("teacher.copied")}
+          </>
+        ) : state === "failed" ? (
+          t("teacher.copyFailed")
+        ) : (
+          <>
+            <CopyGlyph />
             {label}
-          </Text>
+          </>
         )}
-        {/* user-select so the value is still obtainable if copying is blocked. */}
-        <Text
-          as="span"
-          variant={mono ? "mono" : "body"}
-          weight="semibold"
-          className={styles.copyValue}
-        >
-          {value}
-        </Text>
       </span>
-      <Button
-        variant={variant === "tint" ? "secondary" : "primary"}
-        size="sm"
-        onClick={() => void copy()}
-      >
-        {copied ? t("teacher.copied") : failed ? t("teacher.copyFailed") : t("teacher.copy")}
-      </Button>
-    </div>
+    </Button>
+  );
+}
+
+function CopyGlyph() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden>
+      <rect x="9" y="9" width="11" height="11" rx="2.5" stroke="currentColor" strokeWidth="1.9" />
+      <path d="M15 9V6.5A2.5 2.5 0 0 0 12.5 4h-6A2.5 2.5 0 0 0 4 6.5v6A2.5 2.5 0 0 0 6.5 15H9" stroke="currentColor" strokeWidth="1.9" />
+    </svg>
+  );
+}
+
+function CheckGlyph() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden>
+      <path d="m5 12.5 4.5 4.5L19 7.5" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+function PresentGlyph() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden>
+      <rect x="3" y="4" width="18" height="12" rx="2" stroke="currentColor" strokeWidth="1.9" />
+      <path d="M12 16v4M8 20h8" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" />
+    </svg>
   );
 }
 

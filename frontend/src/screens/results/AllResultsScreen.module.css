@@ -118,3 +118,14 @@
   display: inline-flex;
   color: var(--ink-soft);
 }
+
+/* The failed-grading retry sits under its row, aligned with the row's text (past
+   the band dot), outside the row button — a button cannot nest in a button. */
+.regrade {
+  padding: 0 var(--s-4) var(--s-3) calc(var(--s-4) + 44px + var(--s-3));
+}
+@media (max-width: 560px) {
+  .regrade {
+    padding-inline-start: var(--s-4);
+  }
+}

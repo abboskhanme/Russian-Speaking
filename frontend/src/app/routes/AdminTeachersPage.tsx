@@ -31,13 +31,14 @@ import { endpoints } from "../../shared/api";
 import type { AdminTeacherResponse, AdminUserResponse } from "../../shared/api";
 import { PageError, PageLoading } from "../PageState";
 import { useAdminNavHandler } from "../nav";
-import { newestFirst } from "./adminPeople";
+import { newestFirst, useRelativeLabel } from "./adminPeople";
 
 const SEARCH_DEBOUNCE_MS = 250;
 
 export default function AdminTeachersPage() {
   const onNavigate = useAdminNavHandler();
   const { t } = useTranslation();
+  const when = useRelativeLabel();
   const [params, setParams] = useSearchParams();
   const tab: AdminStaffTab = params.get("tab") === "admins" ? "admins" : "teachers";
 
@@ -119,8 +120,12 @@ export default function AdminTeachersPage() {
         meta: t("teacher.taskCount", { count: r.question_count }),
         active: r.is_active,
         ownedCount: r.question_count,
+        groupCount: r.group_count ?? 0,
+        studentCount: r.student_count ?? 0,
+        createdAt: r.created_at,
+        createdLabel: when(r.created_at),
       })),
-    [rows, t],
+    [rows, t, when],
   );
 
   const adminRows = useMemo<AdminAccount[] | null>(

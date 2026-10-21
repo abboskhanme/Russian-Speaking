@@ -10,6 +10,7 @@ import type { NavItem } from "../../widgets";
 import { FeedbackLangNote } from "../../widgets/FeedbackLangNote";
 import { formatDateTime } from "../../shared/format/date";
 import { AudioPlayer } from "../../shared/ui/AudioPlayer";
+import { RegradeButton } from "./RegradeButton";
 import styles from "./AttemptDetailScreen.module.css";
 
 /* -------------------------------------------------------------------------- */
@@ -56,6 +57,11 @@ export interface AttemptDetailScreenProps {
   onBack: () => void;
   activeNavKey?: string;
   onNavigate?: (key: string, item: NavItem) => void;
+  /** Why grading failed, already localized — shown instead of the bare status. */
+  failedReason?: string;
+  /** Retry a failed attempt's grading (same recording, no attempt spent). Rejects
+   * with an already-localized Error. Absent ⇒ no retry control. */
+  onRegrade?: () => Promise<void>;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -72,6 +78,8 @@ export interface AttemptDetailScreenProps {
 export function AttemptDetailScreen({
   detail,
   onBack,
+  failedReason,
+  onRegrade,
 }: AttemptDetailScreenProps) {
   const { t, i18n } = useTranslation();
   const graded = detail.status === "done" && detail.band !== null;
@@ -131,10 +139,13 @@ export function AttemptDetailScreen({
         )}
 
         {!graded && (
-          <Text as="p" variant="body-s" color="muted">
-            {t(`results.status.${detail.status}`, { defaultValue: t("results.status.pending") })}
+          <Text as="p" variant="body-s" color={detail.status === "failed" ? "danger" : "muted"}>
+            {detail.status === "failed" && failedReason
+              ? t("results.notGradedReason", { reason: failedReason })
+              : t(`results.status.${detail.status}`, { defaultValue: t("results.status.pending") })}
           </Text>
         )}
+        {detail.status === "failed" && onRegrade && <RegradeButton onRegrade={onRegrade} />}
 
         {/* ---- Recorded audio ---- */}
         <Section title={t("results.audio")}>

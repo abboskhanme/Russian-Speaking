@@ -403,7 +403,9 @@ public sealed class CatalogService
         var rows = await q.OrderBy(b => b.SortOrder).ThenByDescending(b => b.CreatedAt)
             .Select(b => new { Block = b, OwnerName = b.Teacher.FullName })
             .ToListAsync(ct);
-        var reach = await RosterReachAsync(user, ct);
+        var reach = user.Role == UserRole.Admin
+            ? await AdminReachAsync(rows.Select(r => r.Block.TeacherId), ct)
+            : await TeacherReachAsync(user, ct);
 
         var ids = rows.Select(r => r.Block.Id).ToList();
         var counts = await CountsPerBlockAsync(ids, ct);
@@ -414,9 +416,9 @@ public sealed class CatalogService
                 RuStyle: r.Block.RuStyle, Visibility: r.Block.Visibility, IsPublished: r.Block.IsPublished,
                 SortOrder: r.Block.SortOrder,
                 TaskCount: counts.GetValueOrDefault(r.Block.Id, 0),
-                // Reach is the same for every module the teacher owns — it is their roster size.
+                // Reach: the owner's roster (an official module: every rostered student).
                 // A DRAFT reaches nobody yet, and saying "38 o'quvchi" on a draft would be a lie.
-                StudentCount: r.Block.IsPublished ? reach : 0,
+                StudentCount: reach(r.Block),
                 CreatedAt: r.Block.CreatedAt, UpdatedAt: r.Block.UpdatedAt,
                 OwnerName: r.OwnerName))
             .ToList());
@@ -439,7 +441,9 @@ public sealed class CatalogService
             .OrderBy(q => q.SortOrder).ThenBy(q => q.CreatedAt)
             .ToListAsync(ct);
         var subCounts = await SubmissionCountsAsync(tasks.Select(t => t.Id).ToList(), ct);
-        var reach = await RosterReachAsync(user, ct);
+        var reach = user.Role == UserRole.Admin
+            ? await AdminReachAsync([b.TeacherId], ct)
+            : await TeacherReachAsync(user, ct);
         var ownerName = b.TeacherId == user.Id
             ? user.FullName
             : await _db.Users.Where(u => u.Id == b.TeacherId).Select(u => u.FullName).FirstOrDefaultAsync(ct) ?? "";
@@ -447,7 +451,7 @@ public sealed class CatalogService
         return CatalogResult<TeacherBlockDetailResponse>.Ok(new TeacherBlockDetailResponse(
             Id: b.Id, Name: b.Name, Topic: b.Topic, Level: b.Level, RuStyle: b.RuStyle,
             Visibility: b.Visibility, IsPublished: b.IsPublished, SortOrder: b.SortOrder,
-            TaskCount: tasks.Count, StudentCount: b.IsPublished ? reach : 0,
+            TaskCount: tasks.Count, StudentCount: reach(b),
             CreatedAt: b.CreatedAt, UpdatedAt: b.UpdatedAt,
             Tasks: await Task.WhenAll(tasks.Select(q => QuestionOutAsync(q, b.Name, subCounts.GetValueOrDefault(q.Id, 0), ct))),
             OwnerName: ownerName));
@@ -1002,12 +1006,39 @@ public sealed class CatalogService
 
     private static bool IsTeacher(User u) => u.Role is UserRole.Teacher or UserRole.Admin;
 
-    /// <summary>Distinct students across the teacher's own groups — the reach a published module has.</summary>
-    private async Task<int> RosterReachAsync(User user, CancellationToken ct)
-        => user.Role == UserRole.Admin
-            ? await _db.GroupMembers.Select(gm => gm.StudentId).Distinct().CountAsync(ct)
-            : await _db.GroupMembers.Where(gm => gm.Group.TeacherId == user.Id)
-                .Select(gm => gm.StudentId).Distinct().CountAsync(ct);
+    /// <summary>
+    /// Reach per module for an ADMIN's list, where the modules belong to many owners: an official
+    /// (<c>public</c>) module reaches every rostered student, any other module reaches its OWNER's
+    /// roster. Using the admin's own reach for every row printed the same "36 o'quvchi" on every
+    /// teacher's module. One grouped read for all owners, not one per row.
+    /// </summary>
+    private async Task<Func<QuestionBlock, int>> AdminReachAsync(IEnumerable<Guid> ownerIds, CancellationToken ct)
+    {
+        var owners = ownerIds.Distinct().ToList();
+        var everyone = await _db.GroupMembers.Select(gm => gm.StudentId).Distinct().CountAsync(ct);
+        var perOwner = owners.Count == 0
+            ? new Dictionary<Guid, int>()
+            : (await _db.GroupMembers
+                .Where(gm => owners.Contains(gm.Group.TeacherId))
+                .Select(gm => new { gm.Group.TeacherId, gm.StudentId })
+                .Distinct()
+                .GroupBy(x => x.TeacherId)
+                .Select(g => new { g.Key, Count = g.Count() })
+                .ToListAsync(ct))
+                .ToDictionary(x => x.Key, x => x.Count);
+        return b => !b.IsPublished ? 0
+            : b.Visibility == PublicVisibility ? everyone
+            : perOwner.GetValueOrDefault(b.TeacherId, 0);
+    }
+
+    /// <summary>Distinct students across the teacher's own groups — the reach each of their published
+    /// modules has (the same for all of them: it is their roster). A draft reaches nobody yet.</summary>
+    private async Task<Func<QuestionBlock, int>> TeacherReachAsync(User user, CancellationToken ct)
+    {
+        var roster = await _db.GroupMembers.Where(gm => gm.Group.TeacherId == user.Id)
+            .Select(gm => gm.StudentId).Distinct().CountAsync(ct);
+        return b => b.IsPublished ? roster : 0;
+    }
 
     private async Task<Dictionary<Guid, int>> CountsPerBlockAsync(List<Guid> blockIds, CancellationToken ct)
         => blockIds.Count == 0

@@ -2,7 +2,8 @@ import { useEffect, useState } from "react";
 import type { ReactNode } from "react";
 import type { TFunction } from "i18next";
 import { useTranslation } from "react-i18next";
-import { Badge, Button, Card, Input, Spinner, Switch, Text } from "../../shared/ui";
+import { Badge, Button, Card, Input, Spinner, Switch, Tabs, Text } from "../../shared/ui";
+import type { TabItem } from "../../shared/ui";
 import { Page } from "../../widgets";
 import type { NavItem } from "../../widgets";
 import { adminErrorBody, isNetworkError } from "./adminErrors";
@@ -11,6 +12,15 @@ import { AiBudgetCard } from "./AiBudgetCard";
 import type { AdminAiBudget, AdminAiBudgetPatch } from "./AiBudgetCard";
 import { modelNote } from "./modelNote";
 import styles from "./AdminSettingsScreen.module.css";
+
+/** The page's tabs, in order. `?tab=` carries the key, so a link opens the right one. */
+export const SETTINGS_TABS = ["ai", "stt", "budget", "features", "links"] as const;
+export type SettingsTab = (typeof SETTINGS_TABS)[number];
+
+/** Narrows a `?tab=` value; anything unknown opens the first tab. */
+export function asSettingsTab(raw: string | null | undefined): SettingsTab {
+  return SETTINGS_TABS.includes(raw as SettingsTab) ? (raw as SettingsTab) : "ai";
+}
 
 /** The three independently saved sections. */
 type SaveSection = "ai" | "features" | "links";
@@ -159,6 +169,10 @@ export interface AdminSettingsProps {
    * on it. */
   aiBudget?: AdminAiBudget | null;
   onSaveAiBudget?: (patch: AdminAiBudgetPatch) => Promise<void>;
+  /** The open tab — controlled by the page through `?tab=`. Absent = the screen
+   * keeps its own, starting on AI baholash. */
+  tab?: SettingsTab;
+  onTabChange?: (tab: SettingsTab) => void;
 }
 
 
@@ -260,8 +274,24 @@ export function AdminSettingsScreen({
   onSaveFeatures,
   aiBudget,
   onSaveAiBudget,
+  tab: controlledTab,
+  onTabChange,
 }: AdminSettingsProps) {
   const { t } = useTranslation();
+  const [ownTab, setOwnTab] = useState<SettingsTab>("ai");
+  // Without a budget payload (older API, failed read) there is no Byudjet tab.
+  const tabKeys = SETTINGS_TABS.filter((k) => k !== "budget" || aiBudget);
+  const wanted = controlledTab ?? ownTab;
+  const tab: SettingsTab = tabKeys.includes(wanted) ? wanted : "ai";
+  const selectTab = (next: SettingsTab) => {
+    if (controlledTab === undefined) setOwnTab(next);
+    onTabChange?.(next);
+  };
+  // On a phone the strip scrolls sideways; a link to ?tab=links must not open with
+  // its own tab off-screen. Instant (no smooth option), so reduced motion is moot.
+  useEffect(() => {
+    document.getElementById(`settings-${tab}-tab`)?.scrollIntoView?.({ block: "nearest", inline: "nearest" });
+  }, [tab]);
 
   const [model, setModel] = useState(settings.geminiModel);
   const [claudeModel, setClaudeModel] = useState(settings.anthropicModel);
@@ -554,12 +584,43 @@ export function AdminSettingsScreen({
   };
 
   return (
-    <Page title={t("nav.adminSettings")}>
+    <Page title={t("nav.adminSettings")} width="wide">
       <div className={styles.page} data-density="compact">
-        {/* ---- AI budget: first, because it is the switch an operator reaches for in a hurry ---- */}
-        {aiBudget && <AiBudgetCard budget={aiBudget} onSave={onSaveAiBudget} />}
+        {/* One section per tab, each with its own save. The page used to be 3,671px of
+            stacked cards with three save buttons; a tab per concern keeps each save next
+            to the only fields it writes. Hidden tabs keep their drafts: all the state
+            lives up here, so switching tabs never loses a half-typed key. */}
+        <Tabs
+          items={tabKeys.map<TabItem>((k) => ({
+            key: k,
+            panelId: `settings-${k}`,
+            label:
+              k === "budget" && aiBudget && aiBudget.state !== "open" ? (
+                <span className={styles.tabLabel}>
+                  {t("admin.settingsTabs.budget")}
+                  <span className={styles.tabAlert} aria-label={t("admin.settingsTabs.paused")} role="img" />
+                </span>
+              ) : (
+                t(`admin.settingsTabs.${k}`)
+              ),
+          }))}
+          activeKey={tab}
+          onChange={(k) => selectTab(k as SettingsTab)}
+          aria-label={t("admin.settingsTabs.label")}
+          className={styles.tabs}
+        />
+
+        <div
+          role="tabpanel"
+          id={`settings-${tab}`}
+          aria-labelledby={`settings-${tab}-tab`}
+          className={styles.panel}
+        >
+        {/* ---- AI budget: the kill switch and the caps ---- */}
+        {tab === "budget" && aiBudget && <AiBudgetCard budget={aiBudget} onSave={onSaveAiBudget} />}
 
         {/* ---- AI grader ---- */}
+        {tab === "ai" && (
         <section className={styles.section} aria-label={t("admin.aiGrader")}>
           <div className={styles.sectionHead}>
             <Text as="h2" variant="label" color="muted" className={styles.legend}>
@@ -710,9 +771,17 @@ export function AdminSettingsScreen({
               </Text>
             </BackendCard>
           </div>
+          <div className={styles.actions}>
+            <SaveResult feedback={feedback} section="ai" />
+            <Button variant="primary" disabled={busy} onClick={() => void saveAi()}>
+              {t("admin.saveAi")}
+            </Button>
+          </div>
         </section>
+        )}
 
         {/* ---- STT ---- */}
+        {tab === "stt" && (
         <section className={styles.section} aria-label={t("admin.stt")}>
           <div className={styles.sectionHead}>
             <Text as="h2" variant="label" color="muted" className={styles.legend}>
@@ -796,12 +865,14 @@ export function AdminSettingsScreen({
             </Button>
           </div>
         </section>
+        )}
 
         {/* ---- Faza 6 feature switches ---- */}
         {/* Their own section, not a row inside the AI card: these decide whether a SURFACE
             exists at all, and a switch of that weight buried under "AI sozlamalari" is a
             switch nobody finds. Both ship OFF — docs/08 is explicit that cutover must not
             wait on Faza 6. */}
+        {tab === "features" && (
         <section className={styles.section} aria-label={t("admin.features")}>
           <Text as="h2" variant="label" color="muted" className={styles.legend}>
             {t("admin.features")}
@@ -930,8 +1001,10 @@ export function AdminSettingsScreen({
             </div>
           </Card>
         </section>
+        )}
 
         {/* ---- Outbound links ---- */}
+        {tab === "links" && (
         <section className={styles.section} aria-label={t("admin.links")}>
           <Text as="h2" variant="label" color="muted" className={styles.legend}>
             {t("admin.links")}
@@ -970,6 +1043,8 @@ export function AdminSettingsScreen({
             </div>
           </Card>
         </section>
+        )}
+        </div>
       </div>
     </Page>
   );

@@ -4,6 +4,10 @@
  * spacing / radius / shadow inside them is a token. */
 
 .shell {
+  /* The sticky top bar's height (60px row + 1px border, plus whatever a notch adds
+   * to its top padding beyond --s-2). Sticky things inside the content — a table
+   * header, a tab strip — park under the bar with `top: var(--shell-topbar-h)`. */
+  --shell-topbar-h: calc(61px + max(0px, env(safe-area-inset-top, 0px) - var(--s-2)));
   display: flex;
   min-height: 100vh;
   min-height: 100dvh;

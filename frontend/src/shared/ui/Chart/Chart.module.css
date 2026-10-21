@@ -1,0 +1,102 @@
+/* Small in-house charts for the teacher/admin panels. Every single-series chart
+ * in the panels uses ONE series hue — the brand --primary — at full strength for
+ * the emphasised mark and a lighter step (mixed toward the surface) for the rest.
+ * Text never wears the series colour: values and axes use ink/muted tokens. */
+
+.spark {
+  position: relative;
+  width: 100%;
+  height: 32px;
+}
+.sparkSvg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+.baseline {
+  stroke: var(--line);
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+}
+.sparkLine {
+  fill: none;
+  stroke: var(--primary);
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  vector-effect: non-scaling-stroke;
+}
+.hit {
+  fill: transparent;
+}
+/* An HTML dot: stays round however the SVG is stretched. 8px + a 2px surface ring. */
+.sparkDot {
+  position: absolute;
+  width: 8px;
+  height: 8px;
+  margin: -4px 0 0 -4px;
+  border-radius: var(--r-pill);
+  background: var(--primary);
+  box-shadow: 0 0 0 2px var(--surface);
+  pointer-events: none;
+}
+
+.bars {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+}
+.barsPlot {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(0, 1fr);
+  gap: var(--s-2);
+  align-items: end;
+  height: 96px;
+  border-bottom: 1px solid var(--line);
+}
+.barCol {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 2px;
+}
+.bar,
+.barCurrent {
+  display: block;
+  width: min(100%, 28px);
+  border-radius: 4px 4px 0 0;
+  background: color-mix(in oklch, var(--primary) 45%, var(--surface));
+}
+.barCurrent {
+  background: var(--primary);
+}
+.barValue {
+  font-size: var(--t-label-size);
+  line-height: var(--t-label-line);
+  font-weight: var(--fw-bold);
+  color: var(--ink-soft);
+  font-variant-numeric: tabular-nums;
+}
+.barsAxis {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(0, 1fr);
+  gap: var(--s-2);
+  text-align: center;
+}
+.axisLabel,
+.axisCurrent {
+  font-size: var(--t-label-size);
+  line-height: var(--t-label-line);
+  font-weight: var(--fw-semibold);
+  color: var(--muted);
+}
+.axisCurrent {
+  color: var(--ink);
+  font-weight: var(--fw-black);
+}

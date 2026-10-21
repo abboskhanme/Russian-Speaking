@@ -105,7 +105,10 @@ public sealed record AttemptDetailResponse(
     /// <summary>Who recorded it. Null on legacy rows with no user. ADDITIVE: this DTO was written
     /// for the STUDENT's own result screen, where their own name is redundant — but a TEACHER
     /// reaching an attempt by direct link has nothing else to identify it by.</summary>
-    string? StudentName);
+    string? StudentName,
+    /// <summary>ADDITIVE · on a FAILED attempt, the <see cref="SubmissionErrorCodes">code</see> the
+    /// pipeline stored (null otherwise) — so the result screen can say WHY and offer a regrade.</summary>
+    string? ErrorMessage = null);
 
 /// <summary>
 /// One word of the STT transcript with its pronunciation accuracy.
@@ -207,6 +210,34 @@ public static class ReviewErrorCodes
 
     /// <summary><c>teacher_band</c> outside 0..100.</summary>
     public const string BandOutOfRange = "band_out_of_range";
+}
+
+/// <summary>
+/// The <c>code</c> values <c>POST /api/submissions/{id}/regrade</c> puts in a
+/// <see cref="CodedErrorResponse"/>. Wire contract: the student result screens and the admin
+/// dashboard branch on these, so renaming one is a breaking change.
+/// </summary>
+public static class RegradeErrorCodes
+{
+    /// <summary>409 · the attempt is not <c>failed</c> (it is graded, or already being graded) —
+    /// there is nothing to retry. A double-tap lands here.</summary>
+    public const string NotFailed = "not_failed";
+
+    /// <summary>409 · the recording was reclaimed by the 90-day retention job, so there is nothing
+    /// left to grade. Recording again is the only way forward.</summary>
+    public const string AudioExpired = "audio_expired";
+
+    /// <summary>409 · a regraded attempt counts against its assignment, and the assignment's attempt
+    /// budget is already spent by other attempts that did not fail.</summary>
+    public const string AttemptsExhausted = "attempts_exhausted";
+
+    /// <summary>402 · the task is behind the freemium gate for this student now (premium lapsed and no
+    /// live assignment lifts it) — the same rule a fresh submit applies.</summary>
+    public const string PaymentRequired = "payment_required";
+
+    /// <summary>503 · AI grading is paused, or today's/this month's AI budget is spent. Nothing was
+    /// changed; trying again later is the answer.</summary>
+    public const string AiUnavailable = "ai_unavailable";
 }
 
 /// <summary>GET /api/submissions/review-count — the grading queue's true size (the FAB badge), under

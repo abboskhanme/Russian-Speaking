@@ -20,6 +20,7 @@ import type { AllResultsItem } from "../../screens/results";
 import { endpoints } from "../../shared/api";
 import type { ProfileResultItemResponse, SubmissionResponse } from "../../shared/api";
 import { gradingFailureKey } from "../adapters";
+import { requestRegrade } from "../regrade";
 import { PageError, PageLoading } from "../PageState";
 import { useNavHandler } from "../nav";
 
@@ -71,6 +72,16 @@ export default function AllResultsPage() {
 
   const retry = useCallback(() => setReloadKey((k) => k + 1), []);
 
+  // Failed-grading retry: the same recording goes back to grading, so the row
+  // simply turns into "grading…" — the server's answer is the new row.
+  const regrade = useCallback(
+    async (id: string) => {
+      const next = await requestRegrade(t, id);
+      setUnscored((rows) => rows.map((r) => (r.id === id ? next : r)));
+    },
+    [t],
+  );
+
   if (loading) return <PageLoading />;
   if (error) return <PageError onRetry={retry} />;
 
@@ -95,6 +106,8 @@ export default function AllResultsPage() {
         band: null,
         createdAt: s.created_at,
         reason: s.status === "failed" ? t(gradingFailureKey(s.error_message)) : undefined,
+        // A purged recording (audio_url null) has nothing left to grade.
+        canRegrade: s.status === "failed" && s.audio_url !== null,
       }),
     ),
   ].sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt));
@@ -107,6 +120,7 @@ export default function AllResultsPage() {
       onStartPractice={() => navigate("/practice")}
       activeNavKey="profile"
       onNavigate={onNavigate}
+      onRegrade={regrade}
     />
   );
 }

@@ -4,12 +4,18 @@
  * detail`. A missing / not-owned attempt (404) → back to the results list.
  */
 import { useCallback, useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { useNavigate, useParams } from "react-router-dom";
 import { AttemptDetailScreen } from "../../screens/results";
 import type { AttemptDetail } from "../../screens/results";
 import { endpoints } from "../../shared/api";
 import { isApiError } from "../../shared/api/client";
-import { parseCorrections, parseFeedback } from "../adapters";
+import { gradingFailureKey, parseCorrections, parseFeedback } from "../adapters";
+import { canRegrade, requestRegrade } from "../regrade";
+
+/** While a regrade runs, how often to look at the attempt, and for how long. */
+const POLL_MS = 3000;
+const POLL_FOR_MS = 3 * 60 * 1000;
 import { PageError, PageLoading } from "../PageState";
 import { useNavHandler } from "../nav";
 
@@ -18,7 +24,10 @@ export default function AttemptDetailPage() {
   const navigate = useNavigate();
   const onNavigate = useNavHandler();
 
+  const { t } = useTranslation();
   const [detail, setDetail] = useState<AttemptDetail | null>(null);
+  const [errorCode, setErrorCode] = useState<string | null>(null);
+  const [polling, setPolling] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
   const [reloadKey, setReloadKey] = useState(0);
@@ -36,6 +45,9 @@ export default function AttemptDetailPage() {
       .attemptDetail(id)
       .then((d) => {
         if (!alive) return;
+        setErrorCode(d.error_message ?? null);
+        // Opened while grading runs (e.g. right after a retry) — keep watching.
+        if (d.status === "pending" || d.status === "processing") setPolling(true);
         setDetail({
           id: d.id,
           status: d.status,
@@ -77,6 +89,37 @@ export default function AttemptDetailPage() {
 
   const retry = useCallback(() => setReloadKey((k) => k + 1), []);
 
+  // After a retry the attempt is "grading…" again; look at it every few seconds
+  // and reload the detail once it has an outcome (graded, or failed again).
+  useEffect(() => {
+    if (!polling || !id) return;
+    const started = Date.now();
+    const timer = window.setInterval(() => {
+      if (Date.now() - started > POLL_FOR_MS) {
+        setPolling(false);
+        return;
+      }
+      endpoints
+        .getSubmission(id)
+        .then((s) => {
+          if (s.status === "done" || s.status === "failed") {
+            setPolling(false);
+            setReloadKey((k) => k + 1);
+          }
+        })
+        .catch(() => undefined);
+    }, POLL_MS);
+    return () => window.clearInterval(timer);
+  }, [polling, id]);
+
+  const regrade = useCallback(async () => {
+    if (!id) return;
+    const next = await requestRegrade(t, id);
+    setErrorCode(null);
+    setDetail((d) => (d ? { ...d, status: next.status } : d));
+    setPolling(true);
+  }, [id, t]);
+
   if (loading) return <PageLoading />;
   if (error || !detail) return <PageError onRetry={retry} />;
 
@@ -86,6 +129,8 @@ export default function AttemptDetailPage() {
       onBack={() => navigate("/results")}
       activeNavKey="profile"
       onNavigate={onNavigate}
+      failedReason={detail.status === "failed" ? t(gradingFailureKey(errorCode)) : undefined}
+      onRegrade={canRegrade(detail.status, detail.audioExpired) ? regrade : undefined}
     />
   );
 }

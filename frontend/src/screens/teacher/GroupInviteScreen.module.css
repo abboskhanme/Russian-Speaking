@@ -146,3 +146,139 @@
   text-align: center;
   padding-block: var(--s-6);
 }
+
+/* ---- Join panel: big code + QR ---- */
+.joinPanel {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 220px;
+  gap: var(--s-6);
+  align-items: center;
+  padding: var(--s-6);
+  border-radius: var(--r-lg);
+  background: var(--primary-tint);
+  border: 1px solid var(--primary-tint-2);
+}
+.joinMain {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-3);
+  min-width: 0;
+}
+/* The code is read across a classroom: display size, Onest (not mono), tabular,
+   wide tracking so 0/O and 1/I sit apart. */
+.bigCode {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: clamp(40px, 7vw, 64px);
+  line-height: 1;
+  font-weight: var(--fw-black);
+  letter-spacing: 0.12em;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink);
+  user-select: all;
+  overflow-wrap: anywhere;
+}
+.joinActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-2);
+}
+/* 44px: the shared "sm" button is 40px, under the mobile tap-target floor. */
+.actionBtn {
+  min-height: 44px;
+  gap: var(--s-2);
+}
+.copyLabel {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-2);
+}
+.linkLine {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  user-select: all;
+}
+.qrBox {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+  padding: var(--s-3);
+  border-radius: var(--r-md);
+  background: var(--surface);
+  border: 1px solid var(--line);
+}
+.qrPlaceholder {
+  display: block;
+  aspect-ratio: 1;
+  border-radius: var(--r-sm);
+  background: var(--surface-3);
+}
+
+/* ---- Present to the class: full screen ---- */
+.present {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-modal);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--s-6);
+  padding: var(--s-8) var(--s-4);
+  background: var(--bg);
+  overflow: auto;
+}
+.presentClose {
+  position: absolute;
+  top: var(--s-4);
+  right: var(--s-4);
+  min-height: 44px;
+}
+.presentBody {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: var(--s-10);
+  max-width: 100%;
+}
+.presentQr {
+  width: min(60vh, 80vw, 520px);
+}
+.presentCodeCol {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-3);
+  min-width: 0;
+  max-width: 90vw;
+}
+.presentCode {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: clamp(56px, 10vw, 128px);
+  line-height: 1;
+  font-weight: var(--fw-black);
+  letter-spacing: 0.12em;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink);
+}
+
+@media (max-width: 640px) {
+  .joinPanel {
+    grid-template-columns: minmax(0, 1fr);
+    padding: var(--s-4);
+    gap: var(--s-4);
+  }
+  .qrBox {
+    width: min(100%, 240px);
+    justify-self: center;
+  }
+}
+.qrCaption {
+  text-align: center;
+  font-size: var(--t-body-s-size);
+  line-height: var(--t-body-s-line);
+  color: var(--muted);
+}
