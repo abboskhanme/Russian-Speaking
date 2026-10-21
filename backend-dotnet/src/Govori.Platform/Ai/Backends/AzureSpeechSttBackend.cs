@@ -21,8 +21,8 @@ namespace Govori.Platform.Ai.Backends;
 /// <para><b>The ONE exception is an explicit opt-in:</b> a caller passing
 /// <see cref="SttRecognitionMode.Scripted"/> — today only the phoneme drill (docs/01 F2), where the
 /// learner was handed one specific word and asked to say exactly that. Note carefully that the
-/// switch is the MODE, never the presence of <paramref name="referenceText"/>: shadowing and the
-/// guest demo both pass a reference and both must stay unscripted. See
+/// switch is the MODE, never the presence of <paramref name="referenceText"/>: shadowing passes a
+/// reference and must stay unscripted. See
 /// <see cref="SttRecognitionMode"/> for why that distinction is written into the type system rather
 /// than left to a convention.</para>
 ///

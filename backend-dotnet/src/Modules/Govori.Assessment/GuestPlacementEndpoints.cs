@@ -15,7 +15,7 @@ namespace Govori.Assessment;
 /// duplication of the placement logic.
 ///
 /// <para>Unlike the authed sibling these routes are deliberately NOT <c>.RequireAuthorization()</c>
-/// (same no-auth pattern as <see cref="Govori.Guest"/>). The two write endpoints are per-IP
+/// (the API's only auth-less grading surface). The two write endpoints are per-IP
 /// rate-limited via the shared ASP.NET Core RateLimiter (<see cref="RateLimitPolicyNames.GuestPlacement"/>),
 /// which is FAIL-OPEN (a store outage ALLOWS the request — see Govori.Api/RateLimiting). The flow stores
 /// NOTHING server-side (questions are hardcoded, bands are returned and discarded); the guest is a trial,
@@ -32,7 +32,7 @@ public static class GuestPlacementEndpoints
         var placement = app.MapGroup("/api/guest/placement");
 
         // GET /api/guest/placement/questions → the same 3 fixed Russian prompts (no auth, no rate
-        // limit — static + cheap, like GET /api/guest/demo).
+        // limit — static + cheap).
         placement.MapGet("/questions", (PlacementService svc) => Results.Ok(svc.Questions()));
 
         // POST /api/guest/placement/submit (multipart: question_index + audio) → { index, band }.

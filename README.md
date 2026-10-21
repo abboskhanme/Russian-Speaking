@@ -25,7 +25,7 @@ Full Docker guide: [`docs/09-DOCKER.md`](docs/09-DOCKER.md).
 backend-dotnet/   .NET 9 solution — Api · Worker · Contracts · Infrastructure (EF Core,
                   database-first) · Platform (Stt/Grader/Storage) · Realtime (Hangfire+SignalR)
                   · Modules/ (Identity, Catalog, Practice, Assessment, Classroom,
-                  Engagement, Administration, Guest) · tests (Characterization/Unit/Integration/Arch)
+                  Engagement, Administration, Billing, Drills) · tests (Characterization/Unit/Integration/Arch)
 frontend/         React + Vite SPA — src/{app,screens,widgets,shared,locales}
 deploy/           nginx conf · Postgres seeds · backup/restore/domain scripts
 docs/             00–09 — audit, product/architecture, design system, UX, roadmap,

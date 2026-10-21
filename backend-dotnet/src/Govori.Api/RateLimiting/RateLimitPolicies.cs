@@ -17,7 +17,7 @@ internal static class RateLimitPolicies
     /// <summary>(policy name / counter scope, max requests, window) — one row per rate-limited
     /// scope. The limits are deliberate product choices: email_code 5/600 (an OTP costs money to
     /// send), login 10/300 (also covers the Google sign-in route, which shares this policy),
-    /// guest_assess 15/3600 and guest_tts 60/3600 (auth-less routes, so IP is the only key).</summary>
+    /// guest_placement 30/3600 (auth-less routes, so IP is the only key).</summary>
     private static readonly (string Name, int Limit, TimeSpan Window)[] Policies =
     {
         (RateLimitPolicyNames.EmailCode, 5, TimeSpan.FromSeconds(600)),
@@ -37,8 +37,6 @@ internal static class RateLimitPolicies
         // or wait out a code that never arrived, no room to grind. Both routes require auth, so the
         // partition is the user id (see RateLimitIdentity) rather than a shared classroom IP.
         (RateLimitPolicyNames.PhoneChange, 10, TimeSpan.FromSeconds(3600)),
-        (RateLimitPolicyNames.GuestAssess, 15, TimeSpan.FromSeconds(3600)),
-        (RateLimitPolicyNames.GuestTts, 60, TimeSpan.FromSeconds(3600)),
         // Public "try the placement" flow. A 3-answer session is ~4 hits; 30/hour
         // per IP allows a handful of retries/sessions while capping abuse. Fail-open like the rest.
         (RateLimitPolicyNames.GuestPlacement, 30, TimeSpan.FromSeconds(3600)),

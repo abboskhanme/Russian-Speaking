@@ -11,8 +11,6 @@ using Govori.Catalog;
 using Govori.Classroom;
 using Govori.Contracts;
 using Govori.Engagement;
-using Govori.Guest;
-using Govori.Guest.Tts;
 using Govori.Identity;
 using Govori.Identity.Providers;
 using Govori.Identity.Security;
@@ -281,16 +279,6 @@ try
     // pipeline uses, so a green probe is evidence about the real path and not a parallel one.
     builder.Services.AddScoped<AiProbeService>();
 
-    // ── Guest / auth-less demo (docs/07 §3.8, Faza 3.8) ─────────────────────
-    // GuestService owns the public "try one phrase" demo (phrase pick + the SAME Azure
-    // pronunciation assessment the app uses, via the shared ISttProvider seam, + score blend + rough
-    // CEFR level). It stores nothing and requires no account. TTS behind ITtsProvider mirrors the STT
-    // seam — a real Azure port is a TODO stub (IsConfigured=false) so /guest/tts safely returns 503
-    // until a key lands rather than failing some other way. Scoped (matches the module convention);
-    // the providers are singletons.
-    builder.Services.AddSingleton<ITtsProvider, AzureTtsProvider>(); // TODO(Faza 3.4): real Azure TTS
-    builder.Services.AddScoped<GuestService>();
-
     // ── Billing / tariffs + subscriptions (docs/08 Faza 6.6) ────────────────
     // BillingService owns plans, subscriptions and payment attempts. It does NOT own the premium
     // rule: that is Govori.Infrastructure.PremiumAccess (is_premium OR an active subscription), read
@@ -308,7 +296,7 @@ try
 
     // ── Rate limiting (docs/07 §7.3, §3.8) ──────────────────────────────────
     // ASP.NET Core RateLimiter: per-user-or-IP fixed-window
-    // policies (email_code / login / guest_assess / guest_tts) and — CRITICAL — FAIL-OPEN (a store
+    // policies (email_code / login / guest_placement / …) and — CRITICAL — FAIL-OPEN (a store
     // outage ALLOWS the request; rate limiting must never take the API down). Default counter is
     // in-memory; GOVORI_RATELIMIT_BACKEND=redis swaps in the (implemented) cross-instance store.
     builder.Services.AddGovoriRateLimiter(builder.Configuration);
@@ -563,6 +551,12 @@ try
     // /api/guest/placement/*) so a first-time visitor can experience the system, then is nudged to
     // sign up. Delegates to the shared PlacementService (no duplicated grading/CEFR logic); NOT
     // .RequireAuthorization(); the two write routes are per-IP rate-limited (fail-open).
+    //
+    // This is the ONLY auth-less grading surface. The older "try one phrase" demo
+    // (/api/guest/{demo,assess,tts}, the Govori.Guest module) was removed: no client ever called it,
+    // yet /assess ran a paid Azure STT call for anyone on the internet, bounded only by a per-IP
+    // limit a rotating address walks straight past. Anonymous spend with no screen behind it is
+    // pure risk; this route at least pays for the landing page's funnel.
     app.MapGuestPlacementEndpoints();
 
     // ── Classroom endpoints (docs/07 §3.5, Faza 3.5) ────────────────────────
@@ -583,12 +577,6 @@ try
     // (/api/admin/settings/{ai,links,reveal}) and the PUBLIC links read (/api/settings/links) live in
     // the Administration module's MapAdministrationEndpoints extension, one call per domain.
     app.MapAdministrationEndpoints();
-
-    // ── Guest endpoints (docs/07 §3.8, Faza 3.8) ────────────────────────────
-    // The auth-less demo surface (GET /api/guest/demo, POST /api/guest/assess, GET /api/guest/tts)
-    // lives in the Guest module's MapGuestEndpoints extension, one call per domain. These are NOT
-    // .RequireAuthorization() — they ARE rate-limited (per-IP, fail-open).
-    app.MapGuestEndpoints();
 
     // ── Billing endpoints (docs/08 Faza 6.6) ────────────────────────────────
     // Student (/api/billing/{plans,subscription,checkout}), the admin tariff editor

@@ -146,6 +146,6 @@ public sealed class BoundaryRuleTests
         ArchitectureMap.Infrastructure, ArchitectureMap.Platform, ArchitectureMap.Realtime,
         ArchitectureMap.Identity, ArchitectureMap.Catalog, ArchitectureMap.Practice,
         ArchitectureMap.Assessment, ArchitectureMap.Classroom, ArchitectureMap.Engagement,
-        ArchitectureMap.Administration, ArchitectureMap.Guest, ArchitectureMap.Billing,
+        ArchitectureMap.Administration, ArchitectureMap.Billing,
     }.Select(a => new object[] { a });
 }

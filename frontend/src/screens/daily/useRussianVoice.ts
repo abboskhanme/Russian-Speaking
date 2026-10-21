@@ -2,10 +2,9 @@
  * useRussianVoice — the browser's own Russian voice, or nothing at all.
  *
  * The warm-up is «Eshit va takrorla», and hearing the line first is half of it.
- * The server has a real TTS provider, but it bills per call and is deliberately
- * fenced to the auth-less guest demo; wiring the daily session to it would open a
- * new spending path for a step that exists to be free (docs/08 §6.3 — the session
- * must not create one). `speechSynthesis` is already in the browser, costs
+ * The server has no TTS route, and server-side TTS would bill per call; adding
+ * one for the daily session would open a new spending path for a step that exists
+ * to be free (docs/08 §6.3 — the session must not create one). `speechSynthesis` is already in the browser, costs
  * nothing, and never leaves the device.
  *
  * It is also genuinely optional. Voice availability is a property of the
