@@ -33,7 +33,7 @@ import type {
   GroupJoinRequestResponse,
   GroupResponse,
 } from "../../shared/api";
-import { relativeTime } from "../adapters";
+import { useDateFormat } from "../../shared/format";
 import { PageError, PageLoading } from "../PageState";
 import { TEACHER_NAV_PATH, useTeacherNavHandler } from "../nav";
 
@@ -53,6 +53,7 @@ const TABS: ClassesTabKey[] = ["groups", "requests", "students"];
 export default function ClassesPage() {
   const navigate = useNavigate();
   const { t } = useTranslation();
+  const fmt = useDateFormat();
   const onNavigate = useTeacherNavHandler();
   const [params, setParams] = useSearchParams();
 
@@ -180,15 +181,14 @@ export default function ClassesPage() {
   const joinRequests = useMemo<ClassJoinRequest[]>(
     () =>
       requests.map((r) => {
-        const rel = relativeTime(r.created_at);
         return {
           id: r.id,
           studentName: r.student_name,
           joinCode: r.join_code,
-          when: t(rel.key, { count: rel.count }),
+          when: fmt.relative(r.created_at),
         };
       }),
-    [requests, t],
+    [requests, t, fmt],
   );
 
   const createGroup = useCallback(async (name: string) => {

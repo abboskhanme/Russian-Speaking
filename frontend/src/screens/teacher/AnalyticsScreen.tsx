@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { formatIsoDate } from "../../shared/format";
 import { cefrLabel } from "../../shared/i18n/cefrLabel";
 import { Badge, Button, Card, Modal, StatTile, Tabs, Text, VisuallyHidden, cx } from "../../shared/ui";
 import type { TabItem } from "../../shared/ui";
@@ -14,7 +15,7 @@ import styles from "./AnalyticsScreen.module.css";
 
 /** One month of the hero chart. `avg` null = no graded attempt that month, and
  * the line GAPS there rather than dropping to zero. `label` is already
- * localized by the caller (from `time.month*` — never `Intl.DateTimeFormat`). */
+ * localized by the caller (the shared date helper — never `Intl.DateTimeFormat`). */
 export interface AnalyticsTrendPoint {
   key: string;
   label: string;
@@ -29,7 +30,7 @@ export interface AnalyticsSkill {
   score: number | null;
 }
 
-/** One column of "Haftalik faollik". `label` comes from `time.wd*`. */
+/** One column of "Haftalik faollik". `label` comes from the shared date helper (`formatWeekdayShort`). */
 export interface AnalyticsWeekDay {
   key: string;
   label: string;
@@ -1139,12 +1140,9 @@ function csvEscape(value: string): string {
   return /[",\r\n;]/.test(value) ? `"${value.replace(/"/g, '""')}"` : value;
 }
 
-/** `YYYY-MM-DD` in local time, for the filename. Deliberately not
- * `Intl.DateTimeFormat` — a filename must never depend on the locale's ICU data. */
+/** `YYYY-MM-DD` in local time, for the filename (the shared helper — never ICU). */
 function todayStamp(): string {
-  const d = new Date();
-  const pad = (n: number) => String(n).padStart(2, "0");
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+  return formatIsoDate(new Date());
 }
 
 /* -------------------------------------------------------------------------- */

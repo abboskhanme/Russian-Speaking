@@ -6,12 +6,17 @@ import {
   formatDate,
   formatDateTime,
   formatDayMonth,
+  formatDayMonthShort,
+  formatInputDateTime,
+  formatIsoDate,
   formatMonthYear,
   formatRelative,
   formatRelativeDay,
   formatTime,
+  formatWeekdayShort,
   monthName,
   relativeTime,
+  weekdayIndex,
 } from "./date";
 
 /** A LOCAL wall-clock instant, so "local" assertions hold in any TZ the CI runs in. */
@@ -102,5 +107,79 @@ describe("relative", () => {
     expect(formatRelativeDay(local(2026, 10, 7), t, now)).toBe("2 weeks ago");
     expect(formatRelativeDay(local(2026, 8, 1), t, now)).toBe("01.08.2026");
     expect(formatRelativeDay("nope", t, now)).toBe("");
+  });
+});
+
+describe("relativeTime boundaries", () => {
+  const NOW = new Date("2026-07-30T21:00:00Z");
+  const ago = (s: number) => new Date(NOW.getTime() - s * 1000).toISOString();
+
+  it("picks the largest unit that fits", () => {
+    expect(relativeTime(ago(7200), NOW)).toEqual({ key: "time.hoursAgo", count: 2 });
+    expect(relativeTime(ago(3 * 86_400), NOW)).toEqual({ key: "time.daysAgo", count: 3 });
+    expect(relativeTime(ago(3 * 604_800), NOW)).toEqual({ key: "time.weeksAgo", count: 3 });
+    expect(relativeTime(ago(3 * 2_592_000), NOW)).toEqual({ key: "time.monthsAgo", count: 3 });
+    expect(relativeTime(ago(3 * 31_536_000), NOW)).toEqual({ key: "time.yearsAgo", count: 3 });
+  });
+
+  it("switches unit exactly at the boundary", () => {
+    expect(relativeTime(ago(59), NOW)).toEqual({ key: "time.justNow", count: 0 });
+    expect(relativeTime(ago(60), NOW)).toEqual({ key: "time.minutesAgo", count: 1 });
+    expect(relativeTime(ago(3599), NOW)).toEqual({ key: "time.minutesAgo", count: 59 });
+    expect(relativeTime(ago(3600), NOW)).toEqual({ key: "time.hoursAgo", count: 1 });
+  });
+
+  it("says «kecha» rather than «1 kun oldin»", () => {
+    expect(relativeTime(ago(86_400), NOW)).toEqual({ key: "time.yesterday", count: 1 });
+    expect(relativeTime(ago(2 * 86_400), NOW)).toEqual({ key: "time.daysAgo", count: 2 });
+  });
+
+  it("clamps a future timestamp to «hozirgina»", () => {
+    // Server and phone clocks disagree by seconds routinely; a negative age would
+    // otherwise render "-1 daqiqa oldin".
+    expect(relativeTime(new Date(NOW.getTime() + 60_000).toISOString(), NOW)).toEqual({
+      key: "time.justNow",
+      count: 0,
+    });
+  });
+
+  it("degrades to «hozirgina» on an unparseable timestamp", () => {
+    expect(relativeTime("not-a-date", NOW)).toEqual({ key: "time.justNow", count: 0 });
+    expect(relativeTime("", NOW)).toEqual({ key: "time.justNow", count: 0 });
+  });
+});
+
+describe("day buckets and machine forms", () => {
+  it("reads a bare YYYY-MM-DD as that calendar day in every zone", () => {
+    // new Date("2026-10-21") is UTC midnight — the 20th west of Greenwich.
+    expect(formatDate("2026-10-21")).toBe("21.10.2026");
+    expect(formatDate("2026-10-21", { zone: "tashkent" })).toBe("21.10.2026");
+    expect(formatDate("2026-02-30")).toBe("");
+  });
+
+  it("writes the short chart day", () => {
+    expect(formatDayMonthShort("2026-03-05")).toBe("05.03");
+    expect(formatDayMonthShort("nope")).toBe("");
+  });
+
+  it("writes the ISO date and the datetime-local value", () => {
+    expect(formatIsoDate(local(2026, 3, 5, 23, 59))).toBe("2026-03-05");
+    expect(formatInputDateTime(local(2026, 3, 5, 9, 7))).toBe("2026-03-05T09:07");
+    expect(formatInputDateTime("")).toBe("");
+  });
+});
+
+describe("weekdays", () => {
+  it("is Monday-first and computed from the day itself", () => {
+    expect(weekdayIndex("2026-10-19")).toBe(0); // Monday
+    expect(weekdayIndex("2026-10-25")).toBe(6); // Sunday
+    expect(weekdayIndex("nope")).toBeNull();
+  });
+
+  it("names the short weekday in each language", () => {
+    expect(formatWeekdayShort("2026-10-21", "uz")).toBe("Ch");
+    expect(formatWeekdayShort("2026-10-21", "ru")).toBe("Ср");
+    expect(formatWeekdayShort("2026-10-21", "en")).toBe("Wed");
+    expect(formatWeekdayShort("", "uz")).toBe("");
   });
 });

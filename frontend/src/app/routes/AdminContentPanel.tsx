@@ -27,13 +27,14 @@ import {
 } from "../../screens/admin/AdminContentExtras";
 import { AdminModulesTable } from "../../screens/admin/AdminModulesTable";
 import { NotificationsBell, adminNavItems } from "../../widgets";
-import { formatDayMonth } from "../adapters";
+import { useDateFormat } from "../../shared/format";
 import { ContentPanelContext } from "../contentPanel";
 import type { ContentPanel } from "../contentPanel";
 import { ADMIN_NAV_PATH, useAdminNavHandler } from "../nav";
 
 export function AdminContentPanel({ children }: { children: ReactNode }) {
   const { t } = useTranslation();
+  const fmt = useDateFormat();
   const onNavigate = useAdminNavHandler();
 
   const panel = useMemo<ContentPanel>(
@@ -68,11 +69,11 @@ export function AdminContentPanel({ children }: { children: ReactNode }) {
         <AdminModulesTable
           rows={blocks}
           onOpen={open}
-          formatDate={(iso) => formatDayMonth(iso, t)}
+          formatDate={(iso) => fmt.dayMonth(iso)}
         />
       ),
     }),
-    [t, onNavigate],
+    [t, fmt, onNavigate],
   );
 
   return <ContentPanelContext.Provider value={panel}>{children}</ContentPanelContext.Provider>;

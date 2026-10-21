@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Button, Modal, Text, cx } from "../../shared/ui";
 import { DateTimeField } from "../../shared/ui/DateField";
+import { formatInputDateTime } from "../../shared/format";
 import styles from "./AssignmentActionsSheet.module.css";
 
 /** Why a deadline change did not happen. `due_in_past` is the server's own 400
@@ -195,8 +196,5 @@ export function AssignmentActionsSheet({
 /** ISO instant → the `YYYY-MM-DDTHH:mm` a datetime-local input takes, in LOCAL
  * time. Built by hand: no Intl, for the reduced-ICU reason above. */
 export function toLocalInput(iso: string): string {
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return "";
-  const p = (n: number) => String(n).padStart(2, "0");
-  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`;
+  return formatInputDateTime(iso);
 }

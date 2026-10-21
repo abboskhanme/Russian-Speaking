@@ -27,7 +27,7 @@ import type {
   GroupDetailResponse,
   SubmissionResponse,
 } from "../../shared/api";
-import { relativeTime } from "../adapters";
+import { useDateFormat } from "../../shared/format";
 import { dateLang, formatMonthYear } from "../../shared/format/date";
 import { PageError, PageLoading } from "../PageState";
 import { TEACHER_NAV_PATH, useTeacherNavHandler } from "../nav";
@@ -47,6 +47,7 @@ export default function StudentProfilePage() {
   const groupId = params.get("group");
   const navigate = useNavigate();
   const { t, i18n } = useTranslation();
+  const fmt = useDateFormat();
   const onNavigate = useTeacherNavHandler();
 
   const [subs, setSubs] = useState<SubmissionResponse[]>([]);
@@ -173,16 +174,15 @@ export default function StudentProfilePage() {
   const attempts = useMemo<StudentAttempt[]>(
     () =>
       subs.slice(0, 20).map((s) => {
-        const rel = relativeTime(s.created_at);
         return {
           id: s.id,
           title: s.question_title ?? "—",
-          when: t(rel.key, { count: rel.count }),
+          when: fmt.relative(s.created_at),
           score: s.overall_band ?? undefined,
           reviewed: s.reviewed_at !== null,
         };
       }),
-    [subs, t],
+    [subs, t, fmt],
   );
 
   if (loading) return <PageLoading />;

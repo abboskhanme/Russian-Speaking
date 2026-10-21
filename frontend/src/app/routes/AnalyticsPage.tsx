@@ -17,8 +17,8 @@
  * **No `Intl.DateTimeFormat` anywhere.** Chromium's reduced ICU has no Uzbek
  * calendar data (it renders `2026 M07` for `{month:"long"}` and `-2 h` for
  * relative times) while Node's full ICU hides it, so month and weekday names come
- * from `time.month*` / `time.wd*` and the weekday INDEX is computed arithmetically
- * from the date — never read out of the runtime's locale tables.
+ * from the shared date helper (`shared/format/date`), which hard-codes them and
+ * reads a `YYYY-MM-DD` day bucket as that calendar day in every zone.
  */
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
@@ -33,6 +33,7 @@ import type {
   GradebookStudent,
 } from "../../screens/teacher";
 import { endpoints } from "../../shared/api";
+import { useDateFormat } from "../../shared/format";
 import type {
   GradebookRowResponse,
   GroupResponse,
@@ -53,23 +54,6 @@ const SKILL_LABELS: [keyof InsightsResponse["skills"], string][] = [
   ["lexical", "teacher.skillLexical"],
 ];
 
-/**
- * `YYYY-MM-DD` → Monday-first weekday index 0–6, computed from the date itself.
- *
- * Parsed field-by-field into a LOCAL date: `new Date("2026-08-06")` is parsed as
- * UTC midnight, which lands on the previous day for any negative UTC offset and
- * would shift the whole week by one column.
- */
-function weekdayIndex(isoDate: string): number | null {
-  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(isoDate);
-  if (!m) return null;
-  const d = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
-  if (Number.isNaN(d.getTime())) return null;
-  // getDay(): 0 = Sunday. The mockup's axis starts at Monday (Du · Se · Ch · Pa
-  // · Ju · Sh · Ya), so rotate by 6.
-  return (d.getDay() + 6) % 7;
-}
-
 // Which bar is "today" is NOT decided by comparing a locally-built date string to
 // the API's day keys: those keys are UTC, and Tashkent is UTC+5, so between local
 // midnight and 05:00 the local date is a day ahead of every key in the window and
@@ -78,6 +62,7 @@ function weekdayIndex(isoDate: string): number | null {
 
 export default function AnalyticsPage() {
   const { t } = useTranslation();
+  const fmt = useDateFormat();
   const onNavigate = useTeacherNavHandler();
   const [params, setParams] = useSearchParams();
 
@@ -148,7 +133,7 @@ export default function AnalyticsPage() {
       trend: insights.trend.map((p) => ({
         key: `${p.year}-${p.month}`,
         label:
-          p.month >= 1 && p.month <= 12 ? t(`time.month${p.month}`) : String(p.month),
+          p.month >= 1 && p.month <= 12 ? fmt.month(p.month) : String(p.month),
         avg: p.avg,
       })),
       activeStudents: insights.active_students,
@@ -164,10 +149,9 @@ export default function AnalyticsPage() {
         score: insights.skills?.[key] ?? null,
       })),
       week: insights.week.map((d, i) => {
-        const idx = weekdayIndex(d.date);
         return {
           key: d.date || `d${i}`,
-          label: idx == null ? "" : t(`time.wd${idx + 1}`),
+          label: fmt.weekdayShort(d.date),
           attempts: d.attempts,
           today: i === lastDay,
         };
@@ -181,7 +165,7 @@ export default function AnalyticsPage() {
         t(`teacher.errorType.${type}`, { defaultValue: type }),
       ),
     };
-  }, [insights, t]);
+  }, [insights, t, fmt]);
 
   const rows = useMemo<GradebookStudent[]>(() => {
     const mapped = gradebook.map<GradebookStudent>((r) => ({

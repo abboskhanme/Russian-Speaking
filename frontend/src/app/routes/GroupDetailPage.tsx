@@ -24,7 +24,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
-import type { TFunction } from "i18next";
 import { TeacherGroupDetailScreen } from "../../screens/teacher";
 import type {
   AnalyticsRemediation,
@@ -42,13 +41,14 @@ import type {
 } from "../../shared/api";
 import { PageError, PageLoading } from "../PageState";
 import { TEACHER_NAV_PATH, useTeacherNavHandler } from "../nav";
-import { formatDayMonth } from "../adapters";
+import { useDateFormat } from "../../shared/format";
 import { apiErrorCode, errorRowsFromInsights, levelFromBand } from "../teacherAdapters";
 
 export default function GroupDetailPage() {
   const { groupId = "" } = useParams();
   const navigate = useNavigate();
   const { t } = useTranslation();
+  const fmt = useDateFormat();
   const onNavigate = useTeacherNavHandler();
 
   const [detail, setDetail] = useState<GroupDetailResponse | null>(null);
@@ -166,7 +166,8 @@ export default function GroupDetailPage() {
         return {
           id: questionId,
           title: agg.title,
-          due: agg.dueAt ? formatDue(agg.dueAt, t) : null,
+          // "30-iyul, 21:00" — day + month in the active language (shared helper).
+          due: agg.dueAt ? fmt.dayMonth(agg.dueAt, { withTime: true }) : null,
           dueAt: agg.dueAt,
           // Urgent = already past, or inside the next 24h.
           dueUrgent: dueMs != null && dueMs - now < 86_400_000,
@@ -174,7 +175,7 @@ export default function GroupDetailPage() {
           total: agg.total,
         };
       });
-  }, [assignments, detail, t]);
+  }, [assignments, detail, fmt]);
 
   const groupErrors = useMemo<AnalyticsErrorRow[] | null>(
     () =>
@@ -295,13 +296,3 @@ export default function GroupDetailPage() {
   );
 }
 
-/**
- * A deadline → "30-iyul 21:00" in the active language.
- *
- * Built by `formatDayMonth` rather than `Intl.DateTimeFormat`: Chromium's reduced
- * ICU has no Uzbek month names and renders `{ month: "short" }` as `"M07"`. It also
- * puts Russian in the genitive ("30 июля"), which `time.month*` could not.
- */
-function formatDue(iso: string, t: TFunction): string {
-  return formatDayMonth(iso, t, true);
-}

@@ -6,6 +6,7 @@ import { Sparkline } from "../../shared/ui/Chart";
 import { Page } from "../../widgets";
 import type { NavItem } from "../../widgets";
 import { RegradeButton } from "../results/RegradeButton";
+import { formatDayMonthShort } from "../../shared/format";
 import { mockAdminActivity, mockAdminBudget, mockAdminFailed, mockAdminStats } from "./admin.mock";
 import styles from "./AdminDashboardScreen.module.css";
 
@@ -343,7 +344,8 @@ function FailedAlert({
 /* -------------------------------------------------------------------------- */
 
 const sum = (xs: number[]) => xs.reduce((a, b) => a + b, 0);
-const dayLabel = (iso: string) => `${iso.slice(8, 10)}.${iso.slice(5, 7)}`;
+/** `21.10` — the short day a trend tooltip names. */
+const dayLabel = (iso: string) => formatDayMonthShort(iso);
 
 /** This 7 days vs the 7 before. */
 function weekSplit(series: number[]) {

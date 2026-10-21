@@ -21,7 +21,7 @@ import { ReviewQueueScreen } from "../../screens/teacher";
 import type { QueueFilter, QueueItem } from "../../screens/teacher";
 import { endpoints } from "../../shared/api";
 import type { SubmissionResponse } from "../../shared/api";
-import { relativeTime } from "../adapters";
+import { useDateFormat } from "../../shared/format";
 import { PageError, PageLoading } from "../PageState";
 import { useTeacherNavHandler } from "../nav";
 
@@ -31,6 +31,7 @@ const PAGE = 100;
 export default function ReviewQueuePage() {
   const navigate = useNavigate();
   const { t } = useTranslation();
+  const fmt = useDateFormat();
   const onNavigate = useTeacherNavHandler();
   const [params, setParams] = useSearchParams();
 
@@ -86,18 +87,17 @@ export default function ReviewQueuePage() {
   const items = useMemo<QueueItem[]>(
     () =>
       subs.map((s) => {
-        const rel = relativeTime(s.created_at);
         return {
           id: s.id,
           studentName: s.student_name ?? "—",
           task: s.question_title ?? "—",
           level: s.question_level ?? undefined,
           score: s.overall_band ?? undefined,
-          when: t(rel.key, { count: rel.count }),
+          when: fmt.relative(s.created_at),
           audioUrl: s.audio_url,
         };
       }),
-    [subs, t],
+    [subs, t, fmt],
   );
 
   const confirm = useCallback(async (id: string) => {

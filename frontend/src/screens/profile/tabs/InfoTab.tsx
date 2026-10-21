@@ -1,7 +1,8 @@
-import { useId, useMemo, useState, type FormEvent, type ReactNode } from "react";
+import { useId, useState, type FormEvent, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { cefrLabel } from "../../../shared/i18n/cefrLabel";
 import { formatPhone } from "../../../shared/format/phone";
+import { useDateFormat } from "../../../shared/format/useDateFormat";
 import { Button, Card, Modal, Text } from "../../../shared/ui";
 import { isApiError, type OtpDeliveryInfo } from "../../../shared/api";
 import { UZ_REGION_NAMES, districtsFor } from "../../../shared/uz-regions";
@@ -151,14 +152,10 @@ export function InfoTab({
     ? [user.level, cefrLabel(t, user.level, user.levelLabel)].filter(Boolean).join(" · ")
     : notSet;
 
-  const registered = useMemo(() => {
-    const m = monthNumber(user.registeredAt);
-    if (m === null) return notSet;
-    return t("profile.info.registeredValue", {
-      year: new Date(user.registeredAt).getFullYear(),
-      month: t(`months.${m}`),
-    });
-  }, [user.registeredAt, notSet, t]);
+  // "2026-yil iyul" / "июль 2026" / "July 2026" — the shared month-year format,
+  // whose month names are hard-coded (iOS/Safari ship no Uzbek ones).
+  const fmt = useDateFormat();
+  const registered = fmt.monthYear(user.registeredAt) || notSet;
 
   const canEdit = onSaveInfo !== undefined;
   const canChangePhone =
@@ -771,22 +768,6 @@ function mapError(
     if (err.status === 400 && context === "save") return t("profile.info.invalid");
   }
   return t(otpErrorKey(err));
-}
-
-/**
- * The 1-based month number for "Ro'yxatdan o'tgan", or null if unparseable.
- *
- * The NAME deliberately does not come from `Intl`: iOS/Safari ships no Uzbek
- * month names and renders the `uz` locale as the raw CLDR fallback, so the row
- * read "2026-yil, M07" instead of "2026-yil, iyul". Names live in the locale
- * files (`months.1`…`months.12`) where they are deterministic on every engine,
- * and `profile.info.registeredValue` owns the per-language ordering — Uzbek puts
- * the year first with its `-yil` suffix, ru/en put the month first.
- */
-function monthNumber(iso: string): number | null {
-  const date = new Date(iso);
-  if (Number.isNaN(date.getTime())) return null;
-  return date.getMonth() + 1;
 }
 
 /** First letters of up to two name words, uppercased (avatar fallback). */
