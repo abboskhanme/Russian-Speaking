@@ -5,6 +5,7 @@ import { Button, Card, EmptyState, Text, VisuallyHidden, cx } from "../../shared
 import { scoreTone } from "../../shared/score/scoreBand";
 import { AppShell, Brand, NotificationsBell, studentNavItems } from "../../widgets";
 import type { NavItem } from "../../widgets";
+import { formatRelativeDay } from "../../shared/format/date";
 import styles from "./AllResultsScreen.module.css";
 
 /* -------------------------------------------------------------------------- */
@@ -204,16 +205,9 @@ function trendLabel(t: TFunction, trend: ResultTrend): string {
       : t("profile.trend.flat");
 }
 
-/** "Bugun" / "Kecha" / "N kun oldin" / "N hafta oldin" — reuses profile keys. */
+/** "Bugun" / "Kecha" / "N kun oldin" / "N hafta oldin" / "21.10.2026" — the shared helper. */
 function relativeDate(t: TFunction, iso: string, now: Date): string {
-  const then = new Date(iso);
-  if (Number.isNaN(then.getTime())) return "";
-  const startOfDay = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
-  const days = Math.round((startOfDay(now) - startOfDay(then)) / 86_400_000);
-  if (days <= 0) return t("profile.relativeDate.today");
-  if (days === 1) return t("profile.relativeDate.yesterday");
-  if (days < 7) return t("profile.relativeDate.daysAgo", { count: days });
-  return t("profile.relativeDate.weeksAgo", { count: Math.floor(days / 7) });
+  return formatRelativeDay(iso, t, now);
 }
 
 function BackGlyph() {

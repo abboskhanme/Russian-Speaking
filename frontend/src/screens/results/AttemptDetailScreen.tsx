@@ -8,6 +8,8 @@ import { scoreBand, scoreTone } from "../../shared/score/scoreBand";
 import { AppShell, Brand, NotificationsBell, studentNavItems } from "../../widgets";
 import type { NavItem } from "../../widgets";
 import { FeedbackLangNote } from "../../widgets/FeedbackLangNote";
+import { formatDateTime } from "../../shared/format/date";
+import { AudioPlayer } from "../../shared/ui/AudioPlayer";
 import styles from "./AttemptDetailScreen.module.css";
 
 /* -------------------------------------------------------------------------- */
@@ -146,17 +148,11 @@ export function AttemptDetailScreen({
 
         {/* ---- Recorded audio ---- */}
         <Section title={t("results.audio")}>
-          {detail.audioUrl ? (
-            <audio className={styles.audio} controls preload="metadata" src={detail.audioUrl} />
-          ) : detail.audioExpired ? (
-            <Text as="p" variant="body-s" color="muted">
-              {t("results.audioExpired")}
-            </Text>
-          ) : (
-            <Text as="p" variant="body-s" color="muted">
-              {t("results.audioNone")}
-            </Text>
-          )}
+          <AudioPlayer
+            src={detail.audioUrl}
+            label={t("results.audio")}
+            unavailableLabel={detail.audioExpired ? t("results.audioExpired") : t("results.audioNone")}
+          />
         </Section>
 
         {/* ---- Transcript ---- */}
@@ -352,18 +348,9 @@ function ScoreBar({ label, value }: { label: string; value: number }) {
   );
 }
 
-function formatDate(lang: string, iso: string): string {
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return "";
-  // Numeric parts are unambiguous across locales (the `uz` ICU data has no long
-  // month names, which renders as "M07"); this reads "23.07.2026, 11:15".
-  return new Intl.DateTimeFormat(lang, {
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  }).format(d);
+/** "23.07.2026, 11:15" — the shared helper (24-hour, same in every language). */
+function formatDate(_lang: string, iso: string): string {
+  return formatDateTime(iso);
 }
 
 function BackGlyph() {

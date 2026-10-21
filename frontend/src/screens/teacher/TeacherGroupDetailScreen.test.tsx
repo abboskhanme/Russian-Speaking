@@ -7,7 +7,7 @@
  * disarmed until the name is typed.
  */
 import { describe, expect, it, vi } from "vitest";
-import { fireEvent, render, screen, within } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import i18n from "../../shared/i18n";
 import { TeacherGroupDetailScreen } from "./TeacherGroupDetailScreen";
@@ -63,10 +63,14 @@ describe("Faol topshiriqlar · row menu", () => {
     const user = renderScreen({ onChangeDue });
     const sheet = await openRowMenu(user);
 
-    // A datetime-local takes its value whole; typing it key by key passes through
-    // invalid intermediate values that jsdom sanitizes to "".
-    const input = within(sheet).getByLabelText(t("teacher.assignTask.due")) as HTMLInputElement;
-    fireEvent.change(input, { target: { value: "2020-01-01T10:00" } });
+    // The shared DateTimeField: dd.MM.yyyy + HH:mm, typed digit by digit.
+    const due = within(sheet).getByRole("group", { name: t("teacher.assignTask.due") });
+    const date = within(due).getByRole("textbox", { name: t("dateField.date") });
+    const time = within(due).getByRole("textbox", { name: t("dateField.time") });
+    await user.clear(date);
+    await user.type(date, "01012020");
+    await user.clear(time);
+    await user.type(time, "1000");
     await user.click(within(sheet).getByRole("button", { name: t("teacher.saveReview") }));
 
     expect(onChangeDue).toHaveBeenCalledTimes(1);

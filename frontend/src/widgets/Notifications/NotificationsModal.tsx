@@ -13,6 +13,7 @@ import {
 import { endpoints } from "../../shared/api";
 import type { NotificationResponse } from "../../shared/api";
 import { kindIcon, notificationLink } from "./notificationKinds";
+import { formatRelativeDay } from "../../shared/format/date";
 import styles from "./NotificationsModal.module.css";
 
 export interface NotificationsModalProps {
@@ -445,38 +446,13 @@ function safeHref(link: string | null): string | undefined {
   }
 }
 
-/** Local midnight for a date — the boundary relative dates are measured from. */
-function startOfLocalDay(d: Date): number {
-  return new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
-}
-
 /**
- * Whole calendar days between two instants, counted by LOCAL day boundary
- * rather than by a 24h delta — so a notification from 23:00 last night is 1 day
- * ago ("Kecha") even though only two hours have passed. Rounding absorbs the
- * 23h / 25h days that DST transitions produce. (Same helper as ResultsTab.)
- */
-function calendarDaysBetween(from: Date, to: Date): number {
-  const MS_PER_DAY = 86_400_000;
-  return Math.round((startOfLocalDay(to) - startOfLocalDay(from)) / MS_PER_DAY);
-}
-
-/**
- * "Bugun" / "Kecha" / "{{count}} kun oldin" / "{{count}} hafta oldin", reusing
- * the existing `profile.relativeDate.*` keys rather than duplicating them.
- * Returns `null` for an unparseable timestamp so the caller can omit the line.
+ * "Bugun" / "Kecha" / "{{count}} kun oldin" / "{{count}} hafta oldin" / "21.10.2026" —
+ * the shared day-granular helper. `null` for an unparseable timestamp so the caller
+ * can omit the line.
  */
 function relativeDate(t: TFunction, iso: string, now: Date): string | null {
-  const then = new Date(iso);
-  if (Number.isNaN(then.getTime())) return null;
-
-  const days = calendarDaysBetween(then, now);
-
-  // Clock skew can put a fresh notification marginally in the future — still today.
-  if (days <= 0) return t("profile.relativeDate.today");
-  if (days === 1) return t("profile.relativeDate.yesterday");
-  if (days < 7) return t("profile.relativeDate.daysAgo", { count: days });
-  return t("profile.relativeDate.weeksAgo", { count: Math.floor(days / 7) });
+  return formatRelativeDay(iso, t, now) || null;
 }
 
 /** Decorative bell for the empty state (the wrapper carries `aria-hidden`). */

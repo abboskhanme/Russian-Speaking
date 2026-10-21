@@ -27,7 +27,8 @@ import type {
   GroupDetailResponse,
   SubmissionResponse,
 } from "../../shared/api";
-import { dateParts, relativeTime } from "../adapters";
+import { relativeTime } from "../adapters";
+import { dateLang, formatMonthYear } from "../../shared/format/date";
 import { PageError, PageLoading } from "../PageState";
 import { TEACHER_NAV_PATH, useTeacherNavHandler } from "../nav";
 import { SKILL_KEYS, averageBand, levelFromBand, skillAverages } from "../teacherAdapters";
@@ -45,7 +46,7 @@ export default function StudentProfilePage() {
   const [params] = useSearchParams();
   const groupId = params.get("group");
   const navigate = useNavigate();
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const onNavigate = useTeacherNavHandler();
 
   const [subs, setSubs] = useState<SubmissionResponse[]>([]);
@@ -132,10 +133,10 @@ export default function StudentProfilePage() {
       band != null ? levelFromBand(band) : null,
       // "qo'shilgan iyul 2026" — month name from i18n, not Intl (Chromium's
       // reduced ICU renders Uzbek months as "M07").
-      joinedAt ? joinedCaption(joinedAt, t) : null,
+      joinedAt ? joinedCaption(joinedAt, t, i18n.language) : null,
     ].filter(Boolean);
     return parts.join(" · ");
-  }, [group, member, student, subs, t]);
+  }, [group, member, student, subs, t, i18n.language]);
 
   /**
    * Grant/revoke. The switch moves at once (a settings control that waits on a
@@ -213,10 +214,8 @@ export default function StudentProfilePage() {
   );
 }
 
-/** "qo'shilgan iyul 2026" from a join timestamp. */
-function joinedCaption(iso: string, t: TFunction): string | null {
-  const p = dateParts(iso);
-  if (!p) return null;
-  const month = t("time.monthYear", { month: t(`time.month${p.month}`), year: p.year });
-  return t("teacher.joinedAt", { month });
+/** "qo'shilgan 2026-yil iyul" from a join timestamp (shared month-year helper). */
+function joinedCaption(iso: string, t: TFunction, lang: string): string | null {
+  const month = formatMonthYear(iso, dateLang(lang));
+  return month ? t("teacher.joinedAt", { month }) : null;
 }

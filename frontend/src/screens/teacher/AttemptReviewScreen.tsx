@@ -1,6 +1,7 @@
 import { Fragment, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Button, Card, Modal, Text, cx } from "../../shared/ui";
+import { AudioPlayer } from "../../shared/ui/AudioPlayer";
 import { AppShell, Brand, NotificationsBell, teacherNavItems } from "../../widgets";
 import type { NavItem } from "../../widgets";
 import type { AiCorrection, AiFeedback } from "../../app/adapters";
@@ -314,18 +315,8 @@ export function AttemptReviewScreen({
 
 function AudioBlock({ url, expiredLabel }: { url?: string | null; expiredLabel?: string }) {
   const { t } = useTranslation();
-  if (!url) {
-    return (
-      <Card variant="flat" padding="sm" className={styles.audioGone}>
-        <Text as="p" variant="body-s" color="muted">
-          {expiredLabel ?? t("teacher.audioExpired")}
-        </Text>
-      </Card>
-    );
-  }
-  // A plain native player: it gives seek, speed and volume for free, and works on
-  // every mobile browser without a bespoke transport.
-  return <audio className={styles.audio} controls preload="metadata" src={url} />;
+  // The shared player: play/pause, scrub, 1× / 0.75× and a clear unavailable state.
+  return <AudioPlayer src={url} unavailableLabel={expiredLabel ?? t("teacher.audioExpired")} />;
 }
 
 /* -------------------------------------------------------------------------- */

@@ -19,56 +19,13 @@ export function firstName(fullName: string): string {
   return trimmed.split(/\s+/)[0];
 }
 
-/** An i18n key plus its `count`, ready for `t(key, { count })`. */
-export interface RelativeTime {
-  key: string;
-  count: number;
-}
-
 /**
- * An ISO timestamp → the `time.*` i18n key + count for "2 soat oldin".
- *
- * **Not `Intl.RelativeTimeFormat`.** Chromium ships a REDUCED ICU: `uz` passes
- * `supportedLocalesOf` and `resolvedOptions().locale` reports `"uz"`, but it
- * carries no Uzbek relative-time data — `format(-2, "hour")` renders `"-2 h"`
- * and `format(0, "minute")` silently falls back to English `"this minute"`.
- * Node has full ICU and formats it correctly, so this only shows up in a real
- * browser. Uzbek is the DEFAULT language here, so that is the main path, not an
- * edge case. Going through i18next instead also gets Russian's one/few/many for
- * free from the CLDR plural rules already in use.
- *
- * Returns a descriptor rather than a string so this stays a pure adapter (no
- * `t`, per this module's contract) — the page localizes it.
- *
- * @param now injectable clock, so callers can render deterministically in tests
+ * "2 soat oldin" descriptors now live in the shared date helper
+ * (`shared/format/date`) with every other date format; re-exported so existing
+ * imports keep working.
  */
-export function relativeTime(iso: string, now: Date = new Date()): RelativeTime {
-  const then = new Date(iso).getTime();
-  if (Number.isNaN(then)) return { key: "time.justNow", count: 0 };
-
-  const seconds = Math.max(0, Math.round((now.getTime() - then) / 1000));
-
-  // Largest unit that fits, so "2 soat oldin" wins over "120 daqiqa oldin".
-  const units: [string, number][] = [
-    ["time.yearsAgo", 31_536_000],
-    ["time.monthsAgo", 2_592_000],
-    ["time.weeksAgo", 604_800],
-    ["time.daysAgo", 86_400],
-    ["time.hoursAgo", 3_600],
-    ["time.minutesAgo", 60],
-  ];
-
-  for (const [key, size] of units) {
-    const count = Math.floor(seconds / size);
-    if (count >= 1) {
-      // "kecha" reads better than "1 kun oldin" — the one special case the
-      // mockup's own copy uses.
-      if (key === "time.daysAgo" && count === 1) return { key: "time.yesterday", count: 1 };
-      return { key, count };
-    }
-  }
-  return { key: "time.justNow", count: 0 };
-}
+export { relativeTime } from "../shared/format/date";
+export type { RelativeTime } from "../shared/format/date";
 
 /** Calendar pieces of a timestamp, in LOCAL time, for i18n composition. */
 export interface DateParts {
@@ -114,6 +71,7 @@ export function dateParts(iso: string): DateParts | null {
  * `time.month*` stays right for a month on its own ("Июль 2026", a chart axis).
  * Uzbek and English have one form, so their `monthOf*` repeat it (English short).
  */
+/** @deprecated use `formatDayMonth(iso, lang)` from `shared/format/date`. */
 export function formatDayMonth(
   iso: string,
   t: (key: string, opts?: Record<string, unknown>) => string,

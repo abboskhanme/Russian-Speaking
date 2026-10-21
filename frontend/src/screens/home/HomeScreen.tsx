@@ -12,6 +12,7 @@ import {
 } from "./home.mock";
 import { MotivationPanel } from "./MotivationPanel";
 import type { HomeXp } from "./MotivationPanel";
+import { calendarDaysBetween, formatDate, formatTime } from "../../shared/format/date";
 import styles from "./HomeScreen.module.css";
 
 export type { HomeXp } from "./MotivationPanel";
@@ -629,22 +630,14 @@ function formatWhen(
   const due = new Date(iso);
   if (Number.isNaN(due.getTime())) return "";
   const now = new Date();
-  // 24-hour ("21:00"), matching the mockup — never the runtime's 12-hour default.
-  const time = new Intl.DateTimeFormat(undefined, {
-    hour: "2-digit",
-    minute: "2-digit",
-    hour12: false,
-  }).format(due);
-
-  const startOfDay = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate());
-  const dayDiff = Math.round(
-    (startOfDay(due).getTime() - startOfDay(now).getTime()) / 86_400_000,
-  );
+  // 24-hour ("21:00") from the shared helper — never the runtime's 12-hour default.
+  const time = formatTime(due);
+  const dayDiff = calendarDaysBetween(now, due);
 
   if (due.getTime() < now.getTime() && dayDiff < 0) return t("home.when.overdue");
   if (dayDiff <= 0) return t("home.when.today", { time });
   if (dayDiff === 1) return t("home.when.tomorrow", { time });
-  const date = new Intl.DateTimeFormat(undefined, { day: "2-digit", month: "2-digit" }).format(due);
+  const date = formatDate(due);
   return t("home.when.date", { date, time });
 }
 
