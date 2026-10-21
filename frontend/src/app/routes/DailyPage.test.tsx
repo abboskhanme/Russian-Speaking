@@ -196,7 +196,7 @@ describe("the session's name", () => {
     renderAt("/daily");
     await screen.findByText(t("daily.steps.warmup.title"));
     expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent(t("daily.name"));
-    expect(t("daily.name")).toBe(t("home.todayTitle", { min: 5 }));
+    expect(t("daily.name")).toBe(t("home.todayTitle", { count: 5, min: 5 }));
   });
 });
 

@@ -100,7 +100,7 @@ export function ModuleDetailScreen({
             {name}
           </Text>
           <Text as="p" variant="body-s" color="muted" numeric>
-            {t("mashq.detail.taskCount", { done: doneCount, total })}
+            {t("mashq.detail.taskCount", { count: total, done: doneCount, total })}
           </Text>
         </header>
 

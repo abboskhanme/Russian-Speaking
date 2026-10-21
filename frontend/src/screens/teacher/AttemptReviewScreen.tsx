@@ -4,6 +4,7 @@ import { Button, Card, Modal, Text, cx } from "../../shared/ui";
 import { AppShell, Brand, NotificationsBell, teacherNavItems } from "../../widgets";
 import type { NavItem } from "../../widgets";
 import type { AiCorrection, AiFeedback } from "../../app/adapters";
+import { FeedbackLangNote } from "../../widgets/FeedbackLangNote";
 import { mockAttemptReview } from "./queue.mock";
 import { BackGlyph } from "./TeacherGroupDetailScreen";
 import styles from "./AttemptReviewScreen.module.css";
@@ -249,6 +250,7 @@ export function AttemptReviewScreen({
             {feedback.improvements.length > 0 && (
               <FeedbackList label={t("teacher.improvements")} items={feedback.improvements} tone="warn" />
             )}
+            <FeedbackLangNote lang={feedback.lang} />
             {feedback.vocabulary.length > 0 && (
               <div className={styles.vocabWrap}>
                 <Text as="h4" variant="label" color="muted">

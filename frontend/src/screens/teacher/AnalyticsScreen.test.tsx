@@ -269,7 +269,8 @@ describe("F6 locale coverage", () => {
 
   it.each(SUPPORTED_LANGS)("defines every F6 string in %s", (lang) => {
     const strings = flatten(resources[lang].common);
-    expect(KEYS.filter((key) => !strings[key]?.trim())).toEqual([]);
+    // A count-bearing string lives under its plural forms (key_one/key_other…).
+    expect(KEYS.filter((key) => !(strings[key] ?? strings[`${key}_other`])?.trim())).toEqual([]);
   });
 
   // The count and the floor are the two numbers a teacher acts on. A translator
@@ -277,8 +278,10 @@ describe("F6 locale coverage", () => {
   // that no longer says how many people, or how many are needed.
   it.each(SUPPORTED_LANGS)("keeps the %s placeholders that carry the numbers", (lang) => {
     const strings = flatten(resources[lang].common);
-    expect(strings["teacher.analytics.remediationConfirmWho"]).toContain("{{count}}");
-    expect(strings["teacher.analytics.remediationSent"]).toContain("{{count}}");
+    for (const form of ["one", "other"]) {
+      expect(strings[`teacher.analytics.remediationConfirmWho_${form}`]).toContain("{{count}}");
+      expect(strings[`teacher.analytics.remediationSent_${form}`]).toContain("{{count}}");
+    }
     expect(strings["teacher.analytics.remediationTooRare"]).toContain("{{min}}");
     expect(strings["teacher.analytics.remediationConfirmLead"]).toContain("{{error}}");
   });

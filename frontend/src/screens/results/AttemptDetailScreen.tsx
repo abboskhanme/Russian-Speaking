@@ -4,6 +4,7 @@ import type { AiCorrection, AiFeedback } from "../../app/adapters";
 import { Badge, Button, Card, Text, cx } from "../../shared/ui";
 import { AppShell, Brand, NotificationsBell, studentNavItems } from "../../widgets";
 import type { NavItem } from "../../widgets";
+import { FeedbackLangNote } from "../../widgets/FeedbackLangNote";
 import styles from "./AttemptDetailScreen.module.css";
 
 /* -------------------------------------------------------------------------- */
@@ -204,6 +205,7 @@ export function AttemptDetailScreen({
                   ))}
                 </ul>
               )}
+              <FeedbackLangNote lang={detail.feedback.lang} />
             </div>
           </Section>
         )}

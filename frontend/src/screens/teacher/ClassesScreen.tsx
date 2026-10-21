@@ -532,7 +532,7 @@ function TrendArrow({ trend }: { trend?: number }) {
   return (
     <span className={cx(styles.trend, styles[`trend-${dir}` as const])}>
       <span aria-hidden>{dir === "up" ? "↑" : dir === "down" ? "↓" : "→"}</span>
-      <VisuallyHidden>{t(`teacher.trend.${dir}`, { points })}</VisuallyHidden>
+      <VisuallyHidden>{t(`teacher.trend.${dir}`, { points, count: points })}</VisuallyHidden>
     </span>
   );
 }

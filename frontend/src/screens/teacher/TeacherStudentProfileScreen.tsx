@@ -230,7 +230,7 @@ function TrendChip({ trend }: { trend?: number | null }) {
   return (
     <Badge variant={dir === "up" ? "success" : dir === "down" ? "danger" : "neutral"} size="sm">
       {dir === "up" ? "↑ " : dir === "down" ? "↓ " : "→ "}
-      {t(`teacher.trend.${dir}`, { points })}
+      {t(`teacher.trend.${dir}`, { points, count: points })}
     </Badge>
   );
 }

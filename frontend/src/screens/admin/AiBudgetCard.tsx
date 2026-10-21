@@ -156,7 +156,7 @@ export function AiBudgetCard({
                   {line.provider} · {t(`admin.aiOperation.${line.operation}`, { defaultValue: line.operation })}
                 </Text>
                 <Text as="span" variant="body-s" color="muted">
-                  {t("admin.aiCalls", { calls: line.calls, failed: line.failedCalls })}
+                  {t("admin.aiCalls", { count: line.calls, calls: line.calls, failed: line.failedCalls })}
                 </Text>
                 <Text as="span" variant="body-s" weight="semibold">
                   {usd(line.costUsd)}

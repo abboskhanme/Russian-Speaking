@@ -212,6 +212,8 @@ const KNOWN_FAILURES = [
   "grader_failed",
   // The platform-wide AI budget is paused or spent: "try again later", not "it broke".
   "ai_unavailable",
+  // STT heard no words (silence / muted mic): nothing was sent to the grader.
+  "no_speech",
   "internal",
 ];
 
@@ -263,6 +265,29 @@ export interface AiFeedback {
   strengths: string[];
   improvements: string[];
   vocabulary: string[];
+  /**
+   * The language the grader was asked to write in (`feedback.lang`, S9). Rows
+   * graded before S9 carry none and were all written in Uzbek, so the parser
+   * fills `uz`; plain-text legacy rows leave it undefined (unknown).
+   */
+  lang?: "uz" | "ru" | "en";
+}
+
+/**
+ * Model "nothing here" placeholders that must never render as a bullet
+ * ("None", "N/A", "-", "нет", "yoʻq"…). The backend drops them at grading time
+ * (`FeedbackText`); this is the defensive copy for rows stored before that.
+ */
+const PLACEHOLDER_ITEMS = new Set([
+  "none", "n/a", "na", "-", "--", "—", "–", "null", "nil", "nothing", "no", "empty",
+  "нет", "ничего", "отсутствует", "отсутствуют",
+  "yoʻq", "yo'q", "yo‘q", "yo`q", "yok", "hech narsa", "mavjud emas",
+]);
+
+/** True when a feedback list item is blank or only a placeholder like "None". */
+export function isPlaceholderItem(item: string): boolean {
+  const core = item.trim().replace(/[.!\s]+$/u, "").trim().toLowerCase();
+  return core.length === 0 || PLACEHOLDER_ITEMS.has(core);
 }
 
 /** One targeted correction (`evaluations.corrections`). */
@@ -293,12 +318,18 @@ export function parseFeedback(raw?: string | null): AiFeedback | null {
     const o = JSON.parse(raw) as Record<string, unknown>;
     if (typeof o !== "object" || o === null) return { summary: raw, strengths: [], improvements: [], vocabulary: [] };
     const strs = (v: unknown): string[] =>
-      Array.isArray(v) ? v.filter((x): x is string => typeof x === "string") : [];
+      Array.isArray(v)
+        ? v
+            .filter((x): x is string => typeof x === "string")
+            .filter((x) => !isPlaceholderItem(x))
+            .map((x) => x.trim())
+        : [];
     const fb: AiFeedback = {
       summary: typeof o.summary === "string" ? o.summary : "",
       strengths: strs(o.strengths),
       improvements: strs(o.improvements),
       vocabulary: strs(o.vocabulary_suggestions),
+      lang: o.lang === "ru" || o.lang === "en" ? o.lang : "uz",
     };
     const empty =
       !fb.summary && !fb.strengths.length && !fb.improvements.length && !fb.vocabulary.length;

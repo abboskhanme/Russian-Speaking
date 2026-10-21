@@ -287,7 +287,7 @@ function TodayCard({
           {t("home.todayLabel")}
         </Text>
         <Text as="p" variant="title-l" className={styles.todayTitle}>
-          {t("home.todayTitle", { min: today.goalMinutes })}
+          {t("home.todayTitle", { count: today.goalMinutes, min: today.goalMinutes })}
         </Text>
         <Text as="p" variant="body" color="muted">
           {daily?.completed

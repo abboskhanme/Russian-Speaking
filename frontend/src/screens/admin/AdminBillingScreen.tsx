@@ -284,7 +284,7 @@ export function AdminBillingScreen({
                       {formatMinor(plan.priceMinor, plan.currency)}
                     </Text>
                     <Text as="p" variant="body-s" color="muted">
-                      {t("admin.billing.duration", { days: plan.durationDays })}
+                      {t("admin.billing.duration", { count: plan.durationDays, days: plan.durationDays })}
                     </Text>
                     {plan.description && (
                       <Text as="p" variant="body-s" color="ink-soft">

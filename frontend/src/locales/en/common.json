@@ -85,7 +85,8 @@
     "continueEmptyTitle": "No exercises yet",
     "continueEmptyBody": "New tasks will appear here.",
     "todayLabel": "TODAY'S PRACTICE",
-    "todayTitle": "Today's {{min}} minutes",
+    "todayTitle_one": "Today's {{min}} minute",
+    "todayTitle_other": "Today's {{min}} minutes",
     "todayTagline": "Warm-up · speaking · fix yesterday's mistake",
     "dailyDone": "Today's 5 minutes are done 🎉",
     "dailyReview": "Take a look",
@@ -94,7 +95,8 @@
     "teacherRole": "Teacher · Russian",
     "message": "Message",
     "groupLine": "Group: {{name}}",
-    "students": "{{count}} students",
+    "students_one": "{{count}} student",
+    "students_other": "{{count}} students",
     "nextAssignment": "Next assignment · {{when}}",
     "noAssignment": "No new assignments",
     "summary": "SUMMARY",
@@ -264,9 +266,12 @@
     },
     "skills": {
       "currentLevel": "CURRENT LEVEL",
-      "trendUp": "+{{points}} in {{weeks}} weeks",
-      "trendDown": "{{points}} in {{weeks}} weeks",
-      "trendFlat": "No change in {{weeks}} weeks",
+      "trendUp_one": "+{{points}} in {{weeks}} week",
+      "trendUp_other": "+{{points}} in {{weeks}} weeks",
+      "trendDown_one": "{{points}} in {{weeks}} week",
+      "trendDown_other": "{{points}} in {{weeks}} weeks",
+      "trendFlat_one": "No change in {{weeks}} week",
+      "trendFlat_other": "No change in {{weeks}} weeks",
       "sectionLabel": "SKILLS",
       "fluency": "Fluency",
       "pronunciation": "Pronunciation",
@@ -294,8 +299,10 @@
       "meThisWeek": "{{rank}}th this week",
       "meThisMonth": "{{rank}}th this month",
       "meAllTime": "{{rank}}th place",
-      "meDeltaUp": "{{xp}} XP · ↑ up {{n}} places",
-      "meDeltaDown": "{{xp}} XP · ↓ down {{n}} places",
+      "meDeltaUp_one": "{{xp}} XP · ↑ up {{n}} place",
+      "meDeltaUp_other": "{{xp}} XP · ↑ up {{n}} places",
+      "meDeltaDown_one": "{{xp}} XP · ↓ down {{n}} place",
+      "meDeltaDown_other": "{{xp}} XP · ↓ down {{n}} places",
       "meDeltaFlat": "{{xp}} XP · no change",
       "meNoDelta": "{{xp}} XP",
       "nearby": "AROUND YOU",
@@ -702,10 +709,12 @@
       "skillsTitle": "Skill distribution",
       "noSkills": "No skills scored yet",
       "weekTitle": "Weekly activity",
-      "weekBarAria": "{{day}}: {{count}} answers",
+      "weekBarAria_one": "{{day}}: {{count}} answer",
+      "weekBarAria_other": "{{day}}: {{count}} answers",
       "noActivity": "No answers this week",
       "errorsTitle": "Most common errors",
-      "errorMeta": "{{count}} students · {{pct}}%",
+      "errorMeta_one": "{{count}} student · {{pct}}%",
+      "errorMeta_other": "{{count}} students · {{pct}}%",
       "noErrors": "No recurring error patterns found",
       "colStudent": "Student",
       "colFluency": "Fluency",
@@ -720,10 +729,12 @@
       "remediationConfirmTitle": "Assign this drill?",
       "remediationConfirmLead": "The task below goes to the students who made the «{{error}}» error.",
       "remediationConfirmTask": "Task",
-      "remediationConfirmWho": "To — {{count}} students",
+      "remediationConfirmWho_one": "To — {{count}} student",
+      "remediationConfirmWho_other": "To — {{count}} students",
       "remediationConfirmWarn": "An assignment cannot be undone.",
       "remediationConfirmCta": "Assign",
-      "remediationSent": "Assigned to {{count}} students",
+      "remediationSent_one": "Assigned to {{count}} student",
+      "remediationSent_other": "Assigned to {{count}} students",
       "remediationFailed": "Could not assign. Please try again."
     },
     "assignTask": {
@@ -773,8 +784,10 @@
     "classErrorsHint_one": "{{count}} student tripped on it",
     "classErrorsHint_other": "{{count}} students tripped on it",
     "trend": {
-      "up": "up {{points}} points",
-      "down": "down {{points}} points",
+      "up_one": "up {{points}} point",
+      "up_other": "up {{points}} points",
+      "down_one": "down {{points}} point",
+      "down_other": "down {{points}} points",
       "flat": "unchanged"
     },
     "droppedHintMany": "See the students",
@@ -783,7 +796,8 @@
       "joined": "joined {{date}}",
       "groups": "My groups",
       "noGroups": "You have not created a group yet.",
-      "reach": "{{count}} students in total",
+      "reach_one": "{{count}} student in total",
+      "reach_other": "{{count}} students in total",
       "settings": "Settings",
       "language": "Language",
       "theme": "Appearance"
@@ -1034,7 +1048,8 @@
     "detail": {
       "label": "MODULE",
       "tasksLabel": "TASKS",
-      "taskCount": "{{done}}/{{total}} tasks",
+      "taskCount_one": "{{done}}/{{total}} task",
+      "taskCount_other": "{{done}}/{{total}} tasks",
       "taskN": "Task {{n}}",
       "taskCurrent": "Task {{n}} · current",
       "start": "Start",
@@ -1051,7 +1066,8 @@
       "certTitle": "Certificate ready",
       "certBody": "Download or share",
       "nextLabel": "NEXT MODULE",
-      "nextMeta": "{{level}} · {{count}} tasks",
+      "nextMeta_one": "{{level}} · {{count}} task",
+      "nextMeta_other": "{{level}} · {{count}} tasks",
       "nextCta": "Next module",
       "allDone": "All modules complete 🎉"
     },
@@ -1076,7 +1092,8 @@
   },
   "results": {
     "allTitle": "All results",
-    "count": "{{count}} results",
+    "count_one": "{{count}} result",
+    "count_other": "{{count}} results",
     "attempt": "Practice",
     "audio": "Recorded answer",
     "audioExpired": "Audio expired — recordings are kept for 3 months.",
@@ -1105,7 +1122,8 @@
       "stt_failed": "We couldn't transcribe the recording.",
       "grader_failed": "The AI couldn't grade the answer.",
       "internal": "A technical error occurred.",
-      "ai_unavailable": "AI grading is temporarily unavailable. Please record again a little later."
+      "ai_unavailable": "AI grading is temporarily unavailable. Please record again a little later.",
+      "no_speech": "We couldn't hear any speech in the recording. Check your microphone and record again."
     },
     "notGraded": "Not graded",
     "notGradedReason": "Not graded · {{reason}}",
@@ -1213,7 +1231,8 @@
       "cta": "Practise"
     },
     "lede": "In Russian a single sound changes what a word means. These pairs drill exactly that difference.",
-    "dailyLeft": "{{count}} attempts left today",
+    "dailyLeft_one": "{{count}} attempt left today",
+    "dailyLeft_other": "{{count}} attempts left today",
     "budgetSpentShort": "Today's attempts are used up",
     "noPairs": "No pairs have been added yet.",
     "tileProgress": "{{correct}} / {{total}} correct",
@@ -1264,7 +1283,8 @@
     }
   },
   "groupBoard": {
-    "meta": "{{teacher}} · {{count}} students",
+    "meta_one": "{{teacher}} · {{count}} student",
+    "meta_other": "{{teacher}} · {{count}} students",
     "classmates": "CLASSMATES",
     "you": "You",
     "xp": "Group XP",
@@ -1296,7 +1316,8 @@
     "goalMissed": "Goal not reached",
     "turns": "turns",
     "fluency": "fluency",
-    "phrasesLabel": "{{count}} useful phrases",
+    "phrasesLabel_one": "{{count}} useful phrase",
+    "phrasesLabel_other": "{{count}} useful phrases",
     "phrasesLabelShort": "USEFUL PHRASES",
     "retry": "Try again",
     "turnsLeft_one": "{{count}} turn left",
@@ -1307,7 +1328,14 @@
     "turnFailed": "Couldn't send your answer. Try speaking again.",
     "stateDisabled": "AI chat isn't switched on yet. Coming soon.",
     "stateUnconfigured": "The AI isn't connected yet — you can't speak just now. No attempt was used.",
-    "stateBudget": "You've used today's conversation limit. Let's continue tomorrow."
+    "stateBudget": "You've used today's conversation limit. Let's continue tomorrow.",
+    "goals": {
+      "pharmacy": "Find out the dosage",
+      "interview": "Introduce yourself",
+      "doctor": "Explain what's wrong",
+      "taxi": "Give the address",
+      "free": "Talk about anything"
+    }
   },
   "time": {
     "justNow": "just now",
@@ -1581,7 +1609,8 @@
       "notConnectedShort": "not connected",
       "on": "on",
       "off": "off",
-      "duration": "{{days}} days",
+      "duration_one": "{{days}} day",
+      "duration_other": "{{days}} days",
       "edit": "Edit",
       "delete": "Delete",
       "alsoGranted": "Also granted by teacher",
@@ -1712,17 +1741,34 @@
       "stt": "speech recognition",
       "grader": "grading"
     },
-    "aiCalls": "{{calls}} calls · {{failed}} failed",
+    "aiCalls_one": "{{calls}} call · {{failed}} failed",
+    "aiCalls_other": "{{calls}} calls · {{failed}} failed",
     "aiBudgetHint": "Amounts are estimates from configured unit prices, not a vendor invoice. When a cap is reached, new AI work stops until the day (Tashkent midnight) or month resets, or the cap is raised.",
     "aiBudgetInvalid": "Not saved: a cap must be a dollar amount above 0.",
-    "saveAiBudget": "Save AI budget"
+    "saveAiBudget": "Save AI budget",
+    "modelNotes": {
+      "gemini-3_1-flash-lite": "Fast and cheap; ~500 requests/day on the free tier.",
+      "gemini-2_5-flash-lite": "Light and quick; generous free-tier limits.",
+      "gemini-2_5-flash": "Higher quality but only ~20 requests/day free — exhausts quickly.",
+      "gemini-2_0-flash": "Previous-gen flash; solid free-tier limits.",
+      "gemini-1_5-flash": "Legacy fallback; widely available.",
+      "claude-opus-5": "Strongest grading quality; $5/$25 per 1M tokens.",
+      "claude-sonnet-5": "Close to Opus quality, cheaper; $3/$15.",
+      "claude-haiku-4-5": "Fastest and cheapest; $1/$5.",
+      "gpt-4o-mini": "Cheap and fast; good enough for grading.",
+      "gpt-4o": "Stronger, but noticeably more expensive.",
+      "gpt-4_1-mini": "Newer mini generation.",
+      "whisper-1": "The standard transcription model.",
+      "gpt-4o-mini-transcribe": "Newer; does not return word timings."
+    }
   },
   "billing": {
     "title": "Premium",
     "plans": "Plans",
     "included": "What you get",
     "buy": "Buy",
-    "perDays": "for {{days}} days",
+    "perDays_one": "for {{days}} day",
+    "perDays_other": "for {{days}} days",
     "planLabel": "Plan",
     "endsLabel": "Ends",
     "expiredOn": "Your subscription ended on {{date}}.",
@@ -1768,6 +1814,13 @@
       "B1": "intermediate",
       "B2": "upper-intermediate",
       "C1": "advanced"
+    }
+  },
+  "feedbackLang": {
+    "note": {
+      "uz": "This AI feedback was written in Uzbek.",
+      "ru": "This AI feedback was written in Russian.",
+      "en": "This AI feedback was written in English."
     }
   }
 }

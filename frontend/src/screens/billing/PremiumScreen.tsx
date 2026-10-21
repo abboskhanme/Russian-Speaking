@@ -170,7 +170,7 @@ export function PremiumScreen({
                       {formatMinor(plan.priceMinor, plan.currency)}
                     </Text>
                     <Text as="p" variant="body-s" color="muted">
-                      {t("billing.perDays", { days: plan.durationDays })}
+                      {t("billing.perDays", { count: plan.durationDays, days: plan.durationDays })}
                     </Text>
                     {plan.description && (
                       <Text as="p" variant="body" color="ink-soft">
