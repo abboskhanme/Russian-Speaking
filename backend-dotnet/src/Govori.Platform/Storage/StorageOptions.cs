@@ -33,7 +33,12 @@ public sealed class StorageOptions
     /// <summary>Public S3 endpoint presigned URLs are signed for (e.g. <c>http://localhost:9000</c>). Env: <c>S3_PUBLIC_URL</c>.</summary>
     public string PublicUrl { get; set; } = string.Empty;
 
-    /// <summary>Access key. Env: <c>S3_ACCESS_KEY</c>. Never defaulted — must be supplied.</summary>
+    /// <summary>Access key. Env: <c>S3_ACCESS_KEY</c>. Never defaulted — must be supplied.
+    /// The compose files fill it from <c>S3_APP_ACCESS_KEY</c> — the app's own least-privilege MinIO
+    /// user created by <c>minio-init</c>, never the root: this id is printed into every presigned URL,
+    /// so whatever it can do is what a leaked link's key can do. The permissions it holds are exactly
+    /// the calls in <see cref="MinioObjectStorage"/>; a new kind of call (multipart, bucket-level)
+    /// needs the <c>govori-app</c> policy in both compose files widened too, or it 403s.</summary>
     public string AccessKey { get; set; } = string.Empty;
 
     /// <summary>Secret key. Env: <c>S3_SECRET_KEY</c>. Never defaulted — must be supplied.</summary>

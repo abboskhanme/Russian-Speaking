@@ -42,6 +42,7 @@
 #   ENV_FILE       --env-file for that compose     (default: compose's own .env)
 #   DB_SERVICE     postgres service name           (default db)
 #   MINIO_SERVICE  minio service name              (default minio)
+#   MINIO_INIT_SERVICE  re-run after a MinIO restore (default minio-init)
 #   APP_SERVICES   stopped during a restore        (default "api worker")
 #   PG_IMAGE       image used for the scratch DB   (default postgres:16-alpine)
 #
@@ -64,6 +65,7 @@ COMPOSE_FILE="${COMPOSE_FILE:-docker-compose.prod.yml}"
 ENV_FILE="${ENV_FILE:-}"
 DB_SERVICE="${DB_SERVICE:-db}"
 MINIO_SERVICE="${MINIO_SERVICE:-minio}"
+MINIO_INIT_SERVICE="${MINIO_INIT_SERVICE:-minio-init}"
 APP_SERVICES="${APP_SERVICES:-api worker}"
 PG_IMAGE="${PG_IMAGE:-postgres:16-alpine}"
 
@@ -329,6 +331,13 @@ if [[ -n "$MINIO_TGZ" ]]; then
   docker run --rm -i -v "${MINIO_VOL}:/data" alpine sh -c 'tar xzf - -C /data' < "$MINIO_TGZ"
   log "minio volume restored; starting ${MINIO_SERVICE}"
   dc up -d "$MINIO_SERVICE"
+  # The archive carries MinIO's own IAM state (.minio.sys) along with the audio,
+  # so the volume now holds the app user and policy AS THEY WERE at backup time —
+  # possibly older secret, possibly no app user at all if the backup predates it.
+  # The api and worker sign in as that user, so re-assert it from the current .env
+  # before they start; without this they come up healthy and 403 on every object.
+  log "re-applying the app's MinIO user and policy (${MINIO_INIT_SERVICE})"
+  dc run --rm "$MINIO_INIT_SERVICE" || die "${MINIO_INIT_SERVICE} failed after the restore — the api/worker could not reach storage; see its output above"
 fi
 
 psql_t() { dc exec -T "$DB_SERVICE" psql -U "$PGUSER_V" "$@"; }

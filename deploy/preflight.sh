@@ -156,6 +156,32 @@ if [ -f "$ENV_FILE" ]; then
     esac
   done
 
+  # The api/worker sign in as the app's own MinIO user, which minio-init creates
+  # with access to the audio bucket only. Its access key id is printed into every
+  # presigned URL, so if it were the root, the id of a key that can delete the
+  # bucket and add users would be in every browser's history. minio-init refuses
+  # these cases too, but only once the stack is starting; here they cost nothing.
+  AK="$(envval S3_APP_ACCESS_KEY)"; AS="$(envval S3_APP_SECRET_KEY)"
+  RU="$(envval MINIO_ROOT_USER)";   RP="$(envval MINIO_ROOT_PASSWORD)"
+  case "$(printf '%s' "$AK" | tr '[:upper:]' '[:lower:]')" in
+    ""|minioadmin|minio|admin|password|root|changeme)
+      bad "S3_APP_ACCESS_KEY is empty or a stock name — set the app's own MinIO user (e.g. govori-app)" ;;
+    *) if [ "$AK" = "$RU" ]; then
+         bad "S3_APP_ACCESS_KEY equals MINIO_ROOT_USER — the app would sign presigned URLs as the storage root"
+       else ok "S3_APP_ACCESS_KEY is set and is not the root user"
+       fi ;;
+  esac
+  case "$(printf '%s' "$AS" | tr '[:upper:]' '[:lower:]')" in
+    ""|minioadmin|minio|admin|password|root|changeme|govori-app-dev-only)
+      bad "S3_APP_SECRET_KEY is empty, stock or the dev default — generate one: openssl rand -base64 30" ;;
+    *) if [ "$AS" = "$RP" ]; then
+         bad "S3_APP_SECRET_KEY equals MINIO_ROOT_PASSWORD — the app key must not share the root's secret"
+       elif [ "${#AS}" -lt 8 ]; then
+         bad "S3_APP_SECRET_KEY is ${#AS} chars; MinIO rejects a secret under 8 (minio-init would fail)"
+       else ok "S3_APP_SECRET_KEY is ${#AS} chars, not stock and not the root password"
+       fi ;;
+  esac
+
   CORS="$(envval BACKEND_CORS_ORIGINS)"
   case "$CORS" in
     "")  ok "BACKEND_CORS_ORIGINS is empty (correct: the SPA and API share one origin)" ;;

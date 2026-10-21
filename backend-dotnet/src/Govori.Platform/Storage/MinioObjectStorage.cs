@@ -15,6 +15,11 @@ namespace Govori.Platform.Storage;
 ///   * <see cref="_public"/> — signed for the public host (<c>S3_PUBLIC_URL</c>); used ONLY
 ///     to mint presigned URLs so the SigV4 signature is valid for the host the browser hits.
 /// This is not a URL string-rewrite — the SDK signs each URL for its own client's ServiceURL.
+///
+/// LEAST PRIVILEGE: both clients sign as the app's own MinIO user, whose <c>govori-app</c> policy
+/// (minio-init in docker-compose*.yml) allows exactly what this class calls — Get/Head, single-part
+/// Put, Delete, ListObjectsV2 — on the one bucket. Adding a call outside that set (multipart upload,
+/// copy, bucket-level ops) means widening that policy as well, or it fails with 403 in every stack.
 /// </summary>
 public sealed class MinioObjectStorage : IObjectStorage, IDisposable
 {
