@@ -477,13 +477,14 @@ public sealed class EngagementService
             })
             .FirstOrDefaultAsync(ct);
 
-        // Fixed order, always all four; a null (no scores) mean reads 0.
+        // Fixed order, always all four; a null (no scores) mean reads 0 with Scored = false, so the
+        // UI can say "no data yet" rather than print a zero the student never earned.
         var skills = new List<ProgressSkillResponse>
         {
-            new("fluency", Score0To100(agg?.Fluency)),
-            new("pronunciation", Score0To100(agg?.Pronunciation)),
-            new("lexical", Score0To100(agg?.Lexical)),
-            new("grammar", Score0To100(agg?.Grammar)),
+            new("fluency", Score0To100(agg?.Fluency), agg?.Fluency is not null),
+            new("pronunciation", Score0To100(agg?.Pronunciation), agg?.Pronunciation is not null),
+            new("lexical", Score0To100(agg?.Lexical), agg?.Lexical is not null),
+            new("grammar", Score0To100(agg?.Grammar), agg?.Grammar is not null),
         };
 
         // Band to 1dp; the level is derived from that SAME rounded value so the badge never disagrees

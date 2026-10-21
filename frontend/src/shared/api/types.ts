@@ -404,6 +404,9 @@ export interface LeaderboardEntryResponse {
 export interface ProgressSkill {
   key: string;
   score: number;
+  /** False when the caller has no score at all for this skill — the 0 above is
+   * then "no data", and the UI prints "—" instead of a zero. */
+  scored: boolean;
 }
 
 /** One weekly average of the caller's OverallBand, for the band-trend sparkline.
@@ -492,6 +495,14 @@ export interface ProfileStatsResponse {
    * "Bugungi N daqiqa" progress and the "Bu hafta" tile. Append-only. */
   today_practice_sec: number;
   week_practice_sec: number;
+  /** The last seven product days, oldest first and TODAY LAST — true when the
+   * student earned an XP event that day (the event the streak counts). Append-only. */
+  active_days: boolean[] | null;
+  /** Lifetime XP placed on the shared level curve: the level, the XP at which it
+   * began and the XP at which the next one begins. */
+  xp_level: number;
+  xp_level_start: number;
+  xp_next_level: number;
 }
 
 /** Direction of a result versus the chronologically previous graded attempt.

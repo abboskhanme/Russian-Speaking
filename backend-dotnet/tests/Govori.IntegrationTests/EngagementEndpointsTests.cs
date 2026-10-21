@@ -345,6 +345,8 @@ public sealed class EngagementEndpointsTests : IClassFixture<EngagementEndpoints
                     skills.Select(s => s.GetProperty("key").GetString()).ToArray());
                 Assert.Equal(70, skills[0].GetProperty("score").GetInt32());   // (80+60)/2
                 Assert.Equal(0, skills[1].GetProperty("score").GetInt32());    // pronunciation all-null → 0
+                Assert.False(skills[1].GetProperty("scored").GetBoolean());     // …and says it has no data
+                Assert.True(skills[0].GetProperty("scored").GetBoolean());
                 Assert.Equal(70, skills[2].GetProperty("score").GetInt32());   // (60+80)/2
                 Assert.Equal(60, skills[3].GetProperty("score").GetInt32());   // (70+50)/2
 
@@ -373,6 +375,7 @@ public sealed class EngagementEndpointsTests : IClassFixture<EngagementEndpoints
                 Assert.Equal(new[] { "fluency", "pronunciation", "lexical", "grammar" },
                     skills.Select(s => s.GetProperty("key").GetString()).ToArray());
                 Assert.All(skills, s => Assert.Equal(0, s.GetProperty("score").GetInt32()));
+                Assert.All(skills, s => Assert.False(s.GetProperty("scored").GetBoolean()));
                 Assert.Equal(JsonValueKind.Null, root.GetProperty("level").ValueKind);
                 Assert.Equal(JsonValueKind.Null, root.GetProperty("band").ValueKind);
                 Assert.Equal(JsonValueKind.Null, root.GetProperty("band_delta").ValueKind);
@@ -1055,6 +1058,15 @@ public sealed class EngagementEndpointsTests : IClassFixture<EngagementEndpoints
             {
                 Assert.Equal(0, doc.RootElement.GetProperty("current_streak").GetInt32());
                 Assert.Equal(9, doc.RootElement.GetProperty("longest_streak").GetInt32());
+                // The Home strip: seven days, none lit (no XP event this week), and the huge XP
+                // total placed on the level curve.
+                var days = doc.RootElement.GetProperty("active_days").EnumerateArray().Select(d => d.GetBoolean()).ToList();
+                Assert.Equal(7, days.Count);
+                Assert.DoesNotContain(true, days);
+                var (lvl, start, next) = Govori.Contracts.XpLevels.For(9_000_000);
+                Assert.Equal(lvl, doc.RootElement.GetProperty("xp_level").GetInt32());
+                Assert.Equal(start, doc.RootElement.GetProperty("xp_level_start").GetInt32());
+                Assert.Equal(next, doc.RootElement.GetProperty("xp_next_level").GetInt32());
             }
 
             // Nothing was written by reading: the columns and — above all — the freezes are intact.

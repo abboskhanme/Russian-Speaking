@@ -28,8 +28,12 @@ namespace Govori.Contracts;
 /// <c>Score</c> the caller's mean for that skill rounded to a whole 0..100. The four are ALWAYS
 /// returned in that fixed order; a skill with no scores (e.g. pronunciation, which is nullable in the
 /// DB and often absent) reads <c>0</c>, so the bar renders empty rather than missing.
+///
+/// <para><c>Scored</c> (APPEND-ONLY) tells that "no scores" 0 apart from a real mean of 0: it is
+/// <c>false</c> exactly when the caller has no score at all for this skill, so the UI can print "—"
+/// instead of claiming a zero the student never earned.</para>
 /// </summary>
-public sealed record ProgressSkillResponse(string Key, int Score);
+public sealed record ProgressSkillResponse(string Key, int Score, bool Scored);
 
 /// <summary>
 /// One point of the band trend line — <c>Band</c> is a weekly average <c>Evaluation.OverallBand</c>
