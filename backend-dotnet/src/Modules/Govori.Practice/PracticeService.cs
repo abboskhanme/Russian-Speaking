@@ -64,6 +64,14 @@ public sealed class PracticeService
         _ => "webm",
     };
 
+    // What MediaRecorder produces across browsers: audio/webm (Chrome, Android), audio/ogg
+    // (Firefox), audio/mp4 (Safari, iOS), plus the containers some recorders label as video when
+    // the stream is audio-only. Any audio/* is accepted rather than an exact list, because a
+    // browser never renders an audio type as a document — the danger is text/html, SVG and XML,
+    // and no recording legitimately arrives as one of those.
+    private static bool IsRecordingType(string essence)
+        => essence.StartsWith("audio/", StringComparison.Ordinal) || essence is "video/webm" or "video/mp4";
+
     /// <summary>
     /// Submit an audio answer. The guard ORDER is load-bearing and must not be rearranged:
     /// 404 (no question, or a soft-deleted one) → [non-admin] 403 (unpublished, or not reachable) →
@@ -86,6 +94,14 @@ public sealed class PracticeService
         var student = await _db.Users.FirstOrDefaultAsync(u => u.Id == userId, ct);
         if (student is null || !student.IsActive)
             return new SubmitResult(SubmitStatus.Unauthorized);
+
+        // The stored object's Content-Type is the one the CLIENT declared, and prod serves the
+        // bucket from the app's own origin — so `text/html` or `image/svg+xml` here was a stored
+        // XSS: upload a page as an "answer", send the presigned link to a teacher, read their
+        // token out of localStorage. Only media types a browser plays rather than renders are
+        // kept. Checked first: it is a malformed request, whatever the task's state.
+        if (!IsRecordingType(ContentTypes.Essence(audio.ContentType)))
+            return new SubmitResult(SubmitStatus.UnsupportedMediaType);
 
         var question = await _db.Questions.FirstOrDefaultAsync(q => q.Id == audio.QuestionId, ct);
         if (question is null || question.IsDeleted)                         // soft-deleted ⇒ gone, for everyone
@@ -600,7 +616,7 @@ public sealed record SubmitAudio(Guid QuestionId, Stream Content, string Content
 /// <summary>Outcome of <see cref="PracticeService.SubmitAsync"/> — the service owns the status decision (§7.2).
 /// <c>AttemptsExhausted</c> is separate from <c>Forbidden</c> because it is the one refusal here that
 /// is not about permission: the task IS the student's, they have simply spent its budget.</summary>
-public enum SubmitStatus { Ok, Unauthorized, QuestionNotFound, Forbidden, PaymentRequired, AttemptsExhausted, SequenceLocked }
+public enum SubmitStatus { Ok, Unauthorized, QuestionNotFound, Forbidden, PaymentRequired, AttemptsExhausted, SequenceLocked, UnsupportedMediaType }
 
 /// <summary><paramref name="Detail"/> carries a message the endpoint can pass through verbatim, for
 /// the refusals whose specifics (a limit, a count) the endpoint has no way to know.</summary>

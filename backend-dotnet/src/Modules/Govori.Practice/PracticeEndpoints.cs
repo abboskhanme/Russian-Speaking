@@ -36,7 +36,7 @@ public static class PracticeEndpoints
 
         // POST /api/submissions — submit an audio answer (multipart/form-data: question_id, audio
         // file, optional audio_duration_sec / content_type). → 201 SubmissionResponse, 400 (bad
-        // form), 404 (no question), 403 (not reachable), 402 (freemium gate).
+        // form), 415 (not an audio type), 404 (no question), 403 (not reachable), 402 (freemium gate).
         // The form is read manually (not via IFormFile binding) to sidestep the antiforgery
         // middleware that form-binding minimal APIs require.
         submissions.MapPost("", async (HttpRequest request, ClaimsPrincipal principal, PracticeService svc, CancellationToken ct) =>
@@ -75,6 +75,9 @@ public static class PracticeEndpoints
                     result.Detail ?? "No attempts left for this task.", StatusCodes.Status403Forbidden),
                 // 403 like the rest: this answer is refused. Unlike them it CAN change — by answering
                 // the task before it — which the detail says; the SPA shows that before recording.
+                SubmitStatus.UnsupportedMediaType => Detail(
+                    "audio must be an audio recording (audio/webm, audio/ogg, audio/mp4, …)",
+                    StatusCodes.Status415UnsupportedMediaType),
                 SubmitStatus.SequenceLocked => Detail(
                     result.Detail ?? "Finish the previous task in this module first.", StatusCodes.Status403Forbidden),
                 _ => Results.Json(result.Submission, statusCode: StatusCodes.Status201Created),

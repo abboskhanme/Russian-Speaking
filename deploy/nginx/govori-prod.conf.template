@@ -87,10 +87,10 @@ server {
     # `always` matters: without it nginx omits these on 4xx/5xx, i.e. exactly the
     # responses an attacker is trying to provoke.
     #
-    # THEY ARE REPEATED IN TWO LOCATIONS BELOW ON PURPOSE. nginx's add_header does
+    # THEY ARE REPEATED IN THREE LOCATIONS BELOW ON PURPOSE. nginx's add_header does
     # not merge: the moment a location declares one add_header of its own, it
-    # inherits NONE of the server-level ones. So the two locations that need their
-    # own Cache-Control (/assets/ and the SPA fallback) would silently serve every
+    # inherits NONE of the server-level ones. So the bucket location (its own CSP) and
+    # the two that need their own Cache-Control (/assets/ and the SPA fallback) would silently serve every
     # page and every script with no nosniff, no HSTS and no frame protection —
     # which is most of the traffic, and nothing anywhere reports it.
     #
@@ -195,6 +195,21 @@ server {
         client_max_body_size 200m;
         proxy_read_timeout 300s;
         proxy_send_timeout 300s;
+
+        # Whatever is in the bucket must never run as a page on THIS origin. Objects are
+        # served from the app's own domain (see above), and the app keeps its tokens in
+        # localStorage — so an object stored as text/html or image/svg+xml would be a
+        # stored XSS with the session of whoever opened the link. The api allow-lists what
+        # it stores (PracticeService, CatalogService, AuthService); `sandbox` is the second
+        # wall: even a document that got in anyway renders in an opaque origin with no
+        # scripts. It changes nothing for <audio>/<img>/<video>, which ignore a resource's
+        # CSP. The server-level headers are repeated because add_header here drops them.
+        add_header Content-Security-Policy   "sandbox; default-src 'none'" always;
+        add_header Strict-Transport-Security "max-age=${GOVORI_HSTS_MAX_AGE}; includeSubDomains" always;
+        add_header X-Content-Type-Options    "nosniff" always;
+        add_header X-Frame-Options           "SAMEORIGIN" always;
+        add_header Referrer-Policy           "strict-origin-when-cross-origin" always;
+        add_header Permissions-Policy        "microphone=(self), camera=(), geolocation=(), payment=()" always;
     }
 
     # ── Static assets ────────────────────────────────────────────────────────
