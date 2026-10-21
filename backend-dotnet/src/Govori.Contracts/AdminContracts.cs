@@ -286,6 +286,25 @@ public sealed record AdminStatsResponse(
     /// saw an error instead of a score.</summary>
     int FailedSubmissions = 0);
 
+/// <summary>
+/// GET /api/admin/stats/activity — the admin dashboard's trend layer: one row per product day
+/// (<see cref="ProductDay"/>, Tashkent midnight), oldest first, ending today. Always exactly
+/// <c>days</c> rows (an empty day is zeros, never missing) so sparklines have a fixed x-axis and the
+/// client can compare the last 7 days with the 7 before them.
+/// </summary>
+public sealed record AdminActivityResponse(IReadOnlyList<AdminActivityDay> Days);
+
+/// <summary>One product day. Answers are counted by the day they were SUBMITTED; <c>Graded</c> and
+/// <c>Failed</c> are how those same answers stand now. <c>AiCostUsd</c> is the ledger's estimate.</summary>
+public sealed record AdminActivityDay(
+    DateOnly Date,
+    int Submissions,
+    int Graded,
+    int Failed,
+    int ActiveStudents,
+    int NewStudents,
+    double AiCostUsd);
+
 /// <summary>A teacher row with their authored-question count (soft-deleted tasks excluded).</summary>
 public sealed record TeacherResponse(
     Guid Id,

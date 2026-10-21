@@ -3,6 +3,7 @@ using Govori.Catalog;
 using Govori.Contracts;
 using Govori.Infrastructure;
 using Govori.Infrastructure.Entities;
+using Govori.Platform.Ai;
 using Govori.Platform.Storage;
 using Microsoft.EntityFrameworkCore;
 
@@ -35,19 +36,22 @@ public sealed class PracticeService
     private readonly CatalogService _catalog;
     private readonly IGradingQueue _grading;
     private readonly IClassroomNotifier _notifier;
+    private readonly IAiBudget? _budget;
 
     // The notifier is OPTIONAL (default: a no-op) so a service constructed directly keeps compiling;
     // the host injects Engagement's implementation. It only ever tells a student their attempt was
-    // reviewed — see ReviewAsync.
+    // reviewed — see ReviewAsync. The AI budget is optional for the same reason; only the regrade
+    // consults it (a fresh submit is checked by the pipeline itself).
     public PracticeService(
         GovoriDbContext db, IObjectStorage storage, CatalogService catalog, IGradingQueue grading,
-        IClassroomNotifier? notifier = null)
+        IClassroomNotifier? notifier = null, IAiBudget? budget = null)
     {
         _db = db;
         _storage = storage;
         _catalog = catalog;
         _grading = grading;
         _notifier = notifier ?? new NullClassroomNotifier();
+        _budget = budget;
     }
 
     // Storage-key extension for a recorded answer's content type; anything unknown → "webm". The
@@ -223,7 +227,7 @@ public sealed class PracticeService
     /// </summary>
     public async Task<IReadOnlyList<SubmissionResponse>?> ListAsync(
         Guid userId, Guid? questionId, int limit, int offset, CancellationToken ct = default,
-        Guid? studentId = null, bool? needsReview = null)
+        Guid? studentId = null, bool? needsReview = null, SubmissionStatus? status = null)
     {
         var user = await _db.Users.FirstOrDefaultAsync(u => u.Id == userId, ct);
         if (user is null || !user.IsActive)
@@ -256,6 +260,11 @@ public sealed class PracticeService
         // asks them to judge an attempt that was never scored.
         if (needsReview == true)
             query = query.Where(NeedsReview);
+
+        // ?status — a narrowing filter like the rest; the admin dashboard's "N answers failed to
+        // grade" row lists exactly the failed ones from here.
+        if (status is SubmissionStatus wanted)
+            query = query.Where(s => s.Status == wanted);
 
         var rows = await query
             .Include(s => s.Student)
@@ -386,7 +395,8 @@ public sealed class PracticeService
             TeacherComment: sub.TeacherComment,
             ReviewedAt: sub.ReviewedAt,
             Words: ParseWords(sub.Transcript?.WordTimestamps),
-            StudentName: sub.Student?.FullName);
+            StudentName: sub.Student?.FullName,
+            ErrorMessage: sub.Status == SubmissionStatus.Failed ? sub.ErrorMessage : null);
 
         return new AttemptDetailResult(GetStatus.Ok, detail);
     }
@@ -508,6 +518,94 @@ public sealed class PracticeService
             await _notifier.SendBestEffortAsync(n => n.ReviewSavedAsync(sub.Id, ct), ct);
 
         return new ReviewResult(ReviewStatus.Ok);
+    }
+
+    /// <summary>
+    /// POST /submissions/{id}/regrade — put a FAILED attempt back through the grading pipeline.
+    ///
+    /// <para><b>Why it exists.</b> Every grading failure is terminal (see AssessmentService): a vendor
+    /// outage, the sweeper's timeout or a closed AI budget left the student with "not graded" and no
+    /// way forward but recording again — and an `ai_unavailable` attempt was failed precisely so it
+    /// could be retried once the budget reopens.</para>
+    ///
+    /// <para><b>Who.</b> The owner, a teacher whose roster holds the student, or an admin — the same
+    /// people who can see it; anyone else gets 404 (existence is never leaked).</para>
+    ///
+    /// <para><b>What it costs.</b> Nothing new is recorded: the SAME row is reset to <c>pending</c> and
+    /// re-enqueued, and a persisted transcript is reused, so STT is not billed twice. The attempt was
+    /// already one try; a regrade does not add another. But a failed row is refunded from the
+    /// attempt budget, and a regraded one would count again — so when the assignment's budget is
+    /// already spent by other answers the regrade is refused (<c>attempts_exhausted</c>) rather than
+    /// letting the student exceed it. The freemium gate is re-applied (a lapsed premium must not buy
+    /// a free grader call), and the AI budget is checked up front so a closed budget answers 503
+    /// immediately instead of failing the row again.</para>
+    ///
+    /// <para><b>Races.</b> The reset is one conditional UPDATE (<c>status = failed</c> → <c>pending</c>),
+    /// so two taps enqueue one job; the loser gets <c>not_failed</c>.</para>
+    /// </summary>
+    public async Task<RegradeResult> RegradeAsync(Guid userId, Guid submissionId, CancellationToken ct = default)
+    {
+        var user = await _db.Users.FirstOrDefaultAsync(u => u.Id == userId, ct);
+        if (user is null || !user.IsActive) return new RegradeResult(RegradeStatus.Unauthorized);
+
+        var sub = await _db.Submissions
+            .Include(s => s.Student)
+            .Include(s => s.Question)
+            .FirstOrDefaultAsync(s => s.Id == submissionId, ct);
+        if (sub is null || !await TeacherScope.CanSeeAsync(_db, user, sub, ct))
+            return new RegradeResult(RegradeStatus.NotFound);
+
+        if (sub.Status != SubmissionStatus.Failed)
+            return RegradeResult.Refused(RegradeStatus.Conflict, RegradeErrorCodes.NotFailed,
+                "Only an attempt whose grading failed can be graded again.");
+        if (sub.AudioDeletedAt is not null
+            && !await _db.Transcripts.AnyAsync(t => t.SubmissionId == sub.Id, ct))
+            return RegradeResult.Refused(RegradeStatus.Conflict, RegradeErrorCodes.AudioExpired,
+                "The recording is no longer stored; record the answer again.");
+
+        if (sub.AssignmentId is Guid assignmentId)
+        {
+            var limit = await _db.Assignments.Where(a => a.Id == assignmentId)
+                .Select(a => a.MaxAttempts).FirstOrDefaultAsync(ct);
+            if (limit is int max)
+            {
+                var used = await _db.Submissions.CountAsync(
+                    s => s.AssignmentId == assignmentId && s.Status != SubmissionStatus.Failed, ct);
+                if (used >= max)
+                    return RegradeResult.Refused(RegradeStatus.Conflict, RegradeErrorCodes.AttemptsExhausted,
+                        $"All {max} attempts for this task have been used.");
+            }
+        }
+
+        // The freemium gate, for a student's own answer outside an assignment — the rule submit uses.
+        if (sub.Student is { Role: UserRole.Student } owner && sub.AssignmentId is null
+            && sub.Question is not null && await _catalog.NeedsPremiumAsync(owner, sub.Question, ct))
+            return RegradeResult.Refused(RegradeStatus.PaymentRequired, RegradeErrorCodes.PaymentRequired,
+                "This task needs premium.");
+
+        if (_budget is not null && !(await _budget.CheckAsync(ct)).IsOpen)
+            return RegradeResult.Refused(RegradeStatus.Unavailable, RegradeErrorCodes.AiUnavailable,
+                "AI grading is not available right now. Try again later.");
+
+        var now = DateTime.UtcNow;
+        var reset = await _db.Submissions
+            .Where(s => s.Id == sub.Id && s.Status == SubmissionStatus.Failed)
+            .ExecuteUpdateAsync(set => set
+                .SetProperty(s => s.Status, SubmissionStatus.Pending)
+                .SetProperty(s => s.ErrorMessage, (string?)null)
+                .SetProperty(s => s.UpdatedAt, now), ct);
+        if (reset == 0)
+            return RegradeResult.Refused(RegradeStatus.Conflict, RegradeErrorCodes.NotFailed,
+                "Only an attempt whose grading failed can be graded again.");
+
+        await _grading.EnqueueAsync(sub.Id, ct);
+
+        // Re-read: the inline queue (tests, GOVORI_HANGFIRE=false) may already have graded it.
+        var fresh = await _db.Submissions.AsNoTracking()
+            .Include(s => s.Student).Include(s => s.Question).Include(s => s.Evaluation)
+            .FirstAsync(s => s.Id == sub.Id, ct);
+        return new RegradeResult(RegradeStatus.Ok,
+            await ToResponseAsync(fresh, fresh.Student, fresh.Question, ct));
     }
 
     /// <summary>
@@ -638,6 +736,16 @@ public sealed record ReviewResult(ReviewStatus Status, string? Code = null, stri
 }
 
 public sealed record GetResult(GetStatus Status, SubmissionResponse? Submission = null);
+
+/// <summary>Outcome of <see cref="PracticeService.RegradeAsync"/>.</summary>
+public enum RegradeStatus { Ok, Unauthorized, NotFound, Conflict, PaymentRequired, Unavailable }
+
+/// <summary>A regrade outcome; refusals carry a <see cref="RegradeErrorCodes">code</see> + detail.</summary>
+public sealed record RegradeResult(
+    RegradeStatus Status, SubmissionResponse? Submission = null, string? Code = null, string? Detail = null)
+{
+    public static RegradeResult Refused(RegradeStatus status, string code, string detail) => new(status, null, code, detail);
+}
 
 /// <summary>Outcome of <see cref="PracticeService.GetDetailAsync"/> (reuses <see cref="GetStatus"/>).</summary>
 public sealed record AttemptDetailResult(GetStatus Status, AttemptDetailResponse? Detail = null);

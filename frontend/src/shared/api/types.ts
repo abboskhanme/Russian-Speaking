@@ -344,6 +344,9 @@ export interface AttemptDetailResponse {
    * identify it — this DTO was written for the student's own result screen, where
    * their own name would be redundant. */
   student_name: string | null;
+  /** On a FAILED attempt, the pipeline's error code (`ai_unavailable`,
+   * `grading_timeout`, …); null otherwise. Optional: an older API image omits it. */
+  error_message?: string | null;
 }
 
 /** One transcript word with its pronunciation accuracy. */
@@ -1242,6 +1245,36 @@ export interface AdminStatsResponse {
    * a failure out. */
   failed_submissions: number;
 }
+
+/** GET /api/admin/stats/activity → 14 product days (Tashkent), oldest first,
+ * ending today; an empty day is zeros, never missing. Drives the dashboard's
+ * week-over-week deltas and sparklines. */
+export interface AdminActivityResponse {
+  days: AdminActivityDay[];
+}
+
+/** One product day. Answers are bucketed by the day they were SUBMITTED;
+ * `graded` / `failed` are how those answers stand now. `ai_cost_usd` is the
+ * AI ledger's estimate for that day. */
+export interface AdminActivityDay {
+  date: string;
+  submissions: number;
+  graded: number;
+  failed: number;
+  active_students: number;
+  new_students: number;
+  ai_cost_usd: number;
+}
+
+/** POST /api/submissions/{id}/regrade refusal codes (in a {@link CodedErrorResponse}):
+ * 409 not_failed | audio_expired | attempts_exhausted · 402 payment_required ·
+ * 503 ai_unavailable. */
+export type RegradeErrorCode =
+  | "not_failed"
+  | "audio_expired"
+  | "attempts_exhausted"
+  | "payment_required"
+  | "ai_unavailable";
 
 /** GET /api/admin/teachers (?search) → one row per teacher. `?search=` matches the
  * name, the email AND the phone digits. */

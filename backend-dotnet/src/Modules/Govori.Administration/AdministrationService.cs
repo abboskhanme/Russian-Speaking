@@ -105,6 +105,59 @@ public sealed class AdministrationService
         return AdminResult<AdminStatsResponse>.Ok(stats);
     }
 
+    /// <summary>Days the activity series covers: two comparable weeks (this one and the one before).</summary>
+    public const int ActivityDays = 14;
+
+    /// <summary>
+    /// GET /api/admin/stats/activity — per-product-day series for the dashboard's trend deltas and
+    /// sparklines. Three bounded queries (the window's submissions as narrow tuples, the window's new
+    /// students, the window's AI-ledger rows), bucketed in memory — no per-day round trips.
+    /// </summary>
+    public async Task<AdminResult<AdminActivityResponse>> ActivityAsync(
+        Guid userId, DateTime? utcNow = null, CancellationToken ct = default)
+    {
+        var gate = await CheckAdminAsync(userId, ct);
+        if (gate != AdminOutcome.Ok) return AdminResult<AdminActivityResponse>.From(gate);
+
+        var now = utcNow ?? DateTime.UtcNow;
+        var today = ProductDay.Today(now);
+        var first = today.AddDays(-(ActivityDays - 1));
+        var since = ProductDay.StartUtc(first);
+
+        var subs = await _db.Submissions.AsNoTracking()
+            .Where(s => s.CreatedAt >= since)
+            .Select(s => new { s.CreatedAt, s.Status, s.StudentId })
+            .ToListAsync(ct);
+        var joined = await _db.Users.AsNoTracking()
+            .Where(u => u.Role == UserRole.Student && u.CreatedAt >= since)
+            .Select(u => u.CreatedAt)
+            .ToListAsync(ct);
+        var spend = await _db.AiSpendDaily.AsNoTracking()
+            .Where(r => r.Day >= first && r.Day <= today)
+            .GroupBy(r => r.Day)
+            .Select(g => new { Day = g.Key, Cost = g.Sum(r => r.CostUsd) })
+            .ToListAsync(ct);
+
+        var subsByDay = subs.ToLookup(s => ProductDay.Of(s.CreatedAt));
+        var joinedByDay = joined.GroupBy(ProductDay.Of).ToDictionary(g => g.Key, g => g.Count());
+        var spendByDay = spend.ToDictionary(r => r.Day, r => r.Cost);
+
+        var days = new List<AdminActivityDay>(ActivityDays);
+        for (var d = first; d <= today; d = d.AddDays(1))
+        {
+            var rows = subsByDay[d].ToList();
+            days.Add(new AdminActivityDay(
+                d,
+                rows.Count,
+                rows.Count(r => r.Status == SubmissionStatus.Done),
+                rows.Count(r => r.Status == SubmissionStatus.Failed),
+                rows.Select(r => r.StudentId).Distinct().Count(),
+                joinedByDay.GetValueOrDefault(d, 0),
+                (double)Math.Round(spendByDay.GetValueOrDefault(d, 0m), 4)));
+        }
+        return AdminResult<AdminActivityResponse>.Ok(new AdminActivityResponse(days));
+    }
+
     // ─── Teachers ────────────────────────────────────────────────────────────
 
     public async Task<AdminResult<IReadOnlyList<TeacherResponse>>> ListTeachersAsync(

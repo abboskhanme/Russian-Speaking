@@ -1,6 +1,7 @@
 using System.Globalization;
 using System.Security.Claims;
 using Govori.Contracts;
+using Govori.Infrastructure.Entities;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
@@ -96,13 +97,22 @@ public static class PracticeEndpoints
         // scope — none can widen it (see ListAsync).
         submissions.MapGet("", async (
             ClaimsPrincipal principal, PracticeService svc,
-            Guid? question_id, Guid? student_id, bool? needs_review,
+            Guid? question_id, Guid? student_id, bool? needs_review, string? status,
             int? limit, int? offset, CancellationToken ct) =>
         {
             if (!TryGetUserId(principal, out var userId))
                 return Results.Unauthorized();
+            // ?status=pending|processing|done|failed — an unknown value is a 400, not "no filter".
+            SubmissionStatus? statusFilter = null;
+            if (!string.IsNullOrEmpty(status))
+            {
+                if (!Enum.TryParse<SubmissionStatus>(status, ignoreCase: true, out var parsed)
+                    || !Enum.IsDefined(parsed) || int.TryParse(status, out _))
+                    return Detail("status must be one of pending, processing, done, failed", StatusCodes.Status400BadRequest);
+                statusFilter = parsed;
+            }
             var list = await svc.ListAsync(
-                userId, question_id, limit ?? 100, offset ?? 0, ct, student_id, needs_review);
+                userId, question_id, limit ?? 100, offset ?? 0, ct, student_id, needs_review, statusFilter);
             return list is null ? Results.Unauthorized() : Results.Ok(list);
         }).RequireAuthorization();
 
@@ -170,6 +180,30 @@ public static class PracticeEndpoints
                 _ => Results.StatusCode(StatusCodes.Status500InternalServerError),
             };
         }).RequireAuthorization();
+
+        // POST /api/submissions/{id}/regrade — retry a FAILED attempt's grading on the same row (no new
+        // recording, no extra attempt). → 202 SubmissionResponse (now pending); 404 not visible;
+        // 409 { code: not_failed | audio_expired | attempts_exhausted }; 402 { code: payment_required };
+        // 503 { code: ai_unavailable }. Rate-limited with submit: it spends the same AI money.
+        submissions.MapPost("/{id:guid}/regrade", async (Guid id, ClaimsPrincipal principal, PracticeService svc, CancellationToken ct) =>
+        {
+            if (!TryGetUserId(principal, out var userId))
+                return Results.Unauthorized();
+            var r = await svc.RegradeAsync(userId, id, ct);
+            return r.Status switch
+            {
+                RegradeStatus.Ok => Results.Json(r.Submission, statusCode: StatusCodes.Status202Accepted),
+                RegradeStatus.Unauthorized => Results.Unauthorized(),
+                RegradeStatus.NotFound => Detail("Submission not found", StatusCodes.Status404NotFound),
+                RegradeStatus.Conflict => Coded(r, StatusCodes.Status409Conflict),
+                RegradeStatus.PaymentRequired => Coded(r, StatusCodes.Status402PaymentRequired),
+                RegradeStatus.Unavailable => Coded(r, StatusCodes.Status503ServiceUnavailable),
+                _ => Results.StatusCode(StatusCodes.Status500InternalServerError),
+            };
+
+            static IResult Coded(RegradeResult r, int code)
+                => Results.Json(new CodedErrorResponse(r.Detail ?? "Refused", r.Code ?? RegradeErrorCodes.NotFailed), statusCode: code);
+        }).RequireAuthorization().RequireRateLimiting(RateLimitPolicyNames.SubmitAudio);
 
         // F1 · Roleplay / AI Suhbat (docs/08 Faza 6.5) mounts here rather than from the composition
         // root: it is this module's own surface, and where a module's routes live is the module's

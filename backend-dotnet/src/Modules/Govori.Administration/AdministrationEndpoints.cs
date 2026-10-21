@@ -53,6 +53,14 @@ public static class AdministrationEndpoints
             return Map(await svc.StatsAsync(uid, ct), StatusCodes.Status200OK);
         }).RequireAuthorization();
 
+        // GET /api/admin/stats/activity — 14 product days of answers / graded / failed / active and
+        // new students / AI spend, oldest first: the dashboard's deltas and sparklines.
+        admin.MapGet("/stats/activity", async (ClaimsPrincipal p, AdministrationService svc, CancellationToken ct) =>
+        {
+            if (!TryGetUserId(p, out var uid)) return Results.Unauthorized();
+            return Map(await svc.ActivityAsync(uid, null, ct), StatusCodes.Status200OK);
+        }).RequireAuthorization();
+
         // GET /api/admin/teachers[?search] — teacher list, each with its question count and phone.
         // `search` matches name/email, and the phone too once it holds 3+ digits.
         admin.MapGet("/teachers", async (string? search, ClaimsPrincipal p, AdministrationService svc, CancellationToken ct) =>
