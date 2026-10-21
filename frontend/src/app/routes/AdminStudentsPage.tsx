@@ -20,14 +20,16 @@ import { endpoints } from "../../shared/api";
 import type { AdminStudentResponse } from "../../shared/api";
 import { PageError, PageLoading } from "../PageState";
 import { useAdminNavHandler } from "../nav";
-import { newestFirst, useRelativeLabel } from "./adminPeople";
+import { useDateFormat } from "../../shared/format";
+import { newestFirst } from "./adminPeople";
 
 const SEARCH_DEBOUNCE_MS = 250;
 
 export default function AdminStudentsPage() {
   const onNavigate = useAdminNavHandler();
   const { t } = useTranslation();
-  const when = useRelativeLabel();
+  // "2 soat oldin" / "kecha" for a table cell — the shared relative format.
+  const when = useDateFormat().relative;
 
   const [rows, setRows] = useState<AdminStudentResponse[]>([]);
   const [term, setTerm] = useState("");

@@ -4,11 +4,9 @@
  * These are the app's only pure logic of any size, and two of them guard bugs
  * that reached users: `parseFeedback` / `parseCorrections` exist because the
  * `evaluations.feedback` column holds a serialised `GraderResult`, and rendering
- * it raw put a JSON blob on the student's result screen. `relativeTime` and
- * `dateParts` exist because Chromium ships a REDUCED ICU with no Uzbek data, so
- * anything built on `Intl` looks correct in Node and renders `"2026 M07"` in the
- * browser — a test that used `Intl` to compute its own expectation would agree
- * with the bug. Every expectation below is therefore a literal.
+ * it raw put a JSON blob on the student's result screen. (The date helpers that
+ * used to live here moved to `shared/format/date` and are tested there.) Every
+ * expectation below is a literal.
  */
 import { describe, expect, it } from "vitest";
 import type {
@@ -18,9 +16,7 @@ import type {
 } from "../shared/api";
 import {
   clampPct,
-  dateParts,
   firstName,
-  formatDayMonth,
   gradingFailureKey,
   moduleProgressPct,
   myLeaderboardRow,
@@ -29,16 +25,7 @@ import {
   isPlaceholderItem,
   nextOpenTarget,
   pickPracticeTarget,
-  relativeTime,
 } from "./adapters";
-import enCommon from "../locales/en/common.json";
-import ruCommon from "../locales/ru/common.json";
-import uzCommon from "../locales/uz/common.json";
-
-/** Fixed clock, so "2 soat oldin" means the same thing in CI as it does here. */
-const NOW = new Date("2026-07-30T21:00:00Z");
-/** `n` seconds before {@link NOW}, as the ISO string the API would send. */
-const ago = (seconds: number) => new Date(NOW.getTime() - seconds * 1000).toISOString();
 
 // Fully-typed fixtures rather than `as` casts: if a wire field is renamed in
 // shared/api/types.ts, these stop compiling, which is the point.
@@ -100,83 +87,6 @@ describe("firstName", () => {
     // would render the literal text "undefined" next to "Salom,".
     expect(firstName("")).toBe("");
     expect(firstName("   ")).toBe("");
-  });
-});
-
-describe("relativeTime", () => {
-  it("picks the largest unit that fits", () => {
-    expect(relativeTime(ago(7200), NOW)).toEqual({ key: "time.hoursAgo", count: 2 });
-    expect(relativeTime(ago(3 * 86_400), NOW)).toEqual({ key: "time.daysAgo", count: 3 });
-    expect(relativeTime(ago(3 * 604_800), NOW)).toEqual({ key: "time.weeksAgo", count: 3 });
-    expect(relativeTime(ago(3 * 2_592_000), NOW)).toEqual({ key: "time.monthsAgo", count: 3 });
-    expect(relativeTime(ago(3 * 31_536_000), NOW)).toEqual({ key: "time.yearsAgo", count: 3 });
-  });
-
-  it("switches unit exactly at the boundary", () => {
-    expect(relativeTime(ago(59), NOW)).toEqual({ key: "time.justNow", count: 0 });
-    expect(relativeTime(ago(60), NOW)).toEqual({ key: "time.minutesAgo", count: 1 });
-    expect(relativeTime(ago(3599), NOW)).toEqual({ key: "time.minutesAgo", count: 59 });
-    expect(relativeTime(ago(3600), NOW)).toEqual({ key: "time.hoursAgo", count: 1 });
-  });
-
-  it("says «kecha» rather than «1 kun oldin»", () => {
-    expect(relativeTime(ago(86_400), NOW)).toEqual({ key: "time.yesterday", count: 1 });
-    expect(relativeTime(ago(2 * 86_400), NOW)).toEqual({ key: "time.daysAgo", count: 2 });
-  });
-
-  it("clamps a future timestamp to «hozirgina»", () => {
-    // Server and phone clocks disagree by seconds routinely; a negative age would
-    // otherwise render "-1 daqiqa oldin".
-    expect(relativeTime(new Date(NOW.getTime() + 60_000).toISOString(), NOW)).toEqual({
-      key: "time.justNow",
-      count: 0,
-    });
-  });
-
-  it("degrades to «hozirgina» on an unparseable timestamp", () => {
-    expect(relativeTime("not-a-date", NOW)).toEqual({ key: "time.justNow", count: 0 });
-    expect(relativeTime("", NOW)).toEqual({ key: "time.justNow", count: 0 });
-  });
-});
-
-describe("dateParts", () => {
-  it("splits a timestamp into 1-based month and a zero-padded clock", () => {
-    // Local time by design — assert against a locally-constructed date so the
-    // test states the contract rather than the runner's TZ.
-    const local = new Date(2026, 6, 5, 9, 7);
-    expect(dateParts(local.toISOString())).toEqual({
-      day: 5,
-      month: 7,
-      year: 2026,
-      time: "09:07",
-    });
-  });
-
-  it("returns null for an unparseable value so the caller can omit the line", () => {
-    expect(dateParts("nope")).toBeNull();
-  });
-});
-
-describe("formatDayMonth", () => {
-  // A `t` over the REAL locale files, so the test pins what users read — the
-  // genitive lives in the JSON, and a fake dictionary would only test itself.
-  const tFor = (time: Record<string, string>) => (key: string, opts: Record<string, unknown> = {}) =>
-    (time[key.replace(/^time\./, "")] ?? key).replace(/\{\{(\w+)\}\}/g, (_, k: string) => String(opts[k]));
-  const iso = new Date(2026, 6, 30, 21, 0).toISOString();
-
-  it("puts Russian in the genitive after a day number — «30 июля», never «30 июль»", () => {
-    const t = tFor(ruCommon.time);
-    expect(formatDayMonth(iso, t)).toBe("30 июля");
-    expect(formatDayMonth(iso, t, true)).toBe("30 июля, 21:00");
-  });
-
-  it("writes Uzbek and English in their own order", () => {
-    expect(formatDayMonth(iso, tFor(uzCommon.time), true)).toBe("30-iyul 21:00");
-    expect(formatDayMonth(iso, tFor(enCommon.time))).toBe("Jul 30");
-  });
-
-  it("is empty for an unparseable value", () => {
-    expect(formatDayMonth("nope", tFor(uzCommon.time))).toBe("");
   });
 });
 

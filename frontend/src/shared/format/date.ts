@@ -50,7 +50,21 @@ export interface CalendarParts {
   minutes: number;
 }
 
+/** A bare `YYYY-MM-DD` (the API's day buckets, a birthday) — a calendar day, not an instant. */
+const DATE_ONLY = /^(\d{4})-(\d{2})-(\d{2})$/;
+
 export function calendarParts(value: DateInput, opts: DateOptions = {}): CalendarParts | null {
+  // `new Date("2026-10-21")` is UTC midnight — the 20th anywhere west of Greenwich.
+  // A date-only string names a day, so it reads as that day in every zone.
+  if (typeof value === "string") {
+    const m = DATE_ONLY.exec(value);
+    if (m) {
+      const [year, month, day] = [Number(m[1]), Number(m[2]), Number(m[3])];
+      const probe = new Date(Date.UTC(year, month - 1, day));
+      if (probe.getUTCMonth() !== month - 1 || probe.getUTCDate() !== day) return null;
+      return { year, month, day, hours: 0, minutes: 0 };
+    }
+  }
   const d = toDate(value);
   if (!d) return null;
   if (opts.zone === "tashkent") {
@@ -86,6 +100,24 @@ export function formatTime(value: DateInput, opts: DateOptions = {}): string {
   return p ? `${pad2(p.hours)}:${pad2(p.minutes)}` : "";
 }
 
+/** `21.10` — a compact day for a chart axis or tooltip; "" for a missing/unparseable value. */
+export function formatDayMonthShort(value: DateInput, opts: DateOptions = {}): string {
+  const p = calendarParts(value, opts);
+  return p ? `${pad2(p.day)}.${pad2(p.month)}` : "";
+}
+
+/** `2026-10-21` — machine form (file names, `<input type="date">`); "" if unparseable. */
+export function formatIsoDate(value: DateInput, opts: DateOptions = {}): string {
+  const p = calendarParts(value, opts);
+  return p ? `${p.year}-${pad2(p.month)}-${pad2(p.day)}` : "";
+}
+
+/** `2026-10-21T14:37` — the value an `<input type="datetime-local">` takes; "" if unparseable. */
+export function formatInputDateTime(value: DateInput, opts: DateOptions = {}): string {
+  const p = calendarParts(value, opts);
+  return p ? `${p.year}-${pad2(p.month)}-${pad2(p.day)}T${pad2(p.hours)}:${pad2(p.minutes)}` : "";
+}
+
 /** `21.10.2026, 14:37`; "" for a missing/unparseable value. */
 export function formatDateTime(value: DateInput, opts: DateOptions = {}): string {
   const p = calendarParts(value, opts);
@@ -118,6 +150,31 @@ export function monthName(month: number, lang: DateLang, form: MonthForm = "stan
   if (lang === "ru") return (form === "afterDay" ? MONTHS.ruOf : MONTHS.ru)[i];
   if (lang === "en") return (form === "afterDay" ? MONTHS.enShort : MONTHS.en)[i];
   return MONTHS.uz[i];
+}
+
+/* -------------------------------------------------------------------------- */
+/* Weekdays                                                                   */
+/* -------------------------------------------------------------------------- */
+
+/** Monday-first short weekday names — hard-coded for the same reduced-ICU reason. */
+const WEEKDAYS_SHORT: Record<DateLang, readonly string[]> = {
+  uz: ["Du", "Se", "Ch", "Pa", "Ju", "Sh", "Ya"],
+  ru: ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"],
+  en: ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"],
+};
+
+/** Monday-first weekday index 0–6 (a `YYYY-MM-DD` is read as that day); null if unparseable. */
+export function weekdayIndex(value: DateInput, opts: DateOptions = {}): number | null {
+  const p = calendarParts(value, opts);
+  if (!p) return null;
+  // Weekday of the calendar day itself, so neither TZ nor DST can move it.
+  return (new Date(Date.UTC(p.year, p.month - 1, p.day)).getUTCDay() + 6) % 7;
+}
+
+/** `Du` / `Пн` / `Mon` — a chart axis day label; "" for an unparseable value. */
+export function formatWeekdayShort(value: DateInput, lang: DateLang, opts: DateOptions = {}): string {
+  const i = weekdayIndex(value, opts);
+  return i === null ? "" : WEEKDAYS_SHORT[lang][i];
 }
 
 const capitalize = (s: string) => (s ? s.charAt(0).toLocaleUpperCase() + s.slice(1) : s);

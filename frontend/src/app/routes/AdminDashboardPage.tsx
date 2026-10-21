@@ -23,6 +23,7 @@ import type {
 } from "../../screens/admin";
 import { endpoints } from "../../shared/api";
 import type { SubmissionResponse } from "../../shared/api";
+import { formatDateTime } from "../../shared/format";
 import { gradingFailureKey } from "../adapters";
 import { requestRegrade } from "../regrade";
 import { PageError, PageLoading } from "../PageState";
@@ -111,7 +112,7 @@ export default function AdminDashboardPage() {
         studentName: r.student_name ?? "—",
         taskTitle: r.question_title ?? t("results.attempt"),
         reason: t(gradingFailureKey(r.error_message)),
-        when: formatWhen(r.created_at),
+        when: formatDateTime(r.created_at),
         canRegrade: r.audio_url !== null,
       })),
     [failedRows, t],
@@ -137,12 +138,4 @@ export default function AdminDashboardPage() {
       onNavigate={onNavigate}
     />
   );
-}
-
-/** dd.MM.yyyy HH:mm, 24h — the panel's one date style. */
-function formatWhen(iso: string): string {
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return "";
-  const p = (n: number) => String(n).padStart(2, "0");
-  return `${p(d.getDate())}.${p(d.getMonth() + 1)}.${d.getFullYear()} ${p(d.getHours())}:${p(d.getMinutes())}`;
 }

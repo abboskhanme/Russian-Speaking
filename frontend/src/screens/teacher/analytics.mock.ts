@@ -6,7 +6,7 @@
  * no data rather than falling back to these numbers.
  *
  * Labels are pre-localized here (uz) because the screen takes them as props —
- * the real page composes them from `time.month*` / `time.wd*` / `teacher.*`.
+ * the real page composes them from the shared date helper and `teacher.*`.
  */
 import type { AnalyticsScreenProps } from "./AnalyticsScreen";
 

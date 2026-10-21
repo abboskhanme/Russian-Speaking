@@ -751,7 +751,7 @@ export interface GradebookRowResponse {
  * attempt — the line must GAP there, not drop to zero. */
 export interface InsightsTrendPoint {
   year: number;
-  /** 1–12, matching the `time.month1` … `time.month12` keys. */
+  /** 1–12 (named by `monthName` in `shared/format/date`). */
   month: number;
   avg: number | null;
   attempts: number;

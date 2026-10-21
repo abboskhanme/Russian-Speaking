@@ -15,7 +15,7 @@ import { GroupInviteScreen } from "../../screens/teacher";
 import type { InvitePendingStudent } from "../../screens/teacher";
 import { endpoints } from "../../shared/api";
 import type { GroupDetailResponse, GroupJoinRequestResponse } from "../../shared/api";
-import { relativeTime } from "../adapters";
+import { useDateFormat } from "../../shared/format";
 import { PageError, PageLoading } from "../PageState";
 import { TEACHER_NAV_PATH, useTeacherNavHandler } from "../nav";
 
@@ -23,6 +23,7 @@ export default function GroupInvitePage() {
   const { groupId = "" } = useParams();
   const navigate = useNavigate();
   const { t } = useTranslation();
+  const fmt = useDateFormat();
   const onNavigate = useTeacherNavHandler();
 
   const [group, setGroup] = useState<GroupDetailResponse | null>(null);
@@ -68,14 +69,13 @@ export default function GroupInvitePage() {
   const pending = useMemo<InvitePendingStudent[]>(
     () =>
       requests.map((r) => {
-        const rel = relativeTime(r.created_at);
         return {
           id: r.id,
           studentName: r.student_name,
-          when: t(rel.key, { count: rel.count }),
+          when: fmt.relative(r.created_at),
         };
       }),
-    [requests, t],
+    [requests, t, fmt],
   );
 
   const decide = useCallback(async (id: string, approve: boolean) => {

@@ -57,6 +57,7 @@ import { distinctStudentCount } from "../teacherAdapters";
 import { PageError, PageLoading } from "../PageState";
 import { TEACHER_NAV_PATH, useTeacherNavHandler } from "../nav";
 import { useTranslation } from "react-i18next";
+import { useDateFormat } from "../../shared/format";
 
 /** How far a student must have fallen before the Obzor says so. A roster always
  * has someone a fraction down, and a card that fires every morning is one a
@@ -70,6 +71,7 @@ const LIST_MAX = 5;
 export default function TeacherDashboardPage() {
   const { user } = useAuth();
   const { t } = useTranslation();
+  const fmt = useDateFormat();
   const navigate = useNavigate();
   const onNavigate = useTeacherNavHandler();
 
@@ -241,9 +243,9 @@ export default function TeacherDashboardPage() {
         studentName: s.student_name ?? "—",
         taskTitle: s.question_title ?? t("results.attempt"),
         score: s.overall_band,
-        when: relativeWhen(t, s.created_at),
+        when: fmt.relative(s.created_at),
       })),
-    [waiting, t],
+    [waiting, t, fmt],
   );
 
   // Falling behind: a big score drop first (it is a signal about the work), then
@@ -287,8 +289,7 @@ export default function TeacherDashboardPage() {
     if (!insights) return undefined;
     const last = insights.week.length - 1;
     return insights.week.map((d, i) => {
-      const idx = weekdayIndex(d.date);
-      const label = idx == null ? "" : t(`time.wd${idx + 1}`);
+      const label = fmt.weekdayShort(d.date);
       return {
         label,
         value: d.attempts,
@@ -296,7 +297,7 @@ export default function TeacherDashboardPage() {
         current: i === last,
       };
     });
-  }, [insights, t]);
+  }, [insights, t, fmt]);
 
   const quickAction = useCallback(
     (a: TeacherQuickAction) => {
@@ -327,24 +328,6 @@ export default function TeacherDashboardPage() {
       onQuickAction={quickAction}
     />
   );
-}
-
-/** Monday-first weekday index 0–6 of a `YYYY-MM-DD`, parsed as a LOCAL date. */
-function weekdayIndex(isoDate: string): number | null {
-  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(isoDate);
-  if (!m) return null;
-  const d = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
-  return Number.isNaN(d.getTime()) ? null : (d.getDay() + 6) % 7;
-}
-
-/** "5 daqiqa oldin" / "3 soat oldin" / "2 kun oldin" — short, for a list row. */
-function relativeWhen(t: (k: string, o?: Record<string, unknown>) => string, iso: string): string {
-  const mins = Math.max(0, Math.round((Date.now() - Date.parse(iso)) / 60_000));
-  if (Number.isNaN(mins)) return "";
-  if (mins < 60) return t("uiDash.teacher.agoMin", { count: Math.max(1, mins) });
-  const hours = Math.round(mins / 60);
-  if (hours < 24) return t("uiDash.teacher.agoHour", { count: hours });
-  return t("uiDash.teacher.agoDay", { count: Math.round(hours / 24) });
 }
 
 /** "Aziz Karimov" → "AK" (up to two letters), for the header avatar. */

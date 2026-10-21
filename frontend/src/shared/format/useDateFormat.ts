@@ -5,10 +5,13 @@ import {
   formatDate,
   formatDateTime,
   formatDayMonth,
+  formatDayMonthShort,
   formatMonthYear,
   formatRelative,
   formatRelativeDay,
   formatTime,
+  formatWeekdayShort,
+  monthName,
 } from "./date";
 import type { DateInput, DateOptions } from "./date";
 
@@ -26,6 +29,10 @@ export function useDateFormat() {
       time: (v: DateInput, o?: DateOptions) => formatTime(v, o),
       dateTime: (v: DateInput, o?: DateOptions) => formatDateTime(v, o),
       dayMonth: (v: DateInput, o?: DateOptions & { withTime?: boolean }) => formatDayMonth(v, lang, o),
+      dayMonthShort: (v: DateInput, o?: DateOptions) => formatDayMonthShort(v, o),
+      weekdayShort: (v: DateInput, o?: DateOptions) => formatWeekdayShort(v, lang, o),
+      /** Month name on its own (1–12): `oktabr` / `октябрь` / `October`. */
+      month: (m: number) => monthName(m, lang),
       monthYear: (v: DateInput, o?: DateOptions & { capitalize?: boolean }) => formatMonthYear(v, lang, o),
       relative: (v: DateInput, now?: Date) => formatRelative(v, t, now),
       relativeDay: (v: DateInput, now?: Date, o?: DateOptions) => formatRelativeDay(v, t, now, o),
