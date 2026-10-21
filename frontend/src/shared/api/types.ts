@@ -1256,6 +1256,10 @@ export interface AdminTeacherResponse {
   created_at: string;
   /** Tasks they authored — also what a deletion would destroy. */
   question_count: number;
+  /** Groups they own. Additive — optional so an older API image still type-checks. */
+  group_count?: number;
+  /** Distinct students across their groups. Additive. */
+  student_count?: number;
 }
 
 /** GET /api/admin/admins → one row per admin: the teacher row plus `is_self`. */
@@ -1356,6 +1360,20 @@ export interface AdminStudentResponse {
   created_at: string;
   /** Answers recorded — also what a deletion would destroy. */
   submission_count: number;
+  /** Their latest answer; null when they never answered. Additive. */
+  last_active_at?: string | null;
+  /** Mean AI band (0–100) over graded answers, 1dp; null when nothing is graded. Additive. */
+  avg_band?: number | null;
+  /** Groups they belong to, with each group's teacher, by name. Additive. */
+  groups?: AdminStudentGroupRef[];
+}
+
+/** One group on an admin student row. */
+export interface AdminStudentGroupRef {
+  id: string;
+  name: string;
+  teacher_id: string;
+  teacher_name: string;
 }
 
 /** PATCH /api/admin/students/{id}. The freemium grant/revoke rides `is_premium`. */

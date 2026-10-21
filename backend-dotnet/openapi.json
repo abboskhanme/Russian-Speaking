@@ -2907,6 +2907,31 @@
           "failed_submissions"
         ]
       },
+      "AdminStudentGroupRef": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string"
+          },
+          "teacher_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "teacher_name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "teacher_id",
+          "teacher_name"
+        ]
+      },
       "AdminSubscriptionResponse": {
         "type": "object",
         "properties": {
@@ -6356,6 +6381,23 @@
           "submission_count": {
             "type": "integer",
             "format": "int32"
+          },
+          "last_active_at": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "avg_band": {
+            "type": "number",
+            "format": "double",
+            "nullable": true
+          },
+          "groups": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AdminStudentGroupRef"
+            },
+            "nullable": true
           }
         },
         "required": [
@@ -6901,6 +6943,14 @@
           "phone": {
             "type": "string",
             "nullable": true
+          },
+          "group_count": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "student_count": {
+            "type": "integer",
+            "format": "int32"
           }
         },
         "required": [
@@ -6909,7 +6959,9 @@
           "full_name",
           "is_active",
           "created_at",
-          "question_count"
+          "question_count",
+          "group_count",
+          "student_count"
         ]
       },
       "TeacherUpdateRequest": {

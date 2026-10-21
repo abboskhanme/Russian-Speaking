@@ -117,8 +117,18 @@ public sealed class AdministrationService
         q = ApplySearch(q, search);
         var teachers = await q.OrderBy(u => u.CreatedAt).ToListAsync(ct);
 
-        var counts = await QuestionCountsAsync(teachers.Select(t => t.Id).ToList(), ct);
-        var rows = teachers.Select(t => TeacherOut(t, counts.GetValueOrDefault(t.Id, 0))).ToList();
+        var ids = teachers.Select(t => t.Id).ToList();
+        var counts = await QuestionCountsAsync(ids, ct);
+        var rosters = await TeacherRostersAsync(ids, ct);
+        var rows = teachers.Select(t =>
+        {
+            var roster = rosters.GetValueOrDefault(t.Id);
+            return TeacherOut(t, counts.GetValueOrDefault(t.Id, 0)) with
+            {
+                GroupCount = roster.Groups,
+                StudentCount = roster.Students,
+            };
+        }).ToList();
         return AdminResult<IReadOnlyList<TeacherResponse>>.Ok(rows);
     }
 
@@ -273,8 +283,24 @@ public sealed class AdministrationService
         q = ApplySearch(q, search);
         var students = await q.OrderBy(u => u.CreatedAt).ToListAsync(ct);
 
-        var counts = await SubmissionCountsAsync(students.Select(s => s.Id).ToList(), ct);
-        var rows = students.Select(s => StudentOut(s, counts.GetValueOrDefault(s.Id, 0))).ToList();
+        // Three set-based reads for the whole page — submissions, scores, group memberships — each
+        // one grouped query, never a query per row.
+        var ids = students.Select(s => s.Id).ToList();
+        var activity = await SubmissionActivityAsync(ids, ct);
+        var bands = await AverageBandsAsync(ids, ct);
+        var groups = await StudentGroupsAsync(ids, ct);
+        var rows = students.Select(s =>
+        {
+            var act = activity.GetValueOrDefault(s.Id);
+            return StudentOut(s, act?.Count ?? 0) with
+            {
+                LastActiveAt = act?.LastAt,
+                AvgBand = bands.TryGetValue(s.Id, out var band)
+                    ? Math.Round(band, 1, MidpointRounding.AwayFromZero)
+                    : null,
+                Groups = groups.GetValueOrDefault(s.Id) ?? [],
+            };
+        }).ToList();
         return AdminResult<IReadOnlyList<StudentResponse>>.Ok(rows);
     }
 
@@ -454,15 +480,73 @@ public sealed class AdministrationService
             .ToDictionary(x => x.Key, x => x.Count);
     }
 
-    private async Task<Dictionary<Guid, int>> SubmissionCountsAsync(List<Guid> studentIds, CancellationToken ct)
+
+    private sealed record SubmissionActivity(int Count, DateTime LastAt);
+
+    // Count + latest timestamp in ONE grouped aggregate.
+    private async Task<Dictionary<Guid, SubmissionActivity>> SubmissionActivityAsync(
+        List<Guid> studentIds, CancellationToken ct)
     {
         if (studentIds.Count == 0) return new();
         return (await _db.Submissions
                 .Where(s => studentIds.Contains(s.StudentId))
                 .GroupBy(s => s.StudentId)
-                .Select(g => new { g.Key, Count = g.Count() })
+                .Select(g => new { g.Key, Count = g.Count(), LastAt = g.Max(s => s.CreatedAt) })
                 .ToListAsync(ct))
-            .ToDictionary(x => x.Key, x => x.Count);
+            .ToDictionary(x => x.Key, x => new SubmissionActivity(x.Count, x.LastAt));
+    }
+
+    // Lifetime mean of the AI band, the same figure the student's own profile shows. A student with
+    // no graded answer is simply absent from the map (⇒ null on the row, never 0).
+    private async Task<Dictionary<Guid, double>> AverageBandsAsync(List<Guid> studentIds, CancellationToken ct)
+    {
+        if (studentIds.Count == 0) return new();
+        return (await _db.Evaluations
+                .Where(e => studentIds.Contains(e.Submission.StudentId))
+                .GroupBy(e => e.Submission.StudentId)
+                .Select(g => new { g.Key, Avg = g.Average(e => e.OverallBand) })
+                .ToListAsync(ct))
+            .ToDictionary(x => x.Key, x => x.Avg);
+    }
+
+    private async Task<Dictionary<Guid, List<AdminStudentGroupRef>>> StudentGroupsAsync(
+        List<Guid> studentIds, CancellationToken ct)
+    {
+        if (studentIds.Count == 0) return new();
+        var rows = await _db.GroupMembers
+            .Where(gm => studentIds.Contains(gm.StudentId))
+            .Select(gm => new
+            {
+                gm.StudentId,
+                Ref = new AdminStudentGroupRef(gm.Group.Id, gm.Group.Name, gm.Group.TeacherId, gm.Group.Teacher.FullName),
+            })
+            .ToListAsync(ct);
+        return rows
+            .GroupBy(r => r.StudentId)
+            .ToDictionary(
+                g => g.Key,
+                g => g.Select(r => r.Ref).OrderBy(r => r.Name, StringComparer.CurrentCultureIgnoreCase).ToList());
+    }
+
+    // Groups owned and DISTINCT students across them, per teacher — two grouped reads.
+    private async Task<Dictionary<Guid, (int Groups, int Students)>> TeacherRostersAsync(
+        List<Guid> teacherIds, CancellationToken ct)
+    {
+        if (teacherIds.Count == 0) return new();
+        var groups = await _db.Groups
+            .Where(g => teacherIds.Contains(g.TeacherId))
+            .GroupBy(g => g.TeacherId)
+            .Select(g => new { g.Key, Count = g.Count() })
+            .ToListAsync(ct);
+        var students = await _db.GroupMembers
+            .Where(gm => teacherIds.Contains(gm.Group.TeacherId))
+            .Select(gm => new { gm.Group.TeacherId, gm.StudentId })
+            .Distinct()
+            .GroupBy(x => x.TeacherId)
+            .Select(g => new { g.Key, Count = g.Count() })
+            .ToListAsync(ct);
+        var studentMap = students.ToDictionary(x => x.Key, x => x.Count);
+        return groups.ToDictionary(x => x.Key, x => (x.Count, studentMap.GetValueOrDefault(x.Key, 0)));
     }
 
     private static TeacherResponse TeacherOut(User t, int questionCount)
