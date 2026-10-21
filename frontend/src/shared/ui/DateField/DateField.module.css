@@ -1,0 +1,158 @@
+/* DateField — same box, label and message styles as Input (tokens only). */
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-1);
+  width: 100%;
+  min-width: 0;
+}
+
+.label {
+  font-family: var(--font-sans);
+  font-size: var(--t-body-s-size);
+  font-weight: var(--fw-semibold);
+  color: var(--ink);
+}
+
+.req {
+  color: var(--danger);
+  margin-inline-start: 2px;
+}
+
+.row {
+  display: flex;
+  gap: var(--s-2);
+  width: 100%;
+}
+
+.grow {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.time {
+  flex: 0 0 auto;
+  width: 6.5rem;
+}
+
+.control {
+  display: flex;
+  align-items: center;
+  background: var(--surface);
+  border: 1.5px solid var(--line-2);
+  border-radius: var(--r-md);
+  transition:
+    border-color var(--m-instant),
+    box-shadow var(--m-instant);
+}
+
+.control:focus-within {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px color-mix(in oklab, var(--primary) 22%, transparent);
+}
+
+.control[data-invalid="true"] {
+  border-color: var(--danger);
+}
+.control[data-invalid="true"]:focus-within {
+  box-shadow: 0 0 0 3px color-mix(in oklab, var(--danger) 22%, transparent);
+}
+
+.control[data-disabled="true"] {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.input {
+  flex: 1 1 auto;
+  min-width: 0;
+  width: 100%;
+  min-height: 44px;
+  padding: 0 var(--s-4);
+  background: transparent;
+  border: none;
+  outline: none;
+  color: var(--ink);
+  font-family: var(--font-sans);
+  font-size: var(--t-body-size);
+  font-weight: var(--fw-medium);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
+}
+
+.input::placeholder {
+  color: var(--muted);
+  letter-spacing: 0.04em;
+}
+
+.input:disabled {
+  cursor: not-allowed;
+}
+
+/* The calendar button; the hidden native input sits under it so the platform
+ * anchors its popup here. */
+.pickerWrap {
+  position: relative;
+  display: inline-flex;
+  flex: none;
+  margin-inline-end: 2px;
+}
+
+.pickerButton {
+  position: relative;
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  background: transparent;
+  border: none;
+  border-radius: var(--r-xs);
+  color: var(--muted);
+  cursor: pointer;
+  transition:
+    color var(--m-instant),
+    background-color var(--m-instant);
+}
+.pickerButton:hover:not(:disabled) {
+  color: var(--primary);
+  background: var(--surface-3);
+}
+.pickerButton:focus-visible {
+  outline: var(--focus-ring-width) solid var(--focus-ring);
+  outline-offset: -2px;
+}
+.pickerButton:disabled {
+  cursor: not-allowed;
+}
+
+.native {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  pointer-events: none;
+  border: 0;
+  padding: 0;
+  margin: 0;
+}
+
+.message {
+  font-family: var(--font-sans);
+  font-size: var(--t-body-s-size);
+  font-weight: var(--fw-medium);
+  color: var(--muted);
+}
+.message[data-invalid="true"] {
+  color: var(--danger);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .control,
+  .pickerButton {
+    transition: none;
+  }
+}

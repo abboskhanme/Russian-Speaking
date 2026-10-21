@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Button, Input, Modal, Text, cx } from "../../shared/ui";
+import { Button, Modal, Text, cx } from "../../shared/ui";
+import { DateTimeField } from "../../shared/ui/DateField";
 import styles from "./AssignmentActionsSheet.module.css";
 
 /** Why a deadline change did not happen. `due_in_past` is the server's own 400
@@ -28,9 +29,8 @@ export interface AssignmentActionsSheetProps {
  * (`PATCH /api/assignments/group`, `POST /api/assignments/cancel`), and both leave
  * every answer and grade already given exactly where it is.
  *
- * The date is a native `datetime-local` input — it renders in the OS locale with
- * no Intl call of ours, which matters because Chromium's reduced ICU has no
- * Uzbek calendar data.
+ * The date is the shared DateTimeField (dd.MM.yyyy + 24-hour time in every UI
+ * language, native calendar one tap away); values stay `datetime-local` strings.
  */
 export function AssignmentActionsSheet({
   open,
@@ -109,12 +109,11 @@ export function AssignmentActionsSheet({
             <Text as="h3" variant="label" color="muted">
               {t("teacher.assignmentActions.changeDue")}
             </Text>
-            <Input
-              type="datetime-local"
+            <DateTimeField
               value={value}
               disabled={noDue || busy}
-              onChange={(e) => {
-                setValue(e.currentTarget.value);
+              onChange={(v) => {
+                setValue(v);
                 setNoDue(false);
               }}
               aria-label={t("teacher.assignTask.due")}
