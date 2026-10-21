@@ -16,6 +16,7 @@
  * that tab (with its `loading` flag) and never re-pulls skills or achievements.
  */
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { ProgressScreen } from "../../screens/progress";
 import type {
   LeaderboardPeriod,
@@ -56,15 +57,16 @@ const EMPTY_SKILLS: SkillsTabProps = {
   deltaWeeks: 0,
   trend: [],
   skills: [
-    { key: "fluency", score: 0 },
-    { key: "pronunciation", score: 0 },
-    { key: "lexical", score: 0 },
-    { key: "grammar", score: 0 },
+    { key: "fluency", score: 0, scored: false },
+    { key: "pronunciation", score: 0, scored: false },
+    { key: "lexical", score: 0, scored: false },
+    { key: "grammar", score: 0, scored: false },
   ],
 };
 
 export default function ProgressPage() {
   const onNavigate = useNavHandler();
+  const navigate = useNavigate();
 
   const [xp, setXp] = useState(0);
   const [skills, setSkills] = useState<SkillsTabProps | null>(null);
@@ -118,6 +120,8 @@ export default function ProgressPage() {
                 skills: s.value.skills.map((sk) => ({
                   key: sk.key as SkillKey,
                   score: sk.score,
+                  // An older API has no `scored`: treat its value as real.
+                  scored: sk.scored !== false,
                 })),
               }
             : null,
@@ -182,8 +186,8 @@ export default function ProgressPage() {
   return (
     <ProgressScreen
       xp={xp}
-      skills={skills ?? EMPTY_SKILLS}
-      achievements={{ achievements }}
+      skills={{ ...(skills ?? EMPTY_SKILLS), onStartPractice: () => navigate("/practice") }}
+      achievements={{ achievements, onStartPractice: () => navigate("/practice") }}
       leaderboard={{
         period,
         onChangePeriod: setPeriod,

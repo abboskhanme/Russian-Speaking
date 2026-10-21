@@ -51,6 +51,46 @@
     "minutesUnit": "daqiqa",
     "hoursUnit": "soat"
   },
+  "motivation": {
+    "streakDays_one": "kun ketma-ket",
+    "streakDays_other": "kun ketma-ket",
+    "streakZero": "Bugun mashq qiling — seriya boshlanadi",
+    "weekAria_one": "Oxirgi 7 kunning {{count}} kunida mashq qildingiz",
+    "weekAria_other": "Oxirgi 7 kunning {{count}} kunida mashq qildingiz",
+    "weekday": { "0": "Ya", "1": "Du", "2": "Se", "3": "Ch", "4": "Pa", "5": "Ju", "6": "Sh" },
+    "goalLabel": "Kunlik maqsad",
+    "goalOf": "bugun, {{goal}} daqiqadan",
+    "goalDone": "Maqsad bajarildi!",
+    "goalAria": "Bugun {{goal}} daqiqadan {{done}} daqiqa",
+    "xpLevel": "{{level}}-bosqich",
+    "xpTotal": "{{xp}} XP",
+    "xpToNext": "{{next}}-bosqichgacha {{xp}} XP",
+    "noData": "Hali maʼlumot yoʻq",
+    "react": {
+      "great": "Ajoyib! Juda yaxshi yangradi.",
+      "good": "Yaxshi ish — shu zaylda davom eting!",
+      "fair": "Yaxshi urinish. Yana bir marta — yanada yaxshi boʻladi.",
+      "low": "Har bir urinish muhim. Keling, yana bir bor birga urinib koʻramiz."
+    },
+    "empty": {
+      "startPractice": "Mashqni boshlash",
+      "modules": {
+        "allTitle": "Hozircha modullar yoʻq",
+        "allBody": "Oʻqituvchingiz va ochiq kursdagi modullar shu yerda chiqadi.",
+        "activeTitle": "Davom etayotgan modul yoʻq",
+        "activeBody": "Istalgan modulni oching va birinchi topshiriqni bajaring — u shu yerda chiqadi.",
+        "doneTitle": "Hali yakunlangan modul yoʻq",
+        "doneBody": "Moduldagi barcha topshiriqlarni bajaring — u shu yerda chiqadi.",
+        "showAll": "Barcha modullarni koʻrsatish"
+      },
+      "skillsTitle": "Koʻnikmalaringiz shu yerda koʻrinadi",
+      "skillsBody": "Birinchi javobingizni yozib oling — baholangach, darajangiz va toʻrtta koʻnikma shu yerda chiqadi.",
+      "achTitle": "Birinchi nishongacha bitta javob qoldi",
+      "achBody": "«Birinchi qadam»ni ochish uchun bugun bitta javob yozib oling.",
+      "resultsTitle": "Hali natijalar yoʻq",
+      "resultsBody": "Birinchi javobingizni yozib oling — balingiz va fikr-mulohaza shu yerda chiqadi."
+    }
+  },
   "home": {
     "todayAria": "Bugungi holat",
     "modules": "Modullar",

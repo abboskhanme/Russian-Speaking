@@ -51,6 +51,46 @@
     "minutesUnit": "minutes",
     "hoursUnit": "h"
   },
+  "motivation": {
+    "streakDays_one": "day streak",
+    "streakDays_other": "day streak",
+    "streakZero": "Practise today to start a streak",
+    "weekAria_one": "Practised on {{count}} of the last 7 days",
+    "weekAria_other": "Practised on {{count}} of the last 7 days",
+    "weekday": { "0": "Su", "1": "Mo", "2": "Tu", "3": "We", "4": "Th", "5": "Fr", "6": "Sa" },
+    "goalLabel": "Daily goal",
+    "goalOf": "of {{goal}} min today",
+    "goalDone": "Goal reached!",
+    "goalAria": "{{done}} of {{goal}} minutes today",
+    "xpLevel": "Stage {{level}}",
+    "xpTotal": "{{xp}} XP",
+    "xpToNext": "{{xp}} XP to stage {{next}}",
+    "noData": "No data yet",
+    "react": {
+      "great": "Excellent! That really sounded good.",
+      "good": "Nice work — keep it up!",
+      "fair": "Good effort. One more try will be even better.",
+      "low": "Every attempt counts. Let’s try it once more together."
+    },
+    "empty": {
+      "startPractice": "Start practising",
+      "modules": {
+        "allTitle": "No modules yet",
+        "allBody": "Modules from your teacher and the open course will appear here.",
+        "activeTitle": "Nothing in progress",
+        "activeBody": "Open any module and do its first task — it will show up here.",
+        "doneTitle": "No finished modules yet",
+        "doneBody": "Finish every task in a module to see it here.",
+        "showAll": "Show all modules"
+      },
+      "skillsTitle": "Your skills will show up here",
+      "skillsBody": "Record your first answer — once it is graded you will see your level and four skill bars.",
+      "achTitle": "Your first badge is one answer away",
+      "achBody": "Record an answer today to unlock “First step”.",
+      "resultsTitle": "No results yet",
+      "resultsBody": "Record your first answer — your score and feedback will appear here."
+    }
+  },
   "home": {
     "todayAria": "Today",
     "modules": "Modules",

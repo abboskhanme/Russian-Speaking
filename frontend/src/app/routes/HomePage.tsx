@@ -18,6 +18,7 @@ import { useNavigate } from "react-router-dom";
 import { HomeScreen } from "../../screens/home";
 import type { HomeDaily, HomeGroup, HomeStats, HomeToday, HomeUser } from "../../screens/home";
 import { endpoints, isApiError } from "../../shared/api";
+import type { ProfileStatsResponse } from "../../shared/api";
 import { useAuth } from "../../shared/auth";
 import { firstName } from "../adapters";
 import { takePendingJoin } from "../pendingJoin";
@@ -30,6 +31,27 @@ const DAILY_GOAL_MIN = 5;
 /** What filing an invite link's join request came to: null when it went through
  * (the group card itself shows the result), else the i18n key of the problem. */
 type JoinOutcome = string | null;
+
+/** `/api/profile/stats` → the Home figures. The week strip and the XP bar are
+ * newer fields: an older API without them leaves those blocks out rather than
+ * drawing an empty week or a level-1 bar that is not true. */
+function toHomeStats(v: ProfileStatsResponse): HomeStats {
+  return {
+    level: v.level,
+    weekMinutes: Math.round(v.week_practice_sec / 60),
+    currentStreak: v.current_streak,
+    activeDays: Array.isArray(v.active_days) ? v.active_days : null,
+    xp:
+      typeof v.xp === "number" && typeof v.xp_level === "number"
+        ? {
+            total: v.xp,
+            level: v.xp_level,
+            levelStart: v.xp_level_start,
+            nextLevelAt: v.xp_next_level,
+          }
+        : null,
+  };
+}
 
 export default function HomePage() {
   const { t } = useTranslation();
@@ -136,11 +158,7 @@ export default function HomePage() {
         );
 
         if (s.status === "fulfilled") {
-          setStats({
-            level: s.value.level,
-            weekMinutes: Math.round(s.value.week_practice_sec / 60),
-            currentStreak: s.value.current_streak,
-          });
+          setStats(toHomeStats(s.value));
           setToday({ goalMinutes: DAILY_GOAL_MIN, doneSeconds: s.value.today_practice_sec });
         } else {
           setStats(null);
@@ -207,11 +225,7 @@ export default function HomePage() {
     endpoints
       .profileStats()
       .then((v) => {
-        setStats({
-          level: v.level,
-          weekMinutes: Math.round(v.week_practice_sec / 60),
-          currentStreak: v.current_streak,
-        });
+        setStats(toHomeStats(v));
         setToday({ goalMinutes: DAILY_GOAL_MIN, doneSeconds: v.today_practice_sec });
       })
       // Still unknown. Staying in the failed state is the honest outcome — the

@@ -53,7 +53,15 @@ public sealed record ProfileStatsResponse(
     // progress and the "Bu hafta" tile. "Today" is the product day (ProductDay, Tashkent local
     // midnight), the same day the streak is kept on; the week is a rolling 7×24 h window.
     int TodayPracticeSec = 0,
-    int WeekPracticeSec = 0);
+    int WeekPracticeSec = 0,
+    // APPEND-ONLY. The Home motivation strip. ActiveDays is the last SEVEN product days, oldest
+    // first and TODAY LAST, each true when the student earned an XP event that day — exactly the
+    // event the streak writer counts, so the dots and the streak number can never disagree about a
+    // day. XpLevel / XpLevelStart / XpNextLevel place User.Xp on the shared XpLevels curve.
+    IReadOnlyList<bool>? ActiveDays = null,
+    int XpLevel = 1,
+    int XpLevelStart = 0,
+    int XpNextLevel = XpLevels.Step);
 
 // ── Recent results ──
 

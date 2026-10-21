@@ -1,7 +1,8 @@
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import type { TFunction } from "i18next";
-import { Button, Card, Text, VisuallyHidden, cx } from "../../shared/ui";
+import { Button, Card, EmptyState, Text, VisuallyHidden, cx } from "../../shared/ui";
+import { scoreTone } from "../../shared/score/scoreBand";
 import { AppShell, Brand, NotificationsBell, studentNavItems } from "../../widgets";
 import type { NavItem } from "../../widgets";
 import styles from "./AllResultsScreen.module.css";
@@ -37,6 +38,8 @@ export interface AllResultsScreenProps {
   onOpenResult: (id: string) => void;
   /** Header back → returns to the Profile. */
   onBack: () => void;
+  /** The empty state's one action ("start practising"). */
+  onStartPractice?: () => void;
   activeNavKey?: string;
   onNavigate?: (key: string, item: NavItem) => void;
 }
@@ -61,6 +64,7 @@ export function AllResultsScreen({
   results,
   onOpenResult,
   onBack,
+  onStartPractice,
   activeNavKey = "profile",
   onNavigate,
 }: AllResultsScreenProps) {
@@ -100,9 +104,13 @@ export function AllResultsScreen({
         </header>
 
         {results.length === 0 ? (
-          <Text as="p" variant="body-s" color="muted">
-            {t("profile.results.empty")}
-          </Text>
+          <EmptyState
+            title={t("motivation.empty.resultsTitle")}
+            body={t("motivation.empty.resultsBody")}
+            actionLabel={t("motivation.empty.startPractice")}
+            onAction={onStartPractice}
+            mood="sleepy"
+          />
         ) : (
           <Card variant="panel" padding="none" className={styles.listCard}>
             <ul className={styles.list}>
@@ -115,7 +123,12 @@ export function AllResultsScreen({
                     aria-label={t("profile.results.openAria", { title: r.title })}
                   >
                     <span
-                      className={cx(styles.bandDot, r.band === null && styles.bandDotMuted)}
+                      // Coloured by the score's band — a 0 is never success green.
+                      className={cx(
+                        styles.bandDot,
+                        r.band === null ? styles.bandDotMuted : TONE_CLASS[scoreTone(r.band)],
+                      )}
+                      data-tone={r.band === null ? undefined : scoreTone(r.band)}
                       aria-hidden
                     >
                       <Text as="span" variant="title-s" numeric>
@@ -169,6 +182,12 @@ export function AllResultsScreen({
 /* -------------------------------------------------------------------------- */
 /* Helpers                                                                     */
 /* -------------------------------------------------------------------------- */
+
+const TONE_CLASS = {
+  success: styles.bandSuccess,
+  warn: styles.bandWarn,
+  danger: styles.bandDanger,
+} as const;
 
 const TREND_ARROW: Record<ResultTrend, string> = { up: "↑", down: "↓", flat: "→" };
 const TREND_CLASS: Record<ResultTrend, string> = {

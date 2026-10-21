@@ -1,7 +1,7 @@
 import { useTranslation } from "react-i18next";
 import { cefrLabel } from "../../../shared/i18n/cefrLabel";
 import type { TFunction } from "i18next";
-import { Card, Text } from "../../../shared/ui";
+import { Card, EmptyState, Text } from "../../../shared/ui";
 import type { TextColor } from "../../../shared/ui";
 import { LineChart } from "../LineChart";
 import styles from "./SkillsTab.module.css";
@@ -27,7 +27,9 @@ export interface SkillsTabProps {
   /** Weekly average bands, oldest → newest ([] when none). */
   trend: { weekIndex: number; band: number }[];
   /** The four sub-skill scores, always all four in fluency→grammar order. */
-  skills: { key: SkillKey; score: number }[];
+  skills: { key: SkillKey; score: number; /** False → no score yet; reads "—". */ scored?: boolean }[];
+  /** The empty state's one action ("start practising"). */
+  onStartPractice?: () => void;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -52,10 +54,25 @@ export function SkillsTab({
   deltaWeeks,
   trend,
   skills,
+  onStartPractice,
 }: SkillsTabProps) {
   const { t } = useTranslation();
   // The server's `level_label` is Uzbek-only; caption the level in the UI language instead.
   const caption = cefrLabel(t, level, levelLabel);
+
+  // Nothing graded at all: one honest empty state (Govo + the one step that
+  // fills it) instead of a level card with no level and four bars reading 0.
+  if (level === null) {
+    return (
+      <EmptyState
+        title={t("motivation.empty.skillsTitle")}
+        body={t("motivation.empty.skillsBody")}
+        actionLabel={t("motivation.empty.startPractice")}
+        onAction={onStartPractice}
+        mood="sleepy"
+      />
+    );
+  }
 
   return (
     <div className={styles.tab}>
@@ -103,12 +120,18 @@ export function SkillsTab({
           <ul className={styles.skillList}>
             {skills.map((s) => {
               const name = t(`progress.skills.${s.key}`);
-              const pct = clampPct(s.score);
+              // `scored: false` = the student has no score for this skill at all:
+              // print "—" and say "no data yet", never a 0 they did not earn.
+              const noData = s.scored === false;
+              const pct = noData ? 0 : clampPct(s.score);
               return (
                 <li
                   key={s.key}
                   className={styles.skillRow}
-                  aria-label={`${name}: ${t("units.points", { count: Math.round(pct) })}`}
+                  aria-label={`${name}: ${
+                    noData ? t("motivation.noData") : t("units.points", { count: Math.round(pct) })
+                  }`}
+                  data-nodata={noData || undefined}
                 >
                   <Text as="span" variant="body" className={styles.skillName}>
                     {name}
@@ -123,7 +146,7 @@ export function SkillsTab({
                     className={styles.skillScore}
                     aria-hidden
                   >
-                    {Math.round(s.score)}
+                    {noData ? "—" : Math.round(s.score)}
                   </Text>
                 </li>
               );

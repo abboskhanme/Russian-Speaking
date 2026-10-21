@@ -1,7 +1,7 @@
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import type { TFunction } from "i18next";
-import { Card, Text, VisuallyHidden, cx } from "../../../shared/ui";
+import { Card, EmptyState, Text, VisuallyHidden, cx } from "../../../shared/ui";
 import styles from "./AchievementsTab.module.css";
 
 /* -------------------------------------------------------------------------- */
@@ -24,6 +24,8 @@ export interface ProgressAchievement {
 export interface AchievementsTabProps {
   /** The 21-badge array, same shape as Profile's `ResultsTabAchievement[]`. */
   achievements: ProgressAchievement[];
+  /** The empty state's one action ("start practising"). */
+  onStartPractice?: () => void;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -43,7 +45,7 @@ export interface AchievementsTabProps {
  * "✓ Ochildi" row when unlocked, an SR-only "Qulflangan" on locked tiles) — the
  * grey/green colour is only a reinforcement, never the sole signal.
  */
-export function AchievementsTab({ achievements }: AchievementsTabProps) {
+export function AchievementsTab({ achievements, onStartPractice }: AchievementsTabProps) {
   const { t } = useTranslation();
 
   const unlockedCount = useMemo(
@@ -54,8 +56,33 @@ export function AchievementsTab({ achievements }: AchievementsTabProps) {
   // Header bar fill — share of the catalogue unlocked. Guard total 0.
   const headerPct = total > 0 ? (unlockedCount / total) * 100 : 0;
 
+  // Nothing to show at all (the catalogue did not load): Govo + one step, not
+  // a header reading "0 / 0" over an empty grid.
+  if (total === 0) {
+    return (
+      <EmptyState
+        title={t("motivation.empty.achTitle")}
+        body={t("motivation.empty.achBody")}
+        actionLabel={t("motivation.empty.startPractice")}
+        onAction={onStartPractice}
+      />
+    );
+  }
+
   return (
     <div className={styles.tab}>
+      {/* Nothing unlocked yet: say how close the first badge is and offer the
+          one step that earns it, above the (all-locked) grid. */}
+      {unlockedCount === 0 && (
+        <EmptyState
+          compact
+          title={t("motivation.empty.achTitle")}
+          body={t("motivation.empty.achBody")}
+          actionLabel={t("motivation.empty.startPractice")}
+          onAction={onStartPractice}
+        />
+      )}
+
       {/* ---- Header: title + count + overall progress bar ---- */}
       <header className={styles.header}>
         <div className={styles.headerRow}>

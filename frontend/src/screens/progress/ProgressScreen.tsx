@@ -121,6 +121,7 @@ export function ProgressScreen({
           activeKey={current}
           onChange={selectTab}
           aria-label={t("nav.progress")}
+          className={styles.tabs}
         />
 
         {/* One panel node reused across tabs: the tab strip is the only thing

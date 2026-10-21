@@ -15,6 +15,7 @@
  */
 import { useTranslation } from "react-i18next";
 import { Button, Card, Text, cx } from "../../shared/ui";
+import { scoreTone } from "../../shared/score/scoreBand";
 import { AppShell, Brand, NotificationsBell, studentNavItems } from "../../widgets";
 import type { NavItem } from "../../widgets";
 import { mockModuleDetail } from "./module-detail.mock";
@@ -139,7 +140,10 @@ function TaskRow({
   const shut = state === "locked" || state === "premium";
 
   return (
-    <li className={cx(styles.taskRow, shut && styles.taskRowMuted)}>
+    <li
+      className={cx(styles.taskRow, shut && styles.taskRowMuted, state === "current" && styles.taskRowCurrent)}
+      data-state={state}
+    >
       <StateChip state={state} />
 
       <span className={styles.taskText}>
@@ -147,8 +151,8 @@ function TaskRow({
           as="span"
           variant="body-s"
           weight="semibold"
-          color={state === "current" ? "warn" : "muted"}
-          className={styles.taskMeta}
+          color="muted"
+          className={cx(styles.taskMeta, state === "current" && styles.taskMetaCurrent)}
         >
           {state === "current"
             ? t("mashq.detail.taskCurrent", { n: index })
@@ -161,7 +165,14 @@ function TaskRow({
 
       <span className={styles.taskEnd}>
         {state === "done" && band !== null && (
-          <Text as="span" variant="title-s" numeric color="success" className={styles.bandScore}>
+          // Coloured by the score's band: a 0 is never success green.
+          <Text
+            as="span"
+            variant="title-s"
+            numeric
+            className={cx(styles.bandScore, styles[`band_${scoreTone(band)}`])}
+            data-tone={scoreTone(band)}
+          >
             {band}
           </Text>
         )}
@@ -217,7 +228,7 @@ function ProgressRing({ pct }: { pct: number }) {
           cy="60"
           r={RING_R}
           fill="none"
-          stroke="var(--info)"
+          stroke="var(--primary)"
           strokeWidth="11"
           strokeLinecap="round"
           strokeDasharray={RING_CIRC}
@@ -225,11 +236,16 @@ function ProgressRing({ pct }: { pct: number }) {
           className={styles.ringProgress}
         />
       </svg>
+      {/* Centred on BOTH axes; the number and its % share a baseline in an
+          inner row. (The row itself used to be baseline-aligned inside the ring
+          box, which dropped "50%" onto the ring's top edge.) */}
       <span className={styles.ringCenter}>
-        <Text as="span" variant="display" weight="black" numeric className={styles.ringPct}>
-          {pct}
-        </Text>
-        <span className={styles.ringSign}>%</span>
+        <span className={styles.ringNum}>
+          <Text as="span" variant="display" weight="black" numeric className={styles.ringPct}>
+            {pct}
+          </Text>
+          <span className={styles.ringSign}>%</span>
+        </span>
       </span>
     </div>
   );
