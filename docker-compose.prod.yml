@@ -154,6 +154,22 @@ x-backend-env: &backend-env
   ROLEPLAY_MAX_TURNS: "${ROLEPLAY_MAX_TURNS:-}"
   ROLEPLAY_DAILY_TURNS: "${ROLEPLAY_DAILY_TURNS:-}"
 
+  # Global AI budget (AiBudgetService): kill switch + daily/monthly caps in USD, and the
+  # unit prices the spend estimate uses. Blank = the documented code defaults ($10/day,
+  # $200/month, list prices) — never "unlimited". The caps and the switch are edited
+  # from the admin panel (app_settings wins); these are only the environment defaults.
+  AI_PAUSED: "${AI_PAUSED:-}"
+  AI_DAILY_CAP_USD: "${AI_DAILY_CAP_USD:-}"
+  AI_MONTHLY_CAP_USD: "${AI_MONTHLY_CAP_USD:-}"
+  AI_PRICE_AZURE_STT_PER_HOUR: "${AI_PRICE_AZURE_STT_PER_HOUR:-}"
+  AI_PRICE_WHISPER_PER_MIN: "${AI_PRICE_WHISPER_PER_MIN:-}"
+  AI_PRICE_ANTHROPIC_IN_PER_MTOK: "${AI_PRICE_ANTHROPIC_IN_PER_MTOK:-}"
+  AI_PRICE_ANTHROPIC_OUT_PER_MTOK: "${AI_PRICE_ANTHROPIC_OUT_PER_MTOK:-}"
+  AI_PRICE_GEMINI_IN_PER_MTOK: "${AI_PRICE_GEMINI_IN_PER_MTOK:-}"
+  AI_PRICE_GEMINI_OUT_PER_MTOK: "${AI_PRICE_GEMINI_OUT_PER_MTOK:-}"
+  AI_PRICE_OPENAI_IN_PER_MTOK: "${AI_PRICE_OPENAI_IN_PER_MTOK:-}"
+  AI_PRICE_OPENAI_OUT_PER_MTOK: "${AI_PRICE_OPENAI_OUT_PER_MTOK:-}"
+
   # ── Product / auth tunables (read once at boot, not admin-overridable) ───────
   # These carry the CODE'S OWN DEFAULT as the compose fallback, not an empty
   # string, and that is not decoration. Configuration.GetValue<int>(key, default)
