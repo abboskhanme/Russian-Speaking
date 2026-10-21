@@ -242,7 +242,12 @@ services:
     # with no tag is `:latest`, and MinIO has shipped breaking admin-API changes in
     # a patch release before — an unpinned storage layer is a redeploy that can
     # lose audio without anyone changing a line of code.
-    image: minio/minio:RELEASE.2025-09-07T16-13-09Z
+    #
+    # pgsty/minio, not minio/minio: MinIO stopped publishing images and the Docker Hub
+    # repository is gone (`pull access denied`, checked 2026-10-21), so the old pin made
+    # a fresh install fail at `docker compose pull`. pgsty builds the same AGPL source
+    # and keeps curl in the image, so the healthcheck below is unchanged.
+    image: pgsty/minio:RELEASE.2026-08-04T00-00-00Z
     command: ["server", "/data", "--console-address", ":9001"]
     environment:
       MINIO_ROOT_USER: ${MINIO_ROOT_USER:?MINIO_ROOT_USER is required}
@@ -275,9 +280,9 @@ services:
   # policy alone also means re-running this one-shot never widens access to a
   # bucket that already exists.
   minio-init:
-    # Digest-pinned: `minio/mc` publishes no stable semver tag, and the client is
-    # what creates the bucket the whole product stores audio in.
-    image: minio/mc@sha256:a7fe349ef4bd8521fb8497f55c6042871b2ae640607cf99d9bede5e9bdf11727
+    # Pinned to a release tag: the client is what creates the bucket the whole product
+    # stores audio in. Same source as the server image above, for the same reason.
+    image: pgsty/mc:RELEASE.2026-10-18T00-00-00Z
     depends_on:
       minio:
         condition: service_healthy

@@ -156,7 +156,8 @@ services:
     restart: unless-stopped
 
   minio:
-    image: minio/minio
+    # pgsty/minio: the minio/minio repository is gone from Docker Hub (see docker-compose.prod.yml).
+    image: pgsty/minio:RELEASE.2026-08-04T00-00-00Z
     container_name: govori-minio
     command: ["server", "/data", "--console-address", ":9001"]
     environment:
@@ -178,7 +179,7 @@ services:
   # One-shot bootstrap: create the audio bucket, then exit 0. `Exited (0)` is the
   # expected steady state — this is not a crashed service.
   minio-init:
-    image: minio/mc
+    image: pgsty/mc:RELEASE.2026-10-18T00-00-00Z
     container_name: govori-minio-init
     depends_on:
       minio:

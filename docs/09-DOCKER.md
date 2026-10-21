@@ -22,9 +22,9 @@ Keyingi `up`lar tez (cache).
 | **govori-api** | `govori/api:dev` | http://localhost:8082 | ASP.NET Core — `/api/*`, `/hubs/attempts`, `/health`, `/metrics` |
 | govori-worker | `govori/worker:dev` | — (ichki) | Hangfire server + recurring maintenance job'lar |
 | govori-db | postgres:16-alpine | localhost:`${DB_PORT}` | Postgres 16 — birinchi ishga tushishda demo dump'dan **avtoseed** |
-| govori-minio | minio/minio | localhost:9000 (konsol :9001) | S3 obyekt saqlash (`govori-audio` bucket) |
+| govori-minio | pgsty/minio | localhost:9000 (konsol :9001) | S3 obyekt saqlash (`govori-audio` bucket) |
 | govori-redis | redis:7-alpine | — (ichki) | OTP · SignalR backplane · rate-limit |
-| govori-minio-init | minio/mc | — | Bir martalik: bucket yaratib **darhol tugaydi** (`Exited (0)` — normal) |
+| govori-minio-init | pgsty/mc | — | Bir martalik: bucket yaratib **darhol tugaydi** (`Exited (0)` — normal) |
 
 **Foydalanish:** brauzerda **http://localhost:8081** oching.
 
