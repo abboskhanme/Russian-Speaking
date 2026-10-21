@@ -5,7 +5,7 @@ import type { AiCorrection, AiFeedback } from "../../app/adapters";
 import { Badge, Button, Card, Mascot, ProgressRing, Text } from "../../shared/ui";
 import { useCountUp } from "../../shared/ui/utils/motion";
 import { scoreBand, scoreTone } from "../../shared/score/scoreBand";
-import { AppShell, Brand, NotificationsBell, studentNavItems } from "../../widgets";
+import { Page } from "../../widgets";
 import type { NavItem } from "../../widgets";
 import { FeedbackLangNote } from "../../widgets/FeedbackLangNote";
 import { formatDateTime } from "../../shared/format/date";
@@ -78,8 +78,6 @@ export interface AttemptDetailScreenProps {
 export function AttemptDetailScreen({
   detail,
   onBack,
-  activeNavKey = "profile",
-  onNavigate,
   failedReason,
   onRegrade,
 }: AttemptDetailScreenProps) {
@@ -97,14 +95,7 @@ export function AttemptDetailScreen({
     .map(([key, value]) => ({ key, value }));
 
   return (
-    <AppShell
-      brand={<Brand />}
-      nav={{
-        items: studentNavItems(t),
-        activeKey: activeNavKey,
-        onNavigate,
-        label: t("nav.landmark"),
-      }}
+    <Page
       headerStart={
         <Button
           variant="ghost"
@@ -116,7 +107,6 @@ export function AttemptDetailScreen({
           <BackGlyph />
         </Button>
       }
-      headerEnd={<NotificationsBell />}
     >
       <div className={styles.page}>
         {/* ---- Hero: band · question · level · date ---- */}
@@ -267,7 +257,7 @@ export function AttemptDetailScreen({
           </Section>
         )}
       </div>
-    </AppShell>
+    </Page>
   );
 }
 

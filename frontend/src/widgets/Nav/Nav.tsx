@@ -1,4 +1,3 @@
-import { createContext, useContext } from "react";
 import type { ReactNode } from "react";
 import { cx, VisuallyHidden } from "../../shared/ui";
 import styles from "./Nav.module.css";
@@ -27,14 +26,6 @@ export interface NavItem {
 }
 
 export type NavVariant = "sidebar" | "bottom";
-
-/**
- * Item keys to leave out of every `Nav`, supplied by the app (a switched-off
- * feature's destination, e.g. AI Suhbat while roleplay is off). A context rather
- * than a prop so the hiding happens once, where the app knows the flags, and no
- * screen that renders a nav has to thread it through.
- */
-export const NavHiddenKeysContext = createContext<ReadonlySet<string>>(new Set());
 
 export interface NavProps {
   items: NavItem[];
@@ -71,8 +62,6 @@ export function Nav({
   className,
 }: NavProps) {
   const isBottom = variant === "bottom";
-  const hidden = useContext(NavHiddenKeysContext);
-  const visible = hidden.size > 0 ? items.filter((item) => !hidden.has(item.key)) : items;
 
   return (
     <nav
@@ -86,7 +75,7 @@ export function Nav({
       aria-label={label}
     >
       <ul className={styles.list}>
-        {(isBottom ? visible.filter((item) => !item.sidebarOnly) : visible).map((item) => (
+        {(isBottom ? items.filter((item) => !item.sidebarOnly) : items).map((item) => (
           <li key={item.key} className={styles.li}>
             <NavEntry
               item={item}
@@ -140,6 +129,12 @@ function NavEntry({ item, active, isBottom, onNavigate }: NavEntryProps) {
         {isBottom && item.shortLabel ? item.shortLabel : item.label}
       </span>
       {!isBottom && hasBadge && <span className={styles.badge}>{item.badge}</span>}
+      {/* A featured item (AI Suhbat, Navbat) is marked by a small dot, not by
+          painting its label in the brand colour — orange is reserved for the
+          CURRENT page, and two orange items read as two current pages. */}
+      {!isBottom && item.emphasized && !hasBadge && !active && (
+        <span className={styles.featureDot} aria-hidden />
+      )}
     </>
   );
 

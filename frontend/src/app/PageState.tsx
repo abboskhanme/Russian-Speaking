@@ -7,8 +7,9 @@
 import type { ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { Button, Card, Mascot, Spinner, Text } from "../shared/ui";
+import { useInRoleLayout } from "../widgets/Page";
 
-const shellStyle = {
+const fullStyle = {
   minHeight: "100dvh",
   display: "grid",
   placeItems: "center",
@@ -16,7 +17,16 @@ const shellStyle = {
   padding: "24px",
 } as const;
 
+/** Inside a role layout the frame is already on screen: fill the content area, not
+ * the viewport (and the page background is already there). */
+const inLayoutStyle = { ...fullStyle, minHeight: "50vh", background: "transparent" } as const;
+
+function useShellStyle() {
+  return useInRoleLayout() ? inLayoutStyle : fullStyle;
+}
+
 export function PageLoading() {
+  const shellStyle = useShellStyle();
   const { t } = useTranslation();
   return (
     <div style={shellStyle}>
@@ -26,6 +36,7 @@ export function PageLoading() {
 }
 
 export function PageError({ onRetry, message }: { onRetry?: () => void; message?: string }) {
+  const shellStyle = useShellStyle();
   const { t } = useTranslation();
   return (
     <div style={shellStyle}>

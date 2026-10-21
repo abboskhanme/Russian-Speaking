@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Badge, Button, Card, Switch, Text, cx } from "../../shared/ui";
-import { AppShell, Brand, NotificationsBell, teacherNavItems } from "../../widgets";
+import { Page } from "../../widgets";
 import type { NavItem } from "../../widgets";
 import { mockStudentProfile } from "./classes.mock";
 import { BackGlyph, initialsOf } from "./TeacherGroupDetailScreen";
@@ -100,9 +100,6 @@ export function TeacherStudentProfileScreen({
   skills,
   attempts,
   trend,
-  activeNavKey = "classes",
-  onNavigate,
-  queuedCount = 0,
   onBack,
   onAssign,
   onOpenAttempt,
@@ -112,21 +109,7 @@ export function TeacherStudentProfileScreen({
   const { t } = useTranslation();
 
   return (
-    <AppShell
-      brand={<Brand />}
-      nav={{
-        items: teacherNavItems(t, queuedCount),
-        activeKey: activeNavKey,
-        onNavigate,
-        label: t("nav.landmark"),
-      }}
-      headerStart={
-        <Text as="h1" variant="title-m">
-          {t("nav.classes")}
-        </Text>
-      }
-      headerEnd={<NotificationsBell />}
-    >
+    <Page>
       <div className={styles.page} data-density="compact">
         <div className={styles.crumb}>
           <button
@@ -199,7 +182,7 @@ export function TeacherStudentProfileScreen({
           )}
         </section>
       </div>
-    </AppShell>
+    </Page>
   );
 }
 

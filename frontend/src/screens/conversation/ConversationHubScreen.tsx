@@ -1,6 +1,6 @@
 import { useTranslation } from "react-i18next";
 import { Card, Mascot, Text, cx } from "../../shared/ui";
-import { AppShell, Brand, NotificationsBell, studentNavItems } from "../../widgets";
+import { Page } from "../../widgets";
 import type { NavItem } from "../../widgets";
 import { SCENARIOS, scenarioGoal } from "./scenarios";
 import { ScenarioIcon } from "./ScenarioIcon";
@@ -56,27 +56,11 @@ export function ConversationHubScreen({
   note,
   onOpenScenario,
   onOpenFree,
-  activeNavKey = "chat",
-  onNavigate,
 }: ConversationHubScreenProps) {
   const { t } = useTranslation();
 
   return (
-    <AppShell
-      brand={<Brand />}
-      nav={{
-        items: studentNavItems(t),
-        activeKey: activeNavKey,
-        onNavigate,
-        label: t("nav.landmark"),
-      }}
-      headerStart={
-        <Text as="h1" variant="title-m">
-          {t("nav.chat")}
-        </Text>
-      }
-      headerEnd={<NotificationsBell />}
-    >
+    <Page title={t("nav.chat")} width="wide">
       <div className={styles.page}>
         <Text as="p" variant="body" color="ink-soft" className={styles.intro}>
           {t("suhbat.intro")}
@@ -130,7 +114,7 @@ export function ConversationHubScreen({
           </button>
         </Card>
       </div>
-    </AppShell>
+    </Page>
   );
 }
 

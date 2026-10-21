@@ -24,3 +24,5 @@ export * from "./Nav";
 export * from "./ThemeToggle";
 export * from "./Notifications";
 export * from "./Brand";
+export * from "./Page";
+export * from "./Account";

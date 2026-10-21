@@ -4,9 +4,8 @@ import type { TFunction } from "i18next";
 import { useTranslation } from "react-i18next";
 import { Badge, Button, Card, Input, Spinner, Switch, Tabs, Text } from "../../shared/ui";
 import type { TabItem } from "../../shared/ui";
-import { AppShell, Brand, NotificationsBell, adminNavItems } from "../../widgets";
+import { Page } from "../../widgets";
 import type { NavItem } from "../../widgets";
-import { AdminAccountButton } from "./AdminChrome";
 import { adminErrorBody, isNetworkError } from "./adminErrors";
 import { mockAdminSettings } from "./admin.mock";
 import { AiBudgetCard } from "./AiBudgetCard";
@@ -269,8 +268,6 @@ function parseChain(stored: string): string[] {
  */
 export function AdminSettingsScreen({
   settings,
-  activeNavKey = "settings",
-  onNavigate,
   onSaveAi,
   onTestAi,
   onSaveLinks,
@@ -587,26 +584,7 @@ export function AdminSettingsScreen({
   };
 
   return (
-    <AppShell
-      brand={<Brand />}
-      nav={{
-        items: adminNavItems(t),
-        activeKey: activeNavKey,
-        onNavigate,
-        label: t("nav.landmark"),
-      }}
-      headerStart={
-        <Text as="h1" variant="title-m">
-          {t("nav.adminSettings")}
-        </Text>
-      }
-      headerEnd={
-        <>
-          <NotificationsBell />
-          <AdminAccountButton />
-        </>
-      }
-    >
+    <Page title={t("nav.adminSettings")} width="wide">
       <div className={styles.page} data-density="compact">
         {/* One section per tab, each with its own save. The page used to be 3,671px of
             stacked cards with three save buttons; a tab per concern keeps each save next
@@ -1068,7 +1046,7 @@ export function AdminSettingsScreen({
         )}
         </div>
       </div>
-    </AppShell>
+    </Page>
   );
 }
 

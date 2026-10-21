@@ -100,8 +100,13 @@
   color: var(--primary-ink);
   font-weight: var(--fw-bold);
 }
-.sidebar .item.emphasized:not([aria-current="page"]) {
-  color: var(--primary-ink);
+.sidebar .featureDot {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  margin-left: auto;
+  border-radius: var(--r-pill);
+  background: var(--primary);
 }
 
 .sidebar .label {
@@ -124,7 +129,8 @@
   justify-content: center;
 }
 .sidebar .label,
-.sidebar .badge {
+.sidebar .badge,
+.sidebar .featureDot {
   display: none;
 }
 @media (min-width: 1080px) {
@@ -134,7 +140,8 @@
   .sidebar:not(.forceCollapsed) .label {
     display: inline;
   }
-  .sidebar:not(.forceCollapsed) .badge {
+  .sidebar:not(.forceCollapsed) .badge,
+  .sidebar:not(.forceCollapsed) .featureDot {
     display: inline-block;
   }
 }
@@ -144,7 +151,8 @@
 .sidebar.forceExpanded .label {
   display: inline;
 }
-.sidebar.forceExpanded .badge {
+.sidebar.forceExpanded .badge,
+.sidebar.forceExpanded .featureDot {
   display: inline-block;
 }
 

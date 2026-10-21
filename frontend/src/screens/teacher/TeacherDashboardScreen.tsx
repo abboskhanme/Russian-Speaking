@@ -3,7 +3,7 @@ import { useTranslation } from "react-i18next";
 import { Button, Card, Text, cx } from "../../shared/ui";
 import { MiniBars } from "../../shared/ui/Chart";
 import type { MiniBar } from "../../shared/ui/Chart";
-import { AppShell, Brand, NotificationsBell, teacherNavItems } from "../../widgets";
+import { Page } from "../../widgets";
 import type { NavItem } from "../../widgets";
 import { mockTeacher, mockTeacherAttention, mockTeacherStats } from "./teacher.mock";
 import styles from "./TeacherDashboardScreen.module.css";
@@ -123,8 +123,6 @@ export function TeacherDashboardScreen({
   teacher,
   stats,
   attention,
-  activeNavKey = "home",
-  onNavigate,
   onOpenAttention,
   onOpenProfile,
   recent,
@@ -136,21 +134,7 @@ export function TeacherDashboardScreen({
 }: TeacherDashboardProps) {
   const { t } = useTranslation();
   return (
-    <AppShell
-      brand={<Brand />}
-      nav={{
-        items: teacherNavItems(t, stats.queued),
-        activeKey: activeNavKey,
-        onNavigate,
-        label: t("nav.landmark"),
-      }}
-      headerStart={
-        <Text as="h1" variant="title-m">
-          {t("nav.teacherHome")}
-        </Text>
-      }
-      headerEnd={<NotificationsBell />}
-    >
+    <Page width="wide">
       {/* data-density mirrors the DS compact contract; the scale is also set on
           .page so it stays scoped to this screen (docs/03 §3.5). */}
       <div className={styles.page} data-density="compact">
@@ -187,7 +171,7 @@ export function TeacherDashboardScreen({
         )}
         <StatsRow stats={stats} />
       </div>
-    </AppShell>
+    </Page>
   );
 }
 
@@ -216,17 +200,20 @@ function ObzorHeader({
         </Text>
       </div>
 
-      {/* The teacher nav has no Profil item — this avatar is that entry point. */}
-      <button
-        type="button"
-        className={styles.avatar}
-        onClick={onOpenProfile}
-        aria-label={t("teacher.avatarAria")}
-      >
-        <Text as="span" variant="body" weight="black">
-          {initials}
-        </Text>
-      </button>
+      {/* Only when asked for: inside the teacher layout the top bar already carries
+          the account avatar, and two avatars on one screen is one too many. */}
+      {onOpenProfile && (
+        <button
+          type="button"
+          className={styles.avatar}
+          onClick={onOpenProfile}
+          aria-label={t("teacher.avatarAria")}
+        >
+          <Text as="span" variant="body" weight="black">
+            {initials}
+          </Text>
+        </button>
+      )}
     </header>
   );
 }

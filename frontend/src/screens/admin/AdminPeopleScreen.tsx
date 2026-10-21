@@ -19,10 +19,9 @@ import {
 } from "../../shared/ui";
 import type { DataTableColumn, SortState, TabItem } from "../../shared/ui";
 import type { UserRole } from "../../shared/api";
-import { AppShell, Brand, NotificationsBell, adminNavItems } from "../../widgets";
+import { Page } from "../../widgets";
 import type { NavItem } from "../../widgets";
 import { AddTeacherSheet } from "./AddTeacherSheet";
-import { AdminAccountButton } from "./AdminChrome";
 import { AdminAccountsList } from "./AdminAccountsList";
 import type { AdminAccount } from "./AdminAccountsList";
 import { RoleChangeDialog, roleName } from "./RoleChangeDialog";
@@ -173,8 +172,6 @@ export function AdminPeopleScreen({
   kind,
   people,
   searching,
-  activeNavKey,
-  onNavigate,
   onSearch,
   onRename,
   onSetActive,
@@ -210,7 +207,6 @@ export function AdminPeopleScreen({
   const [filters, setFilters] = useState<PeopleFilters>(NO_FILTERS);
   const [sort, setSort] = useState<SortState | null>(null);
 
-  const navKey = activeNavKey ?? kind;
   const title = kind === "teachers" ? t("admin.teachers") : t("admin.students");
   const personRole: UserRole = kind === "teachers" ? "teacher" : "student";
   const onAdmins = kind === "teachers" && staff?.tab === "admins";
@@ -250,31 +246,11 @@ export function AdminPeopleScreen({
   };
 
   return (
-    <AppShell
-      brand={<Brand />}
-      nav={{
-        items: adminNavItems(t),
-        activeKey: navKey,
-        onNavigate,
-        label: t("nav.landmark"),
-      }}
-      headerStart={
-        <Text as="h1" variant="title-m">
-          {title}
-        </Text>
-      }
-      headerEnd={
-        <>
-          <NotificationsBell />
-          <AdminAccountButton />
-        </>
-      }
-    >
+    <Page title={onAdmins ? t("admin.admins") : title} width="wide">
       <div className={styles.page} data-density="compact">
         <div className={styles.head}>
-          <Text as="h2" variant="title-l" className={styles.title} truncate>
-            {onAdmins ? t("admin.admins") : title}
-          </Text>
+          {/* The title lives in the top bar (it follows the Adminlar tab); this row
+              keeps only the count and the action. */}
           <Badge variant="neutral" size="md">
             {count}
           </Badge>
@@ -492,7 +468,7 @@ export function AdminPeopleScreen({
           onDone={(name) => setNotice(t("admin.teacherAdded", { name }))}
         />
       )}
-    </AppShell>
+    </Page>
   );
 }
 

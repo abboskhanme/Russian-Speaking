@@ -2,7 +2,7 @@ import { useId, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Card, Tabs, Text } from "../../shared/ui";
 import type { TabItem } from "../../shared/ui";
-import { AppShell, Brand, NotificationsBell, adminNavItems } from "../../widgets";
+import { Page } from "../../widgets";
 import type { NavItem } from "../../widgets";
 import { IdentityCard, InfoTab, SettingsTab, mockLinks, mockProfileUser } from "../profile";
 import type {
@@ -71,8 +71,6 @@ export function AdminProfileScreen({
   links,
   activeTab,
   onChangeTab,
-  activeNavKey = "home",
-  onNavigate,
   onBack,
   onSaveInfo,
   onRequestPhoneChange,
@@ -105,21 +103,7 @@ export function AdminProfileScreen({
   );
 
   return (
-    <AppShell
-      brand={<Brand />}
-      nav={{
-        items: adminNavItems(t),
-        activeKey: activeNavKey,
-        onNavigate,
-        label: t("nav.landmark"),
-      }}
-      headerStart={
-        <Text as="h1" variant="title-m">
-          {t("nav.profile")}
-        </Text>
-      }
-      headerEnd={<NotificationsBell />}
-    >
+    <Page title={t("nav.profile")}>
       <div className={styles.page}>
         <header className={styles.head}>
           <button
@@ -177,7 +161,7 @@ export function AdminProfileScreen({
           )}
         </div>
       </div>
-    </AppShell>
+    </Page>
   );
 }
 

@@ -11,8 +11,8 @@ import { MemoryRouter, Route, Routes } from "react-router-dom";
 import i18n from "../shared/i18n";
 import { featuresOf, NO_FEATURES } from "../shared/auth";
 import type { Features } from "../shared/auth";
-import { Nav, studentNavItems } from "../widgets";
-import { FeatureNavFilter, RequireFeature, hiddenNavKeys } from "./features";
+import { Nav } from "../widgets";
+import { RequireFeature, hiddenNavKeys, navItemsFor } from "./features";
 
 const t = i18n.getFixedT("uz", "common");
 
@@ -57,9 +57,7 @@ describe("featuresOf", () => {
 describe("the AI Suhbat nav item", () => {
   const renderNav = (variant: "sidebar" | "bottom") =>
     render(
-      <FeatureNavFilter>
-        <Nav items={studentNavItems(t)} variant={variant} />
-      </FeatureNavFilter>,
+      <Nav items={navItemsFor("student", t, { features })} variant={variant} />,
     );
 
   it("is gone from both bars while roleplay is off", () => {

@@ -85,6 +85,18 @@
 /* The Telefon row's "O'zgartirish". Negative inline-end margin pulls the ghost
  * button's own padding back so its LABEL, not its hit area, aligns with the
  * values above and below it — the hit area itself stays full size. */
+/* From tablet up a row is a two-column grid — label, then the value right after it —
+ * instead of label and value pushed to opposite edges of a wide card. */
+@media (min-width: 720px) {
+  .row {
+    display: grid;
+    grid-template-columns: minmax(140px, 220px) minmax(0, 1fr);
+  }
+  .rowValue {
+    justify-content: flex-start;
+  }
+}
+
 .rowAction {
   flex: none;
   margin-inline-end: calc(var(--s-3) * -1);

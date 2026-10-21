@@ -1,6 +1,6 @@
 import { useTranslation } from "react-i18next";
 import { Button, Card, Mascot, Text } from "../../shared/ui";
-import { AppShell, Brand, NotificationsBell, studentNavItems } from "../../widgets";
+import { Page } from "../../widgets";
 import type { NavItem } from "../../widgets";
 import styles from "./PracticeScreen.module.css";
 
@@ -15,8 +15,9 @@ export interface PracticeStateScreenProps {
 }
 
 /**
- * PracticeStateScreen — the task route's two "nothing to answer here" states,
- * inside the normal app frame so the nav stays reachable:
+ * PracticeStateScreen — the task route's "nothing to answer here" states. The
+ * recorder itself is full-viewport (no frame); these states are not, so the page
+ * renders them inside the student layout and the nav stays reachable:
  *
  *   • UNAVAILABLE — the link named a task this student cannot see (unpublished,
  *     deleted, or outside their catalogue). It used to be quietly swapped for the
@@ -31,26 +32,10 @@ export function PracticeStateScreen({
   body,
   actionLabel,
   onAction,
-  activeNavKey = "practice",
-  onNavigate,
 }: PracticeStateScreenProps) {
   const { t } = useTranslation();
   return (
-    <AppShell
-      brand={<Brand />}
-      nav={{
-        items: studentNavItems(t),
-        activeKey: activeNavKey,
-        onNavigate,
-        label: t("nav.landmark"),
-      }}
-      headerStart={
-        <Text as="h1" variant="title-m">
-          {t("nav.practice")}
-        </Text>
-      }
-      headerEnd={<NotificationsBell />}
-    >
+    <Page title={t("nav.practice")}>
       <div className={styles.page}>
         <Card variant="tint" padding="lg" className={styles.outcome} role="status">
           <Mascot mood="sleepy" size={104} label="" />
@@ -67,6 +52,6 @@ export function PracticeStateScreen({
           </div>
         </Card>
       </div>
-    </AppShell>
+    </Page>
   );
 }

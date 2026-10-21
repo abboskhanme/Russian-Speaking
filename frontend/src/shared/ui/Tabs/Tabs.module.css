@@ -41,6 +41,12 @@
     border-color var(--m-instant),
     box-shadow var(--m-instant);
 }
+/* Touch: the tab itself, not only its padded track, is a 44px target. */
+@media (pointer: coarse) {
+  .tab {
+    min-height: 44px;
+  }
+}
 
 .tab:hover:not(:disabled):not(.active) {
   color: var(--ink-soft);

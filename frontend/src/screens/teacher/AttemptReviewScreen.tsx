@@ -2,7 +2,7 @@ import { Fragment, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Button, Card, Modal, Text, cx } from "../../shared/ui";
 import { AudioPlayer } from "../../shared/ui/AudioPlayer";
-import { AppShell, Brand, NotificationsBell, teacherNavItems } from "../../widgets";
+import { Page } from "../../widgets";
 import type { NavItem } from "../../widgets";
 import type { AiCorrection, AiFeedback } from "../../app/adapters";
 import { FeedbackLangNote } from "../../widgets/FeedbackLangNote";
@@ -115,9 +115,6 @@ export function AttemptReviewScreen({
   teacherBand,
   teacherComment,
   reviewed,
-  activeNavKey = "queue",
-  onNavigate,
-  queuedCount = 0,
   onBack,
   onSave,
   onConfirm,
@@ -154,21 +151,7 @@ export function AttemptReviewScreen({
   };
 
   return (
-    <AppShell
-      brand={<Brand />}
-      nav={{
-        items: teacherNavItems(t, queuedCount),
-        activeKey: activeNavKey,
-        onNavigate,
-        label: t("nav.landmark"),
-      }}
-      headerStart={
-        <Text as="h1" variant="title-m">
-          {t("nav.queue")}
-        </Text>
-      }
-      headerEnd={<NotificationsBell />}
-    >
+    <Page>
       <div className={styles.page} data-density="compact">
         <header className={styles.head}>
           <button
@@ -366,7 +349,7 @@ export function AttemptReviewScreen({
         criteria={criteria}
         onSave={onSave}
       />
-    </AppShell>
+    </Page>
   );
 }
 

@@ -36,8 +36,11 @@ export interface AppShellProps extends HTMLAttributes<HTMLDivElement> {
  *
  * Presentational + prop-driven — no routing/data coupling. Both nav landmarks
  * are rendered; CSS `display:none` keeps exactly one in the a11y tree per
- * breakpoint. Surfaces/spacing/elevation come from tokens; the full-width rule
- * holds (no `max-width` + auto margins on the content root — §3.8).
+ * breakpoint. Surfaces/spacing/elevation come from tokens. The content root
+ * itself stays full width; each page caps its own column via `<Page width>`.
+ *
+ * Rendered ONCE per role by the route-level layout (`app/routes/RoleLayout`), not
+ * by each screen — screens render `<Page>` inside it.
  */
 export function AppShell({
   brand,

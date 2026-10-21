@@ -1,7 +1,7 @@
 import { useCallback, useId, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Tabs, Text } from "../../shared/ui";
-import { AppShell, Brand, studentNavItems } from "../../widgets";
+import { Page } from "../../widgets";
 import type { NavItem } from "../../widgets";
 import { SkillsTab } from "./tabs/SkillsTab";
 import type { SkillsTabProps } from "./tabs/SkillsTab";
@@ -24,7 +24,7 @@ import styles from "./ProgressScreen.module.css";
 export type ProgressTabKey = "skills" | "achievements" | "leaderboard";
 
 export interface ProgressScreenProps {
-  /** Lifetime XP — the headline "★ {xp} XP" badge in the header (all tabs). */
+  /** Lifetime XP — the headline "★ {xp} XP" badge above the tabs (all tabs). */
   xp: number;
   /** Ko'nikmalar tab data. */
   skills: SkillsTabProps;
@@ -56,9 +56,8 @@ export interface ProgressScreenProps {
  * frame around its three inner tabs: Ko'nikmalar (skills), Yutuqlar
  * (achievements) and Reyting (leaderboard).
  *
- * The header carries the page title plus a "★ {xp} XP" badge in place of the
- * usual notifications bell — the badge is the mockup's `headerEnd` on this screen
- * only. Below it, a segmented `Tabs` control drives a single labelled tabpanel;
+ * The page opens with a "★ {xp} XP" badge (in the content: the top bar's right
+ * side is the layout's bell + avatar, the same on every page). Below it, a segmented `Tabs` control drives a single labelled tabpanel;
  * this file owns only the frame, the tab semantics and the prop distribution.
  *
  * Presentational and prop-driven: it fetches nothing and owns no server state.
@@ -74,8 +73,6 @@ export function ProgressScreen({
   leaderboard,
   activeTab,
   onChangeTab,
-  activeNavKey = "progress",
-  onNavigate,
 }: ProgressScreenProps) {
   const { t } = useTranslation();
   const panelId = useId();
@@ -100,22 +97,9 @@ export function ProgressScreen({
   ];
 
   return (
-    <AppShell
-      brand={<Brand />}
-      nav={{
-        items: studentNavItems(t),
-        activeKey: activeNavKey,
-        onNavigate,
-        label: t("nav.landmark"),
-      }}
-      headerStart={
-        <Text as="h1" variant="title-m">
-          {t("nav.progress")}
-        </Text>
-      }
-      headerEnd={<XpBadge xp={xp} />}
-    >
+    <Page title={t("nav.progress")}>
       <div className={styles.page}>
+        <XpBadge xp={xp} />
         <Tabs
           items={items}
           activeKey={current}
@@ -139,12 +123,12 @@ export function ProgressScreen({
           {current === "leaderboard" && <LeaderboardTab {...leaderboard} />}
         </div>
       </div>
-    </AppShell>
+    </Page>
   );
 }
 
 /* -------------------------------------------------------------------------- */
-/* XP badge — the header trailing slot on this screen                         */
+/* XP badge — the first line of the page content                             */
 /* -------------------------------------------------------------------------- */
 
 /** "★ {xp} XP" pill — primary-tint background, `--primary` text, a star glyph.

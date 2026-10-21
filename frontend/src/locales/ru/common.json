@@ -23,7 +23,8 @@
     "adminTeachersShort": "Учителя",
     "adminBilling": "Тарифы",
     "adminAudit": "Журнал",
-    "asideLabel": "Вспомогательная панель"
+    "asideLabel": "Вспомогательная панель",
+    "account": "Профиль и настройки"
   },
   "common": {
     "continue": "Продолжить",

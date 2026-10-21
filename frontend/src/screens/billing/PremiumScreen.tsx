@@ -27,7 +27,7 @@
 import { useTranslation } from "react-i18next";
 import { Badge, Button, Card, Text } from "../../shared/ui";
 import { formatMinor } from "../../shared/money";
-import { AppShell, Brand, NotificationsBell, studentNavItems } from "../../widgets";
+import { Page } from "../../widgets";
 import type { NavItem } from "../../widgets";
 import { mockPremiumPlans, mockPremiumStatus } from "./billing.mock";
 import { formatDate } from "../../shared/format/date";
@@ -93,8 +93,6 @@ export interface PremiumScreenProps {
 export function PremiumScreen({
   status,
   plans,
-  activeNavKey = "profile",
-  onNavigate,
   onBuy,
   supportUrl,
   notice,
@@ -106,21 +104,7 @@ export function PremiumScreen({
   const canBuy = status.paymentsEnabled && status.providerConfigured;
 
   return (
-    <AppShell
-      brand={<Brand />}
-      nav={{
-        items: studentNavItems(t),
-        activeKey: activeNavKey,
-        onNavigate,
-        label: t("nav.landmark"),
-      }}
-      headerStart={
-        <Text as="h1" variant="title-m">
-          {t("billing.title")}
-        </Text>
-      }
-      headerEnd={<NotificationsBell />}
-    >
+    <Page title={t("billing.title")}>
       <div className={styles.page}>
         <StatusCard status={status} />
 
@@ -217,7 +201,7 @@ export function PremiumScreen({
           </Card>
         </section>
       </div>
-    </AppShell>
+    </Page>
   );
 }
 

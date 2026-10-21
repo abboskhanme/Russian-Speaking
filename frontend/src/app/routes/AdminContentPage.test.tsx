@@ -122,7 +122,7 @@ describe("/admin/content — the empty catalog of a fresh install", () => {
 });
 
 describe("/admin/content — the list", () => {
-  it("frames the teacher list in the admin shell, with author and visibility per row", async () => {
+  it("shows the teacher list with author and visibility per row", async () => {
     blocks = [
       block(),
       block({ id: "b-2", name: "Guruh moduli", visibility: "group", owner_name: "Aziz Karimov" }),
@@ -134,9 +134,8 @@ describe("/admin/content — the list", () => {
     expect(screen.getByText(t("admin.catalog.group"))).toBeInTheDocument();
     expect(screen.getByText(t("admin.catalog.owner", { name: "Aziz Karimov" }))).toBeInTheDocument();
 
-    // The admin's nav, not the teacher's: Tariflar is there, the grading queue is not.
-    expect(screen.getAllByRole("button", { name: t("nav.adminBilling") }).length).toBeGreaterThan(0);
-    expect(screen.queryByRole("button", { name: t("nav.queue") })).not.toBeInTheDocument();
+    // The admin nav around it is the /admin layout's job (RoleLayout.test).
+
 
     await user.click(screen.getByText("Guruh moduli"));
     await waitFor(() => expect(where()).toBe("/admin/content/b-2"));

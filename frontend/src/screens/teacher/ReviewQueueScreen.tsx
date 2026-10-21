@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Badge, Button, Card, Tabs, Text, cx } from "../../shared/ui";
 import type { TabItem } from "../../shared/ui";
-import { AppShell, Brand, NotificationsBell, teacherNavItems } from "../../widgets";
+import { Page } from "../../widgets";
 import type { NavItem } from "../../widgets";
 import { mockReviewQueue } from "./queue.mock";
 import { initialsOf } from "./TeacherGroupDetailScreen";
@@ -94,8 +94,6 @@ export function ReviewQueueScreen({
   items,
   filter = "all",
   onFilterChange,
-  activeNavKey = "queue",
-  onNavigate,
   onOpen,
   onConfirm,
   total,
@@ -137,26 +135,11 @@ export function ReviewQueueScreen({
   ];
 
   return (
-    <AppShell
-      brand={<Brand />}
-      nav={{
-        items: teacherNavItems(t, count),
-        activeKey: activeNavKey,
-        onNavigate,
-        label: t("nav.landmark"),
-      }}
-      headerStart={
-        <Text as="h1" variant="title-m">
-          {t("nav.queue")}
-        </Text>
-      }
-      headerEnd={<NotificationsBell />}
-    >
+    <Page title={t("nav.queue")}>
       <div className={styles.page} data-density="compact">
         <header className={styles.head}>
-          <Text as="h2" variant="title-l">
-            {t("teacher.answers")}
-          </Text>
+          {/* The page title ("Navbat") is in the top bar; a second heading here
+              ("Javoblar") named the same page twice, differently. */}
           <Text as="p" variant="body-s" color="ink-soft">
             {t("teacher.queueIntro")}
           </Text>
@@ -211,7 +194,7 @@ export function ReviewQueueScreen({
           aria-hidden
         />
       </div>
-    </AppShell>
+    </Page>
   );
 }
 

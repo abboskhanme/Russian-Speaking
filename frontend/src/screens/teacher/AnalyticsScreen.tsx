@@ -3,7 +3,7 @@ import { useTranslation } from "react-i18next";
 import { cefrLabel } from "../../shared/i18n/cefrLabel";
 import { Badge, Button, Card, Modal, StatTile, Tabs, Text, VisuallyHidden, cx } from "../../shared/ui";
 import type { TabItem } from "../../shared/ui";
-import { AppShell, Brand, NotificationsBell, teacherNavItems } from "../../widgets";
+import { Page } from "../../widgets";
 import type { NavItem } from "../../widgets";
 import { mockAnalytics } from "./analytics.mock";
 import styles from "./AnalyticsScreen.module.css";
@@ -195,9 +195,6 @@ export function AnalyticsScreen({
   groups = [],
   activeGroupId = null,
   onGroupChange,
-  activeNavKey = "analytics",
-  onNavigate,
-  queuedCount = 0,
   onAssignRemediation,
 }: AnalyticsScreenProps) {
   const { t } = useTranslation();
@@ -208,21 +205,7 @@ export function AnalyticsScreen({
   ];
 
   return (
-    <AppShell
-      brand={<Brand />}
-      nav={{
-        items: teacherNavItems(t, queuedCount),
-        activeKey: activeNavKey,
-        onNavigate,
-        label: t("nav.landmark"),
-      }}
-      headerStart={
-        <Text as="h1" variant="title-m">
-          {t("nav.analytics")}
-        </Text>
-      }
-      headerEnd={<NotificationsBell />}
-    >
+    <Page title={t("nav.analytics")} width="wide">
       <div className={styles.page} data-density="compact">
         <Tabs
           items={tabs}
@@ -261,7 +244,7 @@ export function AnalyticsScreen({
           <GradesTab rows={gradebook} />
         )}
       </div>
-    </AppShell>
+    </Page>
   );
 }
 

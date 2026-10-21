@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Badge, Button, Card, Input, Modal, Tabs, Text, VisuallyHidden, cx } from "../../shared/ui";
 import type { TabItem } from "../../shared/ui";
-import { AppShell, Brand, NotificationsBell, teacherNavItems } from "../../widgets";
+import { Page } from "../../widgets";
 import type { NavItem } from "../../widgets";
 import { mockClassGroups, mockClassRequests, mockClassStudents } from "./classes.mock";
 import styles from "./ClassesScreen.module.css";
@@ -107,9 +107,6 @@ export function ClassesScreen({
   requests,
   activeTab = "groups",
   onTabChange,
-  activeNavKey = "classes",
-  onNavigate,
-  queuedCount = 0,
   onCreateGroup,
   startCreating = false,
   onDecideRequest,
@@ -131,21 +128,7 @@ export function ClassesScreen({
   ];
 
   return (
-    <AppShell
-      brand={<Brand />}
-      nav={{
-        items: teacherNavItems(t, queuedCount),
-        activeKey: activeNavKey,
-        onNavigate,
-        label: t("nav.landmark"),
-      }}
-      headerStart={
-        <Text as="h1" variant="title-m">
-          {t("nav.classes")}
-        </Text>
-      }
-      headerEnd={<NotificationsBell />}
-    >
+    <Page title={t("nav.classes")} width="wide">
       <div className={styles.page} data-density="compact">
         <Tabs
           items={tabs}
@@ -170,7 +153,7 @@ export function ClassesScreen({
           <StudentsTab students={students} onOpenStudent={onOpenStudent} />
         )}
       </div>
-    </AppShell>
+    </Page>
   );
 }
 

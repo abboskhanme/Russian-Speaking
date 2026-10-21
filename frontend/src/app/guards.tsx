@@ -28,6 +28,7 @@ import { clearPlaced } from "../screens/placement/placed";
 import { clearPendingJoin, normalizeJoinCode, savePendingJoin } from "./pendingJoin";
 
 const HomePage = lazy(() => import("./routes/HomePage"));
+const RoleLayout = lazy(() => import("./routes/RoleLayout"));
 
 function BootFallback() {
   const { t } = useTranslation();
@@ -95,7 +96,13 @@ export function RoleHome() {
     return <Navigate to="/teacher" replace />;
   }
   if (justRegistered) return <PlacementHop />;
-  return <HomePage />;
+  // Home sits in the student frame like every other student page; `/` itself
+  // stays outside the role subtrees because it is also the role switchboard.
+  return (
+    <RoleLayout role="student">
+      <HomePage />
+    </RoleLayout>
+  );
 }
 
 /**

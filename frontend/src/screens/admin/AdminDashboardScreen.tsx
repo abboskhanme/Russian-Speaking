@@ -3,10 +3,9 @@ import type { ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { Button, Card, StatTile, Text, cx } from "../../shared/ui";
 import { Sparkline } from "../../shared/ui/Chart";
-import { AppShell, Brand, NotificationsBell, adminNavItems } from "../../widgets";
+import { Page } from "../../widgets";
 import type { NavItem } from "../../widgets";
 import { RegradeButton } from "../results/RegradeButton";
-import { AdminAccountButton } from "./AdminChrome";
 import { mockAdminActivity, mockAdminBudget, mockAdminFailed, mockAdminStats } from "./admin.mock";
 import styles from "./AdminDashboardScreen.module.css";
 
@@ -107,8 +106,6 @@ export function AdminDashboardScreen({
   onRegrade,
   onOpenAiSettings,
   onOpenAudit,
-  activeNavKey = "home",
-  onNavigate,
 }: AdminDashboardProps) {
   const { t } = useTranslation();
 
@@ -128,26 +125,7 @@ export function AdminDashboardScreen({
   const hasActivity = !!activity && activity.length > 0;
 
   return (
-    <AppShell
-      brand={<Brand />}
-      nav={{
-        items: adminNavItems(t),
-        activeKey: activeNavKey,
-        onNavigate,
-        label: t("nav.landmark"),
-      }}
-      headerStart={
-        <Text as="h1" variant="title-m">
-          {t("nav.adminHome")}
-        </Text>
-      }
-      headerEnd={
-        <>
-          <NotificationsBell />
-          <AdminAccountButton />
-        </>
-      }
-    >
+    <Page title={t("nav.adminHome")} width="wide">
       <div className={styles.page} data-density="compact">
         {/* ---- 1 · Alerts ---- */}
         <section className={styles.section} aria-label={t("uiDash.admin.alerts")}>
@@ -239,7 +217,7 @@ export function AdminDashboardScreen({
           </section>
         )}
       </div>
-    </AppShell>
+    </Page>
   );
 }
 

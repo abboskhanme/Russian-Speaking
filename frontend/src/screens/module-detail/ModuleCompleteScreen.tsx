@@ -16,7 +16,7 @@ import { Suspense, lazy } from "react";
 import { useTranslation } from "react-i18next";
 import type { TFunction } from "i18next";
 import { Button, Card, Mascot, StatTile, Text } from "../../shared/ui";
-import { AppShell, Brand, NotificationsBell, studentNavItems } from "../../widgets";
+import { Page } from "../../widgets";
 import type { NavItem } from "../../widgets";
 import { mockModuleComplete } from "./module-detail.mock";
 import styles from "./ModuleCompleteScreen.module.css";
@@ -78,23 +78,11 @@ export function ModuleCompleteScreen({
   onNextModule,
   onDownloadCert,
   onBack,
-  activeNavKey = "practice",
-  onNavigate,
 }: ModuleCompleteScreenProps) {
   const { t } = useTranslation();
 
   return (
-    <AppShell
-      brand={<Brand />}
-      nav={{
-        items: studentNavItems(t),
-        activeKey: activeNavKey,
-        onNavigate,
-        label: t("nav.landmark"),
-      }}
-      headerStart={<BackButton onBack={onBack} label={t("common.back")} />}
-      headerEnd={<NotificationsBell />}
-    >
+    <Page headerStart={<BackButton onBack={onBack} label={t("common.back")} />}>
       <div className={styles.page}>
         {/* ---- Celebration ---- */}
         <header className={styles.hero}>
@@ -199,7 +187,7 @@ export function ModuleCompleteScreen({
           </Text>
         )}
       </div>
-    </AppShell>
+    </Page>
   );
 }
 

@@ -59,6 +59,12 @@
   font-size: var(--t-body-s-size);
   border-radius: var(--r-xs);
 }
+/* On a touch screen the small size still meets the 44px target (WCAG 2.5.5). */
+@media (pointer: coarse) {
+  .sm {
+    min-height: 44px;
+  }
+}
 .md {
   min-height: 46px;
   padding: 0 var(--s-5);

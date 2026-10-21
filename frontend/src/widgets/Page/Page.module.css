@@ -1,0 +1,42 @@
+/* Page — one screen's content column inside a role layout.
+ *
+ * Width replaces the old "every page spans its column" rule (docs/04 §4.10): at
+ * 1440px that rule stretched key/value rows, score bars and primary buttons to
+ * ~1,140px. Reading/form pages now cap at a reading measure; dashboards and tables
+ * get a wider cap for their grids. The column is centred in the space beside the
+ * sidebar. Below the cap nothing changes — phones and tablets are full width. */
+
+.page {
+  width: 100%;
+  min-width: 0;
+  margin-inline: auto;
+}
+.reading {
+  max-width: 920px;
+}
+.wide {
+  max-width: 1200px;
+}
+.full {
+  max-width: none;
+}
+
+/* Top-bar title (portalled into the layout's header slot). */
+.head {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  min-width: 0;
+}
+/* One line, ellipsis — a long title ("Audit jurnali", a module name) never wraps
+ * the bar onto two lines. The full text stays the accessible name. */
+.title {
+  min-width: 0;
+  margin: 0;
+}
+
+/* Rendered without a layout (tests, a route that opted out): the title becomes the
+ * body's first line. */
+.inlineHead {
+  margin-bottom: var(--s-4);
+}

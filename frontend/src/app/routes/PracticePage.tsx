@@ -27,6 +27,7 @@ import { useTranslation } from "react-i18next";
 import type { TFunction } from "i18next";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { PracticeScreen, PracticeStateScreen } from "../../screens/practice";
+import RoleLayout from "./RoleLayout";
 import type {
   PracticeFeedback,
   PracticePhase,
@@ -409,37 +410,49 @@ export default function PracticePage() {
 
   if (blocked === "sequence" && moduleNextId) {
     return (
-      <PracticeStateScreen
-        title={t("practice.sequence.title")}
-        body={t("practice.sequence.body")}
-        actionLabel={t("practice.sequence.cta")}
-        onAction={() =>
-          setSearchParams(fromDaily ? { task: moduleNextId, from: "daily" } : { task: moduleNextId })
-        }
-        onNavigate={onNavigate}
-      />
+      // /task is outside the student layout (the recorder owns the screen); these
+      // "nothing to answer" states are ordinary pages and get the frame back.
+      <RoleLayout role="student">
+        <PracticeStateScreen
+          title={t("practice.sequence.title")}
+          body={t("practice.sequence.body")}
+          actionLabel={t("practice.sequence.cta")}
+          onAction={() =>
+            setSearchParams(fromDaily ? { task: moduleNextId, from: "daily" } : { task: moduleNextId })
+          }
+          onNavigate={onNavigate}
+        />
+      </RoleLayout>
     );
   }
   if (blocked) {
     return (
-      <PracticeStateScreen
-        title={t(`practice.${blocked}.title`)}
-        body={t(`practice.${blocked}.body`)}
-        actionLabel={fromDaily ? t("practice.backToDaily") : t("practice.unavailable.cta")}
-        onAction={() => navigate(fromDaily ? "/daily" : "/practice")}
-        onNavigate={onNavigate}
-      />
+      // /task is outside the student layout (the recorder owns the screen); these
+      // "nothing to answer" states are ordinary pages and get the frame back.
+      <RoleLayout role="student">
+        <PracticeStateScreen
+          title={t(`practice.${blocked}.title`)}
+          body={t(`practice.${blocked}.body`)}
+          actionLabel={fromDaily ? t("practice.backToDaily") : t("practice.unavailable.cta")}
+          onAction={() => navigate(fromDaily ? "/daily" : "/practice")}
+          onNavigate={onNavigate}
+        />
+      </RoleLayout>
     );
   }
   if (empty || !target) {
     return (
-      <PracticeStateScreen
-        title={t("practice.empty.title")}
-        body={t("practice.emptyBody")}
-        actionLabel={t("practice.empty.cta")}
-        onAction={() => navigate("/")}
-        onNavigate={onNavigate}
-      />
+      // /task is outside the student layout (the recorder owns the screen); these
+      // "nothing to answer" states are ordinary pages and get the frame back.
+      <RoleLayout role="student">
+        <PracticeStateScreen
+          title={t("practice.empty.title")}
+          body={t("practice.emptyBody")}
+          actionLabel={t("practice.empty.cta")}
+          onAction={() => navigate("/")}
+          onNavigate={onNavigate}
+        />
+      </RoleLayout>
     );
   }
 
