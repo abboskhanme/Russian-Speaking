@@ -14,3 +14,6 @@ export type {
 
 export { AttemptDetailScreen } from "./AttemptDetailScreen";
 export type { AttemptDetailScreenProps, AttemptDetail } from "./AttemptDetailScreen";
+
+export { RegradeButton } from "./RegradeButton";
+export type { RegradeButtonProps } from "./RegradeButton";
