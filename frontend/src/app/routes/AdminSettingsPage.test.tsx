@@ -133,7 +133,9 @@ function renderPage() {
       <AdminSettingsPage />
     </MemoryRouter>,
   );
-  return userEvent.setup();
+  // No per-keystroke delay: each typed character would otherwise await a timer and
+  // re-render the full page, which is what made these slow, not what they assert.
+  return userEvent.setup({ delay: null });
 }
 
 const maxTurnsInput = () => screen.getByLabelText(t("admin.roleplayMaxTurns")) as HTMLInputElement;

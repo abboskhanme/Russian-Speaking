@@ -26,5 +26,10 @@ export default defineConfig({
     globals: false,
     environment: "jsdom",
     restoreMocks: true,
+    // The 5 s default is a timing assertion nobody wrote. Page-level tests render whole
+    // screens in jsdom and drive them with user-event; on a busy machine (a shared dev
+    // box, a 2-core CI runner) a correct test then fails as "timed out", a different one
+    // each run. A hung test still fails — 15 s later.
+    testTimeout: 15_000,
   },
 });
