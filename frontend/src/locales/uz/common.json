@@ -126,6 +126,10 @@
     }
   },
   "practice": {
+    "focusClose": "Vazifani yopish",
+    "focusSend": "Yuborish",
+    "focusUploading": "Javob yuborilmoqda",
+    "focusUploaded": "Javob yuborildi",
     "attemptsLeft_one": "{{count}} urinish qoldi",
     "attemptsLeft_other": "{{count}} urinish qoldi",
     "listenModel": "Namunani eshit",
@@ -206,9 +210,17 @@
     "reviewReady": "Yozuv tayyor. Eshitib ko'r yoki qayta yoz.",
     "retry": "Qayta urinish",
     "deniedTitle": "Mikrofonga ruxsat berilmadi",
-    "deniedHint": "Yozish uchun brauzer sozlamalaridan mikrofonga ruxsat bering.",
+    "deniedHint": "Brauzerning manzil satridagi qulf belgisini bosing va mikrofonga ruxsat bering, soʻng qayta urinib koʻring.",
     "errorTitle": "Yozib bo'lmadi",
-    "errorHint": "Qurilmangda mikrofon yozuvi qo'llab-quvvatlanmaydi.",
+    "errorHint": "Mikrofon bilan nimadir xato ketdi. Yana bir bor urinib koʻring.",
+    "insecureTitle": "Xavfsiz ulanish (HTTPS) kerak",
+    "insecureHint": "Brauzer mikrofonni faqat https:// bilan boshlanadigan manzilda beradi. Saytni https:// orqali oching.",
+    "unsupportedTitle": "Bu brauzer ovoz yozolmaydi",
+    "unsupportedHint": "Qurilmangda mikrofon yozuvi qoʻllab-quvvatlanmaydi. Chrome, Safari yoki Edgeʼning yangi versiyasini sinab koʻring.",
+    "noDeviceTitle": "Mikrofon topilmadi",
+    "noDeviceHint": "Mikrofonni ulang yoki quloqchinni tekshiring, soʻng qayta urinib koʻring.",
+    "busyTitle": "Mikrofon band",
+    "busyHint": "Mikrofonni boshqa ilova (qoʻngʻiroq yoki boshqa tab) ishlatyapti. Uni yoping va qayta urinib koʻring.",
     "region": "Ovoz yozish"
   },
   "placement": {

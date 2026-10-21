@@ -222,3 +222,94 @@
     transition: none;
   }
 }
+
+/* ---- Hints wrap to a readable measure ---- */
+.hint {
+  max-width: 36ch;
+}
+
+/* The prep arc eases between the 100 ms ticks instead of stepping. */
+.ringArc {
+  transition: stroke-dashoffset 120ms linear;
+}
+
+/* ==== Docked mode: controls portalled into the host's bottom action bar ==== */
+.recordDocked {
+  width: 72px;
+  height: 72px;
+}
+
+.dockRow {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: var(--s-2);
+  width: 100%;
+}
+.dockStart {
+  display: flex;
+  justify-content: flex-start;
+  min-width: 0;
+}
+.dockEnd {
+  display: flex;
+  justify-content: flex-end;
+  min-width: 0;
+}
+.dockCenter {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--s-1);
+}
+.dockCaption {
+  font-family: var(--font-sans);
+  font-size: var(--t-body-s-size);
+  font-weight: var(--fw-bold);
+  color: var(--ink-soft);
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
+/* Waveform + cap progress (recording) or the playback row (review). */
+.dockStrip {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--s-2);
+  width: 100%;
+  margin-bottom: var(--s-2);
+}
+.dockWave {
+  width: min(420px, 100%);
+}
+.progressTrackDocked {
+  width: min(420px, 100%);
+}
+.dockStrip .playRow {
+  width: min(420px, 100%);
+}
+.reviewActionsDocked {
+  width: 100%;
+  margin-top: 0;
+}
+
+/* "0:12 / 1:30" — the answer clock, always visible in the bar. */
+.limit {
+  font-family: var(--font-mono);
+  font-size: 15px;
+  font-weight: var(--fw-bold);
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.limitTotal {
+  color: var(--muted);
+  font-weight: var(--fw-medium);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ringArc {
+    transition: none;
+  }
+}

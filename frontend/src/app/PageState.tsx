@@ -59,7 +59,16 @@ export function PageError({ onRetry, message }: { onRetry?: () => void; message?
 }
 
 /** A tiny fixed-position toast used by Practice for submit success / errors. */
-export function Toast({ tone, children }: { tone: "success" | "danger" | "info"; children: ReactNode }) {
+export function Toast({
+  tone,
+  children,
+  bottom = 96,
+}: {
+  tone: "success" | "danger" | "info";
+  children: ReactNode;
+  /** Distance from the bottom edge — a screen with its own bottom bar lifts it clear. */
+  bottom?: number | string;
+}) {
   const bg =
     tone === "success" ? "var(--primary)" : tone === "danger" ? "var(--danger)" : "var(--surface-3)";
   const fg = tone === "info" ? "var(--ink)" : "var(--primary-on, #fff)";
@@ -69,7 +78,7 @@ export function Toast({ tone, children }: { tone: "success" | "danger" | "info";
       style={{
         position: "fixed",
         left: "50%",
-        bottom: 96,
+        bottom,
         transform: "translateX(-50%)",
         zIndex: 60,
         background: bg,
