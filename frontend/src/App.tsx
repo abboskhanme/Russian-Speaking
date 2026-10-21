@@ -58,7 +58,7 @@ const AdminStudentsPage = lazy(() => import("./app/routes/AdminStudentsPage"));
 const AdminSettingsPage = lazy(() => import("./app/routes/AdminSettingsPage"));
 const AdminBillingPage = lazy(() => import("./app/routes/AdminBillingPage"));
 const AdminAuditPage = lazy(() => import("./app/routes/AdminAuditPage"));
-const AdminLayout = lazy(() => import("./app/routes/AdminLayout"));
+const RoleLayout = lazy(() => import("./app/routes/RoleLayout"));
 const AdminContentPage = lazy(() => import("./app/routes/AdminContentPage"));
 const AdminModuleEditorPage = lazy(() => import("./app/routes/AdminModuleEditorPage"));
 const AdminProfilePage = lazy(() => import("./app/routes/AdminProfilePage"));
@@ -146,39 +146,42 @@ export default function App() {
                   design and nav (never a re-skin of the student screens). Phases 1–2
                   ship A1 Obzor + Klasslar; Navbat/Kontent/Analitika follow. */}
               <Route element={<RequireRole allow={TEACHER_ROLES} />}>
-                <Route path="/teacher" element={<TeacherDashboardPage />} />
-                {/* Klasslar — Guruhlar | So'rovlar | O'quvchilar tabs (?tab=…). */}
-                <Route path="/teacher/classes" element={<ClassesPage />} />
-                {/* A5 group detail → A7 invite (join code + waiting students). */}
-                <Route path="/teacher/classes/:groupId" element={<GroupDetailPage />} />
-                <Route path="/teacher/classes/:groupId/invite" element={<GroupInvitePage />} />
-                {/* A6 student profile, reached from a roster row or the students tab. */}
-                <Route path="/teacher/students/:studentId" element={<StudentProfilePage />} />
-                {/* Navbat — the grading queue (B1) → one attempt's detail + manual
-                    grading (B2/B3). This is what the centre FAB opens. */}
-                <Route path="/teacher/queue" element={<ReviewQueuePage />} />
-                <Route path="/teacher/queue/:attemptId" element={<AttemptReviewPage />} />
-                {/* Kontent — Modullar | Vazifalar (C1) → the module editor (C4), which
-                    hosts the library picker (C5) and the new-task sheet (C2). */}
-                <Route path="/teacher/content" element={<ContentPage />} />
-                <Route path="/teacher/content/:blockId" element={<ModuleEditorPage />} />
-                {/* Analitika — Insaytlar | Jurnal (D1/D2), `?tab=grades` for the
-                    gradebook, `?group=` for the per-group filter. */}
-                <Route path="/teacher/analytics" element={<AnalyticsPage />} />
-                {/* Topshiriq berish — bulk assign (D3). `?group=` preselects, which is
-                    how the A2 group cards and the A5 group detail already link here. */}
-                <Route path="/teacher/assign" element={<AssignTaskPage />} />
-                {/* Profil — reached from the A1 header avatar, NOT from the nav bar
-                    (the teacher's bar has no Profil item, by design). */}
-                <Route path="/teacher/profile" element={<TeacherProfilePage />} />
+                {/* One frame for the whole teacher panel (nav, bell, avatar). */}
+                <Route element={<RoleLayout role="teacher" />}>
+                  <Route path="/teacher" element={<TeacherDashboardPage />} />
+                  {/* Klasslar — Guruhlar | So'rovlar | O'quvchilar tabs (?tab=…). */}
+                  <Route path="/teacher/classes" element={<ClassesPage />} />
+                  {/* A5 group detail → A7 invite (join code + waiting students). */}
+                  <Route path="/teacher/classes/:groupId" element={<GroupDetailPage />} />
+                  <Route path="/teacher/classes/:groupId/invite" element={<GroupInvitePage />} />
+                  {/* A6 student profile, reached from a roster row or the students tab. */}
+                  <Route path="/teacher/students/:studentId" element={<StudentProfilePage />} />
+                  {/* Navbat — the grading queue (B1) → one attempt's detail + manual
+                      grading (B2/B3). This is what the centre FAB opens. */}
+                  <Route path="/teacher/queue" element={<ReviewQueuePage />} />
+                  <Route path="/teacher/queue/:attemptId" element={<AttemptReviewPage />} />
+                  {/* Kontent — Modullar | Vazifalar (C1) → the module editor (C4), which
+                      hosts the library picker (C5) and the new-task sheet (C2). */}
+                  <Route path="/teacher/content" element={<ContentPage />} />
+                  <Route path="/teacher/content/:blockId" element={<ModuleEditorPage />} />
+                  {/* Analitika — Insaytlar | Jurnal (D1/D2), `?tab=grades` for the
+                      gradebook, `?group=` for the per-group filter. */}
+                  <Route path="/teacher/analytics" element={<AnalyticsPage />} />
+                  {/* Topshiriq berish — bulk assign (D3). `?group=` preselects, which is
+                      how the A2 group cards and the A5 group detail already link here. */}
+                  <Route path="/teacher/assign" element={<AssignTaskPage />} />
+                  {/* Profil — reached from the A1 header avatar, NOT from the nav bar
+                      (the teacher's bar has no Profil item, by design). */}
+                  <Route path="/teacher/profile" element={<TeacherProfilePage />} />
+                </Route>
               </Route>
 
               {/* Admin app (admins ONLY — teachers are deliberately not allowed here,
                   unlike the /teacher subtree which admits both). Its own /admin/*
-                  space, its own six-item nav, its own design. AdminLayout gives every
-                  admin header its avatar → /admin/profile. */}
+                  space, its own six-item nav, its own design. RoleLayout draws the
+                  frame (nav, bell, avatar → /admin/profile) once for every page. */}
               <Route element={<RequireRole allow={["admin"]} />}>
-                <Route element={<AdminLayout />}>
+                <Route element={<RoleLayout role="admin" />}>
                   <Route path="/admin" element={<AdminDashboardPage />} />
                   {/* O'qituvchilar | Adminlar (?tab=admins). */}
                   <Route path="/admin/teachers" element={<AdminTeachersPage />} />
@@ -199,41 +202,49 @@ export default function App() {
 
               {/* Student app (students only). */}
               <Route element={<RequireRole allow={["student"]} />}>
+                {/* Full-viewport screens, OUTSIDE the student frame: they own the whole
+                    screen (no nav bar under the record button or the chat composer).
+                    Opting a route out of the frame is exactly this — declaring it here. */}
                 {/* One-time post-register placement ("dastlabki sinov"). */}
                 <Route path="/placement" element={<PlacementPage />} />
-                {/* Mashq hub + its drill-downs. The recording screen lives at /task so
-                    /practice is free for the hub (now just Modullar · Topshiriqlar). */}
-                <Route path="/practice" element={<PracticeHubPage />} />
-                <Route path="/practice/module/:moduleId" element={<ModuleDetailPage />} />
+                {/* The recording screen. It lives at /task so /practice is free for the
+                    hub (now just Modullar · Topshiriqlar). */}
                 <Route path="/task" element={<PracticePage />} />
-                {/* AI Suhbat — the centre FAB's own destination: the scenario grid,
-                    then each scenario's chat. */}
-                <Route path="/chat" element={<ConversationHubPage />} />
+                {/* One AI scenario's live chat. */}
                 <Route path="/chat/:scenarioId" element={<ConversationPage />} />
-                {/* Xatolar ustida — the F5 replay drill (flagged; the route 404s
-                    itself back to /practice when the deployment has it off). This is
-                    the path `review_added` notifications have always linked to. */}
-                <Route path="/review" element={<ReviewDrillPage />} />
-                {/* Bugungi 5 daqiqa — the F3 daily session (flagged; the route
-                    404s itself back to Home when the deployment has it off). It
-                    keeps `activeNavKey="home"`: it is the shape of today's
-                    practice, not a sixth destination, and the bar stays 5 items. */}
-                <Route path="/daily" element={<DailyPage />} />
-                {/* Tovushlar mashqi — the F2 minimal-pair drill (flagged). Unlike
-                    the two above it does NOT bounce when the flag is off: the
-                    screen distinguishes "not enabled here" from "no speech key is
-                    wired" from "today's attempts are used", and each needs saying. */}
-                <Route path="/drill" element={<DrillPage />} />
-                <Route path="/progress" element={<ProgressPage />} />
-                {/* Group view (classmates + group leaderboard), reached from Home. */}
-                <Route path="/group" element={<GroupPage />} />
-                {/* Results drill-down: Profile → all history → one attempt's detail. */}
-                <Route path="/results" element={<AllResultsPage />} />
-                <Route path="/results/:id" element={<AttemptDetailPage />} />
-                <Route path="/profile" element={<ProfilePage />} />
-                {/* Premium — obuna holati + tariflar. Reached from the profile's PRO
-                    card and from the paywall a 402 raises. */}
-                <Route path="/premium" element={<PremiumPage />} />
+
+                {/* Everything else: one frame (nav, bell, avatar) for every page. */}
+                <Route element={<RoleLayout role="student" />}>
+                  {/* Mashq hub + its drill-downs. */}
+                  <Route path="/practice" element={<PracticeHubPage />} />
+                  <Route path="/practice/module/:moduleId" element={<ModuleDetailPage />} />
+                  {/* AI Suhbat — the centre FAB's own destination: the scenario grid. */}
+                  <Route path="/chat" element={<ConversationHubPage />} />
+                  {/* Xatolar ustida — the F5 replay drill (flagged; the route 404s
+                      itself back to /practice when the deployment has it off). This is
+                      the path `review_added` notifications have always linked to. */}
+                  <Route path="/review" element={<ReviewDrillPage />} />
+                  {/* Bugungi 5 daqiqa — the F3 daily session (flagged; the route
+                      404s itself back to Home when the deployment has it off). The
+                      layout keeps Bosh highlighted: it is the shape of today's
+                      practice, not a sixth destination, and the bar stays 5 items. */}
+                  <Route path="/daily" element={<DailyPage />} />
+                  {/* Tovushlar mashqi — the F2 minimal-pair drill (flagged). Unlike
+                      the two above it does NOT bounce when the flag is off: the
+                      screen distinguishes "not enabled here" from "no speech key is
+                      wired" from "today's attempts are used", and each needs saying. */}
+                  <Route path="/drill" element={<DrillPage />} />
+                  <Route path="/progress" element={<ProgressPage />} />
+                  {/* Group view (classmates + group leaderboard), reached from Home. */}
+                  <Route path="/group" element={<GroupPage />} />
+                  {/* Results drill-down: Profile → all history → one attempt's detail. */}
+                  <Route path="/results" element={<AllResultsPage />} />
+                  <Route path="/results/:id" element={<AttemptDetailPage />} />
+                  <Route path="/profile" element={<ProfilePage />} />
+                  {/* Premium — obuna holati + tariflar. Reached from the profile's PRO
+                      card and from the paywall a 402 raises. */}
+                  <Route path="/premium" element={<PremiumPage />} />
+                </Route>
               </Route>
             </Route>
 

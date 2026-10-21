@@ -28,7 +28,7 @@
 import { useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { Badge, Button, Card, Mascot, Text, cx } from "../../shared/ui";
-import { AppShell, Brand, NotificationsBell, studentNavItems } from "../../widgets";
+import { Page } from "../../widgets";
 import type { NavItem } from "../../widgets";
 import { mockDailySteps } from "./daily.mock";
 import { useRussianVoice } from "./useRussianVoice";
@@ -126,8 +126,6 @@ export function DailyScreen({
   onOpenDrill,
   onExit,
   onKeepPractising,
-  activeNavKey = "home",
-  onNavigate,
 }: DailyScreenProps) {
   const { t } = useTranslation();
   const voice = useRussianVoice();
@@ -145,25 +143,11 @@ export function DailyScreen({
   const finished = steps.length > 0 && activeIndex < 0;
 
   return (
-    <AppShell
-      brand={<Brand />}
-      nav={{
-        items: studentNavItems(t),
-        activeKey: activeNavKey,
-        onNavigate,
-        label: t("nav.landmark"),
-      }}
-      headerStart={
-        <Text as="h1" variant="title-m">
-          {/* The feature's NAME, the same words the Home card and the "done" state
-              use. It used to be built from the steps' estimate, so Home said
-              "Bugungi 5 daqiqa" and this header "Bugungi 4 daqiqa" for one session.
-              The estimate is still shown — in the rail, as "~4 daqiqa". */}
-          {t("daily.name")}
-        </Text>
-      }
-      headerEnd={<NotificationsBell />}
-    >
+    /* The title is the feature's NAME, the same words the Home card and the "done"
+        state use. It used to be built from the steps' estimate, so Home said
+        "Bugungi 5 daqiqa" and this header "Bugungi 4 daqiqa" for one session.
+        The estimate is still shown — in the rail, as "~4 daqiqa". */
+    <Page title={t("daily.name")}>
       <div className={styles.page}>
         {steps.length === 0 ? (
           <EmptyState onExit={onExit} />
@@ -193,7 +177,7 @@ export function DailyScreen({
           </>
         )}
       </div>
-    </AppShell>
+    </Page>
   );
 }
 

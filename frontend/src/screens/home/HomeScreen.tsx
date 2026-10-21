@@ -2,7 +2,7 @@ import { useState } from "react";
 import type { FormEvent } from "react";
 import { useTranslation } from "react-i18next";
 import { Button, Card, Mascot, Text, cx } from "../../shared/ui";
-import { AppShell, NotificationsBell, studentNavItems } from "../../widgets";
+import { Page } from "../../widgets";
 import type { NavItem } from "../../widgets";
 import {
   mockHomeGroup,
@@ -172,26 +172,11 @@ export function HomeScreen({
   onOpenAssignment,
   joinNotice,
   onDismissJoinNotice,
-  activeNavKey = "home",
-  onNavigate,
 }: HomeScreenProps) {
   const { t } = useTranslation();
 
   return (
-    <AppShell
-      nav={{
-        items: studentNavItems(t),
-        activeKey: activeNavKey,
-        onNavigate,
-        label: t("nav.landmark"),
-      }}
-      headerStart={
-        <Text as="h1" variant="title-l" truncate className={styles.greeting}>
-          {t("home.greetHi", { name: user.name })}
-        </Text>
-      }
-      headerEnd={<NotificationsBell />}
-    >
+    <Page title={t("home.greetHi", { name: user.name })} width="wide">
       <div className={styles.page}>
         <TodayCard today={today} daily={daily} onStart={onStart} />
 
@@ -253,7 +238,7 @@ export function HomeScreen({
           )}
         </section>
       </div>
-    </AppShell>
+    </Page>
   );
 }
 

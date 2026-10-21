@@ -1,7 +1,7 @@
 import { useCallback, useId, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Tabs, Text } from "../../shared/ui";
-import { AppShell, Brand, studentNavItems } from "../../widgets";
+import { Page } from "../../widgets";
 import type { NavItem } from "../../widgets";
 import { SkillsTab } from "./tabs/SkillsTab";
 import type { SkillsTabProps } from "./tabs/SkillsTab";
@@ -74,8 +74,6 @@ export function ProgressScreen({
   leaderboard,
   activeTab,
   onChangeTab,
-  activeNavKey = "progress",
-  onNavigate,
 }: ProgressScreenProps) {
   const { t } = useTranslation();
   const panelId = useId();
@@ -100,22 +98,9 @@ export function ProgressScreen({
   ];
 
   return (
-    <AppShell
-      brand={<Brand />}
-      nav={{
-        items: studentNavItems(t),
-        activeKey: activeNavKey,
-        onNavigate,
-        label: t("nav.landmark"),
-      }}
-      headerStart={
-        <Text as="h1" variant="title-m">
-          {t("nav.progress")}
-        </Text>
-      }
-      headerEnd={<XpBadge xp={xp} />}
-    >
+    <Page title={t("nav.progress")}>
       <div className={styles.page}>
+        <XpBadge xp={xp} />
         <Tabs
           items={items}
           activeKey={current}
@@ -138,7 +123,7 @@ export function ProgressScreen({
           {current === "leaderboard" && <LeaderboardTab {...leaderboard} />}
         </div>
       </div>
-    </AppShell>
+    </Page>
   );
 }
 

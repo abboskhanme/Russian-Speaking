@@ -1,6 +1,6 @@
 import { useTranslation } from "react-i18next";
 import { Button, Card, Text, cx } from "../../shared/ui";
-import { AppShell, Brand, NotificationsBell, studentNavItems } from "../../widgets";
+import { Page } from "../../widgets";
 import type { NavItem } from "../../widgets";
 import styles from "./GroupScreen.module.css";
 
@@ -56,20 +56,11 @@ export function GroupScreen({
   memberCount,
   classmates,
   onBack,
-  activeNavKey = "home",
-  onNavigate,
 }: GroupScreenProps) {
   const { t } = useTranslation();
 
   return (
-    <AppShell
-      brand={<Brand />}
-      nav={{
-        items: studentNavItems(t),
-        activeKey: activeNavKey,
-        onNavigate,
-        label: t("nav.landmark"),
-      }}
+    <Page
       headerStart={
         <Button
           variant="ghost"
@@ -81,7 +72,6 @@ export function GroupScreen({
           <BackGlyph />
         </Button>
       }
-      headerEnd={<NotificationsBell />}
     >
       <div className={styles.page}>
         <header className={styles.hero}>
@@ -149,7 +139,7 @@ export function GroupScreen({
           </ul>
         )}
       </div>
-    </AppShell>
+    </Page>
   );
 }
 

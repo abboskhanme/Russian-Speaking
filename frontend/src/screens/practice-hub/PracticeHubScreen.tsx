@@ -1,7 +1,7 @@
 import { useCallback, useId, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Button, Card, Tabs, Text } from "../../shared/ui";
-import { AppShell, Brand, NotificationsBell, studentNavItems } from "../../widgets";
+import { Page } from "../../widgets";
 import type { NavItem } from "../../widgets";
 import { ModulesTab } from "./tabs/ModulesTab";
 import type { PracticeModule } from "./tabs/ModulesTab";
@@ -85,8 +85,6 @@ export function PracticeHubScreen({
   soundsDrill,
   activeTab,
   onChangeTab,
-  activeNavKey = "practice",
-  onNavigate,
 }: PracticeHubScreenProps) {
   const { t } = useTranslation();
   const panelId = useId();
@@ -110,21 +108,7 @@ export function PracticeHubScreen({
   ];
 
   return (
-    <AppShell
-      brand={<Brand />}
-      nav={{
-        items: studentNavItems(t),
-        activeKey: activeNavKey,
-        onNavigate,
-        label: t("nav.landmark"),
-      }}
-      headerStart={
-        <Text as="h1" variant="title-m">
-          {t("mashq.title")}
-        </Text>
-      }
-      headerEnd={<NotificationsBell />}
-    >
+    <Page title={t("mashq.title")} width="wide">
       <div className={styles.page}>
         {/* The drill's entry point. The card is deliberately NOT `interactive`:
             a press-scale on a wide row that carries its own edge button shifts
@@ -194,7 +178,7 @@ export function PracticeHubScreen({
           )}
         </div>
       </div>
-    </AppShell>
+    </Page>
   );
 }
 

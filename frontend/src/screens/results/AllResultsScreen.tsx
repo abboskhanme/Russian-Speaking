@@ -2,7 +2,7 @@ import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import type { TFunction } from "i18next";
 import { Button, Card, Text, VisuallyHidden, cx } from "../../shared/ui";
-import { AppShell, Brand, NotificationsBell, studentNavItems } from "../../widgets";
+import { Page } from "../../widgets";
 import type { NavItem } from "../../widgets";
 import styles from "./AllResultsScreen.module.css";
 
@@ -61,21 +61,12 @@ export function AllResultsScreen({
   results,
   onOpenResult,
   onBack,
-  activeNavKey = "profile",
-  onNavigate,
 }: AllResultsScreenProps) {
   const { t } = useTranslation();
   const now = useMemo(() => new Date(), []);
 
   return (
-    <AppShell
-      brand={<Brand />}
-      nav={{
-        items: studentNavItems(t),
-        activeKey: activeNavKey,
-        onNavigate,
-        label: t("nav.landmark"),
-      }}
+    <Page
       headerStart={
         <Button
           variant="ghost"
@@ -87,7 +78,6 @@ export function AllResultsScreen({
           <BackGlyph />
         </Button>
       }
-      headerEnd={<NotificationsBell />}
     >
       <div className={styles.page}>
         <header className={styles.head}>
@@ -162,7 +152,7 @@ export function AllResultsScreen({
           </Card>
         )}
       </div>
-    </AppShell>
+    </Page>
   );
 }
 

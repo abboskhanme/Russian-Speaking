@@ -5,9 +5,8 @@ import { Badge, Button, Card, Input, Modal, Switch, Text } from "../../shared/ui
 import type { BadgeVariant } from "../../shared/ui";
 import { isApiError } from "../../shared/api";
 import { formatMinor, parseMajorToMinor } from "../../shared/money";
-import { AppShell, Brand, NotificationsBell, adminNavItems } from "../../widgets";
+import { Page } from "../../widgets";
 import type { NavItem } from "../../widgets";
-import { AdminAccountButton } from "./AdminChrome";
 import { isNetworkError } from "./adminErrors";
 import { mockAdminPlans, mockAdminSubscriptions } from "./adminBilling.mock";
 import styles from "./AdminBillingScreen.module.css";
@@ -158,8 +157,6 @@ export function AdminBillingScreen({
   subscriptions,
   paymentsEnabled,
   providerConfigured,
-  activeNavKey = "billing",
-  onNavigate,
   onCreate,
   onUpdate,
   onDelete,
@@ -195,26 +192,7 @@ export function AdminBillingScreen({
 
 
   return (
-    <AppShell
-      brand={<Brand />}
-      nav={{
-        items: adminNavItems(t),
-        activeKey: activeNavKey,
-        onNavigate,
-        label: t("nav.landmark"),
-      }}
-      headerStart={
-        <Text as="h1" variant="title-m">
-          {t("admin.billing.title")}
-        </Text>
-      }
-      headerEnd={
-        <>
-          <NotificationsBell />
-          <AdminAccountButton />
-        </>
-      }
-    >
+    <Page title={t("admin.billing.title")} width="wide">
       <div className={styles.page} data-density="compact">
         {/* ---- The honest state, first and unmissable ---- */}
         {!providerConfigured && (
@@ -383,7 +361,7 @@ export function AdminBillingScreen({
       {deleting && onDelete && (
         <DeletePlanDialog plan={deleting} onClose={() => setDeletingId(null)} onDelete={onDelete} />
       )}
-    </AppShell>
+    </Page>
   );
 }
 

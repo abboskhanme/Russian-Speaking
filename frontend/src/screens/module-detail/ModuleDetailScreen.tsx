@@ -15,7 +15,7 @@
  */
 import { useTranslation } from "react-i18next";
 import { Button, Card, Text, cx } from "../../shared/ui";
-import { AppShell, Brand, NotificationsBell, studentNavItems } from "../../widgets";
+import { Page } from "../../widgets";
 import type { NavItem } from "../../widgets";
 import { mockModuleDetail } from "./module-detail.mock";
 import styles from "./ModuleDetailScreen.module.css";
@@ -69,24 +69,12 @@ export function ModuleDetailScreen({
   tasks,
   onStartTask,
   onBack,
-  activeNavKey = "practice",
-  onNavigate,
 }: ModuleDetailScreenProps) {
   const { t } = useTranslation();
   const pct = total > 0 ? Math.round((doneCount / total) * 100) : 0;
 
   return (
-    <AppShell
-      brand={<Brand />}
-      nav={{
-        items: studentNavItems(t),
-        activeKey: activeNavKey,
-        onNavigate,
-        label: t("nav.landmark"),
-      }}
-      headerStart={<BackButton onBack={onBack} label={t("common.back")} />}
-      headerEnd={<NotificationsBell />}
-    >
+    <Page headerStart={<BackButton onBack={onBack} label={t("common.back")} />}>
       <div className={styles.page}>
         {/* ---- Hero: label · ring · name · count ---- */}
         <header className={styles.hero}>
@@ -119,7 +107,7 @@ export function ModuleDetailScreen({
           </Card>
         </section>
       </div>
-    </AppShell>
+    </Page>
   );
 }
 

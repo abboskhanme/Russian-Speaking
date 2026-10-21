@@ -23,7 +23,8 @@
     "adminTeachersShort": "Ustozlar",
     "adminBilling": "Tariflar",
     "adminAudit": "Jurnal",
-    "asideLabel": "Yordamchi panel"
+    "asideLabel": "Yordamchi panel",
+    "account": "Profil va sozlamalar"
   },
   "common": {
     "continue": "Davom etish",

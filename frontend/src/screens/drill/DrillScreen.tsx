@@ -29,7 +29,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Badge, Button, Card, Recorder, Text } from "../../shared/ui";
-import { AppShell, Brand, NotificationsBell, studentNavItems } from "../../widgets";
+import { Page } from "../../widgets";
 // The browser's own voice, not the billed TTS provider — the same call the daily
 // warm-up makes, for the same reason: hearing the word is half the exercise, and
 // it must not open a new spending path for a step that exists to be free.
@@ -147,27 +147,11 @@ export function DrillScreen({
   onSubmit,
   onRetry,
   onBack,
-  activeNavKey = "practice",
-  onNavigate,
 }: DrillScreenProps) {
   const { t } = useTranslation();
 
   return (
-    <AppShell
-      brand={<Brand />}
-      nav={{
-        items: studentNavItems(t),
-        activeKey: activeNavKey,
-        onNavigate,
-        label: t("nav.landmark"),
-      }}
-      headerStart={
-        <Text as="h1" variant="title-m">
-          {t("drill.title")}
-        </Text>
-      }
-      headerEnd={<NotificationsBell />}
-    >
+    <Page title={t("drill.title")}>
       <div className={styles.page}>
         {state !== "ready" && state !== "budget_spent" ? (
           <Blocked state={state} />
@@ -193,7 +177,7 @@ export function DrillScreen({
           />
         )}
       </div>
-    </AppShell>
+    </Page>
   );
 }
 

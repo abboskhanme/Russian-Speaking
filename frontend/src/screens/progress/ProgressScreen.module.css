@@ -25,7 +25,7 @@
   outline-offset: var(--focus-ring-offset);
   border-radius: var(--r-md);
 }
-
+/* ---- XP badge — top of the content (the header right side is the layout's, the same on every page) ---- */
 /* ---- Header XP badge (the trailing slot on this screen) ---- */
 .xpBadge {
   display: inline-flex;
@@ -36,6 +36,7 @@
   background: var(--primary-tint);
   color: var(--primary-ink);
   white-space: nowrap;
+  align-self: flex-start;
 }
 .xpStar {
   flex: none;

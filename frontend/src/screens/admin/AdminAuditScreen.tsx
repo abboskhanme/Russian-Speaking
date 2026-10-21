@@ -2,9 +2,8 @@ import { useId } from "react";
 import { useTranslation } from "react-i18next";
 import type { TFunction } from "i18next";
 import { Badge, Button, Card, Input, Spinner, Text } from "../../shared/ui";
-import { AppShell, Brand, NotificationsBell, adminNavItems } from "../../widgets";
+import { Page } from "../../widgets";
 import type { NavItem } from "../../widgets";
-import { AdminAccountButton } from "./AdminChrome";
 import styles from "./AdminAuditScreen.module.css";
 
 /* -------------------------------------------------------------------------- */
@@ -95,8 +94,6 @@ export function AdminAuditScreen({
   failed = false,
   onFiltersChange,
   onPageChange,
-  activeNavKey = "audit",
-  onNavigate,
 }: AdminAuditProps) {
   const { t } = useTranslation();
   const actionId = useId();
@@ -106,26 +103,7 @@ export function AdminAuditScreen({
   const set = (patch: Partial<AdminAuditFilters>) => onFiltersChange?.({ ...filters, ...patch });
 
   return (
-    <AppShell
-      brand={<Brand />}
-      nav={{
-        items: adminNavItems(t),
-        activeKey: activeNavKey,
-        onNavigate,
-        label: t("nav.landmark"),
-      }}
-      headerStart={
-        <Text as="h1" variant="title-m">
-          {t("admin.audit.title")}
-        </Text>
-      }
-      headerEnd={
-        <>
-          <NotificationsBell />
-          <AdminAccountButton />
-        </>
-      }
-    >
+    <Page title={t("admin.audit.title")} width="wide">
       <div className={styles.page} data-density="compact">
         <Text as="p" variant="body-s" color="muted">
           {t("admin.audit.intro")}
@@ -250,7 +228,7 @@ export function AdminAuditScreen({
           )}
         </section>
       </div>
-    </AppShell>
+    </Page>
   );
 }
 

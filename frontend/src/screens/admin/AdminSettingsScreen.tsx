@@ -3,9 +3,8 @@ import type { ReactNode } from "react";
 import type { TFunction } from "i18next";
 import { useTranslation } from "react-i18next";
 import { Badge, Button, Card, Input, Spinner, Switch, Text } from "../../shared/ui";
-import { AppShell, Brand, NotificationsBell, adminNavItems } from "../../widgets";
+import { Page } from "../../widgets";
 import type { NavItem } from "../../widgets";
-import { AdminAccountButton } from "./AdminChrome";
 import { adminErrorBody, isNetworkError } from "./adminErrors";
 import { mockAdminSettings } from "./admin.mock";
 import { AiBudgetCard } from "./AiBudgetCard";
@@ -254,8 +253,6 @@ function parseChain(stored: string): string[] {
  */
 export function AdminSettingsScreen({
   settings,
-  activeNavKey = "settings",
-  onNavigate,
   onSaveAi,
   onTestAi,
   onSaveLinks,
@@ -556,26 +553,7 @@ export function AdminSettingsScreen({
   };
 
   return (
-    <AppShell
-      brand={<Brand />}
-      nav={{
-        items: adminNavItems(t),
-        activeKey: activeNavKey,
-        onNavigate,
-        label: t("nav.landmark"),
-      }}
-      headerStart={
-        <Text as="h1" variant="title-m">
-          {t("nav.adminSettings")}
-        </Text>
-      }
-      headerEnd={
-        <>
-          <NotificationsBell />
-          <AdminAccountButton />
-        </>
-      }
-    >
+    <Page title={t("nav.adminSettings")}>
       <div className={styles.page} data-density="compact">
         {/* ---- AI budget: first, because it is the switch an operator reaches for in a hurry ---- */}
         {aiBudget && <AiBudgetCard budget={aiBudget} onSave={onSaveAiBudget} />}
@@ -992,7 +970,7 @@ export function AdminSettingsScreen({
           </Card>
         </section>
       </div>
-    </AppShell>
+    </Page>
   );
 }
 

@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Badge, Button, Card, Text, cx } from "../../shared/ui";
-import { AppShell, Brand, NotificationsBell, teacherNavItems } from "../../widgets";
+import { Page } from "../../widgets";
 import type { NavItem } from "../../widgets";
 import { mockGroupDetail } from "./classes.mock";
 import { ErrorsSection } from "./AnalyticsScreen";
@@ -123,9 +123,6 @@ export function TeacherGroupDetailScreen({
   assignments,
   roster,
   pendingCount = 0,
-  activeNavKey = "classes",
-  onNavigate,
-  queuedCount = 0,
   onBack,
   onAssign,
   onInvite,
@@ -153,21 +150,7 @@ export function TeacherGroupDetailScreen({
   const hasSettings = Boolean(onRename || onRegenerateCode || onRemoveMember || onDeleteGroup);
 
   return (
-    <AppShell
-      brand={<Brand />}
-      nav={{
-        items: teacherNavItems(t, queuedCount),
-        activeKey: activeNavKey,
-        onNavigate,
-        label: t("nav.landmark"),
-      }}
-      headerStart={
-        <Text as="h1" variant="title-m">
-          {t("nav.classes")}
-        </Text>
-      }
-      headerEnd={<NotificationsBell />}
-    >
+    <Page title={t("nav.classes")} width="wide">
       <div className={styles.page} data-density="compact">
         <header className={styles.head}>
           <button
@@ -302,7 +285,7 @@ export function TeacherGroupDetailScreen({
           onDelete={onDeleteGroup}
         />
       )}
-    </AppShell>
+    </Page>
   );
 }
 

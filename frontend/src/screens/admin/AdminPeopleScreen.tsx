@@ -3,10 +3,9 @@ import { useTranslation } from "react-i18next";
 import { Badge, Button, Card, Input, Modal, Switch, Tabs, Text, cx } from "../../shared/ui";
 import type { TabItem } from "../../shared/ui";
 import type { UserRole } from "../../shared/api";
-import { AppShell, Brand, NotificationsBell, adminNavItems } from "../../widgets";
+import { Page } from "../../widgets";
 import type { NavItem } from "../../widgets";
 import { AddTeacherSheet } from "./AddTeacherSheet";
-import { AdminAccountButton } from "./AdminChrome";
 import { AdminAccountsList } from "./AdminAccountsList";
 import type { AdminAccount } from "./AdminAccountsList";
 import { RoleChangeDialog, roleName } from "./RoleChangeDialog";
@@ -137,8 +136,6 @@ export function AdminPeopleScreen({
   kind,
   people,
   searching,
-  activeNavKey,
-  onNavigate,
   onSearch,
   onRename,
   onSetActive,
@@ -170,7 +167,6 @@ export function AdminPeopleScreen({
   const editing = useMemo(() => people.find((p) => p.id === editingId) ?? null, [people, editingId]);
   const deleting = useMemo(() => people.find((p) => p.id === deletingId) ?? null, [people, deletingId]);
 
-  const navKey = activeNavKey ?? kind;
   const title = kind === "teachers" ? t("admin.teachers") : t("admin.students");
   const personRole: UserRole = kind === "teachers" ? "teacher" : "student";
   const onAdmins = kind === "teachers" && staff?.tab === "admins";
@@ -189,26 +185,7 @@ export function AdminPeopleScreen({
   };
 
   return (
-    <AppShell
-      brand={<Brand />}
-      nav={{
-        items: adminNavItems(t),
-        activeKey: navKey,
-        onNavigate,
-        label: t("nav.landmark"),
-      }}
-      headerStart={
-        <Text as="h1" variant="title-m">
-          {title}
-        </Text>
-      }
-      headerEnd={
-        <>
-          <NotificationsBell />
-          <AdminAccountButton />
-        </>
-      }
-    >
+    <Page title={title} width="wide">
       <div className={styles.page} data-density="compact">
         <div className={styles.head}>
           <Text as="h2" variant="title-l" className={styles.title} truncate>
@@ -395,7 +372,7 @@ export function AdminPeopleScreen({
           onDone={(name) => setNotice(t("admin.teacherAdded", { name }))}
         />
       )}
-    </AppShell>
+    </Page>
   );
 }
 

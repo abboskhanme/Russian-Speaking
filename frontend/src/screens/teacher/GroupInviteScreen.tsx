@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Badge, Button, Card, Text, copyText } from "../../shared/ui";
-import { AppShell, Brand, NotificationsBell, teacherNavItems } from "../../widgets";
+import { Page } from "../../widgets";
 import type { NavItem } from "../../widgets";
 import { mockGroupInvite } from "./classes.mock";
 import { BackGlyph, initialsOf } from "./TeacherGroupDetailScreen";
@@ -59,30 +59,13 @@ export function GroupInviteScreen({
   joinCode,
   inviteLink,
   pending,
-  activeNavKey = "classes",
-  onNavigate,
-  queuedCount = 0,
   onBack,
   onDecideRequest,
 }: GroupInviteProps) {
   const { t } = useTranslation();
 
   return (
-    <AppShell
-      brand={<Brand />}
-      nav={{
-        items: teacherNavItems(t, queuedCount),
-        activeKey: activeNavKey,
-        onNavigate,
-        label: t("nav.landmark"),
-      }}
-      headerStart={
-        <Text as="h1" variant="title-m">
-          {t("nav.classes")}
-        </Text>
-      }
-      headerEnd={<NotificationsBell />}
-    >
+    <Page title={t("nav.classes")}>
       <div className={styles.page} data-density="compact">
         <header className={styles.head}>
           <button
@@ -146,7 +129,7 @@ export function GroupInviteScreen({
           )}
         </section>
       </div>
-    </AppShell>
+    </Page>
   );
 }
 

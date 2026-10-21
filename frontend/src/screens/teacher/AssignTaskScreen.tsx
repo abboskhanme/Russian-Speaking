@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { TFunction } from "i18next";
 import { Badge, Button, Card, Input, Modal, Text, cx } from "../../shared/ui";
-import { AppShell, Brand, NotificationsBell, teacherNavItems } from "../../widgets";
+import { Page } from "../../widgets";
 import type { NavItem } from "../../widgets";
 import { mockAssignTask } from "./assign.mock";
 import { BackGlyph } from "./TeacherGroupDetailScreen";
@@ -153,9 +153,6 @@ export function AssignTaskScreen({
   initialGroupId = null,
   student = null,
   studentMissing = false,
-  activeNavKey = "classes",
-  onNavigate,
-  queuedCount = 0,
   onBack,
   onAssign,
   onGoToClasses,
@@ -213,21 +210,7 @@ export function AssignTaskScreen({
   };
 
   return (
-    <AppShell
-      brand={<Brand />}
-      nav={{
-        items: teacherNavItems(t, queuedCount),
-        activeKey: activeNavKey,
-        onNavigate,
-        label: t("nav.landmark"),
-      }}
-      headerStart={
-        <Text as="h1" variant="title-m">
-          {t("nav.classes")}
-        </Text>
-      }
-      headerEnd={<NotificationsBell />}
-    >
+    <Page title={t("nav.classes")}>
       <div className={styles.page} data-density="compact">
         <header className={styles.head}>
           <button
@@ -449,7 +432,7 @@ export function AssignTaskScreen({
           }}
         />
       </div>
-    </AppShell>
+    </Page>
   );
 }
 

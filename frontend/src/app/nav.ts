@@ -142,3 +142,49 @@ export function useAdminNavHandler() {
     [navigate],
   );
 }
+
+/* ── Role layouts ───────────────────────────────────────────────────────────── */
+
+/** The teacher's own account — reached from the header avatar (no nav item). */
+export const TEACHER_PROFILE_PATH = "/teacher/profile";
+
+/**
+ * Screens that are not nav destinations but belong to one: the layout highlights
+ * the item they were reached from. Prefix-matched (`/results/:id` → profile).
+ */
+export const STUDENT_NAV_ALIASES: Record<string, StudentNavKey> = {
+  "/results": "profile",
+  "/premium": "profile",
+  "/group": "home",
+  "/daily": "home",
+  "/review": "practice",
+  "/drill": "practice",
+};
+export const TEACHER_NAV_ALIASES: Record<string, TeacherNavKey> = {
+  "/teacher/assign": "classes",
+  "/teacher/students": "classes",
+};
+
+/**
+ * The nav key a pathname belongs to: exact destination, then an alias, then the
+ * longest non-root destination prefix. `undefined` when the page belongs to no
+ * item (an account page reached from the avatar) — nothing is highlighted then,
+ * rather than the role's home pretending to be the current page.
+ */
+export function activeKeyForPath<K extends string>(
+  pathname: string,
+  paths: Record<K, string>,
+  aliases: Record<string, K> = {},
+): K | undefined {
+  const keys = Object.keys(paths) as K[];
+  const exact = keys.find((k) => paths[k] === pathname);
+  if (exact) return exact;
+  const alias = Object.keys(aliases)
+    .filter((p) => pathname === p || pathname.startsWith(p + "/"))
+    .sort((a, b) => b.length - a.length)[0];
+  if (alias) return aliases[alias];
+  const root = Object.values<string>(paths).reduce((a, b) => (a.length <= b.length ? a : b));
+  return keys
+    .filter((k) => paths[k] !== "/" && paths[k] !== root && pathname.startsWith(paths[k] + "/"))
+    .sort((a, b) => paths[b].length - paths[a].length)[0];
+}

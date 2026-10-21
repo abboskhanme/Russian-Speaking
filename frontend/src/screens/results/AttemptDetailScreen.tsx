@@ -2,7 +2,7 @@ import type { ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import type { AiCorrection, AiFeedback } from "../../app/adapters";
 import { Badge, Button, Card, Text, cx } from "../../shared/ui";
-import { AppShell, Brand, NotificationsBell, studentNavItems } from "../../widgets";
+import { Page } from "../../widgets";
 import type { NavItem } from "../../widgets";
 import styles from "./AttemptDetailScreen.module.css";
 
@@ -66,8 +66,6 @@ export interface AttemptDetailScreenProps {
 export function AttemptDetailScreen({
   detail,
   onBack,
-  activeNavKey = "profile",
-  onNavigate,
 }: AttemptDetailScreenProps) {
   const { t, i18n } = useTranslation();
   const graded = detail.status === "done" && detail.band !== null;
@@ -83,14 +81,7 @@ export function AttemptDetailScreen({
     .map(([key, value]) => ({ key, value }));
 
   return (
-    <AppShell
-      brand={<Brand />}
-      nav={{
-        items: studentNavItems(t),
-        activeKey: activeNavKey,
-        onNavigate,
-        label: t("nav.landmark"),
-      }}
+    <Page
       headerStart={
         <Button
           variant="ghost"
@@ -102,7 +93,6 @@ export function AttemptDetailScreen({
           <BackGlyph />
         </Button>
       }
-      headerEnd={<NotificationsBell />}
     >
       <div className={styles.page}>
         {/* ---- Hero: band · question · level · date ---- */}
@@ -255,7 +245,7 @@ export function AttemptDetailScreen({
           </Section>
         )}
       </div>
-    </AppShell>
+    </Page>
   );
 }
 

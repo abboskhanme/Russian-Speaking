@@ -23,7 +23,8 @@
     "adminTeachersShort": "Teachers",
     "adminBilling": "Plans",
     "adminAudit": "Audit log",
-    "asideLabel": "Side panel"
+    "asideLabel": "Side panel",
+    "account": "Profile and settings"
   },
   "common": {
     "continue": "Continue",

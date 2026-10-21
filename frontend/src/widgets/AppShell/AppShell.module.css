@@ -96,6 +96,20 @@
   display: flex;
   align-items: center;
 }
+/* Mobile shows the logo OR the page title, never both: once a page has put a title
+ * (or a back button) into the layout's header slot, the logo steps aside. The slot
+ * is empty only on a page with nothing to say there, and then the logo fills it. */
+.topbar:has([data-header-slot]:not(:empty)) .brandTopbar {
+  display: none;
+}
+[data-header-slot] {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+}
+[data-header-slot]:empty {
+  display: none;
+}
 @media (min-width: 720px) {
   /* On desktop the brand lives in the sidebar. */
   .brandTopbar {
@@ -106,6 +120,7 @@
   display: flex;
   align-items: center;
   gap: var(--s-2);
+  flex: 0 1 auto;
   min-width: 0;
 }
 .spacer {
@@ -113,6 +128,7 @@
 }
 .headerEnd {
   display: flex;
+  flex: none;
   align-items: center;
   gap: var(--s-2);
 }

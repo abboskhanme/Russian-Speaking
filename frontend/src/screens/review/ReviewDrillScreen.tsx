@@ -25,7 +25,7 @@ import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Badge, Button, Card, Mascot, Recorder, Text } from "../../shared/ui";
 import type { BadgeVariant } from "../../shared/ui";
-import { AppShell, Brand, NotificationsBell, studentNavItems } from "../../widgets";
+import { Page } from "../../widgets";
 import type { NavItem } from "../../widgets";
 import { mockDrillCards } from "./review.mock";
 import styles from "./ReviewDrillScreen.module.css";
@@ -117,8 +117,6 @@ export function ReviewDrillScreen({
   error = null,
   onAnswer,
   onExit,
-  activeNavKey = "practice",
-  onNavigate,
 }: ReviewDrillScreenProps) {
   const { t } = useTranslation();
 
@@ -126,21 +124,7 @@ export function ReviewDrillScreen({
   const pct = sessionSize > 0 ? Math.round((answered / sessionSize) * 100) : 0;
 
   return (
-    <AppShell
-      brand={<Brand />}
-      nav={{
-        items: studentNavItems(t),
-        activeKey: activeNavKey,
-        onNavigate,
-        label: t("nav.landmark"),
-      }}
-      headerStart={
-        <Text as="h1" variant="title-m">
-          {t("review.title")}
-        </Text>
-      }
-      headerEnd={<NotificationsBell />}
-    >
+    <Page title={t("review.title")}>
       <div className={styles.page}>
         {!finished && card && (
           <div className={styles.progress}>
@@ -179,7 +163,7 @@ export function ReviewDrillScreen({
           <EmptyState onExit={onExit} />
         )}
       </div>
-    </AppShell>
+    </Page>
   );
 }
 
