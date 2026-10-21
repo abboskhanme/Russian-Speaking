@@ -14,6 +14,11 @@ export type { AdminStats, AdminDashboardProps } from "./AdminDashboardScreen";
 export { AdminPeopleScreen, default as AdminPeopleDemo } from "./AdminPeopleScreen";
 export type { AdminPerson, AdminPeopleProps, AdminStaffTab } from "./AdminPeopleScreen";
 export type { AdminAccount } from "./AdminAccountsList";
+export type {
+  AdminGroupTransferApi,
+  AdminTeacherGroup,
+  AdminTransferTarget,
+} from "./GroupTransfer";
 
 export { AdminProfileScreen, default as AdminProfileDemo } from "./AdminProfileScreen";
 export type { AdminProfileProps, AdminProfileTabKey } from "./AdminProfileScreen";

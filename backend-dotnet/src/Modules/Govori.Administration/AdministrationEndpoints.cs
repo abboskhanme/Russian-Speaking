@@ -127,6 +127,18 @@ public static class AdministrationEndpoints
             return Map(await svc.ChangeRoleAsync(uid, id, body, ct), StatusCodes.Status200OK, notFound: "User not found");
         }).RequireAuthorization()
             .AdminAudited("user.role_change", AdminAuditTargets.User, values: ["role"]);
+
+        // POST /api/admin/groups/{id}/transfer — { "teacher_id": "…" } → 200 GroupTransferResponse.
+        // Hands a group (roster, join code, pending requests, the previous teacher's assignments set
+        // through it) to another ACTIVE teacher; see GroupTransferService for what moves and what
+        // stays. 400 invalid_target_teacher / same_teacher; 404 unknown group. POST, not PATCH: it is
+        // an action with consequences beyond the group row, and it notifies three audiences.
+        admin.MapPost("/groups/{id:guid}/transfer", async (Guid id, GroupTransferRequest body, ClaimsPrincipal p, GroupTransferService svc, CancellationToken ct) =>
+        {
+            if (!TryGetUserId(p, out var uid)) return Results.Unauthorized();
+            return Map(await svc.TransferAsync(uid, id, body, ct), StatusCodes.Status200OK, notFound: "Group not found");
+        }).RequireAuthorization()
+            .AdminAudited("group.transfer", AdminAuditTargets.Group, values: ["teacher_id"]);
     }
 
     // ─── Runtime app settings (admin editor + public links read) ─────────────

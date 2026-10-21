@@ -1431,9 +1431,9 @@
       "errLastAdmin": "Bu oxirgi admin — platformada kamida bitta admin qolishi kerak.",
       "errOwnRole": "O'z rolingizni o'zgartira olmaysiz — buni boshqa admin qiladi.",
       "errInvalidRole": "Bunday rol yo'q. Sahifani yangilab, qayta urinib ko'ring.",
-      "errOwnsGroups_one": "Bu o'qituvchida {{count}} ta guruh bor — avval guruhlarni o'chirish kerak. Faqat kirishni to'xtatmoqchi bo'lsangiz, hisobni faolsizlantiring.",
-      "errOwnsGroups_other": "Bu o'qituvchida {{count}} ta guruh bor — avval guruhlarni o'chirish kerak. Faqat kirishni to'xtatmoqchi bo'lsangiz, hisobni faolsizlantiring.",
-      "errOwnsGroupsUnknown": "Bu o'qituvchining guruhlari bor — avval guruhlarni o'chirish kerak. Faqat kirishni to'xtatmoqchi bo'lsangiz, hisobni faolsizlantiring."
+      "errOwnsGroups_one": "Bu o'qituvchida {{count}} ta guruh bor — avval guruhlarni boshqa o'qituvchiga o'tkazing yoki o'chiring. Faqat kirishni to'xtatmoqchi bo'lsangiz, hisobni faolsizlantiring.",
+      "errOwnsGroups_other": "Bu o'qituvchida {{count}} ta guruh bor — avval guruhlarni boshqa o'qituvchiga o'tkazing yoki o'chiring. Faqat kirishni to'xtatmoqchi bo'lsangiz, hisobni faolsizlantiring.",
+      "errOwnsGroupsUnknown": "Bu o'qituvchining guruhlari bor — avval ularni boshqa o'qituvchiga o'tkazing yoki o'chiring. Faqat kirishni to'xtatmoqchi bo'lsangiz, hisobni faolsizlantiring."
     },
     "catalog": {
       "visibility": "Ko'rinish",
@@ -1635,6 +1635,7 @@
         "teacher": "O'qituvchilar",
         "student": "O'quvchilar",
         "user": "Rollar",
+        "group": "Guruhlar",
         "module": "Modullar",
         "task": "Vazifalar",
         "plan": "Tariflar",
@@ -1662,8 +1663,35 @@
         "taskUpdate": "Vazifa tahrirlandi",
         "taskDelete": "Vazifa o'chirildi",
         "taskMediaSet": "Vazifaga media qo'shildi",
-        "taskMediaRemove": "Vazifa mediasi olib tashlandi"
+        "taskMediaRemove": "Vazifa mediasi olib tashlandi",
+        "groupTransfer": "Guruh o'tkazildi"
       }
+    },
+    "groups": {
+      "title": "Guruhlari",
+      "hint": "O'qituvchi ketsa, guruhini boshqa o'qituvchiga o'tkazing — o'quvchilar, kod va natijalar saqlanadi.",
+      "loading": "Guruhlar yuklanmoqda…",
+      "none": "Bu o'qituvchida guruh yo'q.",
+      "loadFailed": "Guruhlarni yuklab bo'lmadi.",
+      "members_one": "{{count}} ta o'quvchi",
+      "members_other": "{{count}} ta o'quvchi",
+      "transfer": "O'tkazish",
+      "transferAria": "«{{group}}» guruhini o'tkazish",
+      "dialogTitle": "Guruhni o'tkazish",
+      "currentTeacher": "Hozirgi o'qituvchi: {{name}}",
+      "targetLabel": "Yangi o'qituvchi",
+      "targetPlaceholder": "O'qituvchini tanlang",
+      "targetsLoading": "O'qituvchilar yuklanmoqda…",
+      "targetsFailed": "O'qituvchilar ro'yxatini yuklab bo'lmadi.",
+      "noTargets": "O'tkazish uchun boshqa faol o'qituvchi yo'q. Avval o'qituvchi qo'shing.",
+      "moves": "Yangi o'qituvchiga o'tadi: o'quvchilar ro'yxati, qo'shilish kodi, kutilayotgan so'rovlar va shu guruh orqali berilgan topshiriqlar.",
+      "stays": "O'zgarmaydi: o'quvchilarning javoblari, baholari va tarixi. Eski o'qituvchining modullari o'zida qoladi — o'quvchilar ulardan faqat hali muddati o'tmagan topshiriqlarni ko'radi.",
+      "notified": "O'quvchilar va ikkala o'qituvchiga bildirishnoma boradi.",
+      "confirm": "O'tkazish",
+      "done": "«{{group}}» guruhi o'tkazildi. Yangi o'qituvchi: {{name}}.",
+      "errSame": "Guruh allaqachon shu o'qituvchida.",
+      "errTarget": "Tanlangan o'qituvchi faol emas yoki endi o'qituvchi emas. Ro'yxatni yangilab, qayta tanlang.",
+      "errNotFound": "Bu guruh endi mavjud emas — ro'yxatni yangilang."
     }
   },
   "billing": {

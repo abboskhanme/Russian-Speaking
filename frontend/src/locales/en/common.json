@@ -1431,9 +1431,9 @@
       "errLastAdmin": "This is the last admin — the platform must keep at least one.",
       "errOwnRole": "You can't change your own role — another admin has to.",
       "errInvalidRole": "No such role. Reload the page and try again.",
-      "errOwnsGroups_one": "This teacher has {{count}} group — delete it first. If you only need to stop them signing in, deactivate the account.",
-      "errOwnsGroups_other": "This teacher has {{count}} groups — delete them first. If you only need to stop them signing in, deactivate the account.",
-      "errOwnsGroupsUnknown": "This teacher has groups — delete them first. If you only need to stop them signing in, deactivate the account."
+      "errOwnsGroups_one": "This teacher has {{count}} group — hand it to another teacher or delete it first. If you only need to stop them signing in, deactivate the account.",
+      "errOwnsGroups_other": "This teacher has {{count}} groups — hand them to another teacher or delete them first. If you only need to stop them signing in, deactivate the account.",
+      "errOwnsGroupsUnknown": "This teacher has groups — hand them to another teacher or delete them first. If you only need to stop them signing in, deactivate the account."
     },
     "catalog": {
       "visibility": "Visibility",
@@ -1635,6 +1635,7 @@
         "teacher": "Teachers",
         "student": "Students",
         "user": "Roles",
+        "group": "Groups",
         "module": "Modules",
         "task": "Tasks",
         "plan": "Plans",
@@ -1662,8 +1663,35 @@
         "taskUpdate": "Task edited",
         "taskDelete": "Task deleted",
         "taskMediaSet": "Task media added",
-        "taskMediaRemove": "Task media removed"
+        "taskMediaRemove": "Task media removed",
+        "groupTransfer": "Group handed over"
       }
+    },
+    "groups": {
+      "title": "Groups",
+      "hint": "If a teacher leaves, hand their group to another teacher — students, the join code and results are kept.",
+      "loading": "Loading groups…",
+      "none": "This teacher has no groups.",
+      "loadFailed": "Couldn't load the groups.",
+      "members_one": "{{count}} student",
+      "members_other": "{{count}} students",
+      "transfer": "Hand over",
+      "transferAria": "Hand over “{{group}}”",
+      "dialogTitle": "Hand over group",
+      "currentTeacher": "Current teacher: {{name}}",
+      "targetLabel": "New teacher",
+      "targetPlaceholder": "Choose a teacher",
+      "targetsLoading": "Loading teachers…",
+      "targetsFailed": "Couldn't load the teacher list.",
+      "noTargets": "There is no other active teacher to hand this group to. Add a teacher first.",
+      "moves": "Moves to the new teacher: the roster, the join code, pending join requests and the assignments set through this group.",
+      "stays": "Stays the same: students' answers, grades and history. The previous teacher's modules stay theirs — students keep only the tasks from them whose deadline hasn't passed.",
+      "notified": "The students and both teachers are notified.",
+      "confirm": "Hand over",
+      "done": "“{{group}}” was handed over. New teacher: {{name}}.",
+      "errSame": "The group already belongs to this teacher.",
+      "errTarget": "The chosen teacher is suspended or no longer a teacher. Refresh the list and choose again.",
+      "errNotFound": "This group no longer exists — refresh the list."
     }
   },
   "billing": {

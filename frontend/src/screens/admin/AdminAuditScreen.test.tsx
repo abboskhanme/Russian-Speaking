@@ -83,7 +83,7 @@ describe("a row", () => {
   it("still renders a deleted actor and an action this build does not know", () => {
     render(
       <AdminAuditScreen
-        entries={[entry({ actorName: null, action: "group.transfer", values: {}, fields: [] })]}
+        entries={[entry({ actorName: null, action: "group.archive", values: {}, fields: [] })]}
         total={1}
         page={1}
         pageSize={50}
@@ -91,7 +91,7 @@ describe("a row", () => {
       />,
     );
 
-    expect(screen.getByText("group.transfer")).toBeInTheDocument();
+    expect(screen.getByText("group.archive")).toBeInTheDocument();
     expect(screen.getByText(t("admin.audit.deletedActor"))).toBeInTheDocument();
   });
 });

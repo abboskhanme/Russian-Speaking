@@ -329,7 +329,39 @@ public static class AdminErrorCodes
 
     /// <summary>400 · a contact link is not a link — see <see cref="InvalidLinkResponse"/>.</summary>
     public const string InvalidLink = "invalid_link";
+
+    /// <summary>400 · a group transfer named the teacher who already owns the group.</summary>
+    public const string SameTeacher = "same_teacher";
+
+    /// <summary>400 · a group transfer's <c>teacher_id</c> is missing, unknown, not a teacher, or a
+    /// suspended teacher. One code for all four: the picker only offers active teachers, so any of
+    /// them means the list the admin chose from is stale — the remedy (reload, pick again) is the
+    /// same.</summary>
+    public const string InvalidTargetTeacher = "invalid_target_teacher";
 }
+
+/// <summary>
+/// Body of <c>POST /api/admin/groups/{id}/transfer</c>: the ACTIVE teacher who should own the group
+/// from now on. Nullable so an absent field is a coded 400 (<see cref="AdminErrorCodes.InvalidTargetTeacher"/>)
+/// rather than a framework binding error with no code.
+/// </summary>
+public sealed record GroupTransferRequest(Guid? TeacherId);
+
+/// <summary>
+/// Result of a group transfer — what the admin needs to confirm that the right thing moved:
+/// the group, who had it and who has it now, how many students went with it, and how many of the
+/// previous teacher's assignments set through this group were handed over
+/// (<c>AssignmentsMoved</c>). The full rules are on <c>GroupTransferService.TransferAsync</c>.
+/// </summary>
+public sealed record GroupTransferResponse(
+    Guid GroupId,
+    string GroupName,
+    Guid FromTeacherId,
+    string FromTeacherName,
+    Guid ToTeacherId,
+    string ToTeacherName,
+    int MemberCount,
+    int AssignmentsMoved);
 
 /// <summary>A student row for the admin management table.</summary>
 public sealed record StudentResponse(

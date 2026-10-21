@@ -7,6 +7,8 @@
  *   • `PATCH  /api/admin/users/{id}/role`   → role change, and the add sheet's promotion
  *   • `DELETE /api/admin/teachers/{id}`     → PERMANENT, CASCADING
  *   • `GET    /api/admin/admins`            → the Adminlar segment
+ *   • `GET    /api/groups?teacher_id=`       → a teacher's groups, in their manage sheet
+ *   • `POST   /api/admin/groups/{id}/transfer` → "Guruhni o'tkazish" (a teacher leaves)
  *
  * Most mutations refetch rather than patching local state: the row carries a
  * server-computed `question_count`, and guessing it here would drift from what the
@@ -19,7 +21,12 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { AdminPeopleScreen } from "../../screens/admin";
-import type { AdminAccount, AdminPerson, AdminStaffTab } from "../../screens/admin";
+import type {
+  AdminAccount,
+  AdminGroupTransferApi,
+  AdminPerson,
+  AdminStaffTab,
+} from "../../screens/admin";
 import { endpoints } from "../../shared/api";
 import type { AdminTeacherResponse, AdminUserResponse } from "../../shared/api";
 import { PageError, PageLoading } from "../PageState";
@@ -129,6 +136,31 @@ export default function AdminTeachersPage() {
     [admins],
   );
 
+  // Stable identities: the sheet's group list refetches whenever loadGroups changes.
+  // The targets are fetched UNFILTERED and fresh — the list on screen may be narrowed
+  // by a search, and a suspended teacher would only earn an invalid_target_teacher.
+  // A transfer refetches the list: nothing on a row changes, but the open sheet of
+  // the old owner must not keep offering a group they no longer have.
+  const groupTransfer = useMemo<AdminGroupTransferApi>(
+    () => ({
+      loadGroups: async (teacherId) =>
+        (await endpoints.adminTeacherGroups(teacherId)).map((g) => ({
+          id: g.id,
+          name: g.name,
+          memberCount: g.member_count,
+        })),
+      loadTargets: async () =>
+        (await endpoints.adminTeachers())
+          .filter((r) => r.is_active)
+          .map((r) => ({ id: r.id, fullName: r.full_name })),
+      transfer: async (groupId, toTeacherId) => {
+        await endpoints.adminTransferGroup(groupId, toTeacherId);
+        refetch();
+      },
+    }),
+    [refetch],
+  );
+
   if (failed) return <PageError onRetry={refetch} />;
   if (!loaded) return <PageLoading />;
 
@@ -166,6 +198,7 @@ export default function AdminTeachersPage() {
         refetch();
         refetchAdmins();
       }}
+      groupTransfer={groupTransfer}
       staff={{
         tab,
         onTabChange: setTab,

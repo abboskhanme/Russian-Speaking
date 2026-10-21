@@ -171,3 +171,23 @@
   color: #fff;
   box-shadow: var(--e-danger);
 }
+
+/* ---- Guruhlari / Guruhni o'tkazish ----
+   The native select keeps the platform picker (a long teacher list on a phone is
+   the OS wheel, not a hand-built dropdown); only its box is styled to sit with the
+   Input fields around it. */
+.select {
+  width: 100%;
+  padding: var(--s-2) var(--s-3);
+  font: inherit;
+  font-size: var(--t-body-s-size);
+  color: var(--ink);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r-xs);
+  cursor: pointer;
+}
+.select:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}

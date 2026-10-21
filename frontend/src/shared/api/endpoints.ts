@@ -22,6 +22,8 @@ import type {
   AdminTeacherResponse,
   AdminTeacherUpdateArgs,
   AdminUserResponse,
+  GroupTransferArgs,
+  GroupTransferResponse,
   AiProbeResponse,
   AiSettingsResponse,
   AiSettingsUpdateArgs,
@@ -957,6 +959,30 @@ export function adminChangeRole(
   return apiClient.patch<UserRoleResponse>(`/admin/users/${encodeURIComponent(id)}/role`, {
     role,
   } satisfies UserRoleUpdateArgs);
+}
+
+/** GET /api/groups?teacher_id= → one teacher's groups, newest first. The same
+ * teacher-side list {@link teacherGroups} reads, narrowed by an ADMIN to someone
+ * else's (the server ignores `teacher_id` for anyone but an admin). Backs the
+ * "Guruhlari" section of the admin's teacher sheet. */
+export function adminTeacherGroups(teacherId: string): Promise<GroupResponse[]> {
+  return apiClient.get<GroupResponse[]>(`/groups?teacher_id=${encodeURIComponent(teacherId)}`);
+}
+
+/** POST /api/admin/groups/{id}/transfer → {@link GroupTransferResponse}.
+ *
+ * Hands the group to another active teacher — the answer to "the teacher left".
+ * Roster, join code, pending requests and the old teacher's group assignments move;
+ * nothing is deleted. Refusals: 400 `same_teacher`, 400 `invalid_target_teacher`,
+ * 404 unknown group. */
+export function adminTransferGroup(
+  groupId: string,
+  teacherId: string,
+): Promise<GroupTransferResponse> {
+  return apiClient.post<GroupTransferResponse>(
+    `/admin/groups/${encodeURIComponent(groupId)}/transfer`,
+    { teacher_id: teacherId } satisfies GroupTransferArgs,
+  );
 }
 
 /** GET /api/admin/admins → every admin, the caller's own row marked `is_self`. */

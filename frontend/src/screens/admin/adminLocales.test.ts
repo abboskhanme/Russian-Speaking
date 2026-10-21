@@ -19,6 +19,7 @@ import { SUPPORTED_LANGS, resources } from "../../shared/i18n";
 import people from "./AdminPeopleScreen.tsx?raw";
 import addTeacher from "./AddTeacherSheet.tsx?raw";
 import roleDialog from "./RoleChangeDialog.tsx?raw";
+import groupTransfer from "./GroupTransfer.tsx?raw";
 import accounts from "./AdminAccountsList.tsx?raw";
 import chrome from "./AdminChrome.tsx?raw";
 import content from "./AdminContentExtras.tsx?raw";
@@ -34,6 +35,7 @@ const SOURCES: Record<string, string> = {
   AdminPeopleScreen: people,
   AddTeacherSheet: addTeacher,
   RoleChangeDialog: roleDialog,
+  GroupTransfer: groupTransfer,
   AdminAccountsList: accounts,
   AdminChrome: chrome,
   AdminContentExtras: content,

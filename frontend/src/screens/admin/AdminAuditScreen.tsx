@@ -60,7 +60,7 @@ export const EMPTY_AUDIT_FILTERS: AdminAuditFilters = { action: "", from: "", to
 
 /** The action-prefix filter's options. The server matches a PREFIX, and the action
  * names are dotted for exactly this — `settings` is every settings change. */
-const ACTION_GROUPS = ["teacher", "student", "user", "module", "task", "plan", "settings"] as const;
+const ACTION_GROUPS = ["teacher", "student", "user", "group", "module", "task", "plan", "settings"] as const;
 
 /* -------------------------------------------------------------------------- */
 /* Screen                                                                     */
@@ -377,6 +377,8 @@ export function actionLabel(action: string, t: TFunction): string {
       return t("admin.audit.action.taskMediaSet");
     case "task.media_remove":
       return t("admin.audit.action.taskMediaRemove");
+    case "group.transfer":
+      return t("admin.audit.action.groupTransfer");
     default:
       return action;
   }
@@ -398,6 +400,8 @@ function groupLabel(group: (typeof ACTION_GROUPS)[number], t: TFunction): string
       return t("admin.audit.group.plan");
     case "settings":
       return t("admin.audit.group.settings");
+    case "group":
+      return t("admin.audit.group.group");
   }
 }
 

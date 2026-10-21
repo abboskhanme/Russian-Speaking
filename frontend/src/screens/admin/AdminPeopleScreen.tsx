@@ -10,6 +10,8 @@ import { AdminAccountButton } from "./AdminChrome";
 import { AdminAccountsList } from "./AdminAccountsList";
 import type { AdminAccount } from "./AdminAccountsList";
 import { RoleChangeDialog, roleName } from "./RoleChangeDialog";
+import { GroupTransferDialog, TeacherGroupsSection } from "./GroupTransfer";
+import type { AdminGroupTransferApi, AdminTeacherGroup, GroupTransferTarget } from "./GroupTransfer";
 import { adminErrorCode } from "./adminErrors";
 import type { RoleChangeTarget } from "./RoleChangeDialog";
 import { formatPhone } from "./formatPhone";
@@ -73,6 +75,9 @@ export interface AdminPeopleProps {
    * `cannot_change_own_role`), which the confirm dialog turns into a sentence. Omit it
    * and the manage sheet has no role section. */
   onChangeRole?: (id: string, role: UserRole) => Promise<void>;
+  /** Teachers only: the "Guruhlari" section of the manage sheet and the
+   * "Guruhni o'tkazish" dialog (see ./GroupTransfer). Omit it and neither renders. */
+  groupTransfer?: AdminGroupTransferApi;
   /** Teachers only: the `O'qituvchilar | Adminlar` segment. Omit and the screen is
    * the plain teacher list. */
   staff?: {
@@ -121,6 +126,12 @@ export const PEOPLE_PAGE_SIZE = 50;
  * It moves the person to another list and changes which app they open next, so it
  * is never a one-tap control: each direction opens a dialog that states its own
  * consequence, and a refusal (`teacher_owns_groups`, `last_admin`) is read there.
+ *
+ * ## A teacher's groups can be handed over
+ *
+ * The teacher sheet lists their groups, each with "O'tkazish" (./GroupTransfer).
+ * It is what `teacher_owns_groups` asks for before a demotion, and the answer to
+ * "the teacher left" that deleting the class is not.
  */
 export function AdminPeopleScreen({
   kind,
@@ -136,6 +147,7 @@ export function AdminPeopleScreen({
   onCreateTeacher,
   onPromoteStudent,
   onChangeRole,
+  groupTransfer,
   staff,
 }: AdminPeopleProps) {
   const { t } = useTranslation();
@@ -147,6 +159,7 @@ export function AdminPeopleScreen({
   const [editingId, setEditingId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [roleChange, setRoleChange] = useState<RoleChangeTarget | null>(null);
+  const [groupMove, setGroupMove] = useState<GroupTransferTarget | null>(null);
   const [adding, setAdding] = useState(false);
   const [shown, setShown] = useState(PEOPLE_PAGE_SIZE);
   // The outcome of the last write that moved someone out of sight (a role change) or
@@ -335,6 +348,12 @@ export function AdminPeopleScreen({
             onChangeRole ? (p, to) => openRoleChange(p, personRole, to) : undefined
           }
           onRequestDelete={onDelete ? (p) => { setEditingId(null); setDeletingId(p.id); } : undefined}
+          loadGroups={kind === "teachers" ? groupTransfer?.loadGroups : undefined}
+          onRequestGroupTransfer={(p, group) => {
+            setEditingId(null);
+            setNotice(null);
+            setGroupMove({ group, fromTeacher: { id: p.id, fullName: p.fullName } });
+          }}
         />
       )}
 
@@ -355,6 +374,16 @@ export function AdminPeopleScreen({
           onDone={(done) =>
             setNotice(t("admin.role.done", { name: done.fullName, role: roleName(done.to, t) }))
           }
+        />
+      )}
+
+      {groupMove && groupTransfer && (
+        <GroupTransferDialog
+          target={groupMove}
+          loadTargets={groupTransfer.loadTargets}
+          onConfirm={groupTransfer.transfer}
+          onClose={() => setGroupMove(null)}
+          onDone={(group, name) => setNotice(t("admin.groups.done", { group, name }))}
         />
       )}
 
@@ -423,6 +452,8 @@ function ManageSheet({
   onSetPremium,
   onRequestRoleChange,
   onRequestDelete,
+  loadGroups,
+  onRequestGroupTransfer,
 }: {
   person: AdminPerson;
   kind: "teachers" | "students";
@@ -432,6 +463,9 @@ function ManageSheet({
   onSetPremium?: (id: string, premium: boolean) => Promise<void>;
   onRequestRoleChange?: (person: AdminPerson, to: UserRole) => void;
   onRequestDelete?: (person: AdminPerson) => void;
+  /** Teachers only: present ⇒ the "Guruhlari" section renders. */
+  loadGroups?: AdminGroupTransferApi["loadGroups"];
+  onRequestGroupTransfer?: (person: AdminPerson, group: AdminTeacherGroup) => void;
 }) {
   const { t } = useTranslation();
   const [name, setName] = useState(person.fullName);
@@ -549,6 +583,17 @@ function ManageSheet({
               )}
             </div>
           </section>
+        )}
+
+        {/* Guruhlari — between the role section and the danger zone: handing a
+            group over is the step that has to come BEFORE a demotion (which
+            `teacher_owns_groups` refuses) and is the alternative to deleting. */}
+        {loadGroups && onRequestGroupTransfer && (
+          <TeacherGroupsSection
+            teacherId={person.id}
+            loadGroups={loadGroups}
+            onTransfer={(group) => onRequestGroupTransfer(person, group)}
+          />
         )}
 
         {onRequestDelete && (
