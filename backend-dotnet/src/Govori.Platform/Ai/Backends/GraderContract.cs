@@ -501,7 +501,8 @@ public static partial class GraderContract
         return element.EnumerateArray()
             .Where(item => item.ValueKind == JsonValueKind.String)
             .Select(item => item.GetString()!.Trim())
-            .Where(value => value.Length > 0)
+            // Drops blanks AND the "None"/"N/A"/"-" placeholders a model writes for an empty list.
+            .Where(value => !FeedbackText.IsPlaceholder(value))
             .ToArray();
     }
 

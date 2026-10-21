@@ -254,6 +254,80 @@ public sealed class AssessmentPipelineTests
         }
     }
 
+    [Fact]
+    public async Task An_empty_transcript_is_not_sent_to_the_grader_and_fails_as_no_speech()
+    {
+        // The audit's English "transcript is empty" card with a "None" strength came from exactly
+        // this: silence was graded like an answer. Seeded as a resumable transcript so the test
+        // needs no audio object.
+        var ids = await SeedResumableAsync(withTranscript: false);
+        await SeedTranscriptAsync(ids.SubmissionId, "   ");
+        var grader = new FakeGraderProvider();
+        var events = new RecordingGradingEvents();
+
+        try
+        {
+            await using (var ctx = CreateContext())
+                Assert.Equal(AssessmentOutcome.Failed,
+                    await Service(ctx, new FakeSttProvider(), grader, events).RunAsync(ids.SubmissionId));
+
+            Assert.Equal(0, grader.AnalyzeCalls);
+            await using (var ctx = CreateContext())
+            {
+                var sub = await ctx.Submissions.SingleAsync(s => s.Id == ids.SubmissionId);
+                Assert.Equal(SubmissionStatus.Failed, sub.Status);
+                Assert.Equal(SubmissionErrorCodes.NoSpeech, sub.ErrorMessage);
+                Assert.False(await ctx.Evaluations.AnyAsync(e => e.SubmissionId == ids.SubmissionId));
+            }
+            var failed = Assert.Single(events.Events, e => e.State == GradingState.Failed);
+            Assert.Equal(SubmissionErrorCodes.NoSpeech, failed.Message);
+        }
+        finally
+        {
+            await CleanupSeedAsync(ids);
+        }
+    }
+
+    [Fact]
+    public async Task Placeholder_list_items_from_the_grader_are_not_stored()
+    {
+        var ids = await SeedResumableAsync();
+        try
+        {
+            await using (var ctx = CreateContext())
+                Assert.Equal(AssessmentOutcome.Done,
+                    await Service(ctx, new FakeSttProvider(), new PlaceholderGrader(), new RecordingGradingEvents())
+                        .RunAsync(ids.SubmissionId));
+
+            await using var check = CreateContext();
+            var eval = await check.Evaluations.SingleAsync(e => e.SubmissionId == ids.SubmissionId);
+            using var fb = JsonDocument.Parse(eval.Feedback!);
+            Assert.Equal(0, fb.RootElement.GetProperty("strengths").GetArrayLength());
+            var improvements = fb.RootElement.GetProperty("improvements").EnumerateArray().Select(e => e.GetString()).ToArray();
+            Assert.Equal(new[] { "Kelishiklarni takrorlang" }, improvements);
+        }
+        finally
+        {
+            await CleanupSeedAsync(ids);
+        }
+    }
+
+    /// <summary>A grader that fills its lists with "nothing here" placeholders, as models do.</summary>
+    private sealed class PlaceholderGrader : IGraderProvider
+    {
+        public ValueTask<bool> IsConfiguredAsync(CancellationToken ct = default) => ValueTask.FromResult(true);
+
+        public Task<GraderResult> AnalyzeAsync(GraderRequest request, CancellationToken ct = default)
+            => Task.FromResult(new GraderResult
+            {
+                Scores = new GraderScores(60, 60, 60, 60, 60, 70),
+                Summary = "Yaxshi.",
+                Strengths = new[] { "None", " n/a ", "-", "" },
+                Improvements = new[] { "None.", "Kelishiklarni takrorlang" },
+                Model = "placeholder-grader",
+            });
+    }
+
     // ─── The global AI budget: paused or capped ────────────────────────────────
 
     [Theory]
