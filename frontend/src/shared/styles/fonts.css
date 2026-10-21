@@ -19,7 +19,9 @@
  * ========================================================================== */
 
 /* ---- Onest (variable, weight axis 100–900) --------------------------------
- * Covers Latin + full Cyrillic + Uzbek diacritic (oʻ / gʻ, U+02BB) in one file.
+ * Covers Latin + full Cyrillic in one file. For Uzbek oʻ/gʻ and the tutuq it has
+ * U+2018 ‘ / U+2019 ’ but NOT U+02BB ʻ / U+02BC ʼ (checked against the cmap), so the uz
+ * copy uses the former — see screens/admin/adminLocales.test.ts.
  */
 @font-face {
   font-family: "Onest";

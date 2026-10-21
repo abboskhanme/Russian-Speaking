@@ -3,11 +3,11 @@
     "devLogin": {
       "badge": "Faqat development",
       "title": "Namunaviy hisoblar",
-      "hint": "Rolni tanlang — tasdiqlash kodi so'ralmaydi.",
-      "failed": "Kirib bo'lmadi. Qayta urinib ko'ring.",
+      "hint": "Rolni tanlang — tasdiqlash kodi so‘ralmaydi.",
+      "failed": "Kirib bo‘lmadi. Qayta urinib ko‘ring.",
       "roles": {
-        "student": "o'quvchi",
-        "teacher": "o'qituvchi",
+        "student": "o‘quvchi",
+        "teacher": "o‘qituvchi",
         "admin": "admin"
       }
     }

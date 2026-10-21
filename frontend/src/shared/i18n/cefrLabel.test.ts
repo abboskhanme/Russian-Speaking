@@ -13,7 +13,7 @@ const LEVELS = ["A1", "A2", "B1", "B2", "C1"] as const;
 
 describe("cefrLabel", () => {
   it.each([
-    ["uz", "A2", "boshlang'ich"],
+    ["uz", "A2", "boshlang‘ich"],
     ["ru", "A2", "элементарный"],
     ["en", "A2", "elementary"],
     ["ru", "B2", "выше среднего"],
@@ -34,7 +34,9 @@ describe("cefrLabel", () => {
   });
 
   it("the Uzbek captions are the server's own label_uz, so uz users see no change", () => {
-    // Mirrors Govori.Contracts/CefrScale.FromBand.
+    // Mirrors Govori.Contracts/CefrScale.FromBand. The words must match; the apostrophe may
+    // not: the server writes ASCII ', the uz locale the typographic ‘ / ’ its font has.
+    const sameWords = (s: string) => s.replace(/['‘’ʻʼ]/g, "'");
     const server: Record<string, string> = {
       A1: "yangi boshlovchi",
       A2: "boshlang'ich",
@@ -43,7 +45,7 @@ describe("cefrLabel", () => {
       C1: "yuqori",
     };
     const t = i18n.getFixedT("uz", "common");
-    for (const level of LEVELS) expect(cefrLabel(t, level, "x")).toBe(server[level]);
+    for (const level of LEVELS) expect(sameWords(cefrLabel(t, level, "x") ?? "")).toBe(server[level]);
   });
 
   it("falls back to the server label for a level it does not know", () => {

@@ -81,14 +81,15 @@ describe("admin locale coverage", () => {
     expect(ALL_KEYS.filter((key) => !defined(key))).toEqual([]);
   });
 
-  it("keeps the uz admin copy on the ASCII apostrophe", () => {
-    // The admin section mixed ‘ and ' on one screen ("O‘qituvchilar" beside
-    // "O'quvchi"). The rest of the uz file uses the ASCII one.
+  it("writes every uz string with one pair of Uzbek apostrophes", () => {
+    // The uz copy once mixed three forms on one screen ("O‘qituvchilar" beside
+    // "O'quvchi"). Now: oʻ/gʻ as U+2018 ‘ and the tutuq as U+2019 ’ — not U+02BB/02BC,
+    // because the self-hosted Onest woff2 has no glyph for those and the browser would
+    // draw that one letter in a fallback font. A ' between letters is a regression.
     const uz = flatten(resources.uz.common);
-    const curly = Object.entries(uz)
-      .filter(([key]) => key.startsWith("admin.") || key.startsWith("nav.admin"))
-      .filter(([, value]) => /[‘’ʻ]/.test(value))
+    const wrong = Object.entries(uz)
+      .filter(([, value]) => /\p{L}['`ʻʼ]\p{L}|[oOgG]['`ʻʼ](?!\p{L})/u.test(value))
       .map(([key]) => key);
-    expect(curly).toEqual([]);
+    expect(wrong).toEqual([]);
   });
 });
