@@ -179,6 +179,17 @@ Shuning uchun:
 - **Dev:** bo'sh `db` volume birinchi ishga tushganda `backups/russpeak_20260711_111407.sql.gz`
   demo dump'idan avtoseed bo'ladi (17 jadval + demo ma'lumot — prod sxemasining nusxasi).
   Qayta boshlash: `down -v` → keyingi `up` yangidan seed qiladi.
+- ⚠️ **Dump baseline'dagi sxema — undan keyingi migratsiyalar unda yo'q.** Birinchi `up`
+  dan keyin ularni qo'llamasangiz, ilova ishga tushadi, `/health` yashil, lekin **har bir
+  kirish 500** beradi (`column u.notifications_enabled does not exist`) — 2026-10-21 da
+  aynan shunday bo'ldi. Toza volume'dan keyin bir marta:
+  ```bash
+  COMPOSE_FILE=docker-compose.yml COMPOSE_DB_SERVICE=db bash deploy/ef-baseline.sh
+  COMPOSE_FILE=docker-compose.yml bash deploy/migrate.sh
+  ```
+  Keyin har yangi migratsiyada faqat `migrate.sh`. Windows'da Git Bash'dan
+  `MSYS_NO_PATHCONV=1` qo'shing — aks holda Docker `-w /repo/...` ni Git papkasiga
+  aylantirib yiqiladi.
 - **Prod (cutover):** `db` servisini olib tashlab, `GOVORI_DB` / `ConnectionStrings__Govori`
   ni **mavjud prod bazaga** yo'naltiring (seed mount kerak emas). Hangfire o'zining
   `hangfire` sxemasini qo'shadi (additive — mavjud jadvallarga tegmaydi).

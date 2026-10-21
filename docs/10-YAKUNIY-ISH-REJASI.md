@@ -228,10 +228,35 @@ placement baholab bo'lmasa soxta ball o'rniga 503 va "keyinroq" · ishlamaydigan
 admin panelidan olindi · kun Toshkent yarim tunida almashadi (`ProductDay`). O'lchov: backend
 **591 passed, 0 failed**, frontend **367 vitest**, kontrakt 0 xato.
 
-**Ochiq (keyingi raund):** guruhni boshqa o'qituvchiga o'tkazish yo'q · admin audit trail yo'q ·
-model izohlari serverda aralash tilda · anonim `/api/guest/assess` (frontend chaqirmaydi, lekin
-Azure'ga pul sarflaydi — rate-limit ortida) · presigned URL'lar MinIO root kaliti bilan imzolanadi ·
-ketma-ketlik qulfi faqat UI'da · kirish bitta Telegram botga bog'liq (Google tugmasi UI'da yo'q).
+**Ochiq (keyingi raund):** ~~guruhni boshqa o'qituvchiga o'tkazish yo'q~~ · ~~admin audit trail
+yo'q~~ · ~~model izohlari serverda aralash tilda~~ · ~~anonim `/api/guest/assess`~~ · ~~presigned
+URL'lar MinIO root kaliti bilan imzolanadi~~ · ~~ketma-ketlik qulfi faqat UI'da~~ — **oltitasi S9 da
+yopildi (pastda)**. Qolgani: kirish bitta Telegram botga bog'liq (Google tugmasi UI'da yo'q —
+`GOOGLE_CLIENT_ID` egasidan kerak).
+
+### S9 · "Keyingi raund" yopildi (2026-10-21)
+
+Boshlang'ich holat `fed68aa`; birinchi qadam — baseline o'lchovi: backend **591 passed, 0 failed**,
+frontend **367 vitest**, kontrakt 0 xato (hujjatdagi raqamlar bilan aynan bir xil).
+
+| # | Nima edi | Nima qilindi |
+|---|---|---|
+| 0 | **`minio/minio` va `minio/mc` Docker Hub'dan yo'qolgan** — dev ham, prod o'rnatish ham `pull access denied` da to'xtardi | `pgsty/minio` / `pgsty/mc` release teglari (o'sha AGPL manba; `curl` bor, healthcheck o'zgarmadi) |
+| 1 | Ketma-ketlik qulfi faqat UI'da | Submit 403 qaytaradi (402 dan keyin); assignment va review navbati ochadi; ekran yozishdan **oldin** aytadi |
+| 2 | Anonim `/api/guest/{demo,assess,tts}` | `Govori.Guest` moduli butunlay olib tashlandi; guest placement qoldi |
+| 3 | Presign/S3 — MinIO root kaliti | `minio-init` idempotent `govori-app` foydalanuvchisi + faqat bucket'ga siyosat; prod `S3_APP_*` siz ishga tushmaydi; `preflight.sh`, `ProductionSecrets`, `restore.sh` ham |
+| 4 | Fikr-mulohaza har doim o'zbekcha | `preferred_language` (uz/ru/en) graderga uzatiladi, `lang` saqlanadi; uz prompt bayt-ma-bayt o'zgarmagan; CEFR yorliqlari 4 ekranda UI tilida |
+| 5 | Guruhni o'tkazib bo'lmaydi | `POST /api/admin/groups/{id}/transfer` + admin UI; nima ko'chishi `ASSUMPTIONS.md` da |
+| 6 | Admin audit trail yo'q | `admin_audit_log` (trigger bilan append-only), bitta endpoint filtri, `/admin/audit` ekrani; sirlar hech qachon yozilmaydi |
+
+**Yo'l-yo'lakay topilgan:** demo dump'dan seed qilingan dev baza baseline'dan keyingi 9 ta
+migratsiyasiz qolardi va **har bir kirish 500** berardi — `09-DOCKER.md` ga qadam qo'shildi.
+
+**O'lchov (2026-10-21, barcha birlashmalardan keyin):** backend build **0 warning / 0 error**,
+to'rtala suite **631 passed, 0 failed, 4 skipped** · frontend **398 vitest**, `tsc`, build yashil,
+bundle **145.0 / 180 KB gz** · kontrakt **0 xato** · jonli tekshiruv: haqiqiy kalitlar bilan
+Azure STT → OpenAI grader uchidan-uchiga (TTS bilan yaratilgan ruscha javob, ball 77, izoh
+o'quvchi tilida); Gemini o'sha kuni vendor tomonda 503 ("high demand") — zanjir OpenAI'ga o'tdi.
 
 ## 🔴 Bloklangan — foydalanuvchisiz bajarilmaydi
 
