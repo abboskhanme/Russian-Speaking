@@ -10,6 +10,8 @@
 #   ${GOVORI_SERVER_NAME}   apex domain, e.g. govorim.uz
 #   ${GOVORI_S3_BUCKET}     audio bucket name — MUST equal S3_BUCKET in .env
 #   ${GOVORI_HSTS_MAX_AGE}  seconds; 0 disables the HSTS header
+#   ${GOVORI_CSP_HEADER}    Content-Security-Policy (enforce, the default) or
+#                           Content-Security-Policy-Report-Only — see "App CSP"
 #
 # The bucket appears in a location PATH, and nginx cannot read an environment
 # variable there. Hardcoding it is the failure this template exists to prevent:
@@ -20,6 +22,41 @@
 map $http_upgrade $connection_upgrade {
     default upgrade;
     ''      close;
+}
+
+# ── App CSP ──────────────────────────────────────────────────────────────────
+# The one place the app's Content-Security-Policy is written; every location that
+# re-declares its headers (see "Security headers") sends this variable. A map with a
+# constant key is just nginx's way to declare a string once at http level.
+#
+# Derived from what the built SPA actually loads, not from a template:
+#   script-src 'self'   index.html has ONE external module script and no inline
+#                       <script>; Vite's modulepreload polyfill lives inside the entry
+#                       chunk. No eval/new Function in the bundle. Nothing third-party:
+#                       no analytics, no Google/Telegram sign-in widget (Telegram login
+#                       is a t.me deep link — a navigation, not a script).
+#   style-src 'self'    one CSS file. React `style={{…}}` props are applied through the
+#                       CSSOM (el.style.x = …), which CSP does not govern, so no
+#                       'unsafe-inline'.
+#   img-src  data:      CSS mask-image icons are data: SVGs; blob: = local previews.
+#   media-src blob:     the Recorder plays back the just-recorded Blob before upload.
+#   img/media/connect https://${GOVORI_SERVER_NAME}
+#                       presigned MinIO URLs are minted against S3_PUBLIC_URL (the apex
+#                       domain) — same-origin on the apex, cross-origin from www.
+#   connect-src wss://  the SignalR hub at /hubs/ (the SPA has no hub client yet; listed
+#                       so wiring one does not start with a CSP outage). Older Safari does
+#                       not let 'self' cover wss:, so the origins are spelled out.
+#   font-src 'self'     Onest / JetBrains Mono are self-hosted woff2.
+#   frame-ancestors 'self' mirrors X-Frame-Options; object-src/base-uri/form-action
+#                       close the classic injection gadgets.
+#
+# Adding an origin: append it to the ONE directive that needs it (e.g. a CDN for audio →
+# media-src), re-run the CSP check in docs/09-DOCKER.md, deploy. Never widen default-src
+# and never add 'unsafe-inline' / 'unsafe-eval' to script-src — the auth tokens live in
+# localStorage, and this header is the backstop that keeps an HTML-injection bug from
+# becoming a session theft.
+map $host $govori_csp {
+    default "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data: blob: https://${GOVORI_SERVER_NAME}; media-src 'self' blob: https://${GOVORI_SERVER_NAME}; font-src 'self'; connect-src 'self' https://${GOVORI_SERVER_NAME} wss://${GOVORI_SERVER_NAME} wss://www.${GOVORI_SERVER_NAME}; worker-src 'self'; manifest-src 'self'; frame-src 'none'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'self'; upgrade-insecure-requests";
 }
 
 upstream govori_api {
@@ -106,6 +143,13 @@ server {
     # microphone=(self) is load-bearing, not boilerplate: the whole product is a
     # speaking app. A blanket `microphone=()` would break recording everywhere.
     add_header Permissions-Policy        "microphone=(self), camera=(), geolocation=(), payment=()" always;
+    # The app CSP ($govori_csp, defined at the top). The header NAME is an env switch, so
+    # enforce ↔ report-only is one line in .env plus a container restart, not an edit
+    # here: GOVORI_CSP_HEADER=Content-Security-Policy-Report-Only. /api/ responses also
+    # carry the api's own `default-src 'none'` (Govori.Api/Startup/SecurityHeaders.cs);
+    # two CSP headers intersect, so the stricter one still governs the JSON.
+    # NOT in the bucket location: that one has its own `sandbox` policy.
+    add_header ${GOVORI_CSP_HEADER} $govori_csp always;
 
     # ── Compression ──────────────────────────────────────────────────────────
     # gzip only: stock nginx has no brotli module, and adding one means building a
@@ -226,6 +270,7 @@ server {
         add_header X-Frame-Options           "SAMEORIGIN" always;
         add_header Referrer-Policy           "strict-origin-when-cross-origin" always;
         add_header Permissions-Policy        "microphone=(self), camera=(), geolocation=(), payment=()" always;
+        add_header ${GOVORI_CSP_HEADER} $govori_csp always;
     }
 
     # The build manifest is a build artefact, not a page asset. It is harmless but
@@ -240,6 +285,39 @@ server {
         return 200 "ok\n";
     }
 
+    # Readiness for an EXTERNAL uptime monitor: Postgres, Redis and object storage, each
+    # probed with a short deadline. /api/ping only proves nginx and the api process are up;
+    # this is the one that goes red when the api is up but cannot serve a request. The
+    # api answers with the status word alone (Healthy/Unhealthy), never a probe's detail.
+    location = /health/ready {
+        access_log off;
+        proxy_pass http://govori_api;
+        proxy_http_version 1.1;
+        proxy_set_header Connection "";
+        proxy_set_header Host $host;
+        proxy_read_timeout 15s;
+    }
+
+    # ── Root-level public files (frontend/public/) ───────────────────────────
+    # Exact names, =404 when missing: a typo'd or not-yet-shipped /favicon.ico must be a
+    # 404, not index.html served as image/x-icon (crawlers cache that). A regex rather than
+    # a `^/[^/]+\.png$`-style catch-all, because a regex location outranks the bucket's
+    # prefix location and a broad pattern would hijack /<bucket>/x.png. No add_header
+    # here, so the server-level security headers (CSP included) are inherited intact.
+    location ~ ^/(robots\.txt|favicon\.(ico|svg)|favicon-32\.png|apple-touch-icon\.png|icon-512\.png|og-image\.png)$ {
+        try_files $uri =404;
+        expires 1d;
+    }
+    # nginx 1.27's mime.types has no .webmanifest (it would go out as
+    # application/octet-stream). An empty `types {}` here, not a `types` line in the
+    # server block — that would REPLACE the whole mime map for every response.
+    location = /manifest.webmanifest {
+        types { }
+        default_type application/manifest+json;
+        try_files $uri =404;
+        expires 1d;
+    }
+
     # ── SPA fallback ─────────────────────────────────────────────────────────
     # index.html carries no content hash, so it must never be cached: otherwise a
     # deploy ships new /assets/ that the stale index.html never references, and
@@ -247,13 +325,19 @@ server {
     location / {
         try_files $uri $uri/ /index.html;
         add_header Cache-Control "no-cache" always;
+        # Link-preview tags need ABSOLUTE URLs (og:url, og:image). index.html ships them
+        # as https://govorim.uz; this points them at the configured domain instead, so a
+        # different GOVORI_SERVER_NAME needs no rebuild. Only text/html is filtered.
+        sub_filter 'https://govorim.uz/' 'https://${GOVORI_SERVER_NAME}/';
+        sub_filter_once off;
         # Re-declared — see the note above add_header in the server block. This is
         # the location that serves every HTML page, so losing the headers here
-        # would mean losing them where they matter most.
+        # would mean losing them where they matter most — the CSP above all.
         add_header Strict-Transport-Security "max-age=${GOVORI_HSTS_MAX_AGE}; includeSubDomains" always;
         add_header X-Content-Type-Options    "nosniff" always;
         add_header X-Frame-Options           "SAMEORIGIN" always;
         add_header Referrer-Policy           "strict-origin-when-cross-origin" always;
         add_header Permissions-Policy        "microphone=(self), camera=(), geolocation=(), payment=()" always;
+        add_header ${GOVORI_CSP_HEADER} $govori_csp always;
     }
 }
