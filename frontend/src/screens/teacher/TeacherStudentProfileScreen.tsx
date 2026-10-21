@@ -109,7 +109,7 @@ export function TeacherStudentProfileScreen({
   const { t } = useTranslation();
 
   return (
-    <Page title={t("nav.classes")}>
+    <Page>
       <div className={styles.page} data-density="compact">
         <div className={styles.crumb}>
           <button

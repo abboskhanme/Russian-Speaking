@@ -124,7 +124,7 @@ export function AttemptReviewScreen({
   };
 
   return (
-    <Page title={t("nav.queue")}>
+    <Page>
       <div className={styles.page} data-density="compact">
         <header className={styles.head}>
           <button

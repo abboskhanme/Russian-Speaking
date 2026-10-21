@@ -126,7 +126,7 @@ export function TeacherProfileScreen({
   );
 
   return (
-    <Page title={t("teacher.profile.title")}>
+    <Page>
       <div className={styles.page}>
         <header className={styles.head}>
           <button

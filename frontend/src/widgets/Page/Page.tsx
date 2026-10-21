@@ -51,6 +51,10 @@ export interface PageProps {
  * the top bar, so there is exactly one title per page, in one place) and the width
  * its content should use.
  *
+ * A drill-down screen whose body already opens with its own back button + heading
+ * (a group, a student, the assign form) passes NO title: the bar then shows just
+ * the logo on mobile, and the body's heading stays the page's only title.
+ *
  * Outside a layout the title renders inline as the body's first heading, so a
  * screen still reads correctly on its own.
  */

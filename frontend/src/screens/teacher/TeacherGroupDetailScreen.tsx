@@ -150,7 +150,7 @@ export function TeacherGroupDetailScreen({
   const hasSettings = Boolean(onRename || onRegenerateCode || onRemoveMember || onDeleteGroup);
 
   return (
-    <Page title={t("nav.classes")} width="wide">
+    <Page width="wide">
       <div className={styles.page} data-density="compact">
         <header className={styles.head}>
           <button

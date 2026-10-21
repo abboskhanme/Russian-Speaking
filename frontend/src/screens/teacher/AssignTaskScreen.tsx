@@ -210,7 +210,7 @@ export function AssignTaskScreen({
   };
 
   return (
-    <Page title={t("nav.classes")}>
+    <Page>
       <div className={styles.page} data-density="compact">
         <header className={styles.head}>
           <button

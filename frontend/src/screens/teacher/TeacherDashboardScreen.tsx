@@ -93,9 +93,8 @@ export function TeacherDashboardScreen({
   onOpenAttention,
   onOpenProfile,
 }: TeacherDashboardProps) {
-  const { t } = useTranslation();
   return (
-    <Page title={t("nav.teacherHome")} width="wide">
+    <Page width="wide">
       {/* data-density mirrors the DS compact contract; the scale is also set on
           .page so it stays scoped to this screen (docs/03 §3.5). */}
       <div className={styles.page} data-density="compact">
@@ -132,7 +131,9 @@ function ObzorHeader({
         </Text>
       </div>
 
-      {/* The teacher nav has no Profil item — this avatar is that entry point. */}
+      {/* Only when asked for: inside the teacher layout the top bar already carries
+          the account avatar, and two avatars on one screen is one too many. */}
+      {onOpenProfile && (
       <button
         type="button"
         className={styles.avatar}
@@ -143,6 +144,7 @@ function ObzorHeader({
           {initials}
         </Text>
       </button>
+      )}
     </header>
   );
 }

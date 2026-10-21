@@ -185,7 +185,7 @@ export function ModuleEditorScreen({
   const draftCount = tasks.length - liveCount;
 
   return (
-    <Page title={t("nav.content")}>
+    <Page>
       <div className={styles.page} data-density="compact">
         <header className={styles.head}>
           <button

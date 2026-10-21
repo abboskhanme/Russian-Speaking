@@ -233,7 +233,6 @@ export default function TeacherDashboardPage() {
       onNavigate={onNavigate}
       onOpenAttention={openAttention}
       // The teacher nav has no Profil item — the header avatar is that entry.
-      onOpenProfile={() => navigate("/teacher/profile")}
     />
   );
 }
