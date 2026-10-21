@@ -258,6 +258,41 @@ bundle **145.0 / 180 KB gz** · kontrakt **0 xato** · jonli tekshiruv: haqiqiy 
 Azure STT → OpenAI grader uchidan-uchiga (TTS bilan yaratilgan ruscha javob, ball 77, izoh
 o'quvchi tilida); Gemini o'sha kuni vendor tomonda 503 ("high demand") — zanjir OpenAI'ga o'tdi.
 
+### S10 · Launch tayyorgarligi + dizayn raundi (2026-10-21/22)
+
+Ikki audit (texnik/mahsulot va 41 ekranli vizual) natijasida. Har yo'nalish alohida worktree'da,
+keyin `dotnet-rewrite` ga birlashtirilib, har birlashmadan keyin to'liq suite yurgizildi.
+
+**Infratuzilma va xavfsizlik**
+
+| # | Nima edi | Nima qilindi |
+|---|---|---|
+| 1 | **Stored XSS**: javob mijoz e'lon qilgan Content-Type bilan saqlanardi, bucket ilova origin'idan beriladi | Submit faqat `audio/*` (+ audio-only `video/webm|mp4`) qabul qiladi, aks holda 415; bucket location'da `CSP: sandbox` |
+| 2 | CI `.NET` kodida hech qachon yurmagan (faqat `main`) | CI `dotnet-rewrite` da ham; "0 test yurdi" himoyasi; Dependabot, CodeQL, NuGet/npm high zaiflik darvozasi; topilgan high advisory'lar yopildi |
+| 3 | Audio zaxiralanmasdi, zaxira yiqilsa hech kim bilmasdi | `mc mirror` snapshot'lar (o'qish-only kalit), tekshiruv, alert webhook + heartbeat, `restore.sh --audio`; ixtiyoriy Sentry (`SENTRY_DSN`), `/health/ready` tashqariga |
+| 4 | AI xarajatiga umumiy chegara yo'q | Kunlik/oylik cap ($10/$200 sukut), admin "AI pauza", Sozlamalarda sarf; cap'da yangi AI chaqiruvi yo'q |
+| 5 | Ilova CSP'siz, favicon/OG/robots yo'q | Majburiy CSP (unsafe-inline'siz), favicon to'plami, OG rasm, allow-list `robots.txt` |
+
+**Dizayn raundi** — audit topilmalarining 10 tasi va 9 xatosi: o'quvchi motivatsiyasi (seriya,
+hafta nuqtalari, kunlik maqsad halqasi, XP bosqichi, modul yo'li, maskot reaksiyasi, konfetti);
+`/task` menyusiz to'liq ekran (bitta mikrofon, pastki panel, HTTPS/ruxsat xabarlari); har rol
+uchun bitta `RoleLayout` + `Page` (bitta sarlavha, 920/1200px kengliklar); til (jim yozuv
+baholanmaydi, "None" bandlari, 23 plural kalit, kirishda til tanlash); yagona sana/telefon formati,
+`DateField`, to'lqinli `AudioPlayer`; funksiya bayroqlari `/me` da (o'chiq funksiya o'quvchiga
+ko'rinmaydi, 404 tekshiruvlari yo'q); admin `DataTable` va Sozlamalar tablari; o'qituvchi/admin
+dashboard'lari, muvaffaqiyatsiz baholashni qayta yuborish (`POST /api/submissions/{id}/regrade`),
+taklif sahifasida QR. O'zbekcha apostroflar `‘`/`’` ga keltirildi — Onest'da U+02BB/02BC glif yo'q.
+
+**Yo'l-yo'lakay:** dev seed'da demo o'quvchining baholangan javobi yo'q edi (e2e yangi bazada
+yiqilardi) — `33-dev-student-history.sql`; `35-progress-sample-data.sql` yangi volume'da dump'da
+yo'q 4 foydalanuvchiga FK xatosi bilan init'ni to'xtatadi (**ochiq — egasining qarori**);
+menyu `/me` tilni almashtirganda eski tilda qolardi — tuzatildi, `<html lang>` ham endi tilga ergashadi.
+
+**O'lchov (2026-10-22, hammasi birlashgandan keyin):** backend build **0 warning / 0 error**,
+to'rtala suite **721 passed, 0 failed, 4 skipped** · frontend **512 vitest** (ketma-ket 2 marta),
+`tsc`, build yashil, bundle **160.4 / 180 KB gz** · kontrakt 0 xato (16 ogohlantirish) ·
+NuGet zaif paket 0, `npm audit --omit=dev` high 0 · `openapi.json` qayta yaratilganda farq yo'q.
+
 ## 🔴 Bloklangan — foydalanuvchisiz bajarilmaydi
 
 Bular unutilgani uchun emas, **ataylab** qilinmagan. Har biri sabab bilan:
