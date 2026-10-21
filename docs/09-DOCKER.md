@@ -24,7 +24,7 @@ Keyingi `up`lar tez (cache).
 | govori-db | postgres:16-alpine | localhost:`${DB_PORT}` | Postgres 16 — birinchi ishga tushishda demo dump'dan **avtoseed** |
 | govori-minio | pgsty/minio | localhost:9000 (konsol :9001) | S3 obyekt saqlash (`govori-audio` bucket) |
 | govori-redis | redis:7-alpine | — (ichki) | OTP · SignalR backplane · rate-limit |
-| govori-minio-init | pgsty/mc | — | Bir martalik: bucket yaratib **darhol tugaydi** (`Exited (0)` — normal) |
+| govori-minio-init | pgsty/mc | — | Bir martalik: bucket + ilovaning MinIO foydalanuvchisi/policy'sini yaratib **darhol tugaydi** (`Exited (0)` — normal) |
 
 **Foydalanish:** brauzerda **http://localhost:8081** oching.
 
@@ -186,6 +186,29 @@ Shuning uchun:
   migratsiya mavjud sxemani qaytadan yaratmoqchi bo'ladi va birinchi `CREATE TABLE` da
   yiqiladi. Bunday bazani EF tarixiga **bir marta** `deploy/ef-baseline.sh` orqali
   qabul qildiring; keyingi migratsiyalar odatdagidek qo'llanadi.
+
+## MinIO: ilova o'z foydalanuvchisi bilan ishlaydi (root emas)
+
+api va worker MinIO'ga **root** (`MINIO_ROOT_USER/PASSWORD`) bilan emas, `minio-init` yaratgan
+ilova foydalanuvchisi bilan kiradi: `S3_APP_ACCESS_KEY` / `S3_APP_SECRET_KEY` (dev sukuti
+`govori-app` / `govori-app-dev-only`). Sabab: har bir presigned URL query'sida access key id
+ochiq yoziladi, root kalit esa bucket o'chirish, foydalanuvchi qo'shish, policy o'zgartirishga
+qodir. `govori-app` policy faqat `S3_BUCKET` ichida Get/Put/Delete obyekt + List (va
+`GetBucketLocation`) beradi — boshqa bucket, bucket yaratish/o'chirish, admin API **yo'q**.
+Root juftligi faqat `minio` va `minio-init` konteynerlarida qoladi.
+
+- `minio-init` **idempotent**: har `up` da policy'ni qayta yozadi, foydalanuvchi secret'ini
+  `.env` dagiga tenglaydi, `govori-app` dan boshqa qo'lda biriktirilgan policy'larni ajratadi.
+  Qayta ishga tushirish xato bermaydi.
+- Secret'ni almashtirish: `.env` da o'zgartiring →
+  `docker compose up -d --force-recreate minio-init api worker`.
+- Integratsiya testlari `GOVORI_S3_*` env bo'lmasa `minioadmin` (root) bilan ulanadi — test
+  runner'ga o'zgarish kerak emas.
+- Prod'da `S3_APP_*` **majburiy** (`:?`), root'dan farq qilishi shart: `deploy/preflight.sh`,
+  `minio-init` va API (`ProductionSecrets`) uchalasi rad etadi.
+- `deploy/restore.sh --into-stack --minio …` MinIO volume'ini tiklagandan keyin `minio-init`
+  ni qayta yuritadi: arxivda eski IAM holati (`.minio.sys`) bor, u ilova foydalanuvchisini
+  o'z ichiga olmasligi yoki eski secret'ga ega bo'lishi mumkin.
 
 ## Dev'da bir bosishda kirish (`/login` dagi "Namunaviy hisoblar")
 

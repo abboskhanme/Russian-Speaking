@@ -70,14 +70,21 @@ x-backend-env: &backend-env
   # host, so you cannot "fix" it by rewriting the URL afterwards. S3_PUBLIC_URL is
   # the https origin; nginx proxies /<bucket>/ through to MinIO (deploy/nginx/
   # govori-prod.conf.template), which is why no MinIO port is published.
+  #
+  # The credentials are the APP identity minio-init creates, NOT the MinIO root.
+  # Every presigned URL a browser receives carries the access key id in its query
+  # string, and the api/worker processes are the most exposed thing on the box; a
+  # root key behind either could delete the bucket, add users or rewrite policies.
+  # The app key can only get/put/delete/list objects in S3_BUCKET. The root pair is
+  # deliberately absent from this anchor: only minio and minio-init ever see it.
   GOVORI_S3_ENDPOINT: "http://minio:9000"
-  GOVORI_S3_ACCESS_KEY: "${MINIO_ROOT_USER:?MINIO_ROOT_USER is required}"
-  GOVORI_S3_SECRET_KEY: "${MINIO_ROOT_PASSWORD:?MINIO_ROOT_PASSWORD is required}"
+  GOVORI_S3_ACCESS_KEY: "${S3_APP_ACCESS_KEY:?S3_APP_ACCESS_KEY is required — the app's own MinIO user, not MINIO_ROOT_USER}"
+  GOVORI_S3_SECRET_KEY: "${S3_APP_SECRET_KEY:?S3_APP_SECRET_KEY is required — generate with: openssl rand -base64 30}"
   GOVORI_S3_BUCKET: "${S3_BUCKET:?S3_BUCKET is required}"
   S3_ENDPOINT_URL: "http://minio:9000"
   S3_PUBLIC_URL: "${S3_PUBLIC_URL:?S3_PUBLIC_URL is required — e.g. https://govorim.uz}"
-  S3_ACCESS_KEY: "${MINIO_ROOT_USER}"
-  S3_SECRET_KEY: "${MINIO_ROOT_PASSWORD}"
+  S3_ACCESS_KEY: "${S3_APP_ACCESS_KEY}"
+  S3_SECRET_KEY: "${S3_APP_SECRET_KEY}"
   S3_BUCKET: "${S3_BUCKET}"
   S3_REGION: "${S3_REGION:-us-east-1}"
 
@@ -271,14 +278,22 @@ services:
         limits:
           memory: ${MINIO_MEM_LIMIT:-384m}
 
-  # One-shot: make sure the bucket exists, then exit 0. `Exited (0)` is the healthy
-  # steady state, not a crash.
+  # One-shot: make sure the bucket exists and that the app's own MinIO identity
+  # (S3_APP_ACCESS_KEY, policy `govori-app`) exists with exactly the access the api
+  # and worker need, then exit 0. `Exited (0)` is the healthy steady state, not a
+  # crash. Every step is idempotent: a re-run converges on the current .env rather
+  # than failing, which is also how the app secret is rotated (change it in .env,
+  # `up -d --force-recreate minio-init`, then recreate api + worker).
   #
   # It deliberately does NOT touch the bucket policy. The dev compose runs
   # `mc anonymous set download`, which would make every student recording readable
   # by URL to anyone; prod serves audio through presigned URLs instead. Leaving the
   # policy alone also means re-running this one-shot never widens access to a
   # bucket that already exists.
+  #
+  # The script is the SAME as minio-init in docker-compose.yml apart from that dev
+  # line — change both together. It is inline rather than a mounted deploy/*.sh so
+  # a CRLF checkout cannot break it.
   minio-init:
     # Pinned to a release tag: the client is what creates the bucket the whole product
     # stores audio in. Same source as the server image above, for the same reason.
@@ -289,14 +304,60 @@ services:
     entrypoint: ["/bin/sh", "-c"]
     command:
       - |
-        set -e
-        mc alias set local http://minio:9000 "$${MINIO_ROOT_USER}" "$${MINIO_ROOT_PASSWORD}"
+        set -eu
+        # MinIO itself refuses a user named like the root, but with an opaque error;
+        # this one says what to fix. Sharing the root secret would defeat the split.
+        if [ "$${S3_APP_ACCESS_KEY}" = "$${MINIO_ROOT_USER}" ] || [ "$${S3_APP_SECRET_KEY}" = "$${MINIO_ROOT_PASSWORD}" ]; then
+          echo "S3_APP_ACCESS_KEY / S3_APP_SECRET_KEY must differ from MINIO_ROOT_USER / MINIO_ROOT_PASSWORD" >&2
+          exit 1
+        fi
+        mc alias set local http://minio:9000 "$${MINIO_ROOT_USER}" "$${MINIO_ROOT_PASSWORD}" >/dev/null
         mc mb --ignore-existing "local/$${S3_BUCKET}"
-        echo "minio bucket '$${S3_BUCKET}' ready"
+        # Exactly what MinioObjectStorage calls, on this bucket only: GetObject (also
+        # authorises HEAD), PutObject (server-side and presigned PUT — both single-part,
+        # so no multipart actions), DeleteObject, ListBucket (ListObjectsV2).
+        # GetBucketLocation is a harmless read some S3 clients probe first. No other
+        # bucket, no bucket-level writes, no admin API: those stay with the root key,
+        # which only the minio server and this one-shot ever see.
+        cat > /tmp/govori-app-policy.json <<EOF
+        {
+          "Version": "2012-10-17",
+          "Statement": [
+            { "Effect": "Allow",
+              "Action": ["s3:ListBucket", "s3:GetBucketLocation"],
+              "Resource": ["arn:aws:s3:::$${S3_BUCKET}"] },
+            { "Effect": "Allow",
+              "Action": ["s3:GetObject", "s3:PutObject", "s3:DeleteObject"],
+              "Resource": ["arn:aws:s3:::$${S3_BUCKET}/*"] }
+          ]
+        }
+        EOF
+        # `policy create` overwrites an existing policy and `user add` resets an
+        # existing user's secret, so a re-run converges on the current .env.
+        mc admin policy create local govori-app /tmp/govori-app-policy.json
+        mc admin user add local "$${S3_APP_ACCESS_KEY}" "$${S3_APP_SECRET_KEY}"
+        # Attach ours unless it already is, then detach anything else attached by hand:
+        # the app key must end up with exactly this policy, not "this and readwrite".
+        # Parsed with parameter expansion: the mc image has no sed, grep, awk or jq.
+        INFO="$$(mc admin user info local "$${S3_APP_ACCESS_KEY}" --json)"
+        ATTACHED=""
+        case "$$INFO" in
+          *'"policyName":"'*) ATTACHED=$${INFO#*'"policyName":"'}; ATTACHED=$${ATTACHED%%'"'*} ;;
+        esac
+        case ",$${ATTACHED}," in
+          *,govori-app,*) ;;
+          *) mc admin policy attach local govori-app --user "$${S3_APP_ACCESS_KEY}" ;;
+        esac
+        for p in $$(printf '%s' "$${ATTACHED}" | tr ',' ' '); do
+          [ "$$p" = govori-app ] || mc admin policy detach local "$$p" --user "$${S3_APP_ACCESS_KEY}"
+        done
+        echo "minio bucket '$${S3_BUCKET}' ready; app user '$${S3_APP_ACCESS_KEY}' holds only policy govori-app"
     environment:
       MINIO_ROOT_USER: ${MINIO_ROOT_USER}
       MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
       S3_BUCKET: ${S3_BUCKET}
+      S3_APP_ACCESS_KEY: ${S3_APP_ACCESS_KEY}
+      S3_APP_SECRET_KEY: ${S3_APP_SECRET_KEY}
     logging: *logging
     <<: *hardening
     restart: "no"
@@ -353,6 +414,9 @@ services:
         condition: service_healthy
       minio:
         condition: service_healthy
+      # The worker signs in as the app user, which exists only once minio-init ran.
+      minio-init:
+        condition: service_completed_successfully
     healthcheck:
       test: ["CMD-SHELL", "pgrep -f Govori.Worker.dll > /dev/null || exit 1"]
       interval: 30s

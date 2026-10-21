@@ -140,6 +140,45 @@ public sealed class ProductionSecretsTests
         Assert.DoesNotContain(problems, p => p.Contains("S3_", StringComparison.Ordinal));
     }
 
+    /// <summary>The dev compose's app secret is not stock MinIO, so only this rule catches it — and a
+    /// dev .env copied onto the droplet is the realistic way it would get there.</summary>
+    [Fact]
+    public void The_dev_app_object_storage_secret_is_a_problem()
+    {
+        var problems = ProblemsFor(v => v["S3_SECRET_KEY"] = ProductionSecrets.DevAppObjectStorageSecret);
+        Assert.Contains(problems, p => p.Contains("S3_APP_SECRET_KEY", StringComparison.Ordinal));
+    }
+
+    /// <summary>The access key id is printed into every presigned URL, so a predictable one (the dev
+    /// default <c>govori-app</c>) is not a secret leaking — refusing it would only be noise.</summary>
+    [Fact]
+    public void The_dev_app_access_key_id_alone_is_not_a_problem()
+    {
+        Assert.Empty(ProblemsFor(v => v["S3_ACCESS_KEY"] = "govori-app"));
+    }
+
+    [Theory]
+    [InlineData("MINIO_ROOT_USER", "S3_ACCESS_KEY")]
+    [InlineData("MINIO_ROOT_PASSWORD", "S3_SECRET_KEY")]
+    public void Signing_in_with_the_minio_root_credentials_is_a_problem(string rootKey, string appKey)
+    {
+        var problems = ProblemsFor(v => v[rootKey] = v[appKey]);
+        Assert.Contains(problems, p => p.Contains("ROOT credentials", StringComparison.Ordinal));
+    }
+
+    /// <summary>Root values that are visible but DIFFERENT from the app's are fine — the rule is about
+    /// which identity the api signs with, not about whether the root pair exists.</summary>
+    [Fact]
+    public void A_distinct_root_pair_is_not_a_problem()
+    {
+        var problems = ProblemsFor(v =>
+        {
+            v["MINIO_ROOT_USER"] = "a-different-root-user";
+            v["MINIO_ROOT_PASSWORD"] = "a-different-root-password";
+        });
+        Assert.Empty(problems);
+    }
+
     // ── Database ─────────────────────────────────────────────────────────────
 
     [Fact]

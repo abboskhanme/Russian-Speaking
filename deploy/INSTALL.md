@@ -180,6 +180,8 @@ of what you cannot leave blank, and where each value comes from.
 | `POSTGRES_PASSWORD` | `openssl rand -base64 24` |
 | `MINIO_ROOT_USER` | your choice, but **not** `minio`/`admin`/`root` — the API refuses to start on a stock credential |
 | `MINIO_ROOT_PASSWORD` | `openssl rand -base64 24` |
+| `S3_APP_ACCESS_KEY` | e.g. `govori-app` — the app's own MinIO user; **not** the same as `MINIO_ROOT_USER` |
+| `S3_APP_SECRET_KEY` | `openssl rand -base64 30` (MinIO caps secrets at 40 chars; this is exactly 40) — **not** the root password |
 | `S3_BUCKET` | e.g. `govori-audio` |
 | `S3_PUBLIC_URL` | `https://govorim.uz` — **the origin the browser uses**, https, no trailing slash |
 | `SECRET_KEY` | `openssl rand -base64 48` |
@@ -198,7 +200,7 @@ PG_VOLUME=govori-pgdata
 MINIO_VOLUME=govori-miniodata
 ```
 
-Two values are worth understanding rather than pasting:
+Three values are worth understanding rather than pasting:
 
 * **`SECRET_KEY`** signs every session token. Generate it once, and keep a copy
   off the machine. Changing it later does not produce an error anywhere — it
@@ -207,6 +209,13 @@ Two values are worth understanding rather than pasting:
   signature covers the host name. A wrong value cannot be patched up afterwards
   by nginx or by the browser: every recording and avatar 404s while every page
   still renders perfectly, so it looks like a broken feature rather than a typo.
+* **`S3_APP_ACCESS_KEY` / `S3_APP_SECRET_KEY`** are the only storage credentials
+  the api and worker ever receive. `minio-init` creates that user on every start
+  with a policy allowing get/put/delete/list on `S3_BUCKET` and nothing else; the
+  root pair stays inside the `minio` and `minio-init` containers. The access key
+  id is printed into every presigned URL, which is exactly why it must not be the
+  root's. To rotate the secret: change it in `.env`, then
+  `docker compose -f docker-compose.prod.yml up -d --force-recreate minio-init api worker`.
 
 Add at least one AI key (`ANTHROPIC_API_KEY`, `GEMINI_API_KEY`, `OPENAI_API_KEY`,
 or the `AZURE_*` set). Leave everything else blank — blank is a supported state
@@ -544,7 +553,7 @@ docker compose -f docker-compose.prod.yml ps
 ```
 
 Expect six services `(healthy)` and `minio-init` `Exited (0)` — that last one is
-a one-shot bucket creation, not a crash.
+a one-shot (bucket + the app's MinIO user and policy), not a crash.
 
 Then:
 

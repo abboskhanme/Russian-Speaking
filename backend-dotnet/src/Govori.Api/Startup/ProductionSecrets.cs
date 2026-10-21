@@ -67,6 +67,13 @@ public static class ProductionSecrets
         };
 
     /// <summary>
+    /// The app secret docker-compose.yml and .env.example ship for the dev stack's own MinIO user
+    /// (<c>S3_APP_SECRET_KEY</c>). Only the SECRET is refused: the access key id is public by design —
+    /// it is printed into every presigned URL — so a predictable one costs nothing.
+    /// </summary>
+    public const string DevAppObjectStorageSecret = "govori-app-dev-only";
+
+    /// <summary>
     /// Throw a single aggregated <see cref="InvalidOperationException"/> when a Production host is
     /// configured insecurely. All problems are reported at once on purpose: fixing them one restart
     /// at a time, each 40 s of container start-up apart, is how a deploy window gets spent.
@@ -164,16 +171,35 @@ public static class ProductionSecrets
 
         // ── 3. Object storage credentials ─────────────────────────────────────
         // An unset key is as bad as a stock one: Program.cs defaults both to "minioadmin".
-        foreach (var (name, value) in new[]
-                 {
-                     ("S3_ACCESS_KEY", config["S3_ACCESS_KEY"] ?? config["GOVORI_S3_ACCESS_KEY"]),
-                     ("S3_SECRET_KEY", config["S3_SECRET_KEY"] ?? config["GOVORI_S3_SECRET_KEY"]),
-                 })
+        var s3AccessKey = config["S3_ACCESS_KEY"] ?? config["GOVORI_S3_ACCESS_KEY"];
+        var s3SecretKey = config["S3_SECRET_KEY"] ?? config["GOVORI_S3_SECRET_KEY"];
+        foreach (var (name, value) in new[] { ("S3_ACCESS_KEY", s3AccessKey), ("S3_SECRET_KEY", s3SecretKey) })
         {
             if (string.IsNullOrWhiteSpace(value))
                 problems.Add($"{name} is not set; the host would fall back to the stock `minioadmin` credentials.");
             else if (StockObjectStorageCredentials.Contains(value.Trim()))
                 problems.Add($"{name} is a stock credential (`{value.Trim()}`). Every recorded answer is behind it.");
+        }
+
+        if (string.Equals(s3SecretKey?.Trim(), DevAppObjectStorageSecret, StringComparison.Ordinal))
+            problems.Add(
+                "S3_SECRET_KEY is the dev stack's app secret from docker-compose.yml. Set S3_APP_SECRET_KEY "
+                + "(`openssl rand -base64 30`) and re-run minio-init.");
+
+        // The api must sign in as the app's own MinIO user (S3_APP_*, created by minio-init), never as
+        // the root: presigned URLs print the access key id into every browser's address bar, and the
+        // root key behind it can delete buckets, add users and rewrite policies. The prod compose keeps
+        // the root pair out of this process entirely, so this only fires when someone wires it back in
+        // (an env_file, a hand-edited compose) — which is exactly the mistake worth refusing loudly.
+        var rootUser = config["MINIO_ROOT_USER"];
+        var rootPassword = config["MINIO_ROOT_PASSWORD"];
+        if ((!string.IsNullOrWhiteSpace(rootUser) && string.Equals(s3AccessKey?.Trim(), rootUser.Trim(), StringComparison.Ordinal))
+            || (!string.IsNullOrWhiteSpace(rootPassword) && string.Equals(s3SecretKey?.Trim(), rootPassword.Trim(), StringComparison.Ordinal)))
+        {
+            problems.Add(
+                "S3_ACCESS_KEY/S3_SECRET_KEY are the MinIO ROOT credentials. Use the app's own user "
+                + "(S3_APP_ACCESS_KEY/S3_APP_SECRET_KEY, created by minio-init) — the root key can do "
+                + "anything to the storage server, and presigned URLs publish its id.");
         }
 
         // ── 4. Database ───────────────────────────────────────────────────────

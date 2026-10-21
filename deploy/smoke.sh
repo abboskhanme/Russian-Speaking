@@ -90,13 +90,13 @@ for svc in db redis minio api worker web; do
     *)               bad "${svc} is ${STATE} (health: ${HEALTH})" ;;
   esac
 done
-# minio-init is a one-shot bucket creation. `Exited (0)` is its healthy steady
+# minio-init is a one-shot (bucket + the app's own MinIO user and policy). `Exited (0)` is its healthy steady
 # state, and reading it as a crash is the most common false alarm on this stack.
 INIT="$(dc ps -aq minio-init 2>/dev/null || true)"
 if [ -n "$INIT" ]; then
   RC="$(docker inspect --format '{{.State.ExitCode}}' "$INIT")"
-  [ "$RC" = "0" ] && ok "minio-init exited 0 (one-shot bucket creation — not a crash)" \
-                  || bad "minio-init exited ${RC} — the audio bucket may not exist"
+  [ "$RC" = "0" ] && ok "minio-init exited 0 (one-shot bucket + app user setup — not a crash)" \
+                  || bad "minio-init exited ${RC} — the audio bucket or the app's MinIO user may not exist; the api/worker would 403 on storage"
 fi
 
 # ── 2. HTTP → HTTPS ──────────────────────────────────────────────────────────

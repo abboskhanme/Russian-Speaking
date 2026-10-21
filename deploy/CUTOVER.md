@@ -193,6 +193,13 @@ stack's `.env`). Two lines decide whether the cutover is invisible or not:
   starts. That is the safe failure; the unsafe one is a stack that boots on a
   blank database and looks perfectly healthy.
 
+One pair is **new** and will not be in the old `env.txt`: `S3_APP_ACCESS_KEY` /
+`S3_APP_SECRET_KEY`, the app's own MinIO user (e.g. `govori-app` and
+`openssl rand -base64 30`). The old stack signed presigned URLs with the MinIO
+root key; this one never hands the root pair to the api or worker. `minio-init`
+creates the user on the existing volume at start-up — the audio is untouched —
+and the pair must differ from `MINIO_ROOT_*` (preflight checks).
+
 Also set `IMAGE_TAG` to the commit you are deploying:
 
 ```bash
@@ -596,7 +603,8 @@ Names only — the full annotated list with the reasoning is `deploy/env.prod.ex
 
 **Required — compose refuses to render without these:**
 `IMAGE_TAG` · `GOVORI_SERVER_NAME` · `POSTGRES_USER` · `POSTGRES_PASSWORD` ·
-`POSTGRES_DB` · `MINIO_ROOT_USER` · `MINIO_ROOT_PASSWORD` · `S3_BUCKET` ·
+`POSTGRES_DB` · `MINIO_ROOT_USER` · `MINIO_ROOT_PASSWORD` · `S3_APP_ACCESS_KEY` ·
+`S3_APP_SECRET_KEY` · `S3_BUCKET` ·
 `S3_PUBLIC_URL` · `SECRET_KEY`
 
 **Required — the API refuses to *start* without these:**
