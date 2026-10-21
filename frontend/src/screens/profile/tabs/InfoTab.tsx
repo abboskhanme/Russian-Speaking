@@ -1,6 +1,7 @@
 import { useId, useMemo, useState, type FormEvent, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { cefrLabel } from "../../../shared/i18n/cefrLabel";
+import { formatPhone } from "../../../shared/format/phone";
 import { Button, Card, Modal, Text } from "../../../shared/ui";
 import { isApiError, type OtpDeliveryInfo } from "../../../shared/api";
 import { UZ_REGION_NAMES, districtsFor } from "../../../shared/uz-regions";
@@ -180,7 +181,7 @@ export function InfoTab({
             <InfoRow label={t("profile.info.fullName")} value={user.name} />
             <InfoRow
               label={t("profile.info.phone")}
-              value={user.phone ?? notSet}
+              value={user.phone ? formatPhone(user.phone) : notSet}
               empty={!user.phone}
               /* Its own action, next to the value: changing the phone re-runs
                  the Telegram ownership proof, so it must never look like just

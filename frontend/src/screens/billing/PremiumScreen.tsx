@@ -29,6 +29,7 @@ import { formatMinor } from "../../shared/money";
 import { AppShell, Brand, NotificationsBell, studentNavItems } from "../../widgets";
 import type { NavItem } from "../../widgets";
 import { mockPremiumPlans, mockPremiumStatus } from "./billing.mock";
+import { formatDate } from "../../shared/format/date";
 import styles from "./PremiumScreen.module.css";
 
 /* -------------------------------------------------------------------------- */
@@ -254,7 +255,7 @@ function StatusCard({ status }: { status: PremiumStatus }) {
             explains why the paywall appeared today. */}
         {status.status === "expired" && status.endsAt && (
           <Text as="p" variant="body-s" color="muted" numeric>
-            {t("billing.expiredOn", { date: status.endsAt.slice(0, 10) })}
+            {t("billing.expiredOn", { date: formatDate(status.endsAt) })}
           </Text>
         )}
       </Card>
@@ -297,7 +298,7 @@ function StatusCard({ status }: { status: PremiumStatus }) {
               </dt>
               <dd>
                 <Text as="span" variant="body" weight="semibold" numeric>
-                  {status.endsAt.slice(0, 10)}
+                  {formatDate(status.endsAt)}
                 </Text>
               </dd>
             </div>
