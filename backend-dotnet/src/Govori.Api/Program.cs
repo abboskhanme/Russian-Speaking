@@ -71,6 +71,13 @@ try
         .Enrich.FromLogContext()
         .WriteTo.Console(new RenderedCompactJsonFormatter()));
 
+    // ── Optional error reporting (Startup/ErrorReporting.cs) ────────────────
+    // SENTRY_DSN set → unhandled request exceptions go to that Sentry-compatible endpoint, scrubbed
+    // of bodies, headers, query strings, users and breadcrumbs. Unset → not wired at all: no SDK,
+    // no middleware, no network.
+    var errorReportingOn = builder.WebHost.UseGovoriErrorReporting(
+        builder.Configuration, builder.Environment.EnvironmentName);
+
     // ── OpenTelemetry: tracing + metrics (docs/07 §7.3, §7.9) ───────────────
     var otel = builder.Services.AddOpenTelemetry();
 
@@ -460,6 +467,9 @@ try
     builder.Services.AddAuthorization();
 
     var app = builder.Build();
+
+    // One line, so "are errors being reported?" is answered by the boot log. Never the DSN itself.
+    app.Logger.LogInformation("Error reporting (SENTRY_DSN): {ErrorReporting}", errorReportingOn ? "on" : "off");
 
     // Request logging middleware — one structured line per request (method, path,
     // status, elapsed ms) correlated to the trace. docs/07 §7.9.
