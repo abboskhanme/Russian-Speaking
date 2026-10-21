@@ -1,43 +1,64 @@
 name: CI
 
+# The .NET product lives on `dotnet-rewrite`; `main` still carries the old Python stack
+# until cutover. Until 2026-10 this workflow listened to `main` ONLY, so not one of the
+# jobs below had ever run against the code that is about to ship. Both branches now.
 on:
   push:
-    branches: [main]
+    branches: [main, dotnet-rewrite]
   pull_request:
-    branches: [main]
+    branches: [main, dotnet-rewrite]
+  workflow_dispatch:
+
+# A newer push to the same PR/branch makes the older run worthless; cancel it rather
+# than queue behind it. Pushes to the two protected branches are never cancelled, so
+# every commit that lands there keeps its own complete record.
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+
+env:
+  DOTNET_NOLOGO: "1"
+  DOTNET_CLI_TELEMETRY_OPTOUT: "1"
+  DOTNET_SKIP_FIRST_TIME_EXPERIENCE: "1"
 
 jobs:
   backend:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: "9.0.x"
 
+      - uses: actions/cache@v4
+        with:
+          path: ~/.nuget/packages
+          key: nuget-${{ runner.os }}-${{ hashFiles('backend-dotnet/**/*.csproj') }}
+          restore-keys: nuget-${{ runner.os }}-
+
       - name: Restore
         working-directory: backend-dotnet
         run: dotnet restore Govori.sln
 
+      # DoD is 0 warnings, 0 errors (docs/09). Not -warnaserror: a new analyzer warning
+      # shipped by an SDK patch should be a PR, not a red main the morning after.
       - name: Build
         working-directory: backend-dotnet
         run: dotnet build Govori.sln --no-restore -c Release
 
       # ── The contract document has to be CURRENT, not merely present ────────
-      # backend-dotnet/openapi.json is a committed file, which means it can go stale — and a stale
-      # document is worse than no document. The frontend gate would compare types.ts against last
-      # month's contract, the two would agree perfectly because both are old, and CI would report
-      # "the contract holds" about a contract nobody checked. That is the same silent drift this
-      # whole gate exists to prevent, only now wearing a green tick.
-      #
-      # So: regenerate and fail on any diff. The emit BUILDS the host and never STARTS it, so this
-      # step needs no Postgres, no Redis and no S3 — verified by running it in a container with no
-      # network at all. SECRET_KEY is a throwaway with a self-describing value: the host refuses to
-      # boot without one, and nothing here signs a token. --no-launch-profile keeps the output
-      # independent of launchSettings.json, which is also why ASPNETCORE_ENVIRONMENT is set by
-      # hand — the profile was quietly supplying it, and without it the production-secrets guard
-      # (correctly) refuses to build a host with no Telegram token and no database. The document is
-      # byte-identical under either environment; this is about getting the host built at all.
+      # backend-dotnet/openapi.json is committed, so it can go stale — and a stale document
+      # lets the frontend gate compare types.ts against last month's contract and report
+      # "the contract holds" about a contract nobody checked. So: regenerate and fail on any
+      # diff. The emit BUILDS the host and never STARTS it (no Postgres/Redis/S3 needed —
+      # verified with `--network none`). SECRET_KEY is a self-describing throwaway; the
+      # environment is set by hand because --no-launch-profile drops the profile that used to
+      # supply it, and the Production secrets guard (correctly) refuses to build the host.
       - name: The OpenAPI document must be current
         working-directory: backend-dotnet
         env:
@@ -48,60 +69,85 @@ jobs:
             -- --emit-openapi "$GITHUB_WORKSPACE/backend-dotnet/openapi.json"
           git diff --exit-code -- openapi.json || {
             echo ""
-            echo "openapi.json is stale — the API changed and the document did not follow."
+            echo "::error::openapi.json is stale — the API changed and the document did not follow."
             echo "Regenerate it and commit the result (docs/09-DOCKER.md):"
             echo "  dotnet run --project src/Govori.Api -c Release -- --emit-openapi ../backend-dotnet/openapi.json"
             exit 1
           }
 
-      # Unit / Arch / Characterization run with no external dependencies.
-      # Govori.IntegrationTests is DELIBERATELY excluded: it needs a live
-      # Postgres + Redis + MinIO and mutates rows in setup, so it belongs in a
-      # compose-backed job rather than here. Run it locally via docker compose.
-      - name: Test (Unit)
+      # Unit / Arch / Characterization need nothing external. Integration has its own job.
+      #
+      # Every suite writes a .trx and assert-trx.sh reads the counters back. docs/09 records
+      # `dotnet test` exiting 0 with an EMPTY log in one environment; on a Linux SDK it runs
+      # normally (verified in mcr.microsoft.com/dotnet/sdk:9.0), but "exit 0" and "ran 0
+      # tests" must never be confusable, so the count is asserted rather than assumed.
+      #
+      # Unit and Characterization read tests/characterization/fixtures from the REPO ROOT
+      # (found by walking up from the test binaries), which a full checkout provides.
+      - name: Test (Unit · Architecture · Characterization)
         working-directory: backend-dotnet
-        run: dotnet test tests/Govori.UnitTests --no-build -c Release --verbosity normal
+        run: |
+          rc=0
+          for suite in UnitTests ArchTests Characterization; do
+            dotnet test "tests/Govori.$suite" --no-build -c Release \
+              --logger "trx;LogFileName=$suite.trx" --logger "console;verbosity=normal" \
+              --results-directory TestResults || rc=1
+          done
+          for suite in UnitTests ArchTests Characterization; do
+            bash "$GITHUB_WORKSPACE/.github/scripts/assert-trx.sh" "TestResults/$suite.trx" || rc=1
+          done
+          exit $rc
 
-      - name: Test (Architecture)
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: backend-test-results
+          path: backend-dotnet/TestResults/*.trx
+          retention-days: 14
+          if-no-files-found: warn
+
+      # High/Critical (direct OR transitive) fails the build; Moderate/Low is a warning and
+      # Dependabot's job. The script also fails when the advisory feed was unreachable —
+      # `dotnet list package --vulnerable` exits 0 in that case and reports nothing.
+      - name: NuGet vulnerability gate
         working-directory: backend-dotnet
-        run: dotnet test tests/Govori.ArchTests --no-build -c Release --verbosity normal
+        run: bash "$GITHUB_WORKSPACE/.github/scripts/dotnet-vuln-gate.sh" Govori.sln
 
-      # Reads the frozen JSON goldens from tests/characterization/fixtures at the
-      # REPO ROOT, which is why this runs from the checkout rather than a subdir.
-      - name: Test (Characterization)
-        working-directory: backend-dotnet
-        run: dotnet test tests/Govori.Characterization --no-build -c Release --verbosity normal
-
-  # The AI regression gate (docs/08 Faza 1.6). Its own job because it calls real
-  # vendors: it costs money, it takes ~a minute, and a vendor outage must read as
-  # "the gate could not run" rather than as "the backend is broken".
+  # ── The AI regression gate (docs/08 Faza 1.6) ───────────────────────────────
+  # Its own job because it calls real vendors: it costs money, takes ~a minute, and a
+  # vendor outage must read as "the gate could not run", not "the backend is broken".
   #
-  # Gated on the secret rather than skipped by hand. A fork PR has no secrets, so
-  # this would otherwise fail on every outside contribution — and the fix people
-  # reach for in that situation is `continue-on-error`, which turns the gate into
-  # decoration. Absent key ⇒ the job does not run at all and its absence is
-  # visible; present key ⇒ it runs and it blocks.
+  # Switched on by the repository VARIABLE `GOLDEN_GATE=enabled` (Settings → Secrets and
+  # variables → Actions → Variables), not by the presence of a secret, because a job-level
+  # `if:` cannot see secrets. That gives three honest states:
+  #   variable unset            → the job is SKIPPED (grey, visibly not run). The default,
+  #                               so a fresh clone/fork never fails on a gate it cannot run.
+  #   enabled, no key           → the guard step FAILS. Someone meant this to gate and it
+  #                               cannot measure anything; that must not be a green tick.
+  #   enabled, key present      → it runs and blocks below 90% of assertions.
+  # Fork PRs never receive secrets, so they skip regardless; a maintainer merging an
+  # outside PR is the gate in that case.
   golden:
     runs-on: ubuntu-latest
-    if: ${{ github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository }}
+    timeout-minutes: 20
+    if: >-
+      vars.GOLDEN_GATE == 'enabled' &&
+      (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: "9.0.x"
 
-      - name: Guard — a key must be present
+      - name: Guard — a grader key must be present
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
         run: |
-          # Fail loudly rather than passing on an unconfigured runner. A golden-set
-          # job that silently measured nothing is worse than no job: it reports a
-          # green tick for a grader nobody checked.
           if [ -z "$GEMINI_API_KEY$OPENAI_API_KEY$ANTHROPIC_API_KEY" ]; then
-            echo "No grader key configured — the golden set cannot measure anything."
-            echo "Set at least one of GEMINI_API_KEY / OPENAI_API_KEY / ANTHROPIC_API_KEY."
+            echo "::error::GOLDEN_GATE is enabled but no grader key is configured — the golden set cannot measure anything."
+            echo "Add at least one of the GEMINI_API_KEY / OPENAI_API_KEY / ANTHROPIC_API_KEY repository secrets."
             exit 1
           fi
 
@@ -109,8 +155,12 @@ jobs:
         working-directory: backend-dotnet
         run: dotnet build tests/Govori.UnitTests -c Release
 
-      # Reads tests/golden/grader/cases.json from the REPO ROOT, hence no
-      # working-directory here. Fails the PR below 90% of assertions.
+      # Reads tests/golden/grader/cases.json from the REPO ROOT. Fails below 90%.
+      #
+      # An absent secret arrives as an EMPTY STRING, not as an unset variable, and the test
+      # falls back to its default model with `?? default` — which an empty string defeats.
+      # GEMINI_MODEL="" would send a request for model "" and fail for a reason that has
+      # nothing to do with the grader. Hence the unset loop.
       - name: Grader golden set
         working-directory: backend-dotnet
         env:
@@ -123,43 +173,54 @@ jobs:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           OPENAI_GRADER_MODEL: ${{ secrets.OPENAI_GRADER_MODEL }}
         run: |
-          dotnet vstest tests/Govori.UnitTests/bin/Release/net9.0/Govori.UnitTests.dll \
-            --TestCaseFilter:"FullyQualifiedName~GraderGoldenSet" \
-            --logger:"console;verbosity=detailed"
+          for v in GRADER_CHAIN ANTHROPIC_API_KEY ANTHROPIC_MODEL GEMINI_API_KEY GEMINI_MODEL OPENAI_API_KEY OPENAI_GRADER_MODEL; do
+            [ -n "${!v}" ] || unset "$v"
+          done
+          rc=0
+          dotnet test tests/Govori.UnitTests --no-build -c Release \
+            --filter "FullyQualifiedName~GraderGoldenSet" \
+            --logger "trx;LogFileName=golden.trx" --logger "console;verbosity=detailed" \
+            --results-directory TestResults || rc=1
+          # min-executed 1: a SKIPPED golden test (GOVORI_GOLDEN not seen) must not pass.
+          bash "$GITHUB_WORKSPACE/.github/scripts/assert-trx.sh" TestResults/golden.trx 1 || rc=1
+          exit $rc
 
   frontend:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      # `npm ci`, not `npm install`: install exactly the lockfile, and fail if package.json
+      # and the lockfile disagree instead of quietly rewriting one of them.
       - name: Install
         working-directory: frontend
         # The browsers live in the Playwright image / the e2e job, not here.
         env:
           PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: "1"
-        run: npm install
+        run: npm ci --no-audit --no-fund
+
+      # --no-install: if typescript is somehow missing, fail — never let npx fetch the
+      # unrelated `tsc` package from the registry and "pass" (seen locally).
       - name: Typecheck
         working-directory: frontend
-        run: npx tsc --noEmit
+        run: npx --no-install tsc --noEmit
 
       # ── The hand-written API types vs the backend's OpenAPI document ───────
-      # docs/08 Faza 4.2. `tsc` above proves the frontend agrees with ITSELF; it cannot see a
-      # backend change, because src/shared/api/types.ts is written by hand (deliberately — it
-      # carries ~1400 lines of reasoning a generator would delete). This step is what notices a
-      # field the API added, removed, renamed or retyped.
-      #
-      # It is only half the check. The other half lives in the `backend` job, which regenerates
-      # openapi.json and fails on a diff — without it, this step would only prove that two stale
-      # files agree with each other. The script itself refuses to run against a stub document
-      # (fewer than 50 paths or 50 schemas) rather than passing on nothing.
+      # docs/08 Faza 4.2. `tsc` proves the frontend agrees with ITSELF; types.ts is written by
+      # hand, so this is what notices a field the API added, removed, renamed or retyped. The
+      # other half is in `backend`, which proves openapi.json is current. The script refuses a
+      # stub document (< 50 paths or schemas) rather than passing on nothing.
       - name: API contract gate
         working-directory: frontend
         run: npm run check:contract
 
-      # Vitest (jsdom). `tsc` above proves the frontend COMPILES; this is the only
-      # step that says anything about whether it works.
+      # Vitest (jsdom) — the only step here that says whether the frontend WORKS.
       - name: Test (Unit)
         working-directory: frontend
         run: npm test
@@ -168,32 +229,69 @@ jobs:
         working-directory: frontend
         run: npm run build
 
-      # Reads dist/.vite/manifest.json and fails when the INITIAL entry graph
-      # exceeds the docs/08 §4.1 budget. Must run after Build — it measures the
-      # artefact, not the source.
+      # Measures the artefact (dist/.vite/manifest.json), so it must run after Build.
       - name: Bundle budget
         working-directory: frontend
         run: npm run check:budget
 
-  # Playwright needs the whole stack (nginx + API + Postgres + Redis + MinIO), so
-  # it gets its own job rather than a step in `frontend` that would have to be
-  # skipped — a skipped step is a green tick that proves nothing.
+      # What SHIPS gates: a high/critical advisory in a runtime dependency (axios, react,
+      # dompurify, …) fails the build. Dev tooling (vite, vitest, jsdom) does not reach a
+      # user's browser and its advisories are often Windows- or dev-server-only, so those
+      # are surfaced as a warning and left to Dependabot rather than blocking every PR.
+      - name: npm audit (runtime dependencies — gating)
+        working-directory: frontend
+        run: npm audit --omit=dev --audit-level=high
+
+      - name: npm audit (dev tooling — report only)
+        working-directory: frontend
+        run: |
+          if ! npm audit --audit-level=high; then
+            echo "::warning::high/critical advisories in frontend dev dependencies — see the log; Dependabot will propose the bump"
+          fi
+
+  # ── Playwright needs the whole stack (nginx + API + Postgres + Redis + MinIO) ──
   e2e:
     runs-on: ubuntu-latest
+    timeout-minutes: 40
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
 
-      - name: Stack up
+      - name: Environment
         run: |
           cp .env.example .env
-          # The API refuses to boot without SECRET_KEY, and the e2e suite mints its
-          # own access token with the SAME key (auth is phone+OTP over Telegram —
-          # there is no credential a test can type). One value, one file, both read it.
+          # The API refuses to boot without SECRET_KEY, and the e2e suite mints its own
+          # access token with the SAME key (auth is phone+OTP over Telegram — there is no
+          # credential a test can type). One value, one file, both read it.
           sed -i "s|^SECRET_KEY=.*|SECRET_KEY=$(openssl rand -hex 32)|" .env
-          docker compose up -d --build
+
+      # The database first, on its own, and migrated BEFORE the API starts. The dev volume
+      # is seeded from the demo dump, which is the BASELINE schema only: without the later
+      # migrations the app boots, /health is green, and every login is a 500
+      # (`column u.notifications_enabled does not exist` — docs/09, 2026-10-21).
+      #
+      # pg_isready over TCP, not the socket: during first-run seeding Postgres listens on
+      # the unix socket only and then restarts, so a socket probe says "ready" too early.
+      - name: Database up and migrated
+        run: |
+          docker compose up -d db
+          for _ in $(seq 1 90); do
+            if docker compose exec -T db pg_isready -h 127.0.0.1 -U russpeak -q 2>/dev/null; then
+              echo "postgres is up"; break
+            fi
+            sleep 2
+          done
+          docker compose exec -T db pg_isready -h 127.0.0.1 -U russpeak \
+            || { echo "postgres did not become ready"; docker compose logs db; exit 1; }
+          COMPOSE_FILE=docker-compose.yml COMPOSE_DB_SERVICE=db bash deploy/ef-baseline.sh
+          COMPOSE_FILE=docker-compose.yml bash deploy/migrate.sh
+
+      - name: Stack up
+        run: docker compose up -d --build
 
       - name: Wait for the stack
         run: |
@@ -207,9 +305,8 @@ jobs:
           echo "stack did not become healthy"; docker compose ps; exit 1
 
       - name: Resolve the seeded users
-        # `deploy/seed/20-dev-users.sql` inserts with gen_random_uuid(), so the ids
-        # are per-database and cannot be hard-coded in the suite. Two are needed:
-        # the student drives its own journey, and the admin drives the admin one
+        # deploy/seed/20-dev-users.sql inserts with gen_random_uuid(), so the ids are
+        # per-database. The student drives its own journey; the admin drives the admin one
         # AND is how e2e/people.ts finds a teacher with a non-empty grading queue.
         run: |
           resolve() {
@@ -225,15 +322,14 @@ jobs:
 
       - name: Install
         working-directory: frontend
-        # Skip the postinstall's download of all three engines; only Chromium is
-        # driven here, and it is fetched explicitly on the next step.
+        # Skip the postinstall's download of all three engines; only Chromium is driven.
         env:
           PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: "1"
-        run: npm install
+        run: npm ci --no-audit --no-fund
 
       - name: Install Playwright browser
         working-directory: frontend
-        run: npx playwright install --with-deps chromium
+        run: npx --no-install playwright install --with-deps chromium
 
       - name: Test (E2E + axe)
         working-directory: frontend
@@ -246,7 +342,7 @@ jobs:
 
       - name: Failure diagnostics
         if: failure()
-        run: docker compose logs --tail=200 api frontend
+        run: docker compose ps; docker compose logs --tail=200 api worker frontend
 
       - uses: actions/upload-artifact@v4
         if: failure()
@@ -255,118 +351,132 @@ jobs:
           path: frontend/e2e/.artifacts
           retention-days: 7
 
-  # ── The integration suite, which CI has never run ───────────────────────────
-  # `backend` above skips it with the note "it needs a live Postgres + Redis +
-  # MinIO and mutates rows in setup". The first half is true and is what this job
-  # provides; the second half is not, and that is why the exclusion was costing
-  # more than it saved. TestDatabase creates a per-run `govori_it_*` database and
-  # drops it afterwards, so the suite never touches the compose database — the
-  # only thing it needed was a server to create that database ON.
+  # ── The integration suite ───────────────────────────────────────────────────
+  # ~240 tests on the paths unit tests structurally cannot reach: real SQL against real
+  # Postgres enum mappings, presigned URLs against a real S3 implementation, the OTP round
+  # trip through a real Redis. TestDatabase creates a per-run `govori_it_*` database and
+  # drops it afterwards, so the suite never touches the compose database.
   #
-  # ~56 tests covering the paths unit tests structurally cannot: real SQL against
-  # real Postgres enum mappings, presigned URLs against a real S3 implementation,
-  # and the OTP round trip through a real Redis.
+  # The tests run INSIDE mcr.microsoft.com/dotnet/sdk:9.0 on `govori-net`, exactly as
+  # docs/09 runs them locally — not on the runner against published ports — because the
+  # compose file deliberately publishes no Redis port, and the suite's defaults
+  # (govori-redis:6379, http://govori-minio:9000) are the in-network names. MinIO comes
+  # from pgsty/minio + pgsty/mc via compose (minio/minio is gone from Docker Hub);
+  # GitHub `services:` cannot pass MinIO its `server /data` command, compose can.
   integration:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-dotnet@v4
-        with:
-          dotnet-version: "9.0.x"
 
-      # Only the backing services. Building api/worker/web here would double the
-      # job's runtime to test nothing this suite exercises.
+      # Only the backing services. Building api/worker/web would double the runtime to
+      # test nothing this suite exercises.
       - name: Backing services up
         run: |
           cp .env.example .env
           sed -i "s|^SECRET_KEY=.*|SECRET_KEY=$(openssl rand -hex 32)|" .env
-          docker compose up -d db redis minio minio-init
-          for _ in $(seq 1 60); do
-            if docker compose exec -T db pg_isready -U russpeak -q 2>/dev/null; then
+          # MinIO must be HEALTHY before the one-shot init runs (--no-deps below skips the
+          # depends_on that would otherwise wait for it). NOT `--wait db` as well: on a fresh
+          # volume the db healthcheck can fail once across the post-seed restart and `--wait`
+          # aborts on the first "unhealthy" (reproduced locally: exit 1). The TCP loop below
+          # is the db's readiness check.
+          docker compose up -d db redis
+          docker compose up -d --wait minio
+          docker compose up --no-deps --exit-code-from minio-init minio-init
+          for _ in $(seq 1 90); do
+            if docker compose exec -T db pg_isready -h 127.0.0.1 -U russpeak -q 2>/dev/null; then
               echo "postgres is up"; exit 0
             fi
             sleep 2
           done
           echo "postgres did not become ready"; docker compose ps; exit 1
 
-      - name: Build
-        working-directory: backend-dotnet
-        run: dotnet build tests/Govori.IntegrationTests -c Release
+      # GOVORI_TEST_DB names the SERVER only — TestDatabase swaps in its own database name.
+      # Passed explicitly rather than read from the repo .env: the two agree today, and a
+      # silent disagreement tomorrow would have this job testing nothing.
+      #
+      # The AI keys and TELEGRAM_BOT_TOKEN are deliberately NOT provided (and the real .env
+      # must never be handed to this suite): five tests assert the "not configured"
+      # behaviour, and a populated environment fails them for reasons unrelated to the code.
+      - name: Build and test (Integration)
+        run: |
+          docker run --rm --network govori-net \
+            -v "$GITHUB_WORKSPACE:/repo" -w /repo/backend-dotnet \
+            -e DOTNET_NOLOGO=1 -e DOTNET_CLI_TELEMETRY_OPTOUT=1 \
+            -e GOVORI_TEST_DB="Host=govori-db;Port=5432;Database=russpeak;Username=russpeak;Password=russpeak" \
+            -e GOVORI_REDIS="govori-redis:6379" \
+            -e GOVORI_S3_ENDPOINT="http://govori-minio:9000" \
+            -e GOVORI_S3_ACCESS_KEY=minioadmin \
+            -e GOVORI_S3_SECRET_KEY=minioadmin \
+            -e GOVORI_S3_BUCKET=govori-audio \
+            mcr.microsoft.com/dotnet/sdk:9.0 bash -c '
+              set -e
+              dotnet build tests/Govori.IntegrationTests -c Release
+              rc=0
+              dotnet test tests/Govori.IntegrationTests --no-build -c Release \
+                --logger "trx;LogFileName=Integration.trx" --logger "console;verbosity=normal" \
+                --results-directory TestResults || rc=1
+              bash /repo/.github/scripts/assert-trx.sh TestResults/Integration.trx 100 || rc=1
+              exit $rc'
 
-      - name: Test (Integration)
-        working-directory: backend-dotnet
-        # GOVORI_TEST_DB names the SERVER only — TestDatabase replaces the database
-        # name with its own per-run one. Passed explicitly rather than letting the
-        # fixture read the repo .env: the two agree today, and a silent
-        # disagreement tomorrow would have this job quietly testing nothing.
-        #
-        # The AI keys and TELEGRAM_BOT_TOKEN are deliberately NOT provided. Five of
-        # these tests assert the "not configured" behaviour, so handing the suite a
-        # populated .env makes them fail for a reason that has nothing to do with
-        # the code.
-        env:
-          GOVORI_TEST_DB: "Host=localhost;Port=5433;Database=russpeak;Username=russpeak;Password=russpeak"
-          GOVORI_S3_ENDPOINT: "http://localhost:9000"
-          GOVORI_S3_ACCESS_KEY: minioadmin
-          GOVORI_S3_SECRET_KEY: minioadmin
-          GOVORI_S3_BUCKET: govori-audio
-        run: dotnet test tests/Govori.IntegrationTests --no-build -c Release --verbosity normal
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: integration-test-results
+          path: backend-dotnet/TestResults/*.trx
+          retention-days: 14
+          if-no-files-found: warn
 
       - name: Failure diagnostics
         if: failure()
-        run: docker compose logs --tail=100 db redis minio
+        run: docker compose logs --tail=100 db redis minio minio-init
 
   # ── Do the images actually build? ───────────────────────────────────────────
-  # Nothing in CI built a container image, so the first time anyone found out was
-  # on the droplet, during the cutover window. This job caught a real one on its
-  # first run: api and worker share a BuildKit NuGet cache mount, `docker compose
-  # build` runs them concurrently, and with the default sharing=shared the two
-  # `dotnet restore` processes corrupt each other's extraction staging. It passes
-  # on a warm cache and fails on a machine that has never built before — which is
-  # exactly the droplet.
-  #
-  # It builds the PROD compose file, so it also type-checks that file: a bad
-  # interpolation or a missing build context fails here rather than at 02:00.
+  # Nothing in CI used to build a container image, so the first time anyone found out was
+  # on the droplet, during the cutover window. This job caught a real one on its first run
+  # (api and worker sharing a BuildKit NuGet cache mount and corrupting each other's
+  # restore on a cold cache — exactly the droplet's situation). It builds the PROD compose
+  # file, so a bad interpolation or a missing build context fails here, not at 02:00.
   images:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      # Placeholders only. This job proves the images BUILD; nothing runs against real data
+      # and nothing is pushed. S3_APP_* became required (`:?`) when the app stopped signing
+      # in as the MinIO root, so they must be here or compose refuses to interpolate.
+      IMAGE_TAG: ci-${{ github.sha }}
+      GOVORI_SERVER_NAME: example.invalid
+      POSTGRES_USER: ci
+      POSTGRES_PASSWORD: ci
+      POSTGRES_DB: ci
+      MINIO_ROOT_USER: ciaccesskey
+      MINIO_ROOT_PASSWORD: cisecretkey
+      S3_APP_ACCESS_KEY: ci-app-access-key
+      S3_APP_SECRET_KEY: ci-app-secret-key-not-real
+      S3_BUCKET: govori-audio
+      S3_PUBLIC_URL: https://example.invalid
+      SECRET_KEY: ci-only-not-a-real-secret-0123456789abcdef
     steps:
       - uses: actions/checkout@v4
 
       - name: Build all three images
-        env:
-          # Placeholders only. This job proves the images BUILD; nothing is run
-          # against real data and nothing is pushed anywhere.
-          IMAGE_TAG: ci-${{ github.sha }}
-          GOVORI_SERVER_NAME: example.invalid
-          POSTGRES_USER: ci
-          POSTGRES_PASSWORD: ci
-          POSTGRES_DB: ci
-          MINIO_ROOT_USER: ciaccesskey
-          MINIO_ROOT_PASSWORD: cisecretkey
-          S3_BUCKET: govori-audio
-          S3_PUBLIC_URL: https://example.invalid
-          SECRET_KEY: ci-only-not-a-real-secret-0123456789abcdef
         run: docker compose -f docker-compose.prod.yml build
 
       - name: The runtime images must not run as root
-        env:
-          IMAGE_TAG: ci-${{ github.sha }}
         run: |
-          # A non-root USER is easy to add and just as easy to lose in a refactor,
-          # and nothing at runtime complains when it goes missing.
-          for img in "govori/api:ci-${{ github.sha }}" "govori/worker:ci-${{ github.sha }}"; do
+          # A non-root USER is easy to add and just as easy to lose in a refactor, and
+          # nothing at runtime complains when it goes missing.
+          for img in "govori/api:${IMAGE_TAG}" "govori/worker:${IMAGE_TAG}"; do
             u=$(docker image inspect "$img" --format '{{.Config.User}}')
             echo "$img runs as '${u:-root}'"
             [ -n "$u" ] && [ "$u" != "root" ] && [ "$u" != "0" ] || { echo "FAIL: $img would run as root"; exit 1; }
           done
 
       - name: The frontend image must serve the SPA
-        env:
-          IMAGE_TAG: ci-${{ github.sha }}
         run: |
-          # `docker run` of the image on its own — the baked-in server block and
-          # the HEALTHCHECK both have to work without compose mounting anything.
-          docker run -d --name ci-web -p 8099:80 "govori/web:ci-${{ github.sha }}"
+          # `docker run` of the image on its own — the baked-in server block and the
+          # HEALTHCHECK both have to work without compose mounting anything.
+          docker run -d --name ci-web -p 8099:80 "govori/web:${IMAGE_TAG}"
           for _ in $(seq 1 30); do
             if curl -fsS http://localhost:8099/healthz >/dev/null 2>&1; then break; fi
             sleep 1
@@ -379,30 +489,32 @@ jobs:
           docker rm -f ci-web
 
   # ── The deploy scripts themselves ───────────────────────────────────────────
-  # These run as root on a droplet holding the only copy of 50 users' data, and
-  # until now nothing checked them at all.
+  # These run as root on a droplet holding the only copy of the users' data.
   ops:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      IMAGE_TAG: ci
+      GOVORI_SERVER_NAME: example.invalid
+      POSTGRES_USER: ci
+      POSTGRES_PASSWORD: ci
+      POSTGRES_DB: ci
+      MINIO_ROOT_USER: ciaccesskey
+      MINIO_ROOT_PASSWORD: cisecretkey
+      S3_APP_ACCESS_KEY: ci-app-access-key
+      S3_APP_SECRET_KEY: ci-app-secret-key-not-real
+      S3_BUCKET: govori-audio
+      S3_PUBLIC_URL: https://example.invalid
+      SECRET_KEY: ci-only-not-a-real-secret-0123456789abcdef
     steps:
       - uses: actions/checkout@v4
 
       - name: shellcheck
         run: |
-          docker run --rm -v "$PWD:/mnt" -w /mnt koalaman/shellcheck:stable \
-            -S warning $(git ls-files 'deploy/*.sh')
+          git ls-files -z 'deploy/*.sh' \
+            | xargs -0 docker run --rm -v "$PWD:/mnt" -w /mnt koalaman/shellcheck:stable -S warning
 
       - name: Both compose files must render
-        env:
-          IMAGE_TAG: ci
-          GOVORI_SERVER_NAME: example.invalid
-          POSTGRES_USER: ci
-          POSTGRES_PASSWORD: ci
-          POSTGRES_DB: ci
-          MINIO_ROOT_USER: ciaccesskey
-          MINIO_ROOT_PASSWORD: cisecretkey
-          S3_BUCKET: govori-audio
-          S3_PUBLIC_URL: https://example.invalid
-          SECRET_KEY: ci-only-not-a-real-secret-0123456789abcdef
         run: |
           cp .env.example .env
           sed -i "s|^SECRET_KEY=.*|SECRET_KEY=$(openssl rand -hex 32)|" .env
@@ -410,21 +522,9 @@ jobs:
           docker compose -f docker-compose.prod.yml config >/dev/null
 
       - name: The prod compose must publish ONLY nginx's ports
-        env:
-          IMAGE_TAG: ci
-          GOVORI_SERVER_NAME: example.invalid
-          POSTGRES_USER: ci
-          POSTGRES_PASSWORD: ci
-          POSTGRES_DB: ci
-          MINIO_ROOT_USER: ciaccesskey
-          MINIO_ROOT_PASSWORD: cisecretkey
-          S3_BUCKET: govori-audio
-          S3_PUBLIC_URL: https://example.invalid
-          SECRET_KEY: ci-only-not-a-real-secret-0123456789abcdef
         run: |
-          # A droplet has no firewall by default, so a `ports:` line added to db
-          # during a debugging session and left there is an internet-facing
-          # Postgres. Assert the shape rather than trusting review to catch it.
+          # A droplet has no firewall by default, so a `ports:` line added to db during a
+          # debugging session and left there is an internet-facing Postgres.
           PUB=$(docker compose -f docker-compose.prod.yml config \
                 | awk '/^  [a-z-]+:$/{sub(/:$/,"",$1); s=$1} /published:/{gsub(/"/,"",$2); print s "/" $2}')
           echo "published: $PUB"
@@ -432,22 +532,9 @@ jobs:
           [ -z "$UNEXPECTED" ] || { echo "FAIL: unexpected published ports: $UNEXPECTED"; exit 1; }
 
       - name: Every service must rotate its logs
-        env:
-          IMAGE_TAG: ci
-          GOVORI_SERVER_NAME: example.invalid
-          POSTGRES_USER: ci
-          POSTGRES_PASSWORD: ci
-          POSTGRES_DB: ci
-          MINIO_ROOT_USER: ciaccesskey
-          MINIO_ROOT_PASSWORD: cisecretkey
-          S3_BUCKET: govori-audio
-          S3_PUBLIC_URL: https://example.invalid
-          SECRET_KEY: ci-only-not-a-real-secret-0123456789abcdef
         run: |
-          # json-file logs are unbounded by default and one GET /api/profile/stats
-          # writes ~5.4 KB. A full disk stops Postgres writing its WAL, and the
-          # outage then presents as a database fault. One service missing this is
-          # enough to fill the disk.
+          # json-file logs are unbounded by default; a full disk stops Postgres writing its
+          # WAL and the outage then presents as a database fault.
           docker compose -f docker-compose.prod.yml config > /tmp/prod.rendered.yml
           MISSING=""
           while IFS= read -r s; do
@@ -458,9 +545,7 @@ jobs:
           [ -z "$MISSING" ] || { echo "FAIL: no log rotation on:$MISSING"; exit 1; }
           echo "all services rotate logs"
 
-      # The backup script's own test suite. It proves the nightly backup cannot
-      # delete a good backup when the dump fails — the exact failure that wiped a
-      # week of backups before. A fix is worth what its test is worth, so the test
-      # runs here rather than being something someone remembers to run.
+      # Proves the nightly backup cannot delete a good backup when the dump fails — the
+      # exact failure that once wiped a week of backups.
       - name: Backup safety suite
         run: bash deploy/test-backup-cron.sh

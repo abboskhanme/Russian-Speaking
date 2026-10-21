@@ -1,0 +1,110 @@
+# Dependabot — version + security updates for every dependency surface in the repo.
+#
+# ⚠ Dependabot reads THIS file from the DEFAULT branch only. While `main` (the old Python
+#   stack) is the default, this file has no effect from `dotnet-rewrite`. Either make
+#   `dotnet-rewrite` the default branch or copy this file to `main` (docs/09-DOCKER.md, CI).
+#   `target-branch` below is what makes the PRs land on the .NET code either way.
+#
+# Majors are ignored for the framework-coupled packages and base images: a .NET 10 or
+# Node 24 bump is a project, not a drive-by PR. Security updates are still raised for
+# advisories regardless of the weekly schedule.
+version: 2
+
+updates:
+  - package-ecosystem: nuget
+    directory: /backend-dotnet
+    target-branch: dotnet-rewrite
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 10
+    labels: [dependencies, backend]
+    groups:
+      # One PR for the whole Microsoft 9.0.x patch train, not twenty.
+      microsoft-runtime:
+        patterns:
+          - "Microsoft.AspNetCore.*"
+          - "Microsoft.EntityFrameworkCore*"
+          - "Microsoft.Extensions.*"
+          - "Npgsql*"
+          - "EFCore.*"
+        update-types: [minor, patch]
+      test-tooling:
+        patterns:
+          - "xunit*"
+          - "Microsoft.NET.Test.Sdk"
+          - "coverlet.*"
+          - "NetArchTest*"
+    ignore:
+      # net9.0 everywhere: 10.x of these targets net10.0 and would not restore.
+      - dependency-name: "Microsoft.AspNetCore.*"
+        update-types: [version-update:semver-major]
+      - dependency-name: "Microsoft.EntityFrameworkCore*"
+        update-types: [version-update:semver-major]
+      - dependency-name: "Microsoft.Extensions.*"
+        update-types: [version-update:semver-major]
+      - dependency-name: "Npgsql*"
+        update-types: [version-update:semver-major]
+      - dependency-name: "EFCore.NamingConventions"
+        update-types: [version-update:semver-major]
+
+  - package-ecosystem: npm
+    directory: /frontend
+    target-branch: dotnet-rewrite
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 10
+    labels: [dependencies, frontend]
+    groups:
+      dev-tooling:
+        dependency-type: development
+        update-types: [minor, patch]
+      runtime:
+        dependency-type: production
+        update-types: [minor, patch]
+    ignore:
+      # The Playwright image tag in docs/09 and playwright.config.ts must match this pin
+      # exactly; bump all three together, by hand.
+      - dependency-name: "@playwright/test"
+
+  - package-ecosystem: github-actions
+    directory: /
+    target-branch: dotnet-rewrite
+    schedule:
+      interval: weekly
+      day: monday
+    labels: [dependencies, ci]
+    groups:
+      actions:
+        patterns: ["*"]
+
+  # Base images in the three Dockerfiles.
+  - package-ecosystem: docker
+    directories:
+      - /backend-dotnet/src/Govori.Api
+      - /backend-dotnet/src/Govori.Worker
+      - /frontend
+    target-branch: dotnet-rewrite
+    schedule:
+      interval: weekly
+      day: monday
+    labels: [dependencies, docker]
+    ignore:
+      - dependency-name: "*"
+        update-types: [version-update:semver-major]
+
+  # postgres / redis / pgsty/minio / pgsty/mc pins in both compose files.
+  - package-ecosystem: docker-compose
+    directory: /
+    target-branch: dotnet-rewrite
+    schedule:
+      interval: weekly
+      day: monday
+    labels: [dependencies, docker]
+    ignore:
+      # A Postgres major is a dump/restore migration, never a PR to click.
+      - dependency-name: "postgres"
+        update-types: [version-update:semver-major]
+      - dependency-name: "redis"
+        update-types: [version-update:semver-major]
