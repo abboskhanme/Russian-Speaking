@@ -310,7 +310,11 @@ function HeroCard({ insights }: { insights: AnalyticsInsights }) {
   const { classAvg, classLevel, trendDelta, trend } = insights;
   // The server's `class_level_label` is Uzbek-only; caption the level in the UI language instead.
   const classLevelLabel = cefrLabel(t, classLevel, insights.classLevelLabel);
-  const hasTrend = trend.some((p) => p.avg != null);
+  // A line needs two months. One graded month is a single number, said as one —
+  // a lone dot in the corner of an empty chart read as "something is broken".
+  const realMonths = trend.filter((p) => p.avg != null);
+  const hasTrend = realMonths.length >= 2;
+  const onlyMonth = realMonths.length === 1 ? realMonths[0] : null;
 
   return (
     <section className={styles.hero} aria-label={t("teacher.analytics.classAvgTitle")}>
@@ -353,7 +357,12 @@ function HeroCard({ insights }: { insights: AnalyticsInsights }) {
         </>
       ) : (
         <Text as="p" variant="body-s" className={styles.heroChartEmpty}>
-          {t("teacher.analytics.noTrend")}
+          {onlyMonth
+            ? t("uiDash.analytics.oneMonth", {
+                month: onlyMonth.label,
+                score: Math.round(onlyMonth.avg ?? 0),
+              })
+            : t("teacher.analytics.noTrend")}
         </Text>
       )}
     </section>
