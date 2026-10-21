@@ -126,6 +126,9 @@ vi.mock("../../shared/auth", async (importOriginal) => {
   return {
     ...actual,
     useAuth: () => ({ user: { full_name: "Aziz Karimov" } }),
+    // The flag rides on /me now; "off" here is the same `session = null` that
+    // makes the route 404, so the two can never disagree in a test.
+    useFeatures: () => ({ ...actual.NO_FEATURES, daily_five: session !== null }),
   };
 });
 
@@ -162,15 +165,17 @@ describe("the flag being off", () => {
     await screen.findByText(t("home.todayLabel"));
     expect(screen.queryByText(t("daily.steps.warmup.title"))).not.toBeInTheDocument();
 
-    // And Home shows no trace of it — no step count, no "done" line. The card is
-    // the one that shipped before F3.
+    // And Home shows no trace of it — no step count, no "done" line, and not
+    // the session's name either: the card is the plain daily-goal card.
+    expect(screen.queryByText(t("home.todayTitle", { min: 5 }))).not.toBeInTheDocument();
+    expect(screen.getByText(t("home.practiceTitle"))).toBeInTheDocument();
     expect(
       screen.queryByText(t("home.stepsValueText", { done: 0, total: 3 })),
     ).not.toBeInTheDocument();
     expect(screen.queryByText(t("home.dailyDone"))).not.toBeInTheDocument();
-    // The pre-F3 card — minus the one promise that was never true without F3:
-    // with no session there is no "fix yesterday's mistake" step to speak of.
-    expect(screen.getByText(t("home.todayTaglineNoDrill"))).toBeInTheDocument();
+    // No promise of a session's steps either — there is no session.
+    expect(screen.getByText(t("home.practiceTagline", { min: 5 }))).toBeInTheDocument();
+    expect(screen.queryByText(t("home.todayTaglineNoDrill"))).not.toBeInTheDocument();
     expect(screen.queryByText(t("home.todayTagline"))).not.toBeInTheDocument();
   });
 });

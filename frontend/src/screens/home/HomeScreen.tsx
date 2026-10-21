@@ -271,15 +271,21 @@ function TodayCard({
         <Text as="p" variant="label" className={styles.todayKicker}>
           {t("home.todayLabel")}
         </Text>
+        {/* "Today's 5 minutes" names the F3 session, so it is said only when there
+            is one; without it the card is the plain daily-goal card. */}
         <Text as="p" variant="title-l" className={styles.todayTitle}>
-          {t("home.todayTitle", { min: today.goalMinutes })}
+          {daily
+            ? t("home.todayTitle", { min: today.goalMinutes })
+            : t("home.practiceTitle")}
         </Text>
         <Text as="p" variant="body" color="muted">
-          {daily?.completed
-            ? t("home.dailyDone")
-            : daily?.hasDrill
-              ? t("home.todayTagline")
-              : t("home.todayTaglineNoDrill")}
+          {!daily
+            ? t("home.practiceTagline", { min: today.goalMinutes })
+            : daily.completed
+              ? t("home.dailyDone")
+              : daily.hasDrill
+                ? t("home.todayTagline")
+                : t("home.todayTaglineNoDrill")}
         </Text>
 
         {/* With F3 on, the session IS today's practice, so the card counts steps

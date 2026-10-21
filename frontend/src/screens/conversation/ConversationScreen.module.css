@@ -60,8 +60,8 @@
 }
 .headerIcon {
   flex: none;
-  font-size: 18px;
-  line-height: 1;
+  display: inline-flex;
+  color: var(--accent);
 }
 .headerTitle {
   min-width: 0;

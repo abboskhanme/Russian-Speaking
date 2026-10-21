@@ -7,7 +7,7 @@ import {
 } from "react";
 import { useTranslation } from "react-i18next";
 import { Button, Card, FlowingWaveform, Text, cx } from "../../shared/ui";
-import { scenarioIcon } from "./scenarios";
+import { ScenarioIcon } from "./ScenarioIcon";
 import type { Scenario } from "./scenarios";
 import type { RoleplayCorrection } from "./roleplayApi";
 import styles from "./ConversationScreen.module.css";
@@ -122,7 +122,7 @@ export function ConversationScreen({
         <div className={styles.headerBody}>
           <div className={styles.titleRow}>
             <span className={styles.headerIcon} aria-hidden>
-              {scenarioIcon(scenario.id, scenario.tone, scenario.icon)}
+              <ScenarioIcon id={scenario.id} size={20} />
             </span>
             <Text as="h1" variant="title-s" truncate className={styles.headerTitle}>
               {scenario.titleRu}
