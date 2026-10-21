@@ -803,9 +803,12 @@ export function Recorder({
       {status === "recording" && (
         <div className={styles.stage}>
           <Mascot mood="listening" size={mascotSize} label="" />
-          <span className={styles.timer} aria-hidden>
-            {formatTime(elapsedMs)}
-          </span>
+          {/* Docked, the clock lives in the bar ("0:12 / 2:00") — not twice. */}
+          {!docked && (
+            <span className={styles.timer} aria-hidden>
+              {formatTime(elapsedMs)}
+            </span>
+          )}
           <span className={styles.recIndicator}>
             <span className={styles.pulseDot} aria-hidden />
             <Text as="span" variant="body-s" color="danger" weight="bold">
