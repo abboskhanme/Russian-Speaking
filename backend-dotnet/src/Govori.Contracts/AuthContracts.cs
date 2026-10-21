@@ -54,7 +54,30 @@ public sealed record MeResponse(
     /// since the baseline but nothing ever read or wrote it after registration, so the choice lived
     /// only in each device's <c>localStorage</c> and did not follow the account. This is what makes
     /// it an account setting.</summary>
-    string PreferredLanguage = "uz");
+    string PreferredLanguage = "uz",
+    /// <summary>APPEND-ONLY, again: the student-facing feature switches (see <see cref="ClientFeatures"/>),
+    /// so the client hides a switched-off entry point instead of probing its route for a 404. Null only
+    /// from a server that predates it; clients then treat every feature as off.</summary>
+    ClientFeatures? Features = null);
+
+/// <summary>
+/// The <c>features</c> block of <see cref="MeResponse"/> — which optional, flag-gated student
+/// surfaces this deployment offers right now. Global admin switches (<c>app_settings</c>, edited
+/// under the admin panel's settings), not per-user entitlements: premium is per-user and stays
+/// <see cref="MeResponse.IsPremium"/>. ADVISORY: every route still enforces its own flag.
+/// JSON: <c>{ "roleplay": false, "daily_five": false, "review_drill": false, "phoneme_drill": false,
+/// "payments": false, "ai_available": true }</c>.
+/// </summary>
+/// <param name="Roleplay"><c>roleplay_enabled</c> — AI Suhbat (<c>/chat</c>).</param>
+/// <param name="DailyFive"><c>daily_five_enabled</c> — «Bugungi 5 daqiqa» (<c>/daily</c>).</param>
+/// <param name="ReviewDrill"><c>review_drill_enabled</c> — «Xatolar ustida» (<c>/review</c>).</param>
+/// <param name="PhonemeDrill"><c>phoneme_drill_enabled</c> — the sound drill (<c>/drill</c>).</param>
+/// <param name="Payments"><c>payments_enabled</c> — the flag only. Whether a provider is wired up
+/// is Billing's answer (<c>GET /api/billing/subscription</c>), so buying needs both.</param>
+/// <param name="AiAvailable">False while an operator has paused AI or the global daily/monthly AI
+/// budget is spent — new AI work (grading, roleplay turns, drills) is refused until it re-opens.</param>
+public sealed record ClientFeatures(
+    bool Roleplay, bool DailyFive, bool ReviewDrill, bool PhonemeDrill, bool Payments, bool AiAvailable);
 
 /// <summary>
 /// Partial profile update body for <c>PATCH /api/auth/me</c> (auth-required). All fields are

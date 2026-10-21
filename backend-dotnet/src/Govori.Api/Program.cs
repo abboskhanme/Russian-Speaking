@@ -148,6 +148,8 @@ try
     builder.Services.AddSingleton<PasswordHasher>();
     builder.Services.AddSingleton<TokenService>();
     builder.Services.AddScoped<AuthService>();
+    // The `features` block of /api/auth/me (flag-gated student surfaces + AI budget state).
+    builder.Services.AddScoped<ClientFeaturesReader>();
 
     // Profile read slice (GET /api/profile/{stats,results,achievements}). Folded into the Identity
     // module rather than a ninth domain: docs/07 §7.2 freezes the module list at eight (encoded in

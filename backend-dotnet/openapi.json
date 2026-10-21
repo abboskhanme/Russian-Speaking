@@ -3696,6 +3696,37 @@
           "groups"
         ]
       },
+      "ClientFeatures": {
+        "type": "object",
+        "properties": {
+          "roleplay": {
+            "type": "boolean"
+          },
+          "daily_five": {
+            "type": "boolean"
+          },
+          "review_drill": {
+            "type": "boolean"
+          },
+          "phoneme_drill": {
+            "type": "boolean"
+          },
+          "payments": {
+            "type": "boolean"
+          },
+          "ai_available": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "roleplay",
+          "daily_five",
+          "review_drill",
+          "phoneme_drill",
+          "payments",
+          "ai_available"
+        ]
+      },
       "CodedErrorResponse": {
         "type": "object",
         "properties": {
@@ -5068,6 +5099,14 @@
           },
           "preferred_language": {
             "type": "string"
+          },
+          "features": {
+            "nullable": true,
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ClientFeatures"
+              }
+            ]
           }
         },
         "required": [
