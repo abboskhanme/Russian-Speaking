@@ -256,6 +256,46 @@ prod yuzasini tasvirlaydi va ikkala muhitda bayt-ma-bayt bir xil qoladi.
 > `docker-compose.prod.yml` hech narsa uzatmaydi va qat'iy javobni oladi; dev compose esa
 > `development` deb yozadi.
 
+## Content-Security-Policy (faqat prod nginx)
+
+Tokenlar `localStorage` da turadi, shuning uchun CSP — XSS bo'lgan kunda sessiyani o'g'irlatmaydigan
+oxirgi devor. U **faqat** `deploy/nginx/govori-prod.conf.template` da: siyosat matni faylning
+boshidagi `map $host $govori_csp { … }` da **bir marta** yozilgan, header esa server darajasida va
+`add_header` ni qayta e'lon qiladigan har bir location'da (`/assets/`, SPA `/`) takrorlanadi —
+nginx `add_header` ni merge qilmaydi (fayldagi "Security headers" izohi). Bucket location'ning
+o'z `sandbox` CSP'si bor va unga ilova CSP'si **qo'shilmaydi**. Dev stack (`govori.conf`, :8081)
+CSP yubormaydi.
+
+- **Enforce ↔ report-only:** `.env` da `GOVORI_CSP_HEADER=Content-Security-Policy-Report-Only`,
+  keyin `docker compose -f docker-compose.prod.yml up -d frontend`. Sukut bo'yicha
+  `Content-Security-Policy` (enforce). Report-only'da brauzer faqat konsolga yozadi — report
+  yig'uvchi endpoint yo'q, ya'ni bu faqat "bloklamaslik" rejimi, kuzatuv emas.
+- **Yangi origin qo'shish:** uni faqat kerakli **bitta** direktivaga yozing (masalan audio uchun
+  CDN → `media-src`), `default-src` ni kengaytirmang. `script-src` ga `'unsafe-inline'` /
+  `'unsafe-eval'` hech qachon qo'shilmaydi: Vite build'ida inline skript yo'q, React
+  `style={{…}}` CSSOM orqali ketadi va CSP'ga tegmaydi.
+- **Tekshirish:** prod build'ni shu template bilan `govori-net` da ko'taring va sahifalarni headless
+  Chromium'da oching — konsolda `Refused to …` / `securitypolicyviolation` **nol** bo'lishi kerak:
+
+```bash
+docker run -d --name govori-csp-test --network govori-net \
+  -v "$PWD/deploy/nginx/govori-prod.conf.template":/etc/nginx/templates/default.conf.template:ro \
+  -v "$PWD/certs-test":/etc/nginx/certs:ro -v "$PWD/frontend/dist":/usr/share/nginx/html:ro \
+  -e NGINX_ENVSUBST_FILTER='^GOVORI_' -e GOVORI_SERVER_NAME=govori-csp-test \
+  -e GOVORI_S3_BUCKET=govori-audio -e GOVORI_HSTS_MAX_AGE=0 \
+  -e GOVORI_CSP_HEADER=Content-Security-Policy nginx:1.27-alpine
+docker exec govori-csp-test nginx -t
+```
+
+`certs-test/` — bir martalik self-signed juftlik (`openssl req -x509 -nodes -newkey rsa:2048
+-subj /CN=govori-csp-test -keyout privkey.pem -out fullchain.pem`). Dev'ning presigned audio
+URL'lari `http://localhost:9000` ga qaraydi, shuning uchun bu sinovda ular cross-origin —
+prodda esa `S3_PUBLIC_URL` = apex domen va CSP'da allaqachon bor.
+
+Favicon / OG rasm / `robots.txt` / `manifest.webmanifest` — `frontend/public/` da; PNG/ICO
+fayllar `frontend/public/favicon.svg` dan `frontend/scripts/render-brand-assets.mjs` bilan
+yaratiladi (Playwright image ichida, buyruq skript boshida).
+
 ## Prod'da nima farq qiladi
 - Real prod Postgres / S3 (MinIO emas) ulanadi; `S3_PUBLIC_URL` real domenga.
 - Real AI kalitlari: `AZURE_SPEECH_KEY/REGION`, `GEMINI_API_KEY`, `OPENAI_API_KEY`

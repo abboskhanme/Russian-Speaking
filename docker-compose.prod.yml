@@ -461,6 +461,8 @@ services:
       GOVORI_SERVER_NAME: ${GOVORI_SERVER_NAME:?GOVORI_SERVER_NAME is required — e.g. govorim.uz}
       GOVORI_S3_BUCKET: ${S3_BUCKET}
       GOVORI_HSTS_MAX_AGE: ${GOVORI_HSTS_MAX_AGE:-31536000}
+      # Enforce by default; `Content-Security-Policy-Report-Only` is the escape hatch.
+      GOVORI_CSP_HEADER: ${GOVORI_CSP_HEADER:-Content-Security-Policy}
     depends_on:
       api:
         condition: service_healthy
