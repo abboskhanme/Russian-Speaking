@@ -1,3 +1,7 @@
+import { useCallback } from "react";
+import { useTranslation } from "react-i18next";
+import { relativeTime } from "../adapters";
+
 /**
  * Shared by the two admin people pages.
  *
@@ -16,4 +20,20 @@ export function newestFirst<T extends { created_at: string }>(rows: readonly T[]
     .map((row, index) => ({ row, index, ms: at(row.created_at) }))
     .sort((a, b) => b.ms - a.ms || a.index - b.index)
     .map((x) => x.row);
+}
+
+/**
+ * "2 soat oldin" / "kecha" for a table cell — the app's existing relative-time
+ * adapter, localized here. (The shared date helper is ui-formats' to change; this
+ * only consumes it.)
+ */
+export function useRelativeLabel(): (iso: string) => string {
+  const { t } = useTranslation();
+  return useCallback(
+    (iso: string) => {
+      const r = relativeTime(iso);
+      return t(r.key, { count: r.count });
+    },
+    [t],
+  );
 }

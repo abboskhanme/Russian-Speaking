@@ -20,13 +20,14 @@ import { endpoints } from "../../shared/api";
 import type { AdminStudentResponse } from "../../shared/api";
 import { PageError, PageLoading } from "../PageState";
 import { useAdminNavHandler } from "../nav";
-import { newestFirst } from "./adminPeople";
+import { newestFirst, useRelativeLabel } from "./adminPeople";
 
 const SEARCH_DEBOUNCE_MS = 250;
 
 export default function AdminStudentsPage() {
   const onNavigate = useAdminNavHandler();
   const { t } = useTranslation();
+  const when = useRelativeLabel();
 
   const [rows, setRows] = useState<AdminStudentResponse[]>([]);
   const [term, setTerm] = useState("");
@@ -79,8 +80,13 @@ export default function AdminStudentsPage() {
         active: r.is_active,
         premium: r.is_premium,
         ownedCount: r.submission_count,
+        lastActiveAt: r.last_active_at ?? null,
+        lastActiveLabel: r.last_active_at ? when(r.last_active_at) : undefined,
+        avgBand: r.avg_band ?? null,
+        groups: (r.groups ?? []).map((g) => ({ id: g.id, name: g.name, teacherName: g.teacher_name })),
+        createdAt: r.created_at,
       })),
-    [rows, t],
+    [rows, t, when],
   );
 
   if (failed) return <PageError onRetry={refetch} />;

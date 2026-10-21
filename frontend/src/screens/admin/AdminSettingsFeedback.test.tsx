@@ -32,20 +32,22 @@ function refusal(body: Record<string, unknown>): ApiError {
 
 describe("save feedback", () => {
   it("appears beside the section's own button and nowhere else", async () => {
-    render(<AdminSettingsScreen settings={mockAdminSettings} onSaveFeatures={() => Promise.resolve()} />);
+    render(
+      <AdminSettingsScreen settings={mockAdminSettings} tab="features" onSaveFeatures={() => Promise.resolve()} />,
+    );
     const user = userEvent.setup();
 
     await user.click(screen.getByRole("button", { name: t("admin.saveFeatures") }));
 
     expect(await section(t("admin.features")).findByText(t("admin.saved"))).toBeInTheDocument();
-    expect(section(t("admin.links")).queryByText(t("admin.saved"))).not.toBeInTheDocument();
-    expect(section(t("admin.stt")).queryByText(t("admin.saved"))).not.toBeInTheDocument();
+    expect(screen.getAllByText(t("admin.saved"))).toHaveLength(1);
   });
 
   it("shows a failure as an alert in the same place", async () => {
     render(
       <AdminSettingsScreen
         settings={mockAdminSettings}
+        tab="features"
         onSaveFeatures={() => Promise.reject(new Error("boom"))}
       />,
     );
@@ -60,7 +62,7 @@ describe("save feedback", () => {
 describe("links", () => {
   it("puts invalid_link on the field the server named, never its English detail", async () => {
     const onSaveLinks = vi.fn(() => Promise.reject(refusal({ code: "invalid_link", field: "tg_support_url" })));
-    render(<AdminSettingsScreen settings={mockAdminSettings} onSaveLinks={onSaveLinks} />);
+    render(<AdminSettingsScreen settings={mockAdminSettings} tab="links" onSaveLinks={onSaveLinks} />);
     const user = userEvent.setup();
 
     await user.click(screen.getByRole("button", { name: t("admin.saveLinks") }));
@@ -73,7 +75,7 @@ describe("links", () => {
   });
 
   it("states the accepted format before anything is refused", () => {
-    render(<AdminSettingsScreen settings={mockAdminSettings} />);
+    render(<AdminSettingsScreen settings={mockAdminSettings} tab="links" />);
     expect(section(t("admin.links")).getAllByText(t("admin.linkFormatHint"))).toHaveLength(2);
   });
 });

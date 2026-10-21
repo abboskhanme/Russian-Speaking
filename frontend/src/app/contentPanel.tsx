@@ -43,6 +43,9 @@ export interface ContentPanel {
   renderEditorExtra?: (block: TeacherBlockDetailResponse, onChanged: () => void) => ReactNode;
   /** Replaces the Modullar tab's empty line (the admin: what the catalog is for). */
   renderModulesEmpty?: (create: () => void) => ReactNode;
+  /** Replaces the Modullar cards on a wide screen (the admin: a sortable table of
+   * every module). Called only at ≥1080px. */
+  renderModulesTable?: (blocks: TeacherBlockResponse[], open: (id: string) => void) => ReactNode;
 }
 
 /** The teacher panel — the default, so `/teacher/content` needs no provider. */

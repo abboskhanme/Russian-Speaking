@@ -312,3 +312,36 @@
   align-items: baseline;
   gap: var(--s-3);
 }
+
+/* ---- Tabs ----
+   Five tabs do not fit 390px as equal columns, so on a phone the strip scrolls
+   sideways (each tab keeps its full label) instead of truncating "Funksiyalar". */
+.tabs {
+  overflow-x: auto;
+  scrollbar-width: none;
+  grid-auto-columns: minmax(max-content, 1fr);
+}
+.tabs::-webkit-scrollbar {
+  display: none;
+}
+.tabs [role="tab"] {
+  min-height: 44px;
+}
+.panel {
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--s-5) * var(--density-scale));
+}
+.tabLabel {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-1);
+}
+/* The budget tab's "paused / at cap" mark — the card is a tab away now, so the
+   state it reports must still be visible from every tab. Labelled for AT. */
+.tabAlert {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--danger);
+}
