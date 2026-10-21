@@ -52,6 +52,46 @@
     "minutesUnit": "minutes",
     "hoursUnit": "h"
   },
+  "motivation": {
+    "streakDays_one": "day streak",
+    "streakDays_other": "day streak",
+    "streakZero": "Practise today to start a streak",
+    "weekAria_one": "Practised on {{count}} of the last 7 days",
+    "weekAria_other": "Practised on {{count}} of the last 7 days",
+    "weekday": { "0": "Su", "1": "Mo", "2": "Tu", "3": "We", "4": "Th", "5": "Fr", "6": "Sa" },
+    "goalLabel": "Daily goal",
+    "goalOf": "of {{goal}} min today",
+    "goalDone": "Goal reached!",
+    "goalAria": "{{done}} of {{goal}} minutes today",
+    "xpLevel": "Stage {{level}}",
+    "xpTotal": "{{xp}} XP",
+    "xpToNext": "{{xp}} XP to stage {{next}}",
+    "noData": "No data yet",
+    "react": {
+      "great": "Excellent! That really sounded good.",
+      "good": "Nice work — keep it up!",
+      "fair": "Good effort. One more try will be even better.",
+      "low": "Every attempt counts. Let’s try it once more together."
+    },
+    "empty": {
+      "startPractice": "Start practising",
+      "modules": {
+        "allTitle": "No modules yet",
+        "allBody": "Modules from your teacher and the open course will appear here.",
+        "activeTitle": "Nothing in progress",
+        "activeBody": "Open any module and do its first task — it will show up here.",
+        "doneTitle": "No finished modules yet",
+        "doneBody": "Finish every task in a module to see it here.",
+        "showAll": "Show all modules"
+      },
+      "skillsTitle": "Your skills will show up here",
+      "skillsBody": "Record your first answer — once it is graded you will see your level and four skill bars.",
+      "achTitle": "Your first badge is one answer away",
+      "achBody": "Record an answer today to unlock “First step”.",
+      "resultsTitle": "No results yet",
+      "resultsBody": "Record your first answer — your score and feedback will appear here."
+    }
+  },
   "home": {
     "todayAria": "Today",
     "modules": "Modules",
@@ -86,7 +126,8 @@
     "continueEmptyTitle": "No exercises yet",
     "continueEmptyBody": "New tasks will appear here.",
     "todayLabel": "TODAY'S PRACTICE",
-    "todayTitle": "Today's {{min}} minutes",
+    "todayTitle_one": "Today's {{min}} minute",
+    "todayTitle_other": "Today's {{min}} minutes",
     "todayTagline": "Warm-up · speaking · fix yesterday's mistake",
     "dailyDone": "Today's 5 minutes are done 🎉",
     "dailyReview": "Take a look",
@@ -95,7 +136,8 @@
     "teacherRole": "Teacher · Russian",
     "message": "Message",
     "groupLine": "Group: {{name}}",
-    "students": "{{count}} students",
+    "students_one": "{{count}} student",
+    "students_other": "{{count}} students",
     "nextAssignment": "Next assignment · {{when}}",
     "noAssignment": "No new assignments",
     "summary": "SUMMARY",
@@ -120,6 +162,8 @@
     "joinPendingHint": "Waiting for your teacher to approve",
     "nextAssignmentUndated": "Next assignment",
     "openAssignment": "Open the assignment {{title}}",
+    "practiceTitle": "Your daily practice",
+    "practiceTagline": "Goal: {{min}} minutes of speaking a day. Modules and tasks are waiting in Practice.",
     "todayTaglineNoDrill": "Warm-up · speaking",
     "joinLink": {
       "invalid": "The invite link's group code is wrong, or the group wasn't found.",
@@ -127,6 +171,10 @@
     }
   },
   "practice": {
+    "focusClose": "Close task",
+    "focusSend": "Send",
+    "focusUploading": "Sending your answer",
+    "focusUploaded": "Answer sent",
     "attemptsLeft_one": "{{count}} attempt left",
     "attemptsLeft_other": "{{count}} attempts left",
     "listenModel": "Listen to model",
@@ -207,9 +255,17 @@
     "reviewReady": "Recording ready. Listen back or record again.",
     "retry": "Try again",
     "deniedTitle": "Microphone access denied",
-    "deniedHint": "Allow microphone access in your browser settings to record.",
+    "deniedHint": "Tap the lock icon in the address bar, allow the microphone, then try again.",
     "errorTitle": "Couldn't record",
-    "errorHint": "Your device doesn't support microphone recording.",
+    "errorHint": "Something went wrong with the microphone. Please try again.",
+    "insecureTitle": "A secure connection (HTTPS) is required",
+    "insecureHint": "Browsers only allow the microphone on addresses that start with https://. Open the site over https://.",
+    "unsupportedTitle": "This browser can't record audio",
+    "unsupportedHint": "Your device doesn't support microphone recording. Try a recent version of Chrome, Safari or Edge.",
+    "noDeviceTitle": "No microphone found",
+    "noDeviceHint": "Connect a microphone or check your headset, then try again.",
+    "busyTitle": "The microphone is busy",
+    "busyHint": "Another app (a call or another tab) is using the microphone. Close it and try again.",
     "region": "Voice recording"
   },
   "placement": {
@@ -265,9 +321,12 @@
     },
     "skills": {
       "currentLevel": "CURRENT LEVEL",
-      "trendUp": "+{{points}} in {{weeks}} weeks",
-      "trendDown": "{{points}} in {{weeks}} weeks",
-      "trendFlat": "No change in {{weeks}} weeks",
+      "trendUp_one": "+{{points}} in {{weeks}} week",
+      "trendUp_other": "+{{points}} in {{weeks}} weeks",
+      "trendDown_one": "{{points}} in {{weeks}} week",
+      "trendDown_other": "{{points}} in {{weeks}} weeks",
+      "trendFlat_one": "No change in {{weeks}} week",
+      "trendFlat_other": "No change in {{weeks}} weeks",
       "sectionLabel": "SKILLS",
       "fluency": "Fluency",
       "pronunciation": "Pronunciation",
@@ -295,8 +354,10 @@
       "meThisWeek": "{{rank}}th this week",
       "meThisMonth": "{{rank}}th this month",
       "meAllTime": "{{rank}}th place",
-      "meDeltaUp": "{{xp}} XP · ↑ up {{n}} places",
-      "meDeltaDown": "{{xp}} XP · ↓ down {{n}} places",
+      "meDeltaUp_one": "{{xp}} XP · ↑ up {{n}} place",
+      "meDeltaUp_other": "{{xp}} XP · ↑ up {{n}} places",
+      "meDeltaDown_one": "{{xp}} XP · ↓ down {{n}} place",
+      "meDeltaDown_other": "{{xp}} XP · ↓ down {{n}} places",
       "meDeltaFlat": "{{xp}} XP · no change",
       "meNoDelta": "{{xp}} XP",
       "nearby": "AROUND YOU",
@@ -703,10 +764,12 @@
       "skillsTitle": "Skill distribution",
       "noSkills": "No skills scored yet",
       "weekTitle": "Weekly activity",
-      "weekBarAria": "{{day}}: {{count}} answers",
+      "weekBarAria_one": "{{day}}: {{count}} answer",
+      "weekBarAria_other": "{{day}}: {{count}} answers",
       "noActivity": "No answers this week",
       "errorsTitle": "Most common errors",
-      "errorMeta": "{{count}} students · {{pct}}%",
+      "errorMeta_one": "{{count}} student · {{pct}}%",
+      "errorMeta_other": "{{count}} students · {{pct}}%",
       "noErrors": "No recurring error patterns found",
       "colStudent": "Student",
       "colFluency": "Fluency",
@@ -721,10 +784,12 @@
       "remediationConfirmTitle": "Assign this drill?",
       "remediationConfirmLead": "The task below goes to the students who made the «{{error}}» error.",
       "remediationConfirmTask": "Task",
-      "remediationConfirmWho": "To — {{count}} students",
+      "remediationConfirmWho_one": "To — {{count}} student",
+      "remediationConfirmWho_other": "To — {{count}} students",
       "remediationConfirmWarn": "An assignment cannot be undone.",
       "remediationConfirmCta": "Assign",
-      "remediationSent": "Assigned to {{count}} students",
+      "remediationSent_one": "Assigned to {{count}} student",
+      "remediationSent_other": "Assigned to {{count}} students",
       "remediationFailed": "Could not assign. Please try again."
     },
     "assignTask": {
@@ -774,8 +839,10 @@
     "classErrorsHint_one": "{{count}} student tripped on it",
     "classErrorsHint_other": "{{count}} students tripped on it",
     "trend": {
-      "up": "up {{points}} points",
-      "down": "down {{points}} points",
+      "up_one": "up {{points}} point",
+      "up_other": "up {{points}} points",
+      "down_one": "down {{points}} point",
+      "down_other": "down {{points}} points",
       "flat": "unchanged"
     },
     "droppedHintMany": "See the students",
@@ -784,7 +851,8 @@
       "joined": "joined {{date}}",
       "groups": "My groups",
       "noGroups": "You have not created a group yet.",
-      "reach": "{{count}} students in total",
+      "reach_one": "{{count}} student in total",
+      "reach_other": "{{count}} students in total",
       "settings": "Settings",
       "language": "Language",
       "theme": "Appearance"
@@ -961,7 +1029,8 @@
       "streetPlaceholder": "Amir Temur street, 12, apt 34",
       "finish": "Finish and start"
     },
-    "joinPendingNote": "Sign in to join the group — the request is sent for you."
+    "joinPendingNote": "Sign in to join the group — the request is sent for you.",
+    "langSwitch": "Interface language"
   },
   "notifications": {
     "title": "Notifications",
@@ -1035,7 +1104,8 @@
     "detail": {
       "label": "MODULE",
       "tasksLabel": "TASKS",
-      "taskCount": "{{done}}/{{total}} tasks",
+      "taskCount_one": "{{done}}/{{total}} task",
+      "taskCount_other": "{{done}}/{{total}} tasks",
       "taskN": "Task {{n}}",
       "taskCurrent": "Task {{n}} · current",
       "start": "Start",
@@ -1052,7 +1122,8 @@
       "certTitle": "Certificate ready",
       "certBody": "Download or share",
       "nextLabel": "NEXT MODULE",
-      "nextMeta": "{{level}} · {{count}} tasks",
+      "nextMeta_one": "{{level}} · {{count}} task",
+      "nextMeta_other": "{{level}} · {{count}} tasks",
       "nextCta": "Next module",
       "allDone": "All modules complete 🎉"
     },
@@ -1077,7 +1148,8 @@
   },
   "results": {
     "allTitle": "All results",
-    "count": "{{count}} results",
+    "count_one": "{{count}} result",
+    "count_other": "{{count}} results",
     "attempt": "Practice",
     "audio": "Recorded answer",
     "audioExpired": "Audio expired — recordings are kept for 3 months.",
@@ -1106,7 +1178,8 @@
       "stt_failed": "We couldn't transcribe the recording.",
       "grader_failed": "The AI couldn't grade the answer.",
       "internal": "A technical error occurred.",
-      "ai_unavailable": "AI grading is temporarily unavailable. Please record again a little later."
+      "ai_unavailable": "AI grading is temporarily unavailable. Please record again a little later.",
+      "no_speech": "We couldn't hear any speech in the recording. Check your microphone and record again."
     },
     "notGraded": "Not graded",
     "notGradedReason": "Not graded · {{reason}}",
@@ -1214,7 +1287,8 @@
       "cta": "Practise"
     },
     "lede": "In Russian a single sound changes what a word means. These pairs drill exactly that difference.",
-    "dailyLeft": "{{count}} attempts left today",
+    "dailyLeft_one": "{{count}} attempt left today",
+    "dailyLeft_other": "{{count}} attempts left today",
     "budgetSpentShort": "Today's attempts are used up",
     "noPairs": "No pairs have been added yet.",
     "tileProgress": "{{correct}} / {{total}} correct",
@@ -1251,12 +1325,12 @@
     },
     "blocked": {
       "disabled": {
-        "title": "This drill isn't switched on",
-        "hint": "An administrator can enable it under Features."
+        "title": "This drill isn't available right now",
+        "hint": "Try the other exercises in Practice in the meantime."
       },
       "unconfigured": {
-        "title": "Speech recognition isn't configured",
-        "hint": "Checking pronunciation needs an Azure Speech key. That's one for an administrator."
+        "title": "Pronunciation checking is unavailable right now",
+        "hint": "Please try again later. No attempt was used."
       },
       "budget_spent": {
         "title": "Today's attempts are used up",
@@ -1265,7 +1339,8 @@
     }
   },
   "groupBoard": {
-    "meta": "{{teacher}} · {{count}} students",
+    "meta_one": "{{teacher}} · {{count}} student",
+    "meta_other": "{{teacher}} · {{count}} students",
     "classmates": "CLASSMATES",
     "you": "You",
     "xp": "Group XP",
@@ -1297,7 +1372,8 @@
     "goalMissed": "Goal not reached",
     "turns": "turns",
     "fluency": "fluency",
-    "phrasesLabel": "{{count}} useful phrases",
+    "phrasesLabel_one": "{{count}} useful phrase",
+    "phrasesLabel_other": "{{count}} useful phrases",
     "phrasesLabelShort": "USEFUL PHRASES",
     "retry": "Try again",
     "turnsLeft_one": "{{count}} turn left",
@@ -1306,9 +1382,17 @@
     "coachLabel": "Corrections",
     "fixesLabel": "WHAT TO FIX",
     "turnFailed": "Couldn't send your answer. Try speaking again.",
+    "aiPaused": "AI is temporarily unavailable. Please try again a little later.",
     "stateDisabled": "AI chat isn't switched on yet. Coming soon.",
     "stateUnconfigured": "The AI isn't connected yet — you can't speak just now. No attempt was used.",
-    "stateBudget": "You've used today's conversation limit. Let's continue tomorrow."
+    "stateBudget": "You've used today's conversation limit. Let's continue tomorrow.",
+    "goals": {
+      "pharmacy": "Find out the dosage",
+      "interview": "Introduce yourself",
+      "doctor": "Explain what's wrong",
+      "taxi": "Give the address",
+      "free": "Talk about anything"
+    }
   },
   "time": {
     "justNow": "just now",
@@ -1582,7 +1666,8 @@
       "notConnectedShort": "not connected",
       "on": "on",
       "off": "off",
-      "duration": "{{days}} days",
+      "duration_one": "{{days}} day",
+      "duration_other": "{{days}} days",
       "edit": "Edit",
       "delete": "Delete",
       "alsoGranted": "Also granted by teacher",
@@ -1596,6 +1681,7 @@
       "deleteConfirm": "Delete",
       "deleteFailed": "Couldn't delete. Try again.",
       "name": "Name",
+      "namePlaceholder": "1-month Premium",
       "code": "Code",
       "codeHint": "Used in URLs and requests. Do not rename it later.",
       "price": "Price (so'm)",
@@ -1713,17 +1799,34 @@
       "stt": "speech recognition",
       "grader": "grading"
     },
-    "aiCalls": "{{calls}} calls · {{failed}} failed",
+    "aiCalls_one": "{{calls}} call · {{failed}} failed",
+    "aiCalls_other": "{{calls}} calls · {{failed}} failed",
     "aiBudgetHint": "Amounts are estimates from configured unit prices, not a vendor invoice. When a cap is reached, new AI work stops until the day (Tashkent midnight) or month resets, or the cap is raised.",
     "aiBudgetInvalid": "Not saved: a cap must be a dollar amount above 0.",
-    "saveAiBudget": "Save AI budget"
+    "saveAiBudget": "Save AI budget",
+    "modelNotes": {
+      "gemini-3_1-flash-lite": "Fast and cheap; ~500 requests/day on the free tier.",
+      "gemini-2_5-flash-lite": "Light and quick; generous free-tier limits.",
+      "gemini-2_5-flash": "Higher quality but only ~20 requests/day free — exhausts quickly.",
+      "gemini-2_0-flash": "Previous-gen flash; solid free-tier limits.",
+      "gemini-1_5-flash": "Legacy fallback; widely available.",
+      "claude-opus-5": "Strongest grading quality; $5/$25 per 1M tokens.",
+      "claude-sonnet-5": "Close to Opus quality, cheaper; $3/$15.",
+      "claude-haiku-4-5": "Fastest and cheapest; $1/$5.",
+      "gpt-4o-mini": "Cheap and fast; good enough for grading.",
+      "gpt-4o": "Stronger, but noticeably more expensive.",
+      "gpt-4_1-mini": "Newer mini generation.",
+      "whisper-1": "The standard transcription model.",
+      "gpt-4o-mini-transcribe": "Newer; does not return word timings."
+    }
   },
   "billing": {
     "title": "Premium",
     "plans": "Plans",
     "included": "What you get",
     "buy": "Buy",
-    "perDays": "for {{days}} days",
+    "perDays_one": "for {{days}} day",
+    "perDays_other": "for {{days}} days",
     "planLabel": "Plan",
     "endsLabel": "Ends",
     "expiredOn": "Your subscription ended on {{date}}.",
@@ -1760,6 +1863,11 @@
       "allModules": "New modules as soon as they ship",
       "feedback": "Full feedback on every answer"
     },
+    "askTeacher": {
+      "title": "Get Premium from your teacher",
+      "body": "Your teacher can turn Premium on for you. Ask them in class or in your group chat."
+    },
+    "unavailableShort": "Buying Premium isn't available right now. Nothing was charged.",
     "lockedReason": "The task you opened needs Premium."
   },
   "cefr": {
@@ -1770,5 +1878,32 @@
       "B2": "upper-intermediate",
       "C1": "advanced"
     }
+  },
+  "feedbackLang": {
+    "note": {
+      "uz": "This AI feedback was written in Uzbek.",
+      "ru": "This AI feedback was written in Russian.",
+      "en": "This AI feedback was written in English."
+    }
+  },
+  "audioPlayer": {
+    "play": "Play",
+    "pause": "Pause",
+    "seek": "Position in recording",
+    "speed": "Playback speed: {{rate}}",
+    "unavailable": "Recording unavailable",
+    "unavailableHint": "Check your connection and try again.",
+    "retry": "Try again"
+  },
+  "dateField": {
+    "date": "Date",
+    "time": "Time",
+    "placeholder": "dd.mm.yyyy",
+    "timePlaceholder": "hh:mm",
+    "openCalendar": "Pick from calendar",
+    "invalid": "Enter the date as dd.mm.yyyy",
+    "timeInvalid": "Enter the time as hh:mm (24-hour)",
+    "tooEarly": "The date can’t be before {{date}}",
+    "tooLate": "The date can’t be after {{date}}"
   }
 }

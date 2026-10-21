@@ -52,6 +52,46 @@
     "minutesUnit": "daqiqa",
     "hoursUnit": "soat"
   },
+  "motivation": {
+    "streakDays_one": "kun ketma-ket",
+    "streakDays_other": "kun ketma-ket",
+    "streakZero": "Bugun mashq qiling — seriya boshlanadi",
+    "weekAria_one": "Oxirgi 7 kunning {{count}} kunida mashq qildingiz",
+    "weekAria_other": "Oxirgi 7 kunning {{count}} kunida mashq qildingiz",
+    "weekday": { "0": "Ya", "1": "Du", "2": "Se", "3": "Ch", "4": "Pa", "5": "Ju", "6": "Sh" },
+    "goalLabel": "Kunlik maqsad",
+    "goalOf": "bugun, {{goal}} daqiqadan",
+    "goalDone": "Maqsad bajarildi!",
+    "goalAria": "Bugun {{goal}} daqiqadan {{done}} daqiqa",
+    "xpLevel": "{{level}}-bosqich",
+    "xpTotal": "{{xp}} XP",
+    "xpToNext": "{{next}}-bosqichgacha {{xp}} XP",
+    "noData": "Hali maʼlumot yoʻq",
+    "react": {
+      "great": "Ajoyib! Juda yaxshi yangradi.",
+      "good": "Yaxshi ish — shu zaylda davom eting!",
+      "fair": "Yaxshi urinish. Yana bir marta — yanada yaxshi boʻladi.",
+      "low": "Har bir urinish muhim. Keling, yana bir bor birga urinib koʻramiz."
+    },
+    "empty": {
+      "startPractice": "Mashqni boshlash",
+      "modules": {
+        "allTitle": "Hozircha modullar yoʻq",
+        "allBody": "Oʻqituvchingiz va ochiq kursdagi modullar shu yerda chiqadi.",
+        "activeTitle": "Davom etayotgan modul yoʻq",
+        "activeBody": "Istalgan modulni oching va birinchi topshiriqni bajaring — u shu yerda chiqadi.",
+        "doneTitle": "Hali yakunlangan modul yoʻq",
+        "doneBody": "Moduldagi barcha topshiriqlarni bajaring — u shu yerda chiqadi.",
+        "showAll": "Barcha modullarni koʻrsatish"
+      },
+      "skillsTitle": "Koʻnikmalaringiz shu yerda koʻrinadi",
+      "skillsBody": "Birinchi javobingizni yozib oling — baholangach, darajangiz va toʻrtta koʻnikma shu yerda chiqadi.",
+      "achTitle": "Birinchi nishongacha bitta javob qoldi",
+      "achBody": "«Birinchi qadam»ni ochish uchun bugun bitta javob yozib oling.",
+      "resultsTitle": "Hali natijalar yoʻq",
+      "resultsBody": "Birinchi javobingizni yozib oling — balingiz va fikr-mulohaza shu yerda chiqadi."
+    }
+  },
   "home": {
     "todayAria": "Bugungi holat",
     "modules": "Modullar",
@@ -86,7 +126,8 @@
     "continueEmptyTitle": "Hozircha mashqlar yo'q",
     "continueEmptyBody": "Yangi vazifalar qo'shilganda shu yerda ko'rinadi.",
     "todayLabel": "BUGUNGI MASHQ",
-    "todayTitle": "Bugungi {{min}} daqiqa",
+    "todayTitle_one": "Bugungi {{min}} daqiqa",
+    "todayTitle_other": "Bugungi {{min}} daqiqa",
     "todayTagline": "Tayyorlanish · gapirish · kechagi xatoni tuzatish",
     "dailyDone": "Bugungi 5 daqiqa bajarildi 🎉",
     "dailyReview": "Ko'rib chiqish",
@@ -95,7 +136,8 @@
     "teacherRole": "Ustoz · Rus tili",
     "message": "Yozish",
     "groupLine": "Guruh: {{name}}",
-    "students": "{{count}} o'quvchi",
+    "students_one": "{{count}} o'quvchi",
+    "students_other": "{{count}} o'quvchi",
     "nextAssignment": "Keyingi topshiriq · {{when}}",
     "noAssignment": "Yangi topshiriq yo'q",
     "summary": "QISQACHA",
@@ -120,6 +162,8 @@
     "joinPendingHint": "O‘qituvchi tasdiqlashini kuting",
     "nextAssignmentUndated": "Keyingi topshiriq",
     "openAssignment": "{{title}} topshirig'ini ochish",
+    "practiceTitle": "Kundalik mashqingiz",
+    "practiceTagline": "Maqsad — kuniga {{min}} daqiqa gapirish. Modullar va vazifalar «Mashq» boʻlimida.",
     "todayTaglineNoDrill": "Tayyorlanish · gapirish",
     "joinLink": {
       "invalid": "Taklif havolasidagi guruh kodi noto'g'ri yoki guruh topilmadi.",
@@ -127,6 +171,10 @@
     }
   },
   "practice": {
+    "focusClose": "Vazifani yopish",
+    "focusSend": "Yuborish",
+    "focusUploading": "Javob yuborilmoqda",
+    "focusUploaded": "Javob yuborildi",
     "attemptsLeft_one": "{{count}} urinish qoldi",
     "attemptsLeft_other": "{{count}} urinish qoldi",
     "listenModel": "Namunani eshit",
@@ -207,9 +255,17 @@
     "reviewReady": "Yozuv tayyor. Eshitib ko'r yoki qayta yoz.",
     "retry": "Qayta urinish",
     "deniedTitle": "Mikrofonga ruxsat berilmadi",
-    "deniedHint": "Yozish uchun brauzer sozlamalaridan mikrofonga ruxsat bering.",
+    "deniedHint": "Brauzerning manzil satridagi qulf belgisini bosing va mikrofonga ruxsat bering, soʻng qayta urinib koʻring.",
     "errorTitle": "Yozib bo'lmadi",
-    "errorHint": "Qurilmangda mikrofon yozuvi qo'llab-quvvatlanmaydi.",
+    "errorHint": "Mikrofon bilan nimadir xato ketdi. Yana bir bor urinib koʻring.",
+    "insecureTitle": "Xavfsiz ulanish (HTTPS) kerak",
+    "insecureHint": "Brauzer mikrofonni faqat https:// bilan boshlanadigan manzilda beradi. Saytni https:// orqali oching.",
+    "unsupportedTitle": "Bu brauzer ovoz yozolmaydi",
+    "unsupportedHint": "Qurilmangda mikrofon yozuvi qoʻllab-quvvatlanmaydi. Chrome, Safari yoki Edgeʼning yangi versiyasini sinab koʻring.",
+    "noDeviceTitle": "Mikrofon topilmadi",
+    "noDeviceHint": "Mikrofonni ulang yoki quloqchinni tekshiring, soʻng qayta urinib koʻring.",
+    "busyTitle": "Mikrofon band",
+    "busyHint": "Mikrofonni boshqa ilova (qoʻngʻiroq yoki boshqa tab) ishlatyapti. Uni yoping va qayta urinib koʻring.",
     "region": "Ovoz yozish"
   },
   "placement": {
@@ -265,9 +321,12 @@
     },
     "skills": {
       "currentLevel": "HOZIRGI DARAJA",
-      "trendUp": "{{weeks}} haftada +{{points}} punkt",
-      "trendDown": "{{weeks}} haftada {{points}} punkt",
-      "trendFlat": "So'nggi {{weeks}} haftada o'zgarishsiz",
+      "trendUp_one": "{{weeks}} haftada +{{points}} punkt",
+      "trendUp_other": "{{weeks}} haftada +{{points}} punkt",
+      "trendDown_one": "{{weeks}} haftada {{points}} punkt",
+      "trendDown_other": "{{weeks}} haftada {{points}} punkt",
+      "trendFlat_one": "So'nggi {{weeks}} haftada o'zgarishsiz",
+      "trendFlat_other": "So'nggi {{weeks}} haftada o'zgarishsiz",
       "sectionLabel": "KO'NIKMALAR",
       "fluency": "Ravonlik",
       "pronunciation": "Talaffuz",
@@ -295,8 +354,10 @@
       "meThisWeek": "Bu hafta {{rank}}-o'rin",
       "meThisMonth": "Bu oy {{rank}}-o'rin",
       "meAllTime": "{{rank}}-o'rin",
-      "meDeltaUp": "{{xp}} XP · ↑ {{n}} pog'ona ko'tarildingiz",
-      "meDeltaDown": "{{xp}} XP · ↓ {{n}} pog'ona tushdingiz",
+      "meDeltaUp_one": "{{xp}} XP · ↑ {{n}} pog'ona ko'tarildingiz",
+      "meDeltaUp_other": "{{xp}} XP · ↑ {{n}} pog'ona ko'tarildingiz",
+      "meDeltaDown_one": "{{xp}} XP · ↓ {{n}} pog'ona tushdingiz",
+      "meDeltaDown_other": "{{xp}} XP · ↓ {{n}} pog'ona tushdingiz",
       "meDeltaFlat": "{{xp}} XP · o'rningiz o'zgarmadi",
       "meNoDelta": "{{xp}} XP",
       "nearby": "YAQIN ATROFDAGILAR",
@@ -703,10 +764,12 @@
       "skillsTitle": "Ko‘nikma taqsimoti",
       "noSkills": "Ko‘nikmalar hali baholanmagan",
       "weekTitle": "Haftalik faollik",
-      "weekBarAria": "{{day}}: {{count}} javob",
+      "weekBarAria_one": "{{day}}: {{count}} javob",
+      "weekBarAria_other": "{{day}}: {{count}} javob",
       "noActivity": "Bu hafta javob yo‘q",
       "errorsTitle": "Ko‘p uchragan xatolar",
-      "errorMeta": "{{count}} o‘quvchi · {{pct}}%",
+      "errorMeta_one": "{{count}} o‘quvchi · {{pct}}%",
+      "errorMeta_other": "{{count}} o‘quvchi · {{pct}}%",
       "noErrors": "Xato namunalari topilmadi",
       "colStudent": "O‘quvchi",
       "colFluency": "Ravon.",
@@ -721,10 +784,12 @@
       "remediationConfirmTitle": "Mashq berilsinmi?",
       "remediationConfirmLead": "«{{error}}» xatosini qilgan o‘quvchilarga quyidagi topshiriq biriktiriladi.",
       "remediationConfirmTask": "Topshiriq",
-      "remediationConfirmWho": "Kimga — {{count}} o‘quvchi",
+      "remediationConfirmWho_one": "Kimga — {{count}} o‘quvchi",
+      "remediationConfirmWho_other": "Kimga — {{count}} o‘quvchi",
       "remediationConfirmWarn": "Biriktirishni bekor qilib bo‘lmaydi.",
       "remediationConfirmCta": "Biriktirish",
-      "remediationSent": "{{count}} o‘quvchiga biriktirildi",
+      "remediationSent_one": "{{count}} o‘quvchiga biriktirildi",
+      "remediationSent_other": "{{count}} o‘quvchiga biriktirildi",
       "remediationFailed": "Biriktirib bo‘lmadi. Qayta urinib ko‘ring."
     },
     "assignTask": {
@@ -774,8 +839,10 @@
     "classErrorsHint_one": "{{count}} o‘quvchi qoqildi",
     "classErrorsHint_other": "{{count}} o‘quvchi qoqildi",
     "trend": {
-      "up": "{{points}} punkt ko‘tarildi",
-      "down": "{{points}} punkt tushdi",
+      "up_one": "{{points}} punkt ko‘tarildi",
+      "up_other": "{{points}} punkt ko‘tarildi",
+      "down_one": "{{points}} punkt tushdi",
+      "down_other": "{{points}} punkt tushdi",
       "flat": "o‘zgarishsiz"
     },
     "droppedHintMany": "O‘quvchilarni ko‘rish",
@@ -784,7 +851,8 @@
       "joined": "qo‘shilgan {{date}}",
       "groups": "Guruhlarim",
       "noGroups": "Hali guruh ochmagansiz.",
-      "reach": "Jami {{count}} o‘quvchi",
+      "reach_one": "Jami {{count}} o‘quvchi",
+      "reach_other": "Jami {{count}} o‘quvchi",
       "settings": "Sozlamalar",
       "language": "Til",
       "theme": "Ko‘rinish"
@@ -961,7 +1029,8 @@
       "streetPlaceholder": "Amir Temur ko'chasi, 12-uy, 34-xonadon",
       "finish": "Tugatish va boshlash"
     },
-    "joinPendingNote": "Guruhga qo'shilish uchun hisobingizga kiring — so'rov o'zi yuboriladi."
+    "joinPendingNote": "Guruhga qo'shilish uchun hisobingizga kiring — so'rov o'zi yuboriladi.",
+    "langSwitch": "Interfeys tili"
   },
   "notifications": {
     "title": "Bildirishnomalar",
@@ -1035,7 +1104,8 @@
     "detail": {
       "label": "MODUL",
       "tasksLabel": "TOPSHIRIQLAR",
-      "taskCount": "{{done}}/{{total}} vazifa",
+      "taskCount_one": "{{done}}/{{total}} vazifa",
+      "taskCount_other": "{{done}}/{{total}} vazifa",
       "taskN": "{{n}}-vazifa",
       "taskCurrent": "{{n}}-vazifa · joriy",
       "start": "Boshlash",
@@ -1052,7 +1122,8 @@
       "certTitle": "Sertifikat tayyor",
       "certBody": "Yuklab olish yoki ulashish",
       "nextLabel": "KEYINGI MODUL",
-      "nextMeta": "{{level}} · {{count}} vazifa",
+      "nextMeta_one": "{{level}} · {{count}} vazifa",
+      "nextMeta_other": "{{level}} · {{count}} vazifa",
       "nextCta": "Keyingi modul",
       "allDone": "Barcha modullar yakunlandi 🎉"
     },
@@ -1077,7 +1148,8 @@
   },
   "results": {
     "allTitle": "Barcha natijalar",
-    "count": "{{count}} ta natija",
+    "count_one": "{{count}} ta natija",
+    "count_other": "{{count}} ta natija",
     "attempt": "Mashq",
     "audio": "Yozib olingan javob",
     "audioExpired": "Audio muddati o'tgan — 3 oydan keyin o'chiriladi.",
@@ -1106,7 +1178,8 @@
       "stt_failed": "Ovozni matnga aylantirib bo'lmadi.",
       "grader_failed": "AI javobni baholay olmadi.",
       "internal": "Texnik xatolik yuz berdi.",
-      "ai_unavailable": "AI baholash vaqtincha ishlamayapti. Birozdan keyin qayta yozib ko'ring."
+      "ai_unavailable": "AI baholash vaqtincha ishlamayapti. Birozdan keyin qayta yozib ko'ring.",
+      "no_speech": "Yozuvda nutq eshitilmadi. Mikrofonni tekshirib, qaytadan yozib oling."
     },
     "notGraded": "Baholanmadi",
     "notGradedReason": "Baholanmadi · {{reason}}",
@@ -1214,7 +1287,8 @@
       "cta": "Mashq qilish"
     },
     "lede": "Rus tilida bitta tovush so'zning ma'nosini butunlay o'zgartiradi. Quyidagi juftliklarda aynan shu farq mashq qilinadi.",
-    "dailyLeft": "Bugun {{count}} ta urinish qoldi",
+    "dailyLeft_one": "Bugun {{count}} ta urinish qoldi",
+    "dailyLeft_other": "Bugun {{count}} ta urinish qoldi",
     "budgetSpentShort": "Bugungi urinishlar tugadi",
     "noPairs": "Hozircha juftliklar qo'shilmagan.",
     "tileProgress": "{{correct}} / {{total}} to'g'ri",
@@ -1251,12 +1325,12 @@
     },
     "blocked": {
       "disabled": {
-        "title": "Bu mashq hozircha yoqilmagan",
-        "hint": "Administrator uni Funksiyalar bo'limidan yoqishi mumkin."
+        "title": "Bu mashq hozircha mavjud emas",
+        "hint": "Shu paytgacha «Mashq» boʻlimidagi boshqa mashqlarni bajaring."
       },
       "unconfigured": {
-        "title": "Nutqni tanish sozlanmagan",
-        "hint": "Talaffuzni tekshirish uchun Azure Speech kaliti kerak. Bu administrator hal qiladigan masala."
+        "title": "Talaffuzni tekshirish hozircha ishlamayapti",
+        "hint": "Keyinroq qayta urinib koʻring. Urinish sarflanmadi."
       },
       "budget_spent": {
         "title": "Bugungi urinishlar tugadi",
@@ -1265,7 +1339,8 @@
     }
   },
   "groupBoard": {
-    "meta": "{{teacher}} · {{count}} o'quvchi",
+    "meta_one": "{{teacher}} · {{count}} o'quvchi",
+    "meta_other": "{{teacher}} · {{count}} o'quvchi",
     "classmates": "GURUHDOSHLAR",
     "you": "Siz",
     "xp": "Guruh XP",
@@ -1297,7 +1372,8 @@
     "goalMissed": "Maqsadga yetmading",
     "turns": "turn",
     "fluency": "ravonlik",
-    "phrasesLabel": "{{count}} ta foydali ibora",
+    "phrasesLabel_one": "{{count}} ta foydali ibora",
+    "phrasesLabel_other": "{{count}} ta foydali ibora",
     "phrasesLabelShort": "FOYDALI IBORA",
     "retry": "Yana urinish",
     "turnsLeft_one": "{{count}} navbat qoldi",
@@ -1306,9 +1382,17 @@
     "coachLabel": "Tuzatishlar",
     "fixesLabel": "NIMANI TUZATISH KERAK",
     "turnFailed": "Javobni yuborib bo'lmadi. Yana bir bor gapirib ko'ring.",
+    "aiPaused": "AI vaqtincha ishlamayapti. Birozdan keyin qayta urinib koʻr.",
     "stateDisabled": "AI suhbat hozircha yoqilmagan. Tez orada ochamiz.",
     "stateUnconfigured": "AI hali ulanmagan — hozircha gapira olmaysan. Urinishing sarflanmadi.",
-    "stateBudget": "Bugungi suhbat limiting tugadi. Ertaga yana davom etamiz."
+    "stateBudget": "Bugungi suhbat limiting tugadi. Ertaga yana davom etamiz.",
+    "goals": {
+      "pharmacy": "Dori dozasini bilib ol",
+      "interview": "Oʻzingni tanishtir",
+      "doctor": "Shikoyatni tushuntir",
+      "taxi": "Manzilni ayt",
+      "free": "Xohlagan mavzuda gaplash"
+    }
   },
   "time": {
     "justNow": "hozir",
@@ -1582,7 +1666,8 @@
       "notConnectedShort": "ulanmagan",
       "on": "yoqilgan",
       "off": "o'chirilgan",
-      "duration": "{{days}} kun",
+      "duration_one": "{{days}} kun",
+      "duration_other": "{{days}} kun",
       "edit": "Tahrirlash",
       "delete": "O'chirish",
       "alsoGranted": "O'qituvchi ham bergan",
@@ -1596,6 +1681,7 @@
       "deleteConfirm": "O'chirish",
       "deleteFailed": "O'chirib bo'lmadi. Qaytadan urinib ko'ring.",
       "name": "Nomi",
+      "namePlaceholder": "1 oylik Premium",
       "code": "Kod",
       "codeHint": "URL va so'rovlarda ishlatiladi. Keyin o'zgartirmang.",
       "price": "Narxi (so'm)",
@@ -1713,17 +1799,34 @@
       "stt": "nutqni aniqlash",
       "grader": "baholash"
     },
-    "aiCalls": "{{calls}} ta chaqiruv · {{failed}} tasi xato",
+    "aiCalls_one": "{{calls}} ta chaqiruv · {{failed}} tasi xato",
+    "aiCalls_other": "{{calls}} ta chaqiruv · {{failed}} tasi xato",
     "aiBudgetHint": "Summalar sozlangan narxlar bo'yicha taxmin, vendor hisobi emas. Limit tugasa, kun (Toshkent yarim tuni) yoki oy almashguncha yoxud limit oshirilguncha yangi AI ishi boshlanmaydi.",
     "aiBudgetInvalid": "Saqlanmadi: limit 0 dan katta dollar summasi bo'lishi kerak.",
-    "saveAiBudget": "AI byudjetini saqlash"
+    "saveAiBudget": "AI byudjetini saqlash",
+    "modelNotes": {
+      "gemini-3_1-flash-lite": "Tez va arzon; bepul tarifda kuniga ~500 ta so'rov.",
+      "gemini-2_5-flash-lite": "Yengil va tez; bepul tarif limitlari keng.",
+      "gemini-2_5-flash": "Sifati yuqoriroq, lekin bepul tarifda kuniga ~20 ta so'rov — tez tugaydi.",
+      "gemini-2_0-flash": "Oldingi avlod flash; bepul tarif limitlari yaxshi.",
+      "gemini-1_5-flash": "Eski zaxira varianti; keng mavjud.",
+      "claude-opus-5": "Eng kuchli baholash sifati; 1M token uchun $5/$25.",
+      "claude-sonnet-5": "Opusga yaqin sifat, arzonroq; $3/$15.",
+      "claude-haiku-4-5": "Eng tez va arzon; $1/$5.",
+      "gpt-4o-mini": "Arzon va tez; baholash uchun yetarli.",
+      "gpt-4o": "Kuchliroq, lekin sezilarli qimmatroq.",
+      "gpt-4_1-mini": "Yangiroq mini avlod.",
+      "whisper-1": "Standart transkripsiya modeli.",
+      "gpt-4o-mini-transcribe": "Yangiroq; so'z vaqtlarini qaytarmaydi."
+    }
   },
   "billing": {
     "title": "Premium",
     "plans": "Tariflar",
     "included": "Nima kiradi",
     "buy": "Sotib olish",
-    "perDays": "{{days}} kunga",
+    "perDays_one": "{{days}} kunga",
+    "perDays_other": "{{days}} kunga",
     "planLabel": "Tarif",
     "endsLabel": "Tugaydi",
     "expiredOn": "Obuna {{date}} da tugagan.",
@@ -1760,6 +1863,11 @@
       "allModules": "Yangi modullar chiqishi bilan",
       "feedback": "Har javob uchun to'liq tahlil"
     },
+    "askTeacher": {
+      "title": "Premiumni oʻqituvchingizdan oling",
+      "body": "Oʻqituvchingiz sizga Premiumni yoqib berishi mumkin. Darsda yoki guruh chatida soʻrang."
+    },
+    "unavailableShort": "Hozircha Premiumni sotib olib boʻlmaydi. Hech qanday toʻlov olinmadi.",
     "lockedReason": "Siz ochmoqchi bo'lgan vazifa Premium bilan ochiladi."
   },
   "cefr": {
@@ -1770,5 +1878,32 @@
       "B2": "o'rta-yuqori",
       "C1": "yuqori"
     }
+  },
+  "feedbackLang": {
+    "note": {
+      "uz": "Bu AI izohi oʻzbek tilida yozilgan.",
+      "ru": "Bu AI izohi rus tilida yozilgan.",
+      "en": "Bu AI izohi ingliz tilida yozilgan."
+    }
+  },
+  "audioPlayer": {
+    "play": "Tinglash",
+    "pause": "Pauza",
+    "seek": "Yozuvdagi oʻrin",
+    "speed": "Tinglash tezligi: {{rate}}",
+    "unavailable": "Yozuvni ochib boʻlmadi",
+    "unavailableHint": "Internet aloqasini tekshirib, qayta urinib koʻring.",
+    "retry": "Qayta urinish"
+  },
+  "dateField": {
+    "date": "Sana",
+    "time": "Vaqt",
+    "placeholder": "kk.oo.yyyy",
+    "timePlaceholder": "ss:dd",
+    "openCalendar": "Kalendardan tanlash",
+    "invalid": "Sanani kk.oo.yyyy koʻrinishida kiriting",
+    "timeInvalid": "Vaqtni ss:dd koʻrinishida kiriting (24 soatlik)",
+    "tooEarly": "Sana {{date}} dan oldin boʻlmasin",
+    "tooLate": "Sana {{date}} dan keyin boʻlmasin"
   }
 }

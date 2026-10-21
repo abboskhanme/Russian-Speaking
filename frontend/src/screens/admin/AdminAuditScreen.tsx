@@ -1,9 +1,11 @@
 import { useId } from "react";
 import { useTranslation } from "react-i18next";
 import type { TFunction } from "i18next";
-import { Badge, Button, Card, Input, Spinner, Text } from "../../shared/ui";
+import { Badge, Button, Card, Spinner, Text } from "../../shared/ui";
 import { Page } from "../../widgets";
 import type { NavItem } from "../../widgets";
+import { formatDateTime } from "../../shared/format/date";
+import { DateField } from "../../shared/ui/DateField";
 import styles from "./AdminAuditScreen.module.css";
 
 /* -------------------------------------------------------------------------- */
@@ -129,19 +131,17 @@ export function AdminAuditScreen({
               ))}
             </select>
           </div>
-          <Input
-            type="date"
+          <DateField
             label={t("admin.audit.from")}
             value={filters.from}
             max={filters.to || undefined}
-            onChange={(e) => set({ from: e.target.value })}
+            onChange={(v) => v !== filters.from && set({ from: v })}
           />
-          <Input
-            type="date"
+          <DateField
             label={t("admin.audit.to")}
             value={filters.to}
             min={filters.from || undefined}
-            onChange={(e) => set({ to: e.target.value })}
+            onChange={(v) => v !== filters.to && set({ to: v })}
           />
         </section>
 
@@ -383,23 +383,9 @@ function groupLabel(group: (typeof ACTION_GROUPS)[number], t: TFunction): string
   }
 }
 
-const TASHKENT = new Intl.DateTimeFormat("en-GB", {
-  timeZone: "Asia/Tashkent",
-  year: "numeric",
-  month: "2-digit",
-  day: "2-digit",
-  hour: "2-digit",
-  minute: "2-digit",
-  hourCycle: "h23",
-});
-
-/** `2026-10-21T09:37:00Z` → `2026-10-21 14:37` (Tashkent, UTC+5, no DST). */
+/** `2026-10-21T09:37:00Z` → `21.10.2026, 14:37` (Tashkent wall-clock, UTC+5, no DST). */
 export function formatTashkent(iso: string): string {
-  const date = new Date(iso);
-  if (Number.isNaN(date.getTime())) return iso;
-  const part = (type: Intl.DateTimeFormatPartTypes) =>
-    TASHKENT.formatToParts(date).find((p) => p.type === type)?.value ?? "";
-  return `${part("year")}-${part("month")}-${part("day")} ${part("hour")}:${part("minute")}`;
+  return formatDateTime(iso, { zone: "tashkent" }) || iso;
 }
 
 function shortId(id: string): string {

@@ -14,6 +14,7 @@
  *   • Skip moves to the NEXT open task and the URL follows (it used to reload the
  *     task being skipped).
  */
+import type { ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { fireEvent, render, screen } from "@testing-library/react";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
@@ -43,12 +44,15 @@ vi.mock("../../shared/ui", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../../shared/ui")>();
   return {
     ...actual,
-    Recorder: (props: { prepMs?: number; maxDurationMs?: number }) => (
+    // Renders `dockAside` like the real one does in its bottom bar (Skip lives there).
+    Recorder: (props: { prepMs?: number; maxDurationMs?: number; dockAside?: ReactNode }) => (
       <div
         data-testid="recorder"
         data-prep={props.prepMs ?? "none"}
         data-max={props.maxDurationMs ?? "default"}
-      />
+      >
+        {props.dockAside}
+      </div>
     ),
   };
 });
@@ -164,5 +168,16 @@ describe("skipping", () => {
     renderAt("/task?task=only");
     await screen.findByText("Yagona");
     expect(screen.queryByRole("button", { name: t("practice.skipCta") })).not.toBeInTheDocument();
+  });
+});
+
+describe("the focus flow", () => {
+  it("has no app navigation (one mic on screen) and a close that leaves the task", async () => {
+    renderAt("/task?task=t1");
+    await screen.findByText("Do'konda");
+    expect(screen.queryByRole("navigation")).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: t("practice.focusClose") }));
+    expect(await screen.findByTestId("location")).toHaveTextContent("/practice");
   });
 });

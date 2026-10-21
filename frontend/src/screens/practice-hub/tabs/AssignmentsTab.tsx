@@ -3,7 +3,7 @@ import { useTranslation } from "react-i18next";
 import type { TFunction } from "i18next";
 import { Button, Card, Text } from "../../../shared/ui";
 import styles from "./AssignmentsTab.module.css";
-import { formatDayMonth } from "../../../app/adapters";
+import { calendarDaysBetween, dateLang, formatDayMonth, formatTime } from "../../../shared/format/date";
 
 /* -------------------------------------------------------------------------- */
 /* Public contract — imported by the hub shell (Agent 1).                     */
@@ -198,10 +198,7 @@ function formatDue(
     return { text: t("mashq.assignments.noDue"), overdue: false };
   }
 
-  const time = new Intl.DateTimeFormat(lang, {
-    hour: "2-digit",
-    minute: "2-digit",
-  }).format(due);
+  const time = formatTime(due);
 
   const days = calendarDaysBetween(now, due);
 
@@ -219,19 +216,8 @@ function formatDue(
   }
 
   // Not Intl for the month: Chromium has no Uzbek month names ("M07 30").
-  const date = formatDayMonth(dueAt, t);
+  const date = formatDayMonth(dueAt, dateLang(lang));
   return { text: t("mashq.assignments.when.date", { date, time }), overdue: false };
-}
-
-/** Local midnight for a date — the boundary day buckets are measured from. */
-function startOfLocalDay(d: Date): number {
-  return new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
-}
-
-/** Whole calendar days from `from` to `to`, counted by LOCAL day boundary. */
-function calendarDaysBetween(from: Date, to: Date): number {
-  const MS_PER_DAY = 86_400_000;
-  return Math.round((startOfLocalDay(to) - startOfLocalDay(from)) / MS_PER_DAY);
 }
 
 /* -------------------------------------------------------------------------- */

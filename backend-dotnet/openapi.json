@@ -3696,6 +3696,37 @@
           "groups"
         ]
       },
+      "ClientFeatures": {
+        "type": "object",
+        "properties": {
+          "roleplay": {
+            "type": "boolean"
+          },
+          "daily_five": {
+            "type": "boolean"
+          },
+          "review_drill": {
+            "type": "boolean"
+          },
+          "phoneme_drill": {
+            "type": "boolean"
+          },
+          "payments": {
+            "type": "boolean"
+          },
+          "ai_available": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "roleplay",
+          "daily_five",
+          "review_drill",
+          "phoneme_drill",
+          "payments",
+          "ai_available"
+        ]
+      },
       "CodedErrorResponse": {
         "type": "object",
         "properties": {
@@ -5068,6 +5099,14 @@
           },
           "preferred_language": {
             "type": "string"
+          },
+          "features": {
+            "nullable": true,
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ClientFeatures"
+              }
+            ]
           }
         },
         "required": [
@@ -5536,6 +5575,25 @@
           "week_practice_sec": {
             "type": "integer",
             "format": "int32"
+          },
+          "active_days": {
+            "type": "array",
+            "items": {
+              "type": "boolean"
+            },
+            "nullable": true
+          },
+          "xp_level": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "xp_level_start": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "xp_next_level": {
+            "type": "integer",
+            "format": "int32"
           }
         },
         "required": [
@@ -5545,7 +5603,10 @@
           "total_practice_sec",
           "xp",
           "today_practice_sec",
-          "week_practice_sec"
+          "week_practice_sec",
+          "xp_level",
+          "xp_level_start",
+          "xp_next_level"
         ]
       },
       "ProgressLeaderboardResponse": {
@@ -5639,11 +5700,15 @@
           "score": {
             "type": "integer",
             "format": "int32"
+          },
+          "scored": {
+            "type": "boolean"
           }
         },
         "required": [
           "key",
-          "score"
+          "score",
+          "scored"
         ]
       },
       "ProgressSkillsResponse": {

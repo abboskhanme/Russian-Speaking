@@ -55,10 +55,6 @@
   color: var(--primary-on);
 }
 
-.heroMascot {
-  margin-top: var(--s-3);
-}
-
 .heroTitle {
   margin-top: var(--s-2);
   color: var(--primary-on);
@@ -691,4 +687,83 @@
   outline: var(--focus-ring-width) solid var(--focus-ring);
   outline-offset: var(--focus-ring-offset);
   border-radius: var(--r-xs);
+}
+
+/* ======================= LANGUAGE SWITCH ================================ */
+/* Top-left, mirroring the theme toggle top-right. 44px tall so each option is a
+ * full touch target (docs/03 §3.9); compact enough to sit on a 360px hero. */
+.langSwitch {
+  position: absolute;
+  top: max(var(--s-4), env(safe-area-inset-top));
+  inset-inline-start: max(var(--s-4), env(safe-area-inset-left));
+  z-index: var(--z-raised);
+  display: inline-flex;
+  height: 44px;
+  padding: 3px;
+  gap: 2px;
+  border-radius: var(--r-sm);
+  border: 1.5px solid var(--line-2);
+  background: var(--surface);
+}
+.langOption {
+  min-width: 40px;
+  padding: 0 var(--s-2);
+  border: 0;
+  border-radius: calc(var(--r-sm) - 4px);
+  background: transparent;
+  color: var(--ink-soft);
+  font: inherit;
+  font-size: 0.8125rem;
+  font-weight: var(--fw-bold);
+  letter-spacing: 0.02em;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: background-color var(--m-instant), color var(--m-instant);
+}
+.langOption:hover {
+  background: var(--surface-2);
+  color: var(--ink);
+}
+.langOption[aria-pressed="true"] {
+  background: var(--primary);
+  color: var(--primary-on);
+}
+.langOption:focus-visible {
+  outline: var(--focus-ring-width) solid var(--ink);
+  outline-offset: 1px;
+}
+
+/* ===================== HERO MARK + MASCOT TILES ========================= */
+/* The logo mark and Govo are both brand orange and nearly vanished on the
+ * orange hero (UI audit 01-). Each sits on a --primary-on tile instead (white in
+ * light, deep ink in dark — the same colour as the hero's own text), with the
+ * mark's two colours swapped so the bubble stays orange. */
+.heroBrand > span:first-child {
+  background: var(--primary-on);
+  box-shadow: none;
+}
+.heroBrand > span:first-child svg > rect,
+.heroBrand > span:first-child svg > path {
+  fill: var(--primary);
+}
+.heroBrand > span:first-child svg > g {
+  fill: var(--primary-on);
+}
+.heroMascotTile {
+  margin-top: var(--s-3);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 96px;
+  height: 96px;
+  border-radius: var(--r-pill);
+  background: var(--primary-on);
+}
+
+/* On a phone the corner controls (language left, theme right) would touch the
+ * centred wordmark — push the hero content below them. */
+@media (max-width: 560px) {
+  .hero {
+    padding-top: max(76px, calc(env(safe-area-inset-top) + 76px));
+  }
 }

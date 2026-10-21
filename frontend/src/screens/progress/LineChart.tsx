@@ -98,10 +98,20 @@ export function LineChart({ points, ariaLabel, className }: LineChartProps) {
           <>
             <path className={styles.area} d={area} />
             <path className={styles.line} d={line} />
-            {last && <circle className={styles.dot} cx={last.x} cy={last.y} r={2.4} />}
           </>
         )}
       </svg>
+      {/* The end dot is an HTML element placed in percentages, NOT an SVG circle:
+          the SVG stretches non-uniformly (preserveAspectRatio="none"), which drew
+          the circle as a wide ellipse on desktop. A box positioned by % of the
+          same coordinate space stays round at every width. */}
+      {last && (
+        <span
+          className={styles.dot}
+          data-testid="trend-dot"
+          style={{ left: `${(last.x / W) * 100}%`, top: `${(last.y / H) * 100}%` }}
+        />
+      )}
     </div>
   );
 }

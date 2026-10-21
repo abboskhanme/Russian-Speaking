@@ -57,6 +57,28 @@ export interface MeResponse {
    * whenever identity resolves, so the choice follows the user to another device
    * instead of living only in each browser's localStorage. */
   preferred_language: string;
+  /** APPEND-ONLY. Which flag-gated student surfaces this deployment offers right
+   * now (global admin switches, not per-user entitlements). Read through
+   * `useFeatures()` — never probe a feature's route for a 404. Absent only from
+   * a server that predates it, which the hook treats as "everything off". */
+  features?: ClientFeatures | null;
+}
+
+/** MeResponse.features — see `ClientFeatures` in AuthContracts.cs. */
+export interface ClientFeatures {
+  /** `roleplay_enabled` — AI Suhbat (`/chat`). */
+  roleplay: boolean;
+  /** `daily_five_enabled` — «Bugungi 5 daqiqa» (`/daily`). */
+  daily_five: boolean;
+  /** `review_drill_enabled` — «Xatolar ustida» (`/review`). */
+  review_drill: boolean;
+  /** `phoneme_drill_enabled` — the sound drill (`/drill`). */
+  phoneme_drill: boolean;
+  /** `payments_enabled` — the flag only; buying also needs a provider
+   * (`/api/billing/subscription` says whether one is wired up). */
+  payments: boolean;
+  /** False while AI is paused or the global AI budget is spent. */
+  ai_available: boolean;
 }
 
 /** PATCH /api/auth/me body — partial profile update (the registration "Manzil"
@@ -282,7 +304,7 @@ export interface SubmissionResponse {
   audio_url: string | null;
   audio_duration_sec: number | null;
   status: SubmissionStatus;
-  /** A grading-failure MACHINE CODE (`grading_timeout` · `stt_failed` · `grader_failed` · `ai_unavailable` ·
+  /** A grading-failure MACHINE CODE (`grading_timeout` · `stt_failed` · `grader_failed` · `ai_unavailable` · `no_speech` ·
    * `internal`) — never text to show. Rows that failed before the codes existed still hold
    * free text. Map it through `gradingFailureKey` (app/adapters): anything unknown reads as
    * `internal`. */
@@ -404,6 +426,9 @@ export interface LeaderboardEntryResponse {
 export interface ProgressSkill {
   key: string;
   score: number;
+  /** False when the caller has no score at all for this skill — the 0 above is
+   * then "no data", and the UI prints "—" instead of a zero. */
+  scored: boolean;
 }
 
 /** One weekly average of the caller's OverallBand, for the band-trend sparkline.
@@ -492,6 +517,14 @@ export interface ProfileStatsResponse {
    * "Bugungi N daqiqa" progress and the "Bu hafta" tile. Append-only. */
   today_practice_sec: number;
   week_practice_sec: number;
+  /** The last seven product days, oldest first and TODAY LAST — true when the
+   * student earned an XP event that day (the event the streak counts). Append-only. */
+  active_days: boolean[] | null;
+  /** Lifetime XP placed on the shared level curve: the level, the XP at which it
+   * began and the XP at which the next one begins. */
+  xp_level: number;
+  xp_level_start: number;
+  xp_next_level: number;
 }
 
 /** Direction of a result versus the chronologically previous graded attempt.

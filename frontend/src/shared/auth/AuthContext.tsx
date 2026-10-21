@@ -189,11 +189,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
    * `/me` comes back the two already agree.
    */
   useEffect(() => {
-    const stored = user?.preferred_language;
+    if (!user) return;
+    const stored = user.preferred_language;
     if (!stored || !(SUPPORTED_LANGS as readonly string[]).includes(stored)) return;
-    if (stored === getLang()) return;
+    const local = getLang();
+    if (stored === local) return;
+    // Except for an account created a moment ago on THIS device: it carries the
+    // server default (uz), while the person just chose their language with the
+    // switcher on the login/register page. That choice wins and is saved to the
+    // account (best-effort — the next sign-in re-reads the server anyway).
+    if (justRegistered) {
+      setUser({ ...user, preferred_language: local });
+      endpoints.updateProfile({ preferred_language: local }).catch(() => {});
+      return;
+    }
     setLang(stored as AppLang);
-  }, [user]);
+  }, [user, justRegistered]);
 
   const clearJustRegistered = useCallback(() => setJustRegistered(false), []);
 
@@ -237,6 +248,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+}
+
+/** The auth context, or null outside an {@link AuthProvider} (a screen gallery,
+ * an isolated test). For readers that have a sensible signed-out answer. */
+export function useOptionalAuth(): AuthContextValue | null {
+  return useContext(AuthContext);
 }
 
 export function useAuth(): AuthContextValue {

@@ -16,6 +16,7 @@ import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
 import { Button } from "../../shared/ui";
 import { ThemeToggle } from "../../widgets";
+import { AuthLangSwitch } from "./AuthLangSwitch";
 import { useAuth } from "../../shared/auth";
 import { endpoints, type OtpRequestResponse } from "../../shared/api";
 import { AuthHero } from "./AuthHero";
@@ -179,6 +180,7 @@ export default function RegisterScreen() {
   return (
     <div className={styles.page}>
       <ThemeToggle className={styles.themeToggle} />
+      <AuthLangSwitch />
       <AuthHero active="register" />
 
       <div className={styles.content}>

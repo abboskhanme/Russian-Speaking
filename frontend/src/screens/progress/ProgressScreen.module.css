@@ -45,3 +45,12 @@
 .xpText {
   color: var(--primary-ink);
 }
+
+/* Size each tab to its label before sharing out the rest: equal thirds cut
+ * "Achievements" to "Achieveme…" at 390px while "Skills" had room to spare. */
+.page .tabs {
+  grid-auto-columns: minmax(max-content, 1fr);
+}
+.page .tabs > * {
+  padding-inline: var(--s-2);
+}

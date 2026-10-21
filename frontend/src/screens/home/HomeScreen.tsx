@@ -10,7 +10,12 @@ import {
   mockHomeToday,
   mockHomeUser,
 } from "./home.mock";
+import { MotivationPanel } from "./MotivationPanel";
+import type { HomeXp } from "./MotivationPanel";
+import { calendarDaysBetween, formatDate, formatTime } from "../../shared/format/date";
 import styles from "./HomeScreen.module.css";
+
+export type { HomeXp } from "./MotivationPanel";
 
 /* -------------------------------------------------------------------------- */
 /* Public contract                                                            */
@@ -84,6 +89,11 @@ export interface HomeStats {
   /** Practice minutes this week. */
   weekMinutes: number;
   currentStreak: number;
+  /** The last seven days, oldest first and today last — true = practised.
+   * Null/absent (an older API) → the week strip is simply left out. */
+  activeDays?: boolean[] | null;
+  /** Lifetime XP on the level curve; null/absent → no XP bar. */
+  xp?: HomeXp | null;
 }
 
 export interface HomeScreenProps {
@@ -193,6 +203,13 @@ export function HomeScreen({
           </Card>
         )}
 
+        <MotivationPanel
+          stats={stats}
+          goalMinutes={today.goalMinutes}
+          doneSeconds={today.doneSeconds}
+          onRetry={onRetryStats}
+        />
+
         {group ? (
           <TeacherSection
             group={group}
@@ -206,37 +223,6 @@ export function HomeScreen({
           <NoGroupCard onJoin={onJoinGroup} />
         )}
 
-        <section className={styles.section} aria-label={t("home.summary")}>
-          <Text as="h2" variant="label" color="muted" className={styles.sectionLabel}>
-            {t("home.summary")}
-          </Text>
-          <div className={styles.statGrid}>
-            {/* An em dash in every cell, not a zero. The three cells keep their
-                labels so the layout does not jump when the retry succeeds. */}
-            <StatCell value={stats ? (stats.level ?? "—") : "—"} label={t("home.statLevel")} />
-            <StatCell
-              value={stats ? String(stats.weekMinutes) : "—"}
-              unit={stats ? t("home.statWeekUnit") : undefined}
-              label={t("home.statWeek")}
-            />
-            <StatCell
-              value={stats ? String(stats.currentStreak) : "—"}
-              label={t("home.statStreak")}
-            />
-          </div>
-          {!stats && (
-            <div className={styles.statsError} role="status">
-              <Text as="span" variant="body-s" color="muted">
-                {t("home.statsFailed")}
-              </Text>
-              {onRetryStats && (
-                <Button variant="ghost" size="sm" onClick={onRetryStats}>
-                  {t("common.retry")}
-                </Button>
-              )}
-            </div>
-          )}
-        </section>
       </div>
     </Page>
   );
@@ -271,15 +257,21 @@ function TodayCard({
         <Text as="p" variant="label" className={styles.todayKicker}>
           {t("home.todayLabel")}
         </Text>
+        {/* "Today's 5 minutes" names the F3 session, so it is said only when there
+            is one; without it the card is the plain daily-goal card. */}
         <Text as="p" variant="title-l" className={styles.todayTitle}>
-          {t("home.todayTitle", { min: today.goalMinutes })}
+          {daily
+            ? t("home.todayTitle", { count: today.goalMinutes, min: today.goalMinutes })
+            : t("home.practiceTitle")}
         </Text>
         <Text as="p" variant="body" color="muted">
-          {daily?.completed
-            ? t("home.dailyDone")
-            : daily?.hasDrill
-              ? t("home.todayTagline")
-              : t("home.todayTaglineNoDrill")}
+          {!daily
+            ? t("home.practiceTagline", { min: today.goalMinutes })
+            : daily.completed
+              ? t("home.dailyDone")
+              : daily.hasDrill
+                ? t("home.todayTagline")
+                : t("home.todayTaglineNoDrill")}
         </Text>
 
         {/* With F3 on, the session IS today's practice, so the card counts steps
@@ -599,33 +591,6 @@ function NoGroupCard({ onJoin }: { onJoin?: (code: string) => Promise<void> }) {
 /* Summary cell                                                               */
 /* -------------------------------------------------------------------------- */
 
-function StatCell({
-  value,
-  unit,
-  label,
-}: {
-  value: string;
-  unit?: string;
-  label: string;
-}) {
-  return (
-    <Card variant="outline" padding="md" className={styles.statCell}>
-      <span className={styles.statValueRow}>
-        <Text as="span" variant="title-l" numeric className={styles.statValue}>
-          {value}
-        </Text>
-        {unit && (
-          <Text as="span" variant="body-s" color="muted" className={styles.statUnit}>
-            {unit}
-          </Text>
-        )}
-      </span>
-      <Text as="span" variant="body-s" color="muted">
-        {label}
-      </Text>
-    </Card>
-  );
-}
 
 /* -------------------------------------------------------------------------- */
 /* Local helpers + glyphs                                                     */
@@ -650,22 +615,14 @@ function formatWhen(
   const due = new Date(iso);
   if (Number.isNaN(due.getTime())) return "";
   const now = new Date();
-  // 24-hour ("21:00"), matching the mockup — never the runtime's 12-hour default.
-  const time = new Intl.DateTimeFormat(undefined, {
-    hour: "2-digit",
-    minute: "2-digit",
-    hour12: false,
-  }).format(due);
-
-  const startOfDay = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate());
-  const dayDiff = Math.round(
-    (startOfDay(due).getTime() - startOfDay(now).getTime()) / 86_400_000,
-  );
+  // 24-hour ("21:00") from the shared helper — never the runtime's 12-hour default.
+  const time = formatTime(due);
+  const dayDiff = calendarDaysBetween(now, due);
 
   if (due.getTime() < now.getTime() && dayDiff < 0) return t("home.when.overdue");
   if (dayDiff <= 0) return t("home.when.today", { time });
   if (dayDiff === 1) return t("home.when.tomorrow", { time });
-  const date = new Intl.DateTimeFormat(undefined, { day: "2-digit", month: "2-digit" }).format(due);
+  const date = formatDate(due);
   return t("home.when.date", { date, time });
 }
 

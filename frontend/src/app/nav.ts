@@ -159,6 +159,7 @@ export const STUDENT_NAV_ALIASES: Record<string, StudentNavKey> = {
   "/daily": "home",
   "/review": "practice",
   "/drill": "practice",
+  "/task": "practice",
 };
 export const TEACHER_NAV_ALIASES: Record<string, TeacherNavKey> = {
   "/teacher/assign": "classes",

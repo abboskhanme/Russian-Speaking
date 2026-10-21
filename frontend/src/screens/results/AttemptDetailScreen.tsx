@@ -1,9 +1,15 @@
+import { Suspense, lazy, useState } from "react";
 import type { ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import type { AiCorrection, AiFeedback } from "../../app/adapters";
-import { Badge, Button, Card, Text, cx } from "../../shared/ui";
+import { Badge, Button, Card, Mascot, ProgressRing, Text } from "../../shared/ui";
+import { useCountUp } from "../../shared/ui/utils/motion";
+import { scoreBand, scoreTone } from "../../shared/score/scoreBand";
 import { Page } from "../../widgets";
 import type { NavItem } from "../../widgets";
+import { FeedbackLangNote } from "../../widgets/FeedbackLangNote";
+import { formatDateTime } from "../../shared/format/date";
+import { AudioPlayer } from "../../shared/ui/AudioPlayer";
 import styles from "./AttemptDetailScreen.module.css";
 
 /* -------------------------------------------------------------------------- */
@@ -97,11 +103,7 @@ export function AttemptDetailScreen({
       <div className={styles.page}>
         {/* ---- Hero: band · question · level · date ---- */}
         <Card variant="panel" padding="lg" className={styles.hero}>
-          <span className={cx(styles.bandRing, !graded && styles.bandRingMuted)} aria-hidden>
-            <Text as="span" variant="display" numeric className={styles.bandNum}>
-              {graded ? detail.band : "—"}
-            </Text>
-          </span>
+          <ScoreRing band={graded ? detail.band : null} />
           <div className={styles.heroBody}>
             <Text as="h1" variant="title-m" className={styles.heroTitle}>
               {detail.questionTitle ?? t("results.attempt")}
@@ -124,6 +126,10 @@ export function AttemptDetailScreen({
           </div>
         </Card>
 
+        {graded && detail.band !== null && (
+          <MascotReaction band={detail.band} attemptId={detail.id} />
+        )}
+
         {!graded && (
           <Text as="p" variant="body-s" color="muted">
             {t(`results.status.${detail.status}`, { defaultValue: t("results.status.pending") })}
@@ -132,17 +138,11 @@ export function AttemptDetailScreen({
 
         {/* ---- Recorded audio ---- */}
         <Section title={t("results.audio")}>
-          {detail.audioUrl ? (
-            <audio className={styles.audio} controls preload="metadata" src={detail.audioUrl} />
-          ) : detail.audioExpired ? (
-            <Text as="p" variant="body-s" color="muted">
-              {t("results.audioExpired")}
-            </Text>
-          ) : (
-            <Text as="p" variant="body-s" color="muted">
-              {t("results.audioNone")}
-            </Text>
-          )}
+          <AudioPlayer
+            src={detail.audioUrl}
+            label={t("results.audio")}
+            unavailableLabel={detail.audioExpired ? t("results.audioExpired") : t("results.audioNone")}
+          />
         </Section>
 
         {/* ---- Transcript ---- */}
@@ -171,6 +171,7 @@ export function AttemptDetailScreen({
         {detail.feedback && (
           <Section title={t("results.feedback")}>
             <div className={styles.fbBlock}>
+              <FeedbackLangNote lang={detail.feedback.lang} />
               {detail.feedback.summary && (
                 <Text as="p" variant="body" className={styles.prose}>
                   {detail.feedback.summary}
@@ -253,6 +254,60 @@ export function AttemptDetailScreen({
 /* Bits                                                                        */
 /* -------------------------------------------------------------------------- */
 
+/** The confetti is its own lazy chunk: only a great score ever downloads it. */
+const Confetti = lazy(() => import("../../shared/ui/Confetti/Confetti"));
+
+/** The band as a ring that fills while the number counts up (--dur-countup),
+ * coloured by the score's band. Reduced motion: both land at once. */
+function ScoreRing({ band }: { band: number | null }) {
+  const shown = useCountUp(band === null ? null : Math.round(band));
+  return (
+    <ProgressRing
+      value={shown === null ? 0 : shown / 100}
+      size={88}
+      stroke={8}
+      tone={band === null ? "primary" : scoreTone(band)}
+      className={styles.scoreRing}
+    >
+      <Text as="span" variant="title-l" numeric className={styles.bandNum}>
+        {shown === null ? "—" : shown}
+      </Text>
+    </ProgressRing>
+  );
+}
+
+/**
+ * Govo reacts to the score: proud and cheering on a good one, kind and
+ * encouraging on a weak one — never sad, never mocking (docs/03 §3.2). A great
+ * score also gets a short confetti burst, once per attempt per session.
+ */
+function MascotReaction({ band, attemptId }: { band: number; attemptId: string }) {
+  const { t } = useTranslation();
+  const b = scoreBand(band);
+  const [celebrate] = useState(() => {
+    if (b !== "great") return false;
+    const key = `govori-cheered:${attemptId}`;
+    try {
+      if (sessionStorage.getItem(key)) return false;
+      sessionStorage.setItem(key, "1");
+    } catch {
+      /* storage blocked — celebrating once more is harmless */
+    }
+    return true;
+  });
+  return (
+    <div className={styles.reaction} data-band={b}>
+      <Mascot mood={b === "great" || b === "good" ? "proud" : "idle"} size={64} label="" />
+      <p className={styles.bubble}>{t(`motivation.react.${b}`)}</p>
+      {celebrate && (
+        <Suspense fallback={null}>
+          <Confetti />
+        </Suspense>
+      )}
+    </div>
+  );
+}
+
 function Section({ title, children }: { title: string; children: ReactNode }) {
   return (
     <section className={styles.section}>
@@ -283,18 +338,9 @@ function ScoreBar({ label, value }: { label: string; value: number }) {
   );
 }
 
-function formatDate(lang: string, iso: string): string {
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return "";
-  // Numeric parts are unambiguous across locales (the `uz` ICU data has no long
-  // month names, which renders as "M07"); this reads "23.07.2026, 11:15".
-  return new Intl.DateTimeFormat(lang, {
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  }).format(d);
+/** "23.07.2026, 11:15" — the shared helper (24-hour, same in every language). */
+function formatDate(_lang: string, iso: string): string {
+  return formatDateTime(iso);
 }
 
 function BackGlyph() {

@@ -74,10 +74,11 @@
   gap: var(--s-2);
 }
 
+/* The Russian question is the thing to read — Onest at title size, not the
+ * transcript monospace. */
 .questionText {
-  font-family: var(--font-mono);
-  line-height: 1.5;
   color: var(--ink);
+  text-wrap: balance;
 }
 
 .dots {

@@ -20,7 +20,8 @@ const t = i18n.getFixedT("uz", "common");
 
 vi.mock("../../shared/auth", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../../shared/auth")>();
-  return { ...actual, useAuth: () => ({ user: { full_name: "Admin Demo", role: "admin" } }) };
+  const auth = { user: { full_name: "Admin Demo", role: "admin" } };
+  return { ...actual, useAuth: () => auth, useOptionalAuth: () => auth };
 });
 
 vi.mock("../../shared/api", async (importOriginal) => {

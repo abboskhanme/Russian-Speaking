@@ -3,6 +3,7 @@
  * line keeps a crisp 2px via `vector-effect: non-scaling-stroke`. */
 
 .wrap {
+  position: relative;
   width: 100%;
   height: 88px;
 }
@@ -29,11 +30,16 @@
   vector-effect: non-scaling-stroke;
 }
 
+/* Round at any width: a fixed-size box centred on the last point. */
 .dot {
-  fill: var(--info);
-  stroke: var(--surface);
-  stroke-width: 1.2;
-  vector-effect: non-scaling-stroke;
+  position: absolute;
+  width: 12px;
+  height: 12px;
+  border-radius: var(--r-pill);
+  background: var(--info);
+  border: 2px solid var(--surface);
+  transform: translate(-50%, -50%);
+  pointer-events: none;
 }
 
 /* Empty state (0 points): a faint dashed mid-line so the card reads as a chart

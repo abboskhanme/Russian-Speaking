@@ -24,7 +24,7 @@ import styles from "./ProgressScreen.module.css";
 export type ProgressTabKey = "skills" | "achievements" | "leaderboard";
 
 export interface ProgressScreenProps {
-  /** Lifetime XP — the headline "★ {xp} XP" badge in the header (all tabs). */
+  /** Lifetime XP — the headline "★ {xp} XP" badge above the tabs (all tabs). */
   xp: number;
   /** Ko'nikmalar tab data. */
   skills: SkillsTabProps;
@@ -56,9 +56,8 @@ export interface ProgressScreenProps {
  * frame around its three inner tabs: Ko'nikmalar (skills), Yutuqlar
  * (achievements) and Reyting (leaderboard).
  *
- * The header carries the page title plus a "★ {xp} XP" badge in place of the
- * usual notifications bell — the badge is the mockup's `headerEnd` on this screen
- * only. Below it, a segmented `Tabs` control drives a single labelled tabpanel;
+ * The page opens with a "★ {xp} XP" badge (in the content: the top bar's right
+ * side is the layout's bell + avatar, the same on every page). Below it, a segmented `Tabs` control drives a single labelled tabpanel;
  * this file owns only the frame, the tab semantics and the prop distribution.
  *
  * Presentational and prop-driven: it fetches nothing and owns no server state.
@@ -106,6 +105,7 @@ export function ProgressScreen({
           activeKey={current}
           onChange={selectTab}
           aria-label={t("nav.progress")}
+          className={styles.tabs}
         />
 
         {/* One panel node reused across tabs: the tab strip is the only thing
@@ -128,7 +128,7 @@ export function ProgressScreen({
 }
 
 /* -------------------------------------------------------------------------- */
-/* XP badge — the header trailing slot on this screen                         */
+/* XP badge — the first line of the page content                             */
 /* -------------------------------------------------------------------------- */
 
 /** "★ {xp} XP" pill — primary-tint background, `--primary` text, a star glyph.

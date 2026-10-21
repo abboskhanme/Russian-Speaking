@@ -19,7 +19,18 @@
  * scenario's CEFR band. Only the UI chrome around it goes through i18n
  * (`suhbat.*`).
  */
+import type { TFunction } from "i18next";
 import type { RoleplayScenario } from "./roleplayApi";
+
+/**
+ * The scenario goal line in the interface language. The server row only carries
+ * an Uzbek goal (`goal_uz`), which an English or Russian UI used to show as-is
+ * (UI audit, 20-). Known slugs are translated under `suhbat.goals.*`; a scenario
+ * the bundle has never seen keeps the server line rather than showing a raw key.
+ */
+export function scenarioGoal(s: Pick<Scenario, "id" | "goalUz">, t: TFunction): string {
+  return t(`suhbat.goals.${s.id}`, { defaultValue: s.goalUz });
+}
 
 /* -------------------------------------------------------------------------- */
 /* Public contract — the SHAPE the AI Suhbat hub grid consumes.               */
@@ -276,25 +287,4 @@ export function getScenario(id: string | undefined): ScenarioScript | undefined 
   if (!id) return undefined;
   if (id === FREE_SCENARIO_ID) return FREE_SCENARIO;
   return SCENARIOS.find((s) => s.id === id);
-}
-
-/** Fallback icon per tone, so an unknown id still renders a coherent tile glyph. */
-const TONE_ICON: Record<Scenario["tone"], string> = {
-  peach: "💬",
-  blue: "💬",
-  green: "💬",
-  amber: "💬",
-};
-
-/**
- * Decorative emoji for a scenario — the server's own glyph when it sent one, else
- * the bundled scenario's, else a generic speech mark. The server wins because a
- * scenario an admin added after this bundle shipped has no entry here at all, and
- * a new tile with no icon reads as a broken one.
- */
-export function scenarioIcon(id: string, tone?: Scenario["tone"], icon?: string): string {
-  if (icon) return icon;
-  const found = SCENARIOS.find((s) => s.id === id);
-  if (found) return found.icon;
-  return tone ? TONE_ICON[tone] : "💬";
 }

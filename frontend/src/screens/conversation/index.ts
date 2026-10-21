@@ -22,7 +22,6 @@ export type { ConversationSummaryProps } from "./ConversationSummary";
 export {
   SCENARIOS,
   getScenario,
-  scenarioIcon,
   toScenario,
 } from "./scenarios";
 export type { Scenario, ScenarioScript, ScriptedTurn } from "./scenarios";
@@ -45,3 +44,4 @@ export type {
 } from "./roleplayApi";
 
 export { mockScenario, mockMessages, mockSummary } from "./conversation.mock";
+export { ScenarioIcon } from "./ScenarioIcon";

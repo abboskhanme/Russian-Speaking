@@ -11,7 +11,10 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { act, renderHook } from "@testing-library/react";
 import type { ReactNode } from "react";
 import type { MeResponse } from "../api";
+import { getLang, setLang } from "../i18n";
 import { AuthProvider, isFreshAccount, useAuth } from "./AuthContext";
+
+const updateProfile = vi.fn((_patch: unknown) => Promise.resolve({}));
 
 vi.mock("../api", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../api")>();
@@ -21,6 +24,7 @@ vi.mock("../api", async (importOriginal) => {
       ...actual.endpoints,
       otpVerify: () =>
         Promise.resolve({ access_token: "a", refresh_token: "r", token_type: "bearer" }),
+      updateProfile: (patch: unknown) => updateProfile(patch),
     },
   };
 });
@@ -50,6 +54,35 @@ const wrapper = ({ children }: { children: ReactNode }) => <AuthProvider>{childr
 
 afterEach(() => {
   localStorage.clear();
+  updateProfile.mockClear();
+  setLang("uz");
+});
+
+describe("the language picked before signing in", () => {
+  it("is kept and saved to a brand-new account instead of the server default", async () => {
+    setLang("ru"); // the switcher on the register page
+    const { result } = renderHook(() => useAuth(), { wrapper });
+    await act(async () => {
+      await result.current.verifyOtp("+998901234567", "123456", "Aziz Karimov", { hydrate: false });
+    });
+    act(() => result.current.hydrateUser(me(new Date().toISOString())));
+    expect(getLang()).toBe("ru");
+    expect(updateProfile).toHaveBeenCalledWith({ preferred_language: "ru" });
+    // Clearing the signal (placement taken) must not snap back to the old "uz".
+    act(() => result.current.clearJustRegistered());
+    expect(getLang()).toBe("ru");
+  });
+
+  it("gives way to an existing account's saved language", async () => {
+    setLang("ru");
+    const { result } = renderHook(() => useAuth(), { wrapper });
+    await act(async () => {
+      await result.current.verifyOtp("+998901234567", "123456", "Aziz Karimov", { hydrate: false });
+    });
+    act(() => result.current.hydrateUser(me("2025-01-01T00:00:00Z")));
+    expect(getLang()).toBe("uz");
+    expect(updateProfile).not.toHaveBeenCalled();
+  });
 });
 
 describe("the register form's deferred flow", () => {

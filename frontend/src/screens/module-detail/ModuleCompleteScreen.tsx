@@ -12,6 +12,7 @@
  * task bands and passes the raw `spentSec`; this screen only formats and lays out.
  * Every colour / space / radius value is a token; full-width; copy via `mashq.*`.
  */
+import { Suspense, lazy } from "react";
 import { useTranslation } from "react-i18next";
 import type { TFunction } from "i18next";
 import { Button, Card, Mascot, StatTile, Text } from "../../shared/ui";
@@ -19,6 +20,9 @@ import { Page } from "../../widgets";
 import type { NavItem } from "../../widgets";
 import { mockModuleComplete } from "./module-detail.mock";
 import styles from "./ModuleCompleteScreen.module.css";
+
+/** Lazy: only a finished module ever downloads the confetti. */
+const Confetti = lazy(() => import("../../shared/ui/Confetti/Confetti"));
 
 /* -------------------------------------------------------------------------- */
 /* Public contract                                                            */
@@ -82,6 +86,11 @@ export function ModuleCompleteScreen({
       <div className={styles.page}>
         {/* ---- Celebration ---- */}
         <header className={styles.hero}>
+          {/* A finished module is THE moment: one short burst (nothing at all
+              under reduced motion — the Confetti component checks). */}
+          <Suspense fallback={null}>
+            <Confetti />
+          </Suspense>
           <Mascot mood="proud" size={104} label="Govo" />
           <Text as="h1" variant="title-l" align="center" className={styles.title}>
             {t("mashq.complete.title")} <span aria-hidden>🎉</span>

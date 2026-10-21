@@ -71,6 +71,19 @@
   background: var(--primary-tint);
   color: var(--primary-ink);
 }
+/* The dot is coloured by the score's band (shared/score/scoreBand). */
+.bandSuccess {
+  background: var(--success-tint);
+  color: var(--success-ink);
+}
+.bandWarn {
+  background: var(--warn-tint);
+  color: var(--warn-ink);
+}
+.bandDanger {
+  background: var(--danger-tint);
+  color: var(--danger);
+}
 /* No score yet (grading) or never (failed) — a dash on a neutral dot. */
 .bandDotMuted {
   background: var(--surface-3);

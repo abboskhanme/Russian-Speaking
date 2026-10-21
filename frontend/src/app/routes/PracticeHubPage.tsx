@@ -5,9 +5,10 @@
  *
  * Modullar comes from `GET /api/blocks/student` (the student's modules with
  * per-module progress); Topshiriqlar from `GET /api/assignments/mine` (one-off
- * teacher assignments). A third, non-load-bearing call to `GET /api/review/drill`
- * decides whether the «Xatolar ustida» entry appears — it 404s while the drill
- * flag is off, and that rejection is the whole flag check on this screen. The
+ * teacher assignments). Two non-load-bearing calls feed the drill entries —
+ * `GET /api/review/drill` («Xatolar ustida») and `GET /api/drills/pairs`
+ * (Tovushlar mashqi) — and each is made only while its flag is on
+ * (`useFeatures`), so a switched-off drill costs no request and no 404. The
  * fetches are fault-tolerant like ProfilePage: a failure in one section degrades
  * it to an empty state rather than blanking the page; only a total outage of the
  * two real sections is a hard error.
@@ -24,6 +25,7 @@ import type {
   PracticeModule,
 } from "../../screens/practice-hub";
 import { endpoints } from "../../shared/api";
+import { useFeatures } from "../../shared/auth";
 import type { AssignmentResponse, StudentModuleResponse } from "../../shared/api";
 import { PageError, PageLoading } from "../PageState";
 import { useNavHandler } from "../nav";
@@ -63,6 +65,7 @@ function mapAssignment(a: AssignmentResponse): PracticeHubScreenProps["assignmen
 export default function PracticeHubPage() {
   const onNavigate = useNavHandler();
   const navigate = useNavigate();
+  const { review_drill: reviewOn, phoneme_drill: soundsOn } = useFeatures();
 
   const [modules, setModules] = useState<PracticeModule[]>([]);
   const [assignments, setAssignments] = useState<PracticeHubScreenProps["assignments"]>([]);
@@ -92,15 +95,15 @@ export default function PracticeHubPage() {
     setLoading(true);
     setError(false);
 
-    // `allSettled`, not `all`: one dead section must not blank the page. The
-    // drill probe rides along on the same rule and rejects with a 404 whenever
-    // `review_drill_enabled` is off — which is precisely how a flagged-off
-    // feature should read here: its entry simply never appears.
+    // `allSettled`, not `all`: one dead section must not blank the page. A
+    // switched-off drill is never asked for; its entry simply never appears.
+    const off = Promise.reject(new Error("feature off"));
+    off.catch(() => undefined);
     Promise.allSettled([
       endpoints.studentBlocks(),
       endpoints.assignmentsMine(),
-      endpoints.reviewDrill(),
-      endpoints.drillPairs(),
+      reviewOn ? endpoints.reviewDrill() : off,
+      soundsOn ? endpoints.drillPairs() : off,
     ])
       .then(([b, a, r, d]) => {
         if (!alive) return;
@@ -130,7 +133,7 @@ export default function PracticeHubPage() {
     return () => {
       alive = false;
     };
-  }, [reloadKey]);
+  }, [reloadKey, reviewOn, soundsOn]);
 
   if (error) return <PageError onRetry={() => setReloadKey((k) => k + 1)} />;
   if (loading) return <PageLoading />;
@@ -141,7 +144,7 @@ export default function PracticeHubPage() {
       onOpenModule={(id) => navigate(`/practice/module/${id}`)}
       assignments={assignments}
       onStartTask={(taskId) => navigate(`/task?task=${taskId}`)}
-      reviewDrill={{ dueCount: reviewDue, onStart: () => navigate("/review") }}
+      reviewDrill={reviewOn ? { dueCount: reviewDue, onStart: () => navigate("/review") } : null}
       soundsDrill={soundsDrill ? { onStart: () => navigate("/drill") } : null}
       activeTab={activeTab}
       onChangeTab={setActiveTab}

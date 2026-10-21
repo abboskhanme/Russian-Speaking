@@ -225,3 +225,38 @@
     height: 46px;
   }
 }
+
+/* ---- Cover state badge (sits on the cover's corner) ---- */
+.badge {
+  display: grid;
+  place-items: center;
+  min-width: 26px;
+  height: 26px;
+  padding: 0 var(--s-1);
+  border-radius: var(--r-pill);
+  border: 2px solid var(--surface);
+  box-shadow: var(--e-1);
+}
+.badge svg {
+  width: 14px;
+  height: 14px;
+}
+.badgePct {
+  font-size: var(--t-label-size);
+  line-height: 1;
+  font-weight: var(--fw-black);
+  font-variant-numeric: tabular-nums;
+}
+.chipPlay {
+  background: var(--primary);
+  color: var(--primary-on);
+}
+.chipInfo.badge {
+  background: var(--surface);
+  color: var(--info);
+}
+
+/* Tap targets ≥ 44px on touch (filter chips were ~34px). */
+.filterPill {
+  min-height: 44px;
+}

@@ -44,7 +44,7 @@ describe("AiBudgetCard", () => {
     expect(today).toHaveAttribute("data-tone", "warn");
     expect(screen.getByRole("meter", { name: t("admin.aiSpentMonth") })).toHaveAttribute("data-tone", "ok");
     expect(screen.getByText("$30.50")).toBeInTheDocument();
-    expect(screen.getByText(t("admin.aiCalls", { calls: 120, failed: 3 }))).toBeInTheDocument();
+    expect(screen.getByText(t("admin.aiCalls", { count: 120, calls: 120, failed: 3 }))).toBeInTheDocument();
     expect(screen.getByText(t("admin.aiBudgetState.open"))).toBeInTheDocument();
   });
 

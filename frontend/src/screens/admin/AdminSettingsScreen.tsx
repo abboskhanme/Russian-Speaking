@@ -9,6 +9,7 @@ import { adminErrorBody, isNetworkError } from "./adminErrors";
 import { mockAdminSettings } from "./admin.mock";
 import { AiBudgetCard } from "./AiBudgetCard";
 import type { AdminAiBudget, AdminAiBudgetPatch } from "./AiBudgetCard";
+import { modelNote } from "./modelNote";
 import styles from "./AdminSettingsScreen.module.css";
 
 /** The three independently saved sections. */
@@ -1362,7 +1363,7 @@ function ModelField({
                 onClick={() => onChange(m.id)}
               >
                 <span className={styles.chipLabel}>{modelLabel(m.label, t)}</span>
-                {m.note && <span className={styles.chipNote}>{m.note}</span>}
+                {m.note && <span className={styles.chipNote}>{modelNote(m.id, m.note, t)}</span>}
               </button>
             ))}
           </div>

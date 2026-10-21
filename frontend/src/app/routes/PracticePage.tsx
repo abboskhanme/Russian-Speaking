@@ -27,6 +27,7 @@ import { useTranslation } from "react-i18next";
 import type { TFunction } from "i18next";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { PracticeScreen, PracticeStateScreen } from "../../screens/practice";
+import RoleLayout from "./RoleLayout";
 import type {
   PracticeFeedback,
   PracticePhase,
@@ -192,6 +193,8 @@ export default function PracticePage() {
   const [feedback, setFeedback] = useState<PracticeFeedback | null>(null);
   const [failureMessage, setFailureMessage] = useState<string | undefined>(undefined);
   const [submissionId, setSubmissionId] = useState<string | null>(null);
+  /** Where a submitted take is: still uploading, or uploaded and being graded. */
+  const [submitStage, setSubmitStage] = useState<"uploading" | "grading">("grading");
   /** Whether another open task exists to skip to — the skip button hides when not. */
   const [canSkip, setCanSkip] = useState(false);
   const [toast, setToast] = useState<{ tone: "success" | "danger" | "info"; msg: string } | null>(null);
@@ -304,6 +307,7 @@ export default function PracticePage() {
     async (audio: Blob) => {
       if (!target) return;
       setPhase("reviewing"); // Govo "thinking" + grading panel
+      setSubmitStage("uploading");
       setFeedback(null);
       setFailureMessage(undefined);
 
@@ -333,6 +337,7 @@ export default function PracticePage() {
       }
 
       if (!alive.current) return;
+      setSubmitStage("grading");
       setSubmissionId(sub.id);
       const outcome = await pollUntilDone(sub.id);
       if (!alive.current || outcome.kind === "cancelled") return;
@@ -392,42 +397,62 @@ export default function PracticePage() {
 
   const backToDaily = useCallback(() => navigate("/daily"), [navigate]);
 
+  // The focus flow's close (×): back where the student came from — the daily
+  // session, the previous in-app page, or (opened from a link) the Mashq hub.
+  const onClose = useCallback(() => {
+    if (fromDaily) navigate("/daily");
+    else if (((window.history.state as { idx?: number } | null)?.idx ?? 0) > 0) navigate(-1);
+    else navigate("/practice");
+  }, [fromDaily, navigate]);
+
   if (error) return <PageError onRetry={() => void load(taskParam)} />;
   if (loading && !target) return <PageLoading />;
 
   if (blocked === "sequence" && moduleNextId) {
     return (
-      <PracticeStateScreen
-        title={t("practice.sequence.title")}
-        body={t("practice.sequence.body")}
-        actionLabel={t("practice.sequence.cta")}
-        onAction={() =>
-          setSearchParams(fromDaily ? { task: moduleNextId, from: "daily" } : { task: moduleNextId })
-        }
-        onNavigate={onNavigate}
-      />
+      // /task is outside the student layout (the recorder owns the screen); these
+      // "nothing to answer" states are ordinary pages and get the frame back.
+      <RoleLayout role="student">
+        <PracticeStateScreen
+          title={t("practice.sequence.title")}
+          body={t("practice.sequence.body")}
+          actionLabel={t("practice.sequence.cta")}
+          onAction={() =>
+            setSearchParams(fromDaily ? { task: moduleNextId, from: "daily" } : { task: moduleNextId })
+          }
+          onNavigate={onNavigate}
+        />
+      </RoleLayout>
     );
   }
   if (blocked) {
     return (
-      <PracticeStateScreen
-        title={t(`practice.${blocked}.title`)}
-        body={t(`practice.${blocked}.body`)}
-        actionLabel={fromDaily ? t("practice.backToDaily") : t("practice.unavailable.cta")}
-        onAction={() => navigate(fromDaily ? "/daily" : "/practice")}
-        onNavigate={onNavigate}
-      />
+      // /task is outside the student layout (the recorder owns the screen); these
+      // "nothing to answer" states are ordinary pages and get the frame back.
+      <RoleLayout role="student">
+        <PracticeStateScreen
+          title={t(`practice.${blocked}.title`)}
+          body={t(`practice.${blocked}.body`)}
+          actionLabel={fromDaily ? t("practice.backToDaily") : t("practice.unavailable.cta")}
+          onAction={() => navigate(fromDaily ? "/daily" : "/practice")}
+          onNavigate={onNavigate}
+        />
+      </RoleLayout>
     );
   }
   if (empty || !target) {
     return (
-      <PracticeStateScreen
-        title={t("practice.empty.title")}
-        body={t("practice.emptyBody")}
-        actionLabel={t("practice.empty.cta")}
-        onAction={() => navigate("/")}
-        onNavigate={onNavigate}
-      />
+      // /task is outside the student layout (the recorder owns the screen); these
+      // "nothing to answer" states are ordinary pages and get the frame back.
+      <RoleLayout role="student">
+        <PracticeStateScreen
+          title={t("practice.empty.title")}
+          body={t("practice.emptyBody")}
+          actionLabel={t("practice.empty.cta")}
+          onAction={() => navigate("/")}
+          onNavigate={onNavigate}
+        />
+      </RoleLayout>
     );
   }
 
@@ -447,10 +472,15 @@ export default function PracticePage() {
         onOpenResults={() => navigate("/results")}
         onOpenPremium={() => navigate("/premium", { state: { reason: "locked" } })}
         onBackToDaily={fromDaily ? backToDaily : undefined}
-        activeNavKey="practice"
-        onNavigate={onNavigate}
+        submitStage={submitStage}
+        onClose={onClose}
       />
-      {toast && <Toast tone={toast.tone}>{toast.msg}</Toast>}
+      {/* Above the bottom action bar, not behind it. */}
+      {toast && (
+        <Toast tone={toast.tone} bottom="calc(168px + env(safe-area-inset-bottom))">
+          {toast.msg}
+        </Toast>
+      )}
     </>
   );
 }

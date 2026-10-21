@@ -1,6 +1,7 @@
 import { useCallback, useId, useRef, useState, type ChangeEvent } from "react";
 import { useTranslation } from "react-i18next";
 import { isApiError } from "../../shared/api";
+import { formatPhone } from "../../shared/format/phone";
 import { Badge, Card, Spinner, Tabs, Text, VisuallyHidden } from "../../shared/ui";
 import { Page } from "../../widgets";
 import type { NavItem, ThemeMode } from "../../widgets";
@@ -451,7 +452,7 @@ export function IdentityCard({
 
         {user.phone && (
           <Text as="p" variant="body" color="muted" truncate>
-            {user.phone}
+            {formatPhone(user.phone)}
           </Text>
         )}
 

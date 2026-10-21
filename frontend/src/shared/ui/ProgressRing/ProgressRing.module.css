@@ -1,0 +1,32 @@
+.root {
+  position: relative;
+  display: inline-flex;
+  flex: none;
+}
+.svg {
+  display: block;
+  /* Start the arc at 12 o'clock. */
+  transform: rotate(-90deg);
+}
+.track {
+  fill: none;
+  stroke: var(--line);
+}
+.arc {
+  fill: none;
+  stroke-linecap: round;
+  transition: stroke-dashoffset var(--m-slow);
+}
+.primary { stroke: var(--primary); }
+.success { stroke: var(--success); }
+.warn { stroke: var(--warn); }
+.danger { stroke: var(--danger); }
+.info { stroke: var(--info); }
+.center {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+}

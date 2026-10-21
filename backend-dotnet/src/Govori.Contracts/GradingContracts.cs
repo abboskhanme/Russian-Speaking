@@ -102,6 +102,11 @@ public static class SubmissionErrorCodes
     /// and the attempt does not count against an assignment's attempt budget (it is failed).</summary>
     public const string AiUnavailable = "ai_unavailable";
 
+    /// <summary>The recording was transcribed but contained no words (silence, a muted or broken
+    /// microphone). Nothing is sent to the grader; checking the microphone and recording again is the
+    /// next step. Like every failure, it does not count against an assignment's attempt budget.</summary>
+    public const string NoSpeech = "no_speech";
+
     /// <summary>Anything else: a database write, an unexpected bug. Not the student's doing.</summary>
     public const string Internal = "internal";
 }

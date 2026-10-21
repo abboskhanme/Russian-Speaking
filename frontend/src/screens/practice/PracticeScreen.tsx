@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import {
@@ -7,14 +7,11 @@ import {
   Card,
   Mascot,
   Recorder,
-  Skeleton,
   Spinner,
   Text,
   cx,
 } from "../../shared/ui";
 import type { MascotMood, TextColor } from "../../shared/ui";
-import { AppShell, Brand, NotificationsBell, studentNavItems } from "../../widgets";
-import type { NavItem } from "../../widgets";
 import { mockFeedback, mockProgress, mockTask } from "./practice.mock";
 import styles from "./PracticeScreen.module.css";
 
@@ -169,9 +166,13 @@ export interface PracticeScreenProps {
   onBackToDaily?: () => void;
   /** Why grading failed, already localized. Shown in the `failed` phase. */
   failureMessage?: string;
-  /** Active nav key (defaults to "practice"). */
-  activeNavKey?: string;
-  onNavigate?: (key: string, item: NavItem) => void;
+  /**
+   * Where `reviewing` is: the take still uploading, or uploaded and being graded.
+   * Drives the two-step progress in the grading panel. Default "grading".
+   */
+  submitStage?: "uploading" | "grading";
+  /** The top bar's close (×) — leave the task flow. Hidden when absent. */
+  onClose?: () => void;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -206,10 +207,14 @@ export function PracticeScreen({
   onOpenPremium,
   onBackToDaily,
   failureMessage,
-  activeNavKey = "practice",
-  onNavigate,
+  submitStage = "grading",
+  onClose,
 }: PracticeScreenProps) {
   const { t } = useTranslation();
+  // The bottom action bar. A state-backed ref, so the Recorder re-renders and
+  // portals its controls in as soon as the element exists.
+  const [dockEl, setDockEl] = useState<HTMLElement | null>(null);
+  const recorderLabels = useMemo(() => ({ accept: t("practice.focusSend") }), [t]);
   const controlled = phaseProp !== undefined;
   const [internalPhase, setInternalPhase] = useState<PracticePhase>("idle");
   const phase = controlled ? phaseProp : internalPhase;
@@ -254,32 +259,42 @@ export function PracticeScreen({
   const mood = MOOD_BY_PHASE[phase];
   const answering = phase === "idle" || phase === "recording";
 
+  const skipButton = onSkip ? (
+    <Button variant="ghost" onClick={onSkip}>
+      {t("practice.skipCta")}
+    </Button>
+  ) : null;
+
+  /* A focused, full-screen flow (like a lesson in Duolingo / Speak): no app nav,
+   * no sidebar — a minimal top bar (close + progress) over a scrolling task, and
+   * a bottom action bar that holds the ONE mic button and Skip, always on screen
+   * (safe-area aware). The route renders this without AppShell on purpose. */
   return (
-    <AppShell
-      brand={<Brand />}
-      nav={{
-        items: studentNavItems(t),
-        activeKey: activeNavKey,
-        onNavigate,
-        label: t("nav.landmark"),
-      }}
-      headerStart={
-        <Text as="h1" variant="title-m">
+    <div className={styles.focus}>
+      <header className={styles.topBar}>
+        {onClose && (
+          <button
+            type="button"
+            className={styles.closeBtn}
+            onClick={onClose}
+            aria-label={t("practice.focusClose")}
+          >
+            <CloseGlyph />
+          </button>
+        )}
+        <Text as="h1" variant="title-m" className={styles.srOnly}>
           {t("nav.practice")}
         </Text>
-      }
-      headerEnd={<NotificationsBell />}
-    >
-      <div className={styles.page}>
-        <div className={styles.head}>
-          <ProgressPips current={progress.current} total={progress.total} />
-          {attemptsLeft !== undefined && (
-            <Badge variant={attemptsLeft > 0 ? "neutral" : "warn"}>
-              {t("practice.attemptsLeft", { count: attemptsLeft })}
-            </Badge>
-          )}
-        </div>
+        <ProgressBar current={progress.current} total={progress.total} />
+        {attemptsLeft !== undefined && (
+          <Badge variant={attemptsLeft > 0 ? "neutral" : "warn"}>
+            {t("practice.attemptsLeft", { count: attemptsLeft })}
+          </Badge>
+        )}
+      </header>
 
+      <main className={styles.scroll}>
+      <div className={styles.page}>
         <TaskCard task={task} onPlayReference={onPlayReference} />
 
         <section className={styles.stage} aria-live="polite">
@@ -293,11 +308,15 @@ export function PracticeScreen({
                 onCancel={() => setPhase("idle")}
                 maxDurationMs={task.maxDurationMs}
                 prepMs={task.prepMs}
+                mascotSize={104}
+                labels={recorderLabels}
+                dockTarget={dockEl}
+                dockAside={skipButton}
               />
             )
           )}
 
-          {phase === "reviewing" && <GradingPanel mood={mood} />}
+          {phase === "reviewing" && <GradingPanel mood={mood} stage={submitStage} />}
 
           {phase === "submitted" &&
             (feedback ? (
@@ -350,16 +369,25 @@ export function PracticeScreen({
             />
           )}
         </section>
-
-        {(answering || task.premiumLocked) && onSkip && (
-          <div className={styles.answerActions}>
-            <Button variant="ghost" onClick={onSkip}>
-              {t("practice.skipCta")}
-            </Button>
-          </div>
-        )}
       </div>
-    </AppShell>
+      </main>
+
+      {/* The bottom action bar. While answering, the Recorder portals its controls
+          in here; a locked task only offers Skip. Empty = hidden (CSS :empty). */}
+      <footer ref={setDockEl} className={styles.dock}>
+        {task.premiumLocked && skipButton && (
+          <div className={styles.dockSolo}>{skipButton}</div>
+        )}
+      </footer>
+    </div>
+  );
+}
+
+function CloseGlyph() {
+  return (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden>
+      <path d="M6 6l12 12M18 6L6 18" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" />
+    </svg>
   );
 }
 
@@ -467,7 +495,7 @@ function TaskCard({
 
       {task.hasReferenceAudio && onPlayReference && (
         <div>
-          <Button variant="secondary" size="sm" onClick={onPlayReference}>
+          <Button variant="secondary" size="md" onClick={onPlayReference}>
             <PlayGlyph />
             {t("practice.listenModel")}
           </Button>
@@ -481,24 +509,25 @@ function TaskCard({
 /* Progress                                                                   */
 /* -------------------------------------------------------------------------- */
 
-function ProgressPips({ current, total }: PracticeProgress) {
+/** Progress within the module: one segment per task, the current one half-lit. */
+function ProgressBar({ current, total }: PracticeProgress) {
   const { t } = useTranslation();
-  const pips = Array.from({ length: Math.max(total, 0) }, (_, i) => i);
+  const segs = Array.from({ length: Math.max(total, 0) }, (_, i) => i);
   return (
     <div className={styles.progress}>
-      <div className={styles.pips} aria-hidden>
-        {pips.map((i) => (
+      <div className={styles.segments} aria-hidden>
+        {segs.map((i) => (
           <span
             key={i}
             className={cx(
-              styles.pip,
-              i < current - 1 && styles.pipDone,
-              i === current - 1 && styles.pipCurrent,
+              styles.segment,
+              i < current - 1 && styles.segmentDone,
+              i === current - 1 && styles.segmentCurrent,
             )}
           />
         ))}
       </div>
-      <Text as="span" variant="body-s" color="muted" weight="semibold" numeric>
+      <Text as="span" variant="body-s" color="muted" weight="bold" numeric className={styles.counter}>
         {t("practice.taskCounter", { current, total })}
       </Text>
     </div>
@@ -509,25 +538,62 @@ function ProgressPips({ current, total }: PracticeProgress) {
 /* Grading placeholder (docs/04 §4.6 — never an empty spinner)                */
 /* -------------------------------------------------------------------------- */
 
-function GradingPanel({ mood }: { mood: MascotMood }) {
+type StepState = "done" | "active" | "todo";
+
+/** Two honest steps — the upload, then the grading — each with its own state. */
+function GradingPanel({
+  mood,
+  stage = "grading",
+}: {
+  mood: MascotMood;
+  stage?: "uploading" | "grading";
+}) {
   const { t } = useTranslation();
+  const uploading = stage === "uploading";
+  const steps: Array<{ label: string; state: StepState }> = [
+    {
+      label: uploading ? t("practice.focusUploading") : t("practice.focusUploaded"),
+      state: uploading ? "active" : "done",
+    },
+    { label: t("practice.checkingPron"), state: uploading ? "todo" : "active" },
+  ];
   return (
     <div className={styles.gradeStage} role="status">
-      <Mascot mood={mood} size={140} label={t("practice.gradingMascotLabel")} />
+      <Mascot mood={mood} size={128} label={t("practice.gradingMascotLabel")} />
       <Text variant="title-s" align="center">
         {t("practice.grading")}
       </Text>
-      <div className={styles.gradeSteps}>
-        <div className={styles.gradeStepRow}>
-          <Spinner size="sm" label="" />
-          <Text as="span" variant="body-s" color="ink-soft">
-            {t("practice.checkingPron")}
-          </Text>
-        </div>
-        <Skeleton width={220} height={12} />
-        <Skeleton width={180} height={12} />
+      <ol className={styles.gradeSteps}>
+        {steps.map((s) => (
+          <li key={s.label} className={cx(styles.gradeStepRow, s.state === "todo" && styles.stepTodo)}>
+            <span className={styles.stepIcon} aria-hidden>
+              {s.state === "active" ? (
+                <Spinner size="sm" label="" />
+              ) : s.state === "done" ? (
+                <CheckGlyph />
+              ) : (
+                <span className={styles.stepDot} />
+              )}
+            </span>
+            <Text as="span" variant="body" color={s.state === "todo" ? "muted" : "ink-soft"}>
+              {s.label}
+            </Text>
+          </li>
+        ))}
+      </ol>
+      <div className={styles.indeterminate} aria-hidden>
+        <span />
       </div>
     </div>
+  );
+}
+
+function CheckGlyph() {
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden>
+      <circle cx="12" cy="12" r="10" fill="var(--success)" />
+      <path d="M7.5 12.5l3 3 6-6.5" stroke="var(--surface)" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
   );
 }
 
@@ -708,13 +774,13 @@ function FeedbackPanel({
           {(onPlayAnswer || onPlayReference) && (
             <div className={styles.audioRow}>
               {onPlayAnswer && (
-                <Button variant="ghost" size="sm" onClick={onPlayAnswer}>
+                <Button variant="ghost" size="md" onClick={onPlayAnswer}>
                   <PlayGlyph />
                   {t("practice.listenYourAudio")}
                 </Button>
               )}
               {onPlayReference && (
-                <Button variant="ghost" size="sm" onClick={onPlayReference}>
+                <Button variant="ghost" size="md" onClick={onPlayReference}>
                   <PlayGlyph />
                   {t("practice.modelAnswer")}
                 </Button>
@@ -919,7 +985,6 @@ export default function PracticeScreenDemo() {
       onSkip={reset}
       onPlayReference={() => undefined}
       onPlayAnswer={() => undefined}
-      onNavigate={() => undefined}
     />
   );
 }

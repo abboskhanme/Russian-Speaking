@@ -1,9 +1,11 @@
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import type { TFunction } from "i18next";
-import { Button, Card, Text, VisuallyHidden, cx } from "../../shared/ui";
+import { Button, Card, EmptyState, Text, VisuallyHidden, cx } from "../../shared/ui";
+import { scoreTone } from "../../shared/score/scoreBand";
 import { Page } from "../../widgets";
 import type { NavItem } from "../../widgets";
+import { formatRelativeDay } from "../../shared/format/date";
 import styles from "./AllResultsScreen.module.css";
 
 /* -------------------------------------------------------------------------- */
@@ -37,6 +39,8 @@ export interface AllResultsScreenProps {
   onOpenResult: (id: string) => void;
   /** Header back → returns to the Profile. */
   onBack: () => void;
+  /** The empty state's one action ("start practising"). */
+  onStartPractice?: () => void;
   activeNavKey?: string;
   onNavigate?: (key: string, item: NavItem) => void;
 }
@@ -61,7 +65,7 @@ export function AllResultsScreen({
   results,
   onOpenResult,
   onBack,
-}: AllResultsScreenProps) {
+  onStartPractice,}: AllResultsScreenProps) {
   const { t } = useTranslation();
   const now = useMemo(() => new Date(), []);
 
@@ -90,9 +94,13 @@ export function AllResultsScreen({
         </header>
 
         {results.length === 0 ? (
-          <Text as="p" variant="body-s" color="muted">
-            {t("profile.results.empty")}
-          </Text>
+          <EmptyState
+            title={t("motivation.empty.resultsTitle")}
+            body={t("motivation.empty.resultsBody")}
+            actionLabel={t("motivation.empty.startPractice")}
+            onAction={onStartPractice}
+            mood="sleepy"
+          />
         ) : (
           <Card variant="panel" padding="none" className={styles.listCard}>
             <ul className={styles.list}>
@@ -105,7 +113,12 @@ export function AllResultsScreen({
                     aria-label={t("profile.results.openAria", { title: r.title })}
                   >
                     <span
-                      className={cx(styles.bandDot, r.band === null && styles.bandDotMuted)}
+                      // Coloured by the score's band — a 0 is never success green.
+                      className={cx(
+                        styles.bandDot,
+                        r.band === null ? styles.bandDotMuted : TONE_CLASS[scoreTone(r.band)],
+                      )}
+                      data-tone={r.band === null ? undefined : scoreTone(r.band)}
                       aria-hidden
                     >
                       <Text as="span" variant="title-s" numeric>
@@ -160,6 +173,12 @@ export function AllResultsScreen({
 /* Helpers                                                                     */
 /* -------------------------------------------------------------------------- */
 
+const TONE_CLASS = {
+  success: styles.bandSuccess,
+  warn: styles.bandWarn,
+  danger: styles.bandDanger,
+} as const;
+
 const TREND_ARROW: Record<ResultTrend, string> = { up: "↑", down: "↓", flat: "→" };
 const TREND_CLASS: Record<ResultTrend, string> = {
   up: styles.trendUp,
@@ -175,16 +194,9 @@ function trendLabel(t: TFunction, trend: ResultTrend): string {
       : t("profile.trend.flat");
 }
 
-/** "Bugun" / "Kecha" / "N kun oldin" / "N hafta oldin" — reuses profile keys. */
+/** "Bugun" / "Kecha" / "N kun oldin" / "N hafta oldin" / "21.10.2026" — the shared helper. */
 function relativeDate(t: TFunction, iso: string, now: Date): string {
-  const then = new Date(iso);
-  if (Number.isNaN(then.getTime())) return "";
-  const startOfDay = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
-  const days = Math.round((startOfDay(now) - startOfDay(then)) / 86_400_000);
-  if (days <= 0) return t("profile.relativeDate.today");
-  if (days === 1) return t("profile.relativeDate.yesterday");
-  if (days < 7) return t("profile.relativeDate.daysAgo", { count: days });
-  return t("profile.relativeDate.weeksAgo", { count: Math.floor(days / 7) });
+  return formatRelativeDay(iso, t, now);
 }
 
 function BackGlyph() {

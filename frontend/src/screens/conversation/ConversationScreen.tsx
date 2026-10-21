@@ -7,7 +7,8 @@ import {
 } from "react";
 import { useTranslation } from "react-i18next";
 import { Button, Card, FlowingWaveform, Text, cx } from "../../shared/ui";
-import { scenarioIcon } from "./scenarios";
+import { ScenarioIcon } from "./ScenarioIcon";
+import { scenarioGoal } from "./scenarios";
 import type { Scenario } from "./scenarios";
 import type { RoleplayCorrection } from "./roleplayApi";
 import styles from "./ConversationScreen.module.css";
@@ -122,7 +123,7 @@ export function ConversationScreen({
         <div className={styles.headerBody}>
           <div className={styles.titleRow}>
             <span className={styles.headerIcon} aria-hidden>
-              {scenarioIcon(scenario.id, scenario.tone, scenario.icon)}
+              <ScenarioIcon id={scenario.id} size={20} />
             </span>
             <Text as="h1" variant="title-s" truncate className={styles.headerTitle}>
               {scenario.titleRu}
@@ -134,7 +135,7 @@ export function ConversationScreen({
               still moving. */}
           <div className={styles.headerGoal}>
             <Text as="span" variant="body-s" color="muted" truncate className={styles.goalText}>
-              {t("suhbat.goalLabel", { goal: scenario.goalUz })}
+              {t("suhbat.goalLabel", { goal: scenarioGoal(scenario, t) })}
             </Text>
             {typeof turnsLeft === "number" && (
               <Text as="span" variant="body-s" color="muted" className={styles.turnsLeft}>
@@ -167,7 +168,7 @@ export function ConversationScreen({
             persona is an instruction to the AI, not something to show. */}
         <Card variant="tint" padding="md" className={styles.brief}>
           <Text as="p" variant="body" weight="semibold">
-            {t("suhbat.goalLabel", { goal: scenario.goalUz })}
+            {t("suhbat.goalLabel", { goal: scenarioGoal(scenario, t) })}
           </Text>
           <Text as="p" variant="body-s" color="muted">
             {t("suhbat.scenarioMeta", { level: scenario.level, min: scenario.minutes })}

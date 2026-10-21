@@ -49,7 +49,7 @@ describe("a row", () => {
     expect(screen.getByText("Dilnoza Rahimova")).toBeInTheDocument();
     expect(screen.getByText("is_premium: true")).toBeInTheDocument();
     // 09:37 UTC is 14:37 in Tashkent (UTC+5, no DST).
-    expect(screen.getByText("2026-10-21 14:37")).toBeInTheDocument();
+    expect(screen.getByText("21.10.2026, 14:37")).toBeInTheDocument();
     expect(screen.getByText(t("admin.audit.ip", { ip: "10.0.0.7" }))).toBeInTheDocument();
   });
 
@@ -195,7 +195,7 @@ describe("paging", () => {
 describe("formatTashkent", () => {
   it("crosses midnight into the Tashkent date", () => {
     // 21:30 UTC on the 20th is already 02:30 on the 21st in Tashkent.
-    expect(formatTashkent("2026-10-20T21:30:00Z")).toBe("2026-10-21 02:30");
+    expect(formatTashkent("2026-10-20T21:30:00Z")).toBe("21.10.2026, 02:30");
   });
 
   it("returns an unparseable value unchanged rather than 'Invalid Date'", () => {

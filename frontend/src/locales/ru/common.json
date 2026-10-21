@@ -55,6 +55,50 @@
     "minutesUnit": "минут",
     "hoursUnit": "ч"
   },
+  "motivation": {
+    "streakDays_one": "день подряд",
+    "streakDays_few": "дня подряд",
+    "streakDays_many": "дней подряд",
+    "streakDays_other": "дня подряд",
+    "streakZero": "Позанимайтесь сегодня — начнётся серия",
+    "weekAria_one": "Занимались {{count}} день из последних 7",
+    "weekAria_few": "Занимались {{count}} дня из последних 7",
+    "weekAria_many": "Занимались {{count}} дней из последних 7",
+    "weekAria_other": "Занимались {{count}} дня из последних 7",
+    "weekday": { "0": "Вс", "1": "Пн", "2": "Вт", "3": "Ср", "4": "Чт", "5": "Пт", "6": "Сб" },
+    "goalLabel": "Цель дня",
+    "goalOf": "из {{goal}} мин сегодня",
+    "goalDone": "Цель выполнена!",
+    "goalAria": "Сегодня {{done}} из {{goal}} минут",
+    "xpLevel": "Ступень {{level}}",
+    "xpTotal": "{{xp}} XP",
+    "xpToNext": "Ещё {{xp}} XP до ступени {{next}}",
+    "noData": "Пока нет данных",
+    "react": {
+      "great": "Отлично! Звучало по-настоящему хорошо.",
+      "good": "Хорошая работа — так держать!",
+      "fair": "Неплохо. Ещё одна попытка — и будет лучше.",
+      "low": "Каждая попытка важна. Давайте попробуем ещё раз вместе."
+    },
+    "empty": {
+      "startPractice": "Начать практику",
+      "modules": {
+        "allTitle": "Пока нет модулей",
+        "allBody": "Здесь появятся модули от учителя и открытого курса.",
+        "activeTitle": "Нет модулей в процессе",
+        "activeBody": "Откройте любой модуль и выполните первое задание — он появится здесь.",
+        "doneTitle": "Пока нет завершённых модулей",
+        "doneBody": "Выполните все задания модуля, чтобы он появился здесь.",
+        "showAll": "Показать все модули"
+      },
+      "skillsTitle": "Здесь появятся ваши навыки",
+      "skillsBody": "Запишите первый ответ — после оценки здесь появятся ваш уровень и четыре навыка.",
+      "achTitle": "Первый значок — всего один ответ",
+      "achBody": "Запишите ответ сегодня, чтобы открыть «Первый шаг».",
+      "resultsTitle": "Пока нет результатов",
+      "resultsBody": "Запишите первый ответ — здесь появятся ваш балл и отзыв."
+    }
+  },
   "home": {
     "todayAria": "Сегодня",
     "modules": "Модули",
@@ -93,7 +137,10 @@
     "continueEmptyTitle": "Пока нет упражнений",
     "continueEmptyBody": "Новые задания появятся здесь.",
     "todayLabel": "СЕГОДНЯШНЯЯ ПРАКТИКА",
-    "todayTitle": "Сегодняшние {{min}} минут",
+    "todayTitle_one": "Сегодняшняя {{min}} минута",
+    "todayTitle_few": "Сегодняшние {{min}} минуты",
+    "todayTitle_many": "Сегодняшние {{min}} минут",
+    "todayTitle_other": "Сегодняшние {{min}} минуты",
     "todayTagline": "Разминка · говорение · работа над вчерашней ошибкой",
     "dailyDone": "Сегодняшние 5 минут пройдены 🎉",
     "dailyReview": "Посмотреть",
@@ -102,7 +149,10 @@
     "teacherRole": "Преподаватель · Русский",
     "message": "Написать",
     "groupLine": "Группа: {{name}}",
-    "students": "{{count}} учеников",
+    "students_one": "{{count}} ученик",
+    "students_few": "{{count}} ученика",
+    "students_many": "{{count}} учеников",
+    "students_other": "{{count}} ученика",
     "nextAssignment": "Следующее задание · {{when}}",
     "noAssignment": "Новых заданий нет",
     "summary": "КРАТКО",
@@ -127,6 +177,8 @@
     "joinPendingHint": "Дождитесь подтверждения преподавателя",
     "nextAssignmentUndated": "Следующее задание",
     "openAssignment": "Открыть задание «{{title}}»",
+    "practiceTitle": "Ваша ежедневная практика",
+    "practiceTagline": "Цель — {{min}} минут речи в день. Модули и задания ждут в разделе «Практика».",
     "todayTaglineNoDrill": "Разминка · говорение",
     "joinLink": {
       "invalid": "Код группы в ссылке-приглашении неверный или группа не найдена.",
@@ -134,6 +186,10 @@
     }
   },
   "practice": {
+    "focusClose": "Закрыть задание",
+    "focusSend": "Отправить",
+    "focusUploading": "Отправляем ответ",
+    "focusUploaded": "Ответ отправлен",
     "attemptsLeft_one": "осталась {{count}} попытка",
     "attemptsLeft_few": "осталось {{count}} попытки",
     "attemptsLeft_many": "осталось {{count}} попыток",
@@ -215,9 +271,17 @@
     "reviewReady": "Запись готова. Прослушай или запиши заново.",
     "retry": "Повторить",
     "deniedTitle": "Нет доступа к микрофону",
-    "deniedHint": "Чтобы записывать, разрешите доступ к микрофону в настройках браузера.",
+    "deniedHint": "Нажмите на значок замка в адресной строке, разрешите доступ к микрофону и попробуйте ещё раз.",
     "errorTitle": "Не удалось записать",
-    "errorHint": "Ваше устройство не поддерживает запись с микрофона.",
+    "errorHint": "С микрофоном что-то пошло не так. Попробуйте ещё раз.",
+    "insecureTitle": "Нужно защищённое соединение (HTTPS)",
+    "insecureHint": "Браузер даёт доступ к микрофону только на адресах, начинающихся с https://. Откройте сайт через https://.",
+    "unsupportedTitle": "Этот браузер не умеет записывать звук",
+    "unsupportedHint": "Ваше устройство не поддерживает запись с микрофона. Попробуйте свежую версию Chrome, Safari или Edge.",
+    "noDeviceTitle": "Микрофон не найден",
+    "noDeviceHint": "Подключите микрофон или проверьте наушники и попробуйте ещё раз.",
+    "busyTitle": "Микрофон занят",
+    "busyHint": "Микрофон использует другое приложение (звонок или другая вкладка). Закройте его и попробуйте ещё раз.",
     "region": "Запись голоса"
   },
   "placement": {
@@ -273,9 +337,18 @@
     },
     "skills": {
       "currentLevel": "ТЕКУЩИЙ УРОВЕНЬ",
-      "trendUp": "+{{points}} за {{weeks}} нед.",
-      "trendDown": "{{points}} за {{weeks}} нед.",
-      "trendFlat": "Без изменений за {{weeks}} нед.",
+      "trendUp_one": "+{{points}} за {{weeks}} нед.",
+      "trendUp_few": "+{{points}} за {{weeks}} нед.",
+      "trendUp_many": "+{{points}} за {{weeks}} нед.",
+      "trendUp_other": "+{{points}} за {{weeks}} нед.",
+      "trendDown_one": "{{points}} за {{weeks}} нед.",
+      "trendDown_few": "{{points}} за {{weeks}} нед.",
+      "trendDown_many": "{{points}} за {{weeks}} нед.",
+      "trendDown_other": "{{points}} за {{weeks}} нед.",
+      "trendFlat_one": "Без изменений за {{weeks}} нед.",
+      "trendFlat_few": "Без изменений за {{weeks}} нед.",
+      "trendFlat_many": "Без изменений за {{weeks}} нед.",
+      "trendFlat_other": "Без изменений за {{weeks}} нед.",
       "sectionLabel": "НАВЫКИ",
       "fluency": "Беглость",
       "pronunciation": "Произношение",
@@ -303,8 +376,14 @@
       "meThisWeek": "На этой неделе {{rank}}-е место",
       "meThisMonth": "В этом месяце {{rank}}-е место",
       "meAllTime": "{{rank}}-е место",
-      "meDeltaUp": "{{xp}} XP · ↑ на {{n}} поднялись",
-      "meDeltaDown": "{{xp}} XP · ↓ на {{n}} опустились",
+      "meDeltaUp_one": "{{xp}} XP · ↑ поднялись на {{n}} место",
+      "meDeltaUp_few": "{{xp}} XP · ↑ поднялись на {{n}} места",
+      "meDeltaUp_many": "{{xp}} XP · ↑ поднялись на {{n}} мест",
+      "meDeltaUp_other": "{{xp}} XP · ↑ поднялись на {{n}} места",
+      "meDeltaDown_one": "{{xp}} XP · ↓ опустились на {{n}} место",
+      "meDeltaDown_few": "{{xp}} XP · ↓ опустились на {{n}} места",
+      "meDeltaDown_many": "{{xp}} XP · ↓ опустились на {{n}} мест",
+      "meDeltaDown_other": "{{xp}} XP · ↓ опустились на {{n}} места",
       "meDeltaFlat": "{{xp}} XP · без изменений",
       "meNoDelta": "{{xp}} XP",
       "nearby": "РЯДОМ С ВАМИ",
@@ -721,10 +800,16 @@
       "skillsTitle": "Распределение навыков",
       "noSkills": "Навыки пока не оценены",
       "weekTitle": "Активность за неделю",
-      "weekBarAria": "{{day}}: {{count}} ответов",
+      "weekBarAria_one": "{{day}}: {{count}} ответ",
+      "weekBarAria_few": "{{day}}: {{count}} ответа",
+      "weekBarAria_many": "{{day}}: {{count}} ответов",
+      "weekBarAria_other": "{{day}}: {{count}} ответа",
       "noActivity": "На этой неделе ответов нет",
       "errorsTitle": "Частые ошибки",
-      "errorMeta": "{{count}} учеников · {{pct}}%",
+      "errorMeta_one": "{{count}} ученик · {{pct}}%",
+      "errorMeta_few": "{{count}} ученика · {{pct}}%",
+      "errorMeta_many": "{{count}} учеников · {{pct}}%",
+      "errorMeta_other": "{{count}} ученика · {{pct}}%",
       "noErrors": "Повторяющихся ошибок не найдено",
       "colStudent": "Ученик",
       "colFluency": "Беглость",
@@ -739,10 +824,16 @@
       "remediationConfirmTitle": "Выдать упражнение?",
       "remediationConfirmLead": "Задание ниже получат ученики, допустившие ошибку «{{error}}».",
       "remediationConfirmTask": "Задание",
-      "remediationConfirmWho": "Кому — {{count}} учеников",
+      "remediationConfirmWho_one": "Кому — {{count}} ученик",
+      "remediationConfirmWho_few": "Кому — {{count}} ученика",
+      "remediationConfirmWho_many": "Кому — {{count}} учеников",
+      "remediationConfirmWho_other": "Кому — {{count}} ученика",
       "remediationConfirmWarn": "Отменить выдачу нельзя.",
       "remediationConfirmCta": "Выдать",
-      "remediationSent": "Выдано {{count}} ученикам",
+      "remediationSent_one": "Выдано {{count}} ученику",
+      "remediationSent_few": "Выдано {{count}} ученикам",
+      "remediationSent_many": "Выдано {{count}} ученикам",
+      "remediationSent_other": "Выдано {{count}} ученикам",
       "remediationFailed": "Не удалось выдать. Попробуйте ещё раз."
     },
     "assignTask": {
@@ -808,8 +899,14 @@
     "classErrorsHint_many": "Ошиблись {{count}} учеников",
     "classErrorsHint_other": "Ошиблись {{count}} учеников",
     "trend": {
-      "up": "рост на {{points}} б.",
-      "down": "падение на {{points}} б.",
+      "up_one": "рост на {{points}} б.",
+      "up_few": "рост на {{points}} б.",
+      "up_many": "рост на {{points}} б.",
+      "up_other": "рост на {{points}} б.",
+      "down_one": "падение на {{points}} б.",
+      "down_few": "падение на {{points}} б.",
+      "down_many": "падение на {{points}} б.",
+      "down_other": "падение на {{points}} б.",
       "flat": "без изменений"
     },
     "droppedHintMany": "Посмотреть учеников",
@@ -818,7 +915,10 @@
       "joined": "с {{date}}",
       "groups": "Мои группы",
       "noGroups": "Вы ещё не создали группу.",
-      "reach": "Всего {{count}} учеников",
+      "reach_one": "Всего {{count}} ученик",
+      "reach_few": "Всего {{count}} ученика",
+      "reach_many": "Всего {{count}} учеников",
+      "reach_other": "Всего {{count}} ученика",
       "settings": "Настройки",
       "language": "Язык",
       "theme": "Тема"
@@ -1003,7 +1103,8 @@
       "streetPlaceholder": "ул. Амира Темура, дом 12, кв. 34",
       "finish": "Завершить и начать"
     },
-    "joinPendingNote": "Войдите, чтобы вступить в группу, — запрос отправится сам."
+    "joinPendingNote": "Войдите, чтобы вступить в группу, — запрос отправится сам.",
+    "langSwitch": "Язык интерфейса"
   },
   "notifications": {
     "title": "Уведомления",
@@ -1080,7 +1181,10 @@
     "detail": {
       "label": "МОДУЛЬ",
       "tasksLabel": "ЗАДАНИЯ",
-      "taskCount": "{{done}}/{{total}} заданий",
+      "taskCount_one": "{{done}}/{{total}} задание",
+      "taskCount_few": "{{done}}/{{total}} задания",
+      "taskCount_many": "{{done}}/{{total}} заданий",
+      "taskCount_other": "{{done}}/{{total}} задания",
       "taskN": "Задание {{n}}",
       "taskCurrent": "Задание {{n}} · текущее",
       "start": "Начать",
@@ -1097,7 +1201,10 @@
       "certTitle": "Сертификат готов",
       "certBody": "Скачать или поделиться",
       "nextLabel": "СЛЕДУЮЩИЙ МОДУЛЬ",
-      "nextMeta": "{{level}} · {{count}} заданий",
+      "nextMeta_one": "{{level}} · {{count}} задание",
+      "nextMeta_few": "{{level}} · {{count}} задания",
+      "nextMeta_many": "{{level}} · {{count}} заданий",
+      "nextMeta_other": "{{level}} · {{count}} задания",
       "nextCta": "Следующий модуль",
       "allDone": "Все модули завершены 🎉"
     },
@@ -1122,7 +1229,10 @@
   },
   "results": {
     "allTitle": "Все результаты",
-    "count": "Результатов: {{count}}",
+    "count_one": "Результатов: {{count}}",
+    "count_few": "Результатов: {{count}}",
+    "count_many": "Результатов: {{count}}",
+    "count_other": "Результатов: {{count}}",
     "attempt": "Практика",
     "audio": "Записанный ответ",
     "audioExpired": "Аудио удалено — записи хранятся 3 месяца.",
@@ -1151,7 +1261,8 @@
       "stt_failed": "Не удалось распознать речь в записи.",
       "grader_failed": "ИИ не смог оценить ответ.",
       "internal": "Произошла техническая ошибка.",
-      "ai_unavailable": "ИИ-проверка временно недоступна. Запишите ответ ещё раз чуть позже."
+      "ai_unavailable": "ИИ-проверка временно недоступна. Запишите ответ ещё раз чуть позже.",
+      "no_speech": "В записи не слышно речи. Проверьте микрофон и запишите ещё раз."
     },
     "notGraded": "Не оценено",
     "notGradedReason": "Не оценено · {{reason}}",
@@ -1269,7 +1380,10 @@
       "cta": "Тренироваться"
     },
     "lede": "В русском языке один звук полностью меняет значение слова. В этих парах отрабатывается именно эта разница.",
-    "dailyLeft": "Сегодня осталось попыток: {{count}}",
+    "dailyLeft_one": "Сегодня осталось попыток: {{count}}",
+    "dailyLeft_few": "Сегодня осталось попыток: {{count}}",
+    "dailyLeft_many": "Сегодня осталось попыток: {{count}}",
+    "dailyLeft_other": "Сегодня осталось попыток: {{count}}",
     "budgetSpentShort": "Попытки на сегодня закончились",
     "noPairs": "Пары пока не добавлены.",
     "tileProgress": "{{correct}} / {{total}} верно",
@@ -1306,12 +1420,12 @@
     },
     "blocked": {
       "disabled": {
-        "title": "Это упражнение пока не включено",
-        "hint": "Администратор может включить его в разделе «Функции»."
+        "title": "Это упражнение сейчас недоступно",
+        "hint": "А пока попробуйте другие упражнения в разделе «Практика»."
       },
       "unconfigured": {
-        "title": "Распознавание речи не настроено",
-        "hint": "Для проверки произношения нужен ключ Azure Speech. Это вопрос к администратору."
+        "title": "Проверка произношения сейчас недоступна",
+        "hint": "Попробуйте позже. Попытка не потрачена."
       },
       "budget_spent": {
         "title": "Попытки на сегодня закончились",
@@ -1320,7 +1434,10 @@
     }
   },
   "groupBoard": {
-    "meta": "{{teacher}} · {{count}} уч.",
+    "meta_one": "{{teacher}} · {{count}} уч.",
+    "meta_few": "{{teacher}} · {{count}} уч.",
+    "meta_many": "{{teacher}} · {{count}} уч.",
+    "meta_other": "{{teacher}} · {{count}} уч.",
     "classmates": "ОДНОГРУППНИКИ",
     "you": "Вы",
     "xp": "XP группы",
@@ -1352,7 +1469,10 @@
     "goalMissed": "Цель не достигнута",
     "turns": "реплик",
     "fluency": "беглость",
-    "phrasesLabel": "{{count}} полезных фраз",
+    "phrasesLabel_one": "{{count}} полезная фраза",
+    "phrasesLabel_few": "{{count}} полезные фразы",
+    "phrasesLabel_many": "{{count}} полезных фраз",
+    "phrasesLabel_other": "{{count}} полезные фразы",
     "phrasesLabelShort": "ПОЛЕЗНЫЕ ФРАЗЫ",
     "retry": "Ещё раз",
     "turnsLeft_one": "осталась {{count}} реплика",
@@ -1363,9 +1483,17 @@
     "coachLabel": "Исправления",
     "fixesLabel": "ЧТО ИСПРАВИТЬ",
     "turnFailed": "Не удалось отправить ответ. Попробуйте сказать ещё раз.",
+    "aiPaused": "ИИ временно недоступен. Попробуйте чуть позже.",
     "stateDisabled": "Диалог с ИИ пока не включён. Скоро откроем.",
     "stateUnconfigured": "ИИ ещё не подключён — поговорить пока нельзя. Попытка не потрачена.",
-    "stateBudget": "Дневной лимит диалогов исчерпан. Продолжим завтра."
+    "stateBudget": "Дневной лимит диалогов исчерпан. Продолжим завтра.",
+    "goals": {
+      "pharmacy": "Узнай дозировку лекарства",
+      "interview": "Расскажи о себе",
+      "doctor": "Объясни, что беспокоит",
+      "taxi": "Назови адрес",
+      "free": "Говори на любую тему"
+    }
   },
   "time": {
     "justNow": "только что",
@@ -1661,7 +1789,10 @@
       "notConnectedShort": "не подключён",
       "on": "включён",
       "off": "выключен",
-      "duration": "{{days}} дн.",
+      "duration_one": "{{days}} день",
+      "duration_few": "{{days}} дня",
+      "duration_many": "{{days}} дней",
+      "duration_other": "{{days}} дня",
       "edit": "Изменить",
       "delete": "Удалить",
       "alsoGranted": "Выдан учителем",
@@ -1675,6 +1806,7 @@
       "deleteConfirm": "Удалить",
       "deleteFailed": "Не удалось удалить. Попробуйте ещё раз.",
       "name": "Название",
+      "namePlaceholder": "Premium на 1 месяц",
       "code": "Код",
       "codeHint": "Используется в URL и запросах. Потом не меняйте.",
       "price": "Цена (сум)",
@@ -1796,17 +1928,38 @@
       "stt": "распознавание речи",
       "grader": "проверка"
     },
-    "aiCalls": "{{calls}} вызовов · {{failed}} с ошибкой",
+    "aiCalls_one": "{{calls}} вызов · {{failed}} с ошибкой",
+    "aiCalls_few": "{{calls}} вызова · {{failed}} с ошибкой",
+    "aiCalls_many": "{{calls}} вызовов · {{failed}} с ошибкой",
+    "aiCalls_other": "{{calls}} вызова · {{failed}} с ошибкой",
     "aiBudgetHint": "Суммы — оценка по заданным ценам, а не счёт поставщика. Когда лимит исчерпан, новые задачи ИИ не запускаются до смены дня (полночь по Ташкенту) или месяца либо до повышения лимита.",
     "aiBudgetInvalid": "Не сохранено: лимит должен быть суммой в долларах больше 0.",
-    "saveAiBudget": "Сохранить бюджет ИИ"
+    "saveAiBudget": "Сохранить бюджет ИИ",
+    "modelNotes": {
+      "gemini-3_1-flash-lite": "Быстрая и дешёвая; ~500 запросов в день на бесплатном тарифе.",
+      "gemini-2_5-flash-lite": "Лёгкая и быстрая; щедрые лимиты бесплатного тарифа.",
+      "gemini-2_5-flash": "Качество выше, но бесплатно лишь ~20 запросов в день — быстро заканчиваются.",
+      "gemini-2_0-flash": "Flash прошлого поколения; хорошие лимиты бесплатного тарифа.",
+      "gemini-1_5-flash": "Устаревший запасной вариант; доступен почти везде.",
+      "claude-opus-5": "Лучшее качество оценки; $5/$25 за 1M токенов.",
+      "claude-sonnet-5": "Качество близко к Opus, дешевле; $3/$15.",
+      "claude-haiku-4-5": "Самая быстрая и дешёвая; $1/$5.",
+      "gpt-4o-mini": "Дешёвая и быстрая; для оценки достаточно.",
+      "gpt-4o": "Сильнее, но заметно дороже.",
+      "gpt-4_1-mini": "Более новое mini-поколение.",
+      "whisper-1": "Стандартная модель распознавания речи.",
+      "gpt-4o-mini-transcribe": "Новее; не возвращает тайминги слов."
+    }
   },
   "billing": {
     "title": "Premium",
     "plans": "Тарифы",
     "included": "Что входит",
     "buy": "Купить",
-    "perDays": "на {{days}} дн.",
+    "perDays_one": "на {{days}} день",
+    "perDays_few": "на {{days}} дня",
+    "perDays_many": "на {{days}} дней",
+    "perDays_other": "на {{days}} дня",
     "planLabel": "Тариф",
     "endsLabel": "Заканчивается",
     "expiredOn": "Подписка закончилась {{date}}.",
@@ -1843,6 +1996,11 @@
       "allModules": "Новые модули сразу после выхода",
       "feedback": "Полный разбор каждого ответа"
     },
+    "askTeacher": {
+      "title": "Premium можно получить у учителя",
+      "body": "Учитель может включить вам Premium. Спросите его на уроке или в чате группы."
+    },
+    "unavailableShort": "Купить Premium сейчас нельзя. Деньги не списаны.",
     "lockedReason": "Задание, которое вы открыли, доступно с Premium."
   },
   "cefr": {
@@ -1853,5 +2011,32 @@
       "B2": "выше среднего",
       "C1": "продвинутый"
     }
+  },
+  "feedbackLang": {
+    "note": {
+      "uz": "Этот отзыв ИИ написан на узбекском языке.",
+      "ru": "Этот отзыв ИИ написан на русском языке.",
+      "en": "Этот отзыв ИИ написан на английском языке."
+    }
+  },
+  "audioPlayer": {
+    "play": "Слушать",
+    "pause": "Пауза",
+    "seek": "Позиция в записи",
+    "speed": "Скорость воспроизведения: {{rate}}",
+    "unavailable": "Не удалось загрузить запись",
+    "unavailableHint": "Проверьте подключение и попробуйте ещё раз.",
+    "retry": "Повторить"
+  },
+  "dateField": {
+    "date": "Дата",
+    "time": "Время",
+    "placeholder": "дд.мм.гггг",
+    "timePlaceholder": "чч:мм",
+    "openCalendar": "Выбрать в календаре",
+    "invalid": "Введите дату в формате дд.мм.гггг",
+    "timeInvalid": "Введите время в формате чч:мм (24 часа)",
+    "tooEarly": "Дата не может быть раньше {{date}}",
+    "tooLate": "Дата не может быть позже {{date}}"
   }
 }

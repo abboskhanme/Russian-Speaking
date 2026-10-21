@@ -1,0 +1,248 @@
+/* MotivationPanel — streak + week strip, daily-goal ring, level, XP bar.
+ * One warm accent (brand orange) marks progress; everything else is ink/lines.
+ * Every colour / space / radius / motion value is a token. */
+
+.section {
+  display: flex;
+  flex-direction: column;
+}
+.sectionLabel {
+  margin-bottom: var(--s-2);
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-areas:
+    "streak streak"
+    "goal level"
+    "xp xp";
+  gap: var(--s-3);
+}
+@media (min-width: 760px) {
+  .grid {
+    grid-template-columns: 2fr 1.3fr 1fr;
+    grid-template-areas:
+      "streak goal level"
+      "xp xp xp";
+  }
+}
+
+.cell {
+  min-width: 0;
+}
+
+/* ---- Streak ---- */
+.streak {
+  grid-area: streak;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--s-3) var(--s-4);
+}
+.streakHead {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  min-width: 0;
+}
+.streakText {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.streakText > p {
+  margin: 0;
+}
+.bigNum {
+  font-weight: var(--fw-black);
+  line-height: 1.05;
+  margin: 0;
+}
+
+.flame {
+  flex: none;
+  display: inline-flex;
+}
+.flame svg {
+  display: block;
+}
+.flameOuter {
+  fill: var(--surface-3);
+  stroke: var(--line-2);
+  stroke-width: 1.5;
+}
+.flameInner {
+  fill: var(--line-2);
+}
+.flameLit .flameOuter {
+  fill: var(--primary);
+  stroke: none;
+}
+.flameLit .flameInner {
+  fill: var(--warn);
+}
+.flameLit svg {
+  transform-origin: 50% 100%;
+  animation: flicker 2.6s var(--ease-standard) infinite;
+}
+@keyframes flicker {
+  0%, 100% { transform: scale(1, 1) rotate(0deg); }
+  40% { transform: scale(1.03, 0.97) rotate(-1.5deg); }
+  70% { transform: scale(0.98, 1.03) rotate(1deg); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .flameLit svg {
+    animation: none;
+  }
+}
+
+/* Week strip — seven dots, today last. */
+.week {
+  min-width: 0;
+}
+.weekList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  gap: var(--s-1);
+}
+.day {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--s-1);
+  width: 32px;
+}
+.dot {
+  width: 26px;
+  height: 26px;
+  border-radius: var(--r-pill);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--surface-3);
+  border: 2px solid transparent;
+  color: var(--primary-on);
+}
+.dotOn {
+  background: var(--primary);
+}
+.dotToday {
+  border-color: var(--primary);
+  border-style: dashed;
+}
+.dayLetter {
+  font-size: var(--t-label-size);
+  line-height: var(--t-label-line);
+  font-weight: var(--fw-semibold);
+  color: var(--muted);
+}
+.dayLetterToday {
+  color: var(--primary-ink);
+  font-weight: var(--fw-bold);
+}
+
+/* ---- Goal ring ---- */
+.goal {
+  grid-area: goal;
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  flex-wrap: wrap;
+}
+.goalText {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.goalText > p {
+  margin: 0;
+}
+.ringNum {
+  font-weight: var(--fw-black);
+  line-height: 1;
+}
+.ringCheck {
+  color: var(--success-ink);
+}
+.successInk {
+  color: var(--success-ink);
+}
+@media (max-width: 759px) {
+  .goal {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}
+
+/* ---- Level + week minutes ---- */
+.level {
+  grid-area: level;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: var(--s-3);
+}
+.miniStat {
+  display: flex;
+  flex-direction: column;
+}
+.valueRow {
+  display: flex;
+  align-items: baseline;
+  gap: var(--s-1);
+}
+
+/* ---- XP bar ---- */
+.xp {
+  grid-area: xp;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+}
+.xp > p {
+  margin: 0;
+}
+.xpHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-2);
+}
+.xpBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-1);
+  padding: 2px var(--s-3);
+  border-radius: var(--r-pill);
+  background: var(--primary-tint);
+  color: var(--primary-ink);
+}
+.xpBadgeText {
+  color: var(--primary-ink);
+}
+.xpTrack {
+  display: block;
+  height: 10px;
+  border-radius: var(--r-pill);
+  background: var(--line);
+  overflow: hidden;
+}
+.xpFill {
+  display: block;
+  height: 100%;
+  border-radius: var(--r-pill);
+  background: var(--primary);
+  transition: width var(--m-slow);
+}
+
+.error {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--s-2);
+  margin-top: var(--s-2);
+}

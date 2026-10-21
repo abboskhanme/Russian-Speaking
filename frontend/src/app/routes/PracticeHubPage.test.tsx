@@ -6,7 +6,7 @@
  * answered some other question believing they had done their homework. The link
  * must carry the assignment's `question_id`.
  */
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { fireEvent, render, screen } from "@testing-library/react";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import i18n from "../../shared/i18n";
@@ -35,6 +35,19 @@ const ASSIGNMENT: AssignmentResponse = {
 
 // What GET /api/drills/pairs answers in each test (a 200 with a state, never a 404).
 let drillState: "Ready" | "Disabled" = "Disabled";
+/** The /me feature switches this test runs under, and every drill request made. */
+let flags = { review_drill: false, phoneme_drill: true };
+let drillCalls: string[] = [];
+
+vi.mock("../../shared/auth", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../../shared/auth")>();
+  return { ...actual, useFeatures: () => ({ ...actual.NO_FEATURES, ...flags }) };
+});
+
+beforeEach(() => {
+  flags = { review_drill: false, phoneme_drill: true };
+  drillCalls = [];
+});
 
 vi.mock("../../shared/api", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../../shared/api")>();
@@ -44,13 +57,18 @@ vi.mock("../../shared/api", async (importOriginal) => {
       ...actual.endpoints,
       studentBlocks: () => Promise.resolve([]),
       assignmentsMine: () => Promise.resolve([ASSIGNMENT]),
-      reviewDrill: () => Promise.reject(new Error("off")),
-      drillPairs: () =>
-        Promise.resolve({
+      reviewDrill: () => {
+        drillCalls.push("review");
+        return Promise.resolve({ due_count: 2, items: [] });
+      },
+      drillPairs: () => {
+        drillCalls.push("pairs");
+        return Promise.resolve({
           state: drillState,
           pairs: drillState === "Ready" ? [{ id: "p1" }] : [],
           daily_left: 40,
-        }),
+        });
+      },
       unreadCount: () => Promise.resolve({ count: 0 }),
     },
   };
@@ -99,5 +117,31 @@ describe("the Tovushlar mashqi entry", () => {
     renderHub();
     await screen.findByText(t("mashq.tabs.modules"));
     expect(screen.queryByText(t("drill.title"))).toBeNull();
+  });
+});
+
+describe("switched-off drills", () => {
+  const renderHub = () =>
+    render(
+      <MemoryRouter initialEntries={["/practice"]}>
+        <Routes>
+          <Route path="/practice" element={<PracticeHubPage />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+  it("are never requested, so a normal load logs no 404", async () => {
+    flags = { review_drill: false, phoneme_drill: false };
+    renderHub();
+    await screen.findByText(t("mashq.tabs.modules"));
+    expect(drillCalls).toEqual([]);
+    expect(screen.queryByText(t("drill.title"))).toBeNull();
+  });
+
+  it("are asked for, and offered, once their flag is on", async () => {
+    flags = { review_drill: true, phoneme_drill: false };
+    renderHub();
+    await screen.findByRole("button", { name: t("review.entry.cta") });
+    expect(drillCalls).toEqual(["review"]);
   });
 });

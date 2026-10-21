@@ -73,6 +73,7 @@ public sealed class AuthService
     private readonly IPendingPhoneChangeStore _pendingPhoneChanges;
     private readonly IObjectStorage _storage;
     private readonly IRefreshTokenRevocationStore _revocations;
+    private readonly ClientFeaturesReader? _features;
 
     public AuthService(
         GovoriDbContext db,
@@ -83,8 +84,10 @@ public sealed class AuthService
         OtpOptions otpOptions,
         IPendingPhoneChangeStore pendingPhoneChanges,
         IObjectStorage storage,
-        IRefreshTokenRevocationStore revocations)
+        IRefreshTokenRevocationStore revocations,
+        ClientFeaturesReader? features = null)
     {
+        _features = features;
         _db = db;
         _tokenService = tokenService;
         _otpStore = otpStore;
@@ -866,6 +869,9 @@ public sealed class AuthService
         return new(user.Id, user.Email, user.FullName, user.Role.ToString().ToLowerInvariant(), user.IsActive, user.IsPremium,
             user.Region, user.District, user.Address,
             user.Phone, user.CreatedAt, level.Level, level.LabelUz, avatarUrl,
-            user.NotificationsEnabled, user.PreferredLanguage);
+            user.NotificationsEnabled, user.PreferredLanguage,
+            // Every MeResponse carries the switches: the PATCH / avatar / phone-change answers
+            // replace the client's user object too, and one without them would hide features.
+            _features is null ? null : await _features.ReadAsync(ct));
     }
 }

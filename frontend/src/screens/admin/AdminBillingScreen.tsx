@@ -9,6 +9,7 @@ import { Page } from "../../widgets";
 import type { NavItem } from "../../widgets";
 import { isNetworkError } from "./adminErrors";
 import { mockAdminPlans, mockAdminSubscriptions } from "./adminBilling.mock";
+import { formatDate } from "../../shared/format/date";
 import styles from "./AdminBillingScreen.module.css";
 
 /* -------------------------------------------------------------------------- */
@@ -262,7 +263,7 @@ export function AdminBillingScreen({
                       {formatMinor(plan.priceMinor, plan.currency)}
                     </Text>
                     <Text as="p" variant="body-s" color="muted">
-                      {t("admin.billing.duration", { days: plan.durationDays })}
+                      {t("admin.billing.duration", { count: plan.durationDays, days: plan.durationDays })}
                     </Text>
                     {plan.description && (
                       <Text as="p" variant="body-s" color="ink-soft">
@@ -525,7 +526,7 @@ function PlanSheet({ open, plan, onClose, onSubmit }: PlanSheetProps) {
           label={t("admin.billing.name")}
           value={name}
           onChange={(e) => setName(e.currentTarget.value)}
-          placeholder="1 oylik Premium"
+          placeholder={t("admin.billing.namePlaceholder")}
         />
         <Input
           label={t("admin.billing.code")}
@@ -586,11 +587,10 @@ function PlanSheet({ open, plan, onClose, onSubmit }: PlanSheetProps) {
   );
 }
 
-/** yyyy-mm-dd out of an ISO timestamp. Deliberately not a locale date: this column is
- * scanned, and a fixed-width numeric form under `tabular-nums` is what makes a column
- * of dates comparable at a glance. */
+/** `21.10.2026` — the shared fixed-width numeric date (scans well under
+ * `tabular-nums`), on the product's Tashkent day. */
 function formatDay(iso: string): string {
-  return iso.slice(0, 10);
+  return formatDate(iso, { zone: "tashkent" }) || iso.slice(0, 10);
 }
 
 /** Demo host for the screen gallery — mock data, no network. */

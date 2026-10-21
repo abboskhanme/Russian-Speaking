@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { TFunction } from "i18next";
 import { Badge, Button, Card, Input, Modal, Text, cx } from "../../shared/ui";
+import { DateTimeField } from "../../shared/ui/DateField";
 import { Page } from "../../widgets";
 import type { NavItem } from "../../widgets";
 import { mockAssignTask } from "./assign.mock";
@@ -166,6 +167,7 @@ export function AssignTaskScreen({
     initialGroupId && groups.some((g) => g.id === initialGroupId) ? initialGroupId : null,
   );
   const [dueAt, setDueAt] = useState("");
+  const [dueValid, setDueValid] = useState(true);
   // null = Cheksiz. The offered budgets stop well short of the server's ceiling of
   // 10: past a handful, "how many tries" stops being a teaching decision.
   const [maxAttempts, setMaxAttempts] = useState<number | null>(null);
@@ -180,7 +182,7 @@ export function AssignTaskScreen({
   // Own content AND the official catalog — a teacher with no content of their own
   // can still assign from the official one.
   const nothingToAssign = tasks.length === 0 && modules.length === 0 && official.length === 0;
-  const ready = selection !== null && hasTarget && !busy && !done;
+  const ready = selection !== null && hasTarget && dueValid && !busy && !done;
 
   /** Any change re-arms the button and clears the last outcome. */
   const touched = () => {
@@ -337,16 +339,15 @@ export function AssignTaskScreen({
               <Text as="h2" variant="label" color="muted" className={styles.legend}>
                 {t("teacher.assignTask.due")}
               </Text>
-              {/* A native datetime input: it renders in the OS locale and needs no
-                  Intl call of ours, which matters because Chromium's reduced ICU
-                  has no Uzbek calendar data. */}
-              <Input
-                type="datetime-local"
+              {/* dd.MM.yyyy + 24-hour time in every UI language, with the native
+                  calendar one tap away (see DateField). A blank time = end of day. */}
+              <DateTimeField
                 value={dueAt}
-                onChange={(e) => {
-                  setDueAt(e.currentTarget.value);
+                onChange={(v) => {
+                  setDueAt(v);
                   touched();
                 }}
+                onValidityChange={setDueValid}
                 aria-label={t("teacher.assignTask.due")}
               />
               <Text as="p" variant="body-s" color="muted">

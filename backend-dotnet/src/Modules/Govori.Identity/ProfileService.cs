@@ -96,6 +96,20 @@ public sealed class ProfileService
             .Where(s => s.StudentId == userId && s.CreatedAt >= weekStart)
             .SumAsync(s => (double?)s.AudioDurationSec, ct) ?? 0d;
 
+        // The last seven product days, today last: which of them earned an XP event — the very event
+        // the streak writer rolls the streak on, so a lit dot and a counted streak day are one fact.
+        // DISTINCT instants for one student's week is a handful of rows; they are bucketed by
+        // ProductDay in memory because the Tashkent-midnight cut has no portable SQL translation.
+        var today = ProductDay.Today(now);
+        var firstDay = today.AddDays(-(ActiveDayCount - 1));
+        var since = ProductDay.StartUtc(firstDay);
+        var eventTimes = await _db.XpEvents
+            .Where(x => x.StudentId == userId && x.CreatedAt >= since)
+            .Select(x => x.CreatedAt)
+            .ToListAsync(ct);
+        var activeDays = BuildActiveDays(eventTimes, today);
+        var (xpLevel, xpLevelStart, xpNextLevel) = XpLevels.For(streaks.Xp);
+
         // Report the band to 1dp and derive the level from that SAME rounded value, so the badge can
         // never disagree with the number printed next to it at a bucket boundary.
         var rounded = avgBand is { } band ? Math.Round(band, 1, MidpointRounding.AwayFromZero) : (double?)null;
@@ -112,7 +126,29 @@ public sealed class ProfileService
             LevelLabel: levelLabel,
             Xp: streaks.Xp,
             TodayPracticeSec: (int)Math.Round(todaySec, MidpointRounding.AwayFromZero),
-            WeekPracticeSec: (int)Math.Round(weekSec, MidpointRounding.AwayFromZero));
+            WeekPracticeSec: (int)Math.Round(weekSec, MidpointRounding.AwayFromZero),
+            ActiveDays: activeDays,
+            XpLevel: xpLevel,
+            XpLevelStart: xpLevelStart,
+            XpNextLevel: xpNextLevel);
+    }
+
+    /// <summary>How many days the Home week strip shows (today included).</summary>
+    internal const int ActiveDayCount = 7;
+
+    /// <summary>
+    /// Pure: the week strip from the UTC instants of a student's XP events. Index 0 is six product
+    /// days ago, the last index is <paramref name="today"/>; an instant outside the window is ignored.
+    /// </summary>
+    internal static IReadOnlyList<bool> BuildActiveDays(IEnumerable<DateTime> eventTimesUtc, DateOnly today)
+    {
+        var days = new bool[ActiveDayCount];
+        foreach (var at in eventTimesUtc)
+        {
+            var back = today.DayNumber - ProductDay.Of(at).DayNumber;
+            if (back >= 0 && back < ActiveDayCount) days[ActiveDayCount - 1 - back] = true;
+        }
+        return days;
     }
 
     /// <summary>

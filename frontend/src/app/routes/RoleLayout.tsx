@@ -10,15 +10,15 @@
  * placement, a live chat) is simply declared OUTSIDE this layout element in
  * `App.tsx` — no flag, no prop on the screen.
  *
- * Nav items are one data-driven array per role (`navItemsFor`); filtering them
- * (feature flags) is a `.filter()` on that array, in one place.
+ * Nav items are one data-driven array per role (`navItemsFor` in app/features),
+ * already filtered by the feature switches — so a switched-off destination is gone
+ * from the sidebar and the bottom bar alike.
  */
 import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import type { ReactNode } from "react";
 import { Outlet, useLocation, useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
-import type { TFunction } from "i18next";
-import { useAuth } from "../../shared/auth";
+import { useFeatures, useOptionalAuth } from "../../shared/auth";
 import { endpoints } from "../../shared/api";
 import { Spinner } from "../../shared/ui";
 import {
@@ -27,11 +27,9 @@ import {
   Brand,
   NotificationsBell,
   PageChromeContext,
-  adminNavItems,
-  studentNavItems,
-  teacherNavItems,
 } from "../../widgets";
-import type { NavItem } from "../../widgets";
+import { navItemsFor } from "../features";
+import type { NavRole } from "../features";
 import {
   ADMIN_NAV_PATH,
   ADMIN_PROFILE_PATH,
@@ -43,7 +41,7 @@ import {
   activeKeyForPath,
 } from "../nav";
 
-export type LayoutRole = "student" | "teacher" | "admin";
+export type LayoutRole = NavRole;
 
 interface RoleConfig {
   paths: Record<string, string>;
@@ -56,13 +54,6 @@ const ROLE: Record<LayoutRole, RoleConfig> = {
   teacher: { paths: TEACHER_NAV_PATH, aliases: TEACHER_NAV_ALIASES, profilePath: TEACHER_PROFILE_PATH },
   admin: { paths: ADMIN_NAV_PATH, aliases: {}, profilePath: ADMIN_PROFILE_PATH },
 };
-
-/** The role's nav items — the ONE list the sidebar and the bottom bar both draw. */
-export function navItemsFor(role: LayoutRole, t: TFunction, queued = 0): NavItem[] {
-  if (role === "teacher") return teacherNavItems(t, queued);
-  if (role === "admin") return adminNavItems(t);
-  return studentNavItems(t);
-}
 
 /** The teacher's Navbat badge. Re-read on every navigation so it follows the
  * queue as the teacher works through it. */
@@ -93,13 +84,19 @@ function ContentFallback() {
 
 export default function RoleLayout({ role, children }: { role: LayoutRole; children?: ReactNode }) {
   const { t } = useTranslation();
-  const { user } = useAuth();
+  // Optional: the frame must not take a screen down when rendered without auth
+  // (a test, a demo) — the avatar just shows no initials then.
+  const user = useOptionalAuth()?.user;
   const navigate = useNavigate();
   const { pathname } = useLocation();
   const cfg = ROLE[role];
 
   const queued = useQueuedCount(role === "teacher", pathname);
-  const items = useMemo(() => navItemsFor(role, t, queued), [role, t, queued]);
+  const { roleplay } = useFeatures();
+  const items = useMemo(
+    () => navItemsFor(role, t, { queued, features: { roleplay } }),
+    [role, t, queued, roleplay],
+  );
   const activeKey = activeKeyForPath(pathname, cfg.paths, cfg.aliases);
 
   const onNavigate = useCallback(

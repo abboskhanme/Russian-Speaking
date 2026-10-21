@@ -7,11 +7,12 @@
  * ## The refusal is a first-class state, not an error
  *
  * There is no merchant account yet. The provider adapter is a stub that cannot take money, so the
- * purchase button does not exist and the screen says, plainly, that payments are not connected yet.
+ * purchase button does not exist and the screen tells the student how Premium IS obtained here — from
+ * their teacher — instead of an operator fact ("payments are not connected") they can do nothing with.
  * That is the whole point of this screen shipping before the integration does: a student who taps
  * "Sotib olish" and is told their subscription is active — when nothing was charged and nothing was
  * granted — has been lied to, and would discover it the next time the paywall stopped them. Prices
- * may be shown; a purchase may not be implied.
+ * are shown only while they can actually be paid.
  *
  * ## Premium has two sources and they are named
  *
@@ -29,6 +30,7 @@ import { formatMinor } from "../../shared/money";
 import { Page } from "../../widgets";
 import type { NavItem } from "../../widgets";
 import { mockPremiumPlans, mockPremiumStatus } from "./billing.mock";
+import { formatDate } from "../../shared/format/date";
 import styles from "./PremiumScreen.module.css";
 
 /* -------------------------------------------------------------------------- */
@@ -106,18 +108,16 @@ export function PremiumScreen({
       <div className={styles.page}>
         <StatusCard status={status} />
 
-        {/* The honest refusal. Above the prices, not below them, so nobody reads a price
-            list and only afterwards learns none of it is purchasable. */}
+        {/* While Premium cannot be bought here, say how a student CAN get it — from
+            their teacher — rather than an operator's "payments are not connected".
+            The price list is left out too: prices nobody can pay are noise. */}
         {!canBuy && !status.isPremium && (
           <Card variant="outline" padding="lg" className={styles.notice} role="status">
             <Text as="h2" variant="title-s">
-              {t("billing.notConnected.title")}
+              {t("billing.askTeacher.title")}
             </Text>
             <Text as="p" variant="body" color="ink-soft">
-              {t("billing.notConnected.body")}
-            </Text>
-            <Text as="p" variant="body-s" color="muted">
-              {t("billing.notConnected.meanwhile")}
+              {t("billing.askTeacher.body")}
             </Text>
             {supportUrl && (
               <a className={styles.supportLink} href={supportUrl} target="_blank" rel="noreferrer">
@@ -138,7 +138,7 @@ export function PremiumScreen({
           </Text>
         )}
 
-        {plans.length > 0 && (
+        {canBuy && plans.length > 0 && (
           <section className={styles.section} aria-label={t("billing.plans")}>
             <Text as="h2" variant="label" color="muted" className={styles.legend}>
               {t("billing.plans")}
@@ -154,30 +154,21 @@ export function PremiumScreen({
                       {formatMinor(plan.priceMinor, plan.currency)}
                     </Text>
                     <Text as="p" variant="body-s" color="muted">
-                      {t("billing.perDays", { days: plan.durationDays })}
+                      {t("billing.perDays", { count: plan.durationDays, days: plan.durationDays })}
                     </Text>
                     {plan.description && (
                       <Text as="p" variant="body" color="ink-soft">
                         {plan.description}
                       </Text>
                     )}
-                    {canBuy ? (
-                      <Button
-                        variant="primary"
-                        fullWidth
-                        className={styles.buy}
-                        onClick={() => void onBuy?.(plan.id)}
-                      >
-                        {t("billing.buy")}
-                      </Button>
-                    ) : (
-                      // Not a disabled button. A greyed-out "Sotib olish" reads as "try again
-                      // later, maybe it will work" and invites tapping at it; a plain line of text
-                      // says the thing that is true.
-                      <Text as="p" variant="body-s" color="muted" className={styles.unavailable}>
-                        {t("billing.notConnected.short")}
-                      </Text>
-                    )}
+                    <Button
+                      variant="primary"
+                      fullWidth
+                      className={styles.buy}
+                      onClick={() => void onBuy?.(plan.id)}
+                    >
+                      {t("billing.buy")}
+                    </Button>
                   </Card>
                 </li>
               ))}
@@ -238,7 +229,7 @@ function StatusCard({ status }: { status: PremiumStatus }) {
             explains why the paywall appeared today. */}
         {status.status === "expired" && status.endsAt && (
           <Text as="p" variant="body-s" color="muted" numeric>
-            {t("billing.expiredOn", { date: status.endsAt.slice(0, 10) })}
+            {t("billing.expiredOn", { date: formatDate(status.endsAt) })}
           </Text>
         )}
       </Card>
@@ -281,7 +272,7 @@ function StatusCard({ status }: { status: PremiumStatus }) {
               </dt>
               <dd>
                 <Text as="span" variant="body" weight="semibold" numeric>
-                  {status.endsAt.slice(0, 10)}
+                  {formatDate(status.endsAt)}
                 </Text>
               </dd>
             </div>

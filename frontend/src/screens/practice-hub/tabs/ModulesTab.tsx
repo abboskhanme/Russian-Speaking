@@ -1,7 +1,8 @@
 import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { TFunction } from "i18next";
-import { Badge, Card, Text, cx } from "../../../shared/ui";
+import { Badge, Card, EmptyState, Text, cx } from "../../../shared/ui";
+import { ModuleCover } from "../ModuleCover";
 import styles from "./ModulesTab.module.css";
 
 /* -------------------------------------------------------------------------- */
@@ -89,9 +90,15 @@ export function ModulesTab({ modules, onOpenModule }: ModulesTabProps) {
 
       {/* ---- Module list ---- */}
       {visible.length === 0 ? (
-        <Text as="p" variant="body-s" color="muted" className={styles.empty}>
-          {t("mashq.modules.empty")}
-        </Text>
+        <EmptyState
+          compact
+          mood={filter === "all" ? "sleepy" : "idle"}
+          title={t(`motivation.empty.modules.${filter}Title`)}
+          body={t(`motivation.empty.modules.${filter}Body`)}
+          // A filtered-out list is not empty: the one step is to see them all.
+          actionLabel={filter === "all" ? undefined : t("motivation.empty.modules.showAll")}
+          onAction={filter === "all" ? undefined : () => setFilter("all")}
+        />
       ) : (
         <ul className={styles.list}>
           {visible.map(({ module, state }) => (
@@ -133,19 +140,22 @@ function ModuleCard({
       className={styles.card}
     >
       <button type="button" className={styles.cardBtn} onClick={() => onOpen(module.id)}>
-        <span className={cx(styles.chip, CHIP_CLASS[state])} aria-hidden>
-          {state === "in-progress" ? (
-            <Text as="span" variant="title-s" numeric className={styles.chipPct}>
-              {pct}%
-            </Text>
-          ) : state === "done" ? (
-            <CheckGlyph />
-          ) : state === "locked" ? (
-            <LockGlyph />
-          ) : (
-            <UpArrowGlyph />
-          )}
-        </span>
+        {/* An illustrated cover per module (deterministic from its id), with a
+            small state badge: play to start, check when done, lock when gated,
+            the percentage while in progress. */}
+        <ModuleCover id={module.id} name={module.name} dimmed={state === "locked"}>
+          <span className={cx(styles.badge, CHIP_CLASS[state])}>
+            {state === "in-progress" ? (
+              <span className={styles.badgePct}>{pct}%</span>
+            ) : state === "done" ? (
+              <CheckGlyph />
+            ) : state === "locked" ? (
+              <LockGlyph />
+            ) : (
+              <PlayGlyph />
+            )}
+          </span>
+        </ModuleCover>
 
         <span className={styles.cardBody}>
           <span className={styles.nameRow}>
@@ -201,26 +211,31 @@ function matchesFilter(state: ModuleState, filter: ModulesFilter): boolean {
   return state === "done";
 }
 
+/** The meta line. A module with no CEFR level drops the level part entirely —
+ * a leading "— ·" read as a broken value, not as "no level". */
 function metaLine(t: TFunction, m: PracticeModule, state: ModuleState): string {
-  const level = m.level ?? EM_DASH;
+  const level = m.level ?? "";
+  let s: string;
   switch (state) {
     case "done":
-      return t("mashq.modules.metaDone", { level, done: m.done, total: m.total });
+      s = t("mashq.modules.metaDone", { level, done: m.done, total: m.total });
+      break;
     case "locked":
-      return t("mashq.modules.metaLocked", { level });
+      s = t("mashq.modules.metaLocked", { level });
+      break;
     case "not-started":
-      return t("mashq.modules.metaNotStarted", { level, total: m.total });
+      s = t("mashq.modules.metaNotStarted", { level, total: m.total });
+      break;
     default:
-      return t("mashq.modules.meta", { level, done: m.done, total: m.total });
+      s = t("mashq.modules.meta", { level, done: m.done, total: m.total });
   }
+  return m.level ? s : s.replace(/^\s*·\s*/, "");
 }
-
-const EM_DASH = "—";
 
 const CHIP_CLASS: Record<ModuleState, string> = {
   "in-progress": styles.chipInfo,
   done: styles.chipSuccess,
-  "not-started": styles.chipNeutral,
+  "not-started": styles.chipPlay,
   locked: styles.chipLocked,
 };
 
@@ -245,15 +260,12 @@ function CheckGlyph() {
   );
 }
 
-function UpArrowGlyph() {
+function PlayGlyph() {
   return (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden>
+    <svg width="13" height="13" viewBox="0 0 24 24" aria-hidden>
       <path
-        d="M12 19V6m0 0-6 6m6-6 6 6"
-        stroke="currentColor"
-        strokeWidth="2.4"
-        strokeLinecap="round"
-        strokeLinejoin="round"
+        d="M8 5.5v13a1 1 0 0 0 1.5.86l10.5-6.5a1 1 0 0 0 0-1.72L9.5 4.64A1 1 0 0 0 8 5.5z"
+        fill="currentColor"
       />
     </svg>
   );
