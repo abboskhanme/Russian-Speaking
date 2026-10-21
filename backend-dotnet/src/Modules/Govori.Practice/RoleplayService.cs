@@ -3,6 +3,7 @@ using System.Text.Json;
 using Govori.Contracts;
 using Govori.Infrastructure;
 using Govori.Infrastructure.Entities;
+using Govori.Platform.Ai;
 using Govori.Platform.Grader;
 using Govori.Platform.Stt;
 using Microsoft.EntityFrameworkCore;
@@ -285,7 +286,17 @@ public sealed class RoleplayService
         var beatIndex = Math.Clamp(last.BeatIndex, 0, Math.Max(0, beats.Count - 1));
         var beat = beats.Count > 0 ? beats[beatIndex] : null;
 
-        var stt = await _stt.TranscribeAsync(bytes, filename, referenceText: null, ct);
+        SttResult stt;
+        try
+        {
+            stt = await _stt.TranscribeAsync(bytes, filename, referenceText: null, ct);
+        }
+        catch (AiBudgetExceededException)
+        {
+            // The global AI budget closed after the readiness check above (paused, or the cap was
+            // reached). Same answer as an unconfigured provider: nothing spent, no turn consumed.
+            return (RoleplayStatus.Ok, Blocked(conversationId, RoleplayState.Unconfigured, spoken, limits, Math.Max(0, left)));
+        }
         var studentText = stt.Text ?? string.Empty;    // verbatim — never repaired, here or later
 
         // A silent recording is a real answer to record, but there is nothing in it for a model to

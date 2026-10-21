@@ -113,7 +113,7 @@ public sealed class GraderGoldenSetTests
             new OpenAiGraderBackend(http),
         ];
 
-        return (new ChainGraderProvider(backends, new Static(config), NullLogger<ChainGraderProvider>.Instance), config);
+        return (new ChainGraderProvider(backends, new Static(config), new TestBudget(), NullLogger<ChainGraderProvider>.Instance), config);
     }
 
     private sealed class Static : IAiConfigSource

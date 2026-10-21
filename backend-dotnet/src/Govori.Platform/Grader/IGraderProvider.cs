@@ -68,6 +68,14 @@ public sealed record GraderResult
     /// configured <c>GEMINI_MODEL</c> setting, which lies whenever the fallback provider ran
     /// (docs/07 §7.9).</summary>
     public string? Model { get; init; }
+
+    /// <summary>Billed input (prompt) tokens as the vendor reported them, or null when it did not.
+    /// Read only by the spend ledger (<see cref="Govori.Platform.Ai.AiCostEstimator"/>).</summary>
+    public long? InputTokens { get; init; }
+
+    /// <summary>Billed output tokens, INCLUDING any thinking/reasoning tokens the vendor bills as
+    /// output; null when not reported.</summary>
+    public long? OutputTokens { get; init; }
 }
 
 /// <summary>The four TEXT criteria + two aggregates.</summary>

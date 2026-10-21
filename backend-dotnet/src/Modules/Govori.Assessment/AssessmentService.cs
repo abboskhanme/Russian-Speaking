@@ -4,6 +4,7 @@ using System.Text.Json.Serialization;
 using Govori.Contracts;
 using Govori.Infrastructure;
 using Govori.Infrastructure.Entities;
+using Govori.Platform.Ai;
 using Govori.Platform.Grader;
 using Govori.Platform.Stt;
 using Govori.Platform.Storage;
@@ -65,6 +66,7 @@ public sealed class AssessmentService
     private readonly IObjectStorage _storage;
     private readonly ISttProvider _stt;
     private readonly IGraderProvider _grader;
+    private readonly IAiBudget _budget;
     private readonly IGradingEvents _events;
     private readonly ILogger<AssessmentService> _logger;
 
@@ -90,6 +92,7 @@ public sealed class AssessmentService
         IObjectStorage storage,
         ISttProvider stt,
         IGraderProvider grader,
+        IAiBudget budget,
         IGradingEvents events,
         ILogger<AssessmentService> logger)
     {
@@ -97,6 +100,7 @@ public sealed class AssessmentService
         _storage = storage;
         _stt = stt;
         _grader = grader;
+        _budget = budget;
         _events = events;
         _logger = logger;
     }
@@ -114,6 +118,24 @@ public sealed class AssessmentService
         }
 
         var isShadowing = !string.IsNullOrWhiteSpace(sub.ReferenceText);
+
+        // GLOBAL AI BUDGET: paused by an operator, or the day's/month's spend is used up. Checked
+        // before the "is anything configured" guard on purpose — a closed budget must not look like
+        // a missing key, which DEFERS and leaves the student watching a spinner until the sweeper
+        // gives up twenty minutes later. Instead the attempt fails at once with its own code (the
+        // screen says "try again later"); the recording and the row stay, and a failed attempt does
+        // not count against an assignment's attempt budget. The chain providers enforce the same
+        // budget before every vendor call, so a cap reached mid-run is caught below as well.
+        var budget = await _budget.CheckAsync(ct);
+        if (!budget.IsOpen)
+        {
+            _logger.LogWarning(
+                "grading refused — AI budget closed ({Block}) (submission {SubmissionId})", budget.Block, submissionId);
+            GradingMetrics.RecordOutcome("ai_unavailable");
+            await MarkFailedAsync(submissionId, SubmissionErrorCodes.AiUnavailable);
+            await EmitAsync(submissionId, GradingState.Failed, "failed", SubmissionErrorCodes.AiUnavailable);
+            return AssessmentOutcome.Failed;
+        }
 
         // GUARD (Faza 3.4/3.9): the provider chain reports false when NO backend in the admin's
         // configured order has a key. When nothing real is wired, DEFER — leave the attempt pending
@@ -358,6 +380,18 @@ public sealed class AssessmentService
                 submissionId);
             GradingMetrics.RecordOutcome("interrupted");
             throw;
+        }
+        catch (AiBudgetExceededException ex)
+        {
+            // The budget closed between the check above and a vendor call (the chain refused before
+            // contacting anyone). Same answer as the up-front refusal; a transcript already made is
+            // kept, so a later re-grade would not pay for STT again.
+            _logger.LogWarning(
+                "grading refused mid-run — AI budget closed ({Block}) (submission {SubmissionId})", ex.Block, submissionId);
+            GradingMetrics.RecordOutcome("ai_unavailable");
+            await MarkFailedAsync(submissionId, SubmissionErrorCodes.AiUnavailable);
+            await EmitAsync(submissionId, GradingState.Failed, "failed", SubmissionErrorCodes.AiUnavailable);
+            return AssessmentOutcome.Failed;
         }
         catch (Exception ex)
         {

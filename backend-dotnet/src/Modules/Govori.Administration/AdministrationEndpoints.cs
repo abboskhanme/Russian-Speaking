@@ -240,6 +240,53 @@ public static class AdministrationEndpoints
         }).RequireAuthorization().RequireRateLimiting(RateLimitPolicyNames.AdminProbe)
             .AdminAudited("settings.ai.test", AdminAuditTargets.Settings);
 
+        // GET /api/admin/settings/ai-budget — the global AI ceiling: kill switch, daily/monthly caps
+        // and the estimated spend against them (today, this month, per backend).
+        settings.MapGet("/ai-budget", async (ClaimsPrincipal p, AdministrationService admin, AiBudgetService budget, CancellationToken ct) =>
+        {
+            var (uid, deny) = await AdminGate(p, admin, ct);
+            return deny ?? Results.Ok(await budget.StatusAsync(ct));
+        }).RequireAuthorization();
+
+        // PATCH /api/admin/settings/ai-budget — tri-state upsert of ai_paused / the two caps.
+        // Caps must be positive dollar amounts ≤ 1,000,000: there is no "unlimited", and a value that
+        // cannot be a cap is refused here rather than silently replaced by the default on read.
+        settings.MapPatch("/ai-budget", async (AiBudgetUpdate body, ClaimsPrincipal p, AdministrationService admin, AppSettingsService svc, AiBudgetService budget, CancellationToken ct) =>
+        {
+            var (uid, deny) = await AdminGate(p, admin, ct);
+            if (deny is not null) return deny;
+
+            var vals = new Dictionary<string, string?>();
+            Add(vals, "ai_paused", body.AiPaused);
+            Add(vals, "ai_daily_cap_usd", body.DailyCapUsd);
+            Add(vals, "ai_monthly_cap_usd", body.MonthlyCapUsd);
+
+            if (vals.TryGetValue("ai_paused", out var paused) && paused is { Length: > 0 })
+            {
+                var norm = paused.Trim().ToLowerInvariant();
+                if (!TrueWords.Contains(norm) && !FalseWords.Contains(norm))
+                    return Detail("ai_paused must be 'true' or 'false'", StatusCodes.Status400BadRequest);
+                vals["ai_paused"] = TrueWords.Contains(norm) ? "true" : "false";
+            }
+
+            foreach (var key in new[] { "ai_daily_cap_usd", "ai_monthly_cap_usd" })
+            {
+                if (!vals.TryGetValue(key, out var v) || v is null || v.Length == 0)
+                    continue;                       // "" clears back to the env default — legal
+                if (AiBudgetSettings.ParseUsd(v) is not { } usd)
+                    return Detail(
+                        $"{key} must be a dollar amount greater than 0 and at most {AiBudgetSettings.MaxCapUsd:0}",
+                        StatusCodes.Status400BadRequest);
+                vals[key] = usd.ToString(System.Globalization.CultureInfo.InvariantCulture);
+            }
+
+            await svc.SetManyAsync(vals, ct);
+            return Results.Ok(await budget.StatusAsync(ct));
+        }).RequireAuthorization()
+            // Every field here is an operator decision worth seeing in the trail, and none is secret.
+            .AdminAudited("settings.ai_budget.update", AdminAuditTargets.Settings,
+                values: ["ai_paused", "daily_cap_usd", "monthly_cap_usd"]);
+
         // GET /api/admin/settings/features — the Faza 6 switches (docs/08 Faza 6).
         settings.MapGet("/features", async (ClaimsPrincipal p, AdministrationService admin, AppSettingsService svc, CancellationToken ct) =>
         {

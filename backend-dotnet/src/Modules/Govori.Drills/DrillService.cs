@@ -4,6 +4,7 @@ using System.Text.RegularExpressions;
 using Govori.Contracts;
 using Govori.Infrastructure;
 using Govori.Infrastructure.Entities;
+using Govori.Platform.Ai;
 using Govori.Platform.Stt;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -215,7 +216,18 @@ public sealed class DrillService
             return (DrillStatus.BadRequest, null);
 
         // ── Pass 1: unscripted. The verdict, and the only transcript we trust. ──
-        var heardResult = await _stt.TranscribeAsync(bytes, filename, referenceText: null, ct);
+        SttResult heardResult;
+        try
+        {
+            heardResult = await _stt.TranscribeAsync(bytes, filename, referenceText: null, ct);
+        }
+        catch (AiBudgetExceededException)
+        {
+            // The global AI budget closed between the readiness check above and this call (an admin
+            // paused AI, or the day's cap was reached). Same answer as an unconfigured provider:
+            // nothing was spent and no attempt is used.
+            return (DrillStatus.Ok, Blocked(DrillState.Unconfigured, target.Word, Math.Max(0, left)));
+        }
         var heardText = heardResult.Text ?? string.Empty;
         var outcome = Judge(heardText, target, pair);
 

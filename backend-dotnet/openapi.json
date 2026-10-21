@@ -289,6 +289,44 @@
         ]
       }
     },
+    "/api/admin/settings/ai-budget": {
+      "get": {
+        "summary": "HTTP: GET /api/admin/settings/ai-budget",
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      },
+      "patch": {
+        "summary": "HTTP: PATCH /api/admin/settings/ai-budget",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AiBudgetUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
     "/api/admin/settings/ai/test": {
       "post": {
         "summary": "HTTP: POST /api/admin/settings/ai/test",
@@ -2966,6 +3004,70 @@
           "is_self"
         ]
       },
+      "AiBudgetResponse": {
+        "type": "object",
+        "properties": {
+          "ai_paused": {
+            "type": "boolean"
+          },
+          "daily_cap_usd": {
+            "type": "number",
+            "format": "double"
+          },
+          "monthly_cap_usd": {
+            "type": "number",
+            "format": "double"
+          },
+          "spent_today_usd": {
+            "type": "number",
+            "format": "double"
+          },
+          "spent_month_usd": {
+            "type": "number",
+            "format": "double"
+          },
+          "state": {
+            "type": "string"
+          },
+          "day": {
+            "type": "string",
+            "format": "date"
+          },
+          "month": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AiSpendLine"
+            }
+          }
+        },
+        "required": [
+          "ai_paused",
+          "daily_cap_usd",
+          "monthly_cap_usd",
+          "spent_today_usd",
+          "spent_month_usd",
+          "state",
+          "day",
+          "month"
+        ]
+      },
+      "AiBudgetUpdate": {
+        "type": "object",
+        "properties": {
+          "ai_paused": {
+            "type": "string",
+            "nullable": true
+          },
+          "daily_cap_usd": {
+            "type": "string",
+            "nullable": true
+          },
+          "monthly_cap_usd": {
+            "type": "string",
+            "nullable": true
+          }
+        }
+      },
       "AiProbeResponse": {
         "type": "object",
         "properties": {
@@ -3207,6 +3309,36 @@
             "nullable": true
           }
         }
+      },
+      "AiSpendLine": {
+        "type": "object",
+        "properties": {
+          "provider": {
+            "type": "string"
+          },
+          "operation": {
+            "type": "string"
+          },
+          "calls": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "failed_calls": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "cost_usd": {
+            "type": "number",
+            "format": "double"
+          }
+        },
+        "required": [
+          "provider",
+          "operation",
+          "calls",
+          "failed_calls",
+          "cost_usd"
+        ]
       },
       "AssignmentResponse": {
         "type": "object",

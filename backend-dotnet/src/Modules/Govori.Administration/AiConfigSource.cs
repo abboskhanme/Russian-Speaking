@@ -63,6 +63,28 @@ public sealed class AiConfigSource : IAiConfigSource
             AzureSpeechRegion = Blank(await _settings.GetAsync("azure_speech_region", ct: ct)),
 
             WhisperModel = await _settings.GetAsync("whisper_model", d.WhisperModel, ct),
+
+            Prices = await PricesAsync(d.Prices, ct),
+        };
+    }
+
+    // Each price: setting → env → the AiPriceTable default. A malformed or negative value keeps the
+    // default rather than pricing a call at zero — a typo must not open a hole in the ceiling.
+    private async Task<AiPriceTable> PricesAsync(AiPriceTable d, CancellationToken ct)
+    {
+        async Task<decimal> Price(string key, decimal def)
+            => AiBudgetSettings.ParseUsd(await _settings.GetAsync(key, ct: ct), allowZero: true) ?? def;
+
+        return new AiPriceTable
+        {
+            AzureSttPerHour = await Price("ai_price_azure_stt_per_hour", d.AzureSttPerHour),
+            WhisperPerMinute = await Price("ai_price_whisper_per_min", d.WhisperPerMinute),
+            AnthropicInputPerMTok = await Price("ai_price_anthropic_in_per_mtok", d.AnthropicInputPerMTok),
+            AnthropicOutputPerMTok = await Price("ai_price_anthropic_out_per_mtok", d.AnthropicOutputPerMTok),
+            GeminiInputPerMTok = await Price("ai_price_gemini_in_per_mtok", d.GeminiInputPerMTok),
+            GeminiOutputPerMTok = await Price("ai_price_gemini_out_per_mtok", d.GeminiOutputPerMTok),
+            OpenAiInputPerMTok = await Price("ai_price_openai_in_per_mtok", d.OpenAiInputPerMTok),
+            OpenAiOutputPerMTok = await Price("ai_price_openai_out_per_mtok", d.OpenAiOutputPerMTok),
         };
     }
 
