@@ -46,14 +46,8 @@ public static class RateLimitPolicyNames
     /// <summary>Password login — 10 per 300 s (also covers Google sign-in).</summary>
     public const string Login = "login";
 
-    /// <summary>Guest demo assessment — 15 per 3600 s.</summary>
-    public const string GuestAssess = "guest_assess";
-
-    /// <summary>Guest demo TTS — 60 per 3600 s.</summary>
-    public const string GuestTts = "guest_tts";
-
     /// <summary>Auth-less "try the placement test" flow (submit + complete). Guards the public guest
-    /// placement endpoints, per-IP and FAIL-OPEN like the other guest policies. A full 3-answer
+    /// placement endpoints, per-IP and FAIL-OPEN like the other policies. A full 3-answer
     /// session costs ~4 hits, so size the limit in multiples of that.</summary>
     public const string GuestPlacement = "guest_placement";
 

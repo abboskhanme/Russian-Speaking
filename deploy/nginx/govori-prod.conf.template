@@ -131,8 +131,8 @@ server {
     # appends with $proxy_add_x_forwarded_for. This nginx is the edge — the droplet
     # has no load balancer in front of it — so an X-Forwarded-For arriving from
     # the internet is whatever the client chose to type. Appending would forward
-    # that claim, and the API keys every per-IP rate limit (OTP sends, guest
-    # grading, the public placement) on the client address: one forged header per
+    # that claim, and the API keys every per-IP rate limit (OTP sends, the
+    # public placement) on the client address: one forged header per
     # request and each of those limits is gone. The API reads the LAST hop as a
     # second line of defence (Govori.Api/RateLimiting/RateLimitIdentity.cs), but
     # this line is the first. If a CDN or load balancer is ever put in front of

@@ -24,8 +24,8 @@ namespace Govori.Api.RateLimiting;
 /// is a list that anyone can START: a client may send <c>X-Forwarded-For: 1.2.3.4</c> itself, and a
 /// proxy configured with <c>$proxy_add_x_forwarded_for</c> APPENDS to it rather than replacing it.
 /// The first hop is therefore whatever the caller chose to write, and keying on it let every
-/// anonymous request pick a fresh partition — every per-IP limit (OTP sends, guest grading, the
-/// public placement) was one header away from unlimited. The last hop is the one written by the
+/// anonymous request pick a fresh partition — every per-IP limit (OTP sends, the public
+/// placement) was one header away from unlimited. The last hop is the one written by the
 /// proxy nearest to us, which is the only entry the client cannot forge.</para>
 ///
 /// <para>Two layers hold this, on purpose. The edge nginx (deploy/nginx/*.conf) OVERWRITES the header

@@ -12,7 +12,6 @@
     <ProjectReference Include="..\Govori.Platform\Govori.Platform.csproj" />
     <ProjectReference Include="..\Modules\Govori.Engagement\Govori.Engagement.csproj" />
     <ProjectReference Include="..\Modules\Govori.Administration\Govori.Administration.csproj" />
-    <ProjectReference Include="..\Modules\Govori.Guest\Govori.Guest.csproj" />
     <ProjectReference Include="..\Modules\Govori.Billing\Govori.Billing.csproj" />
     <ProjectReference Include="..\Modules\Govori.Drills\Govori.Drills.csproj" />
   </ItemGroup>

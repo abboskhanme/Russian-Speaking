@@ -141,14 +141,6 @@ const NOT_MIRRORED = {
   RoleplaySummaryResponse: "typed in screens/conversation/roleplayApi.ts",
   RoleplayCorrection: "typed in screens/conversation/roleplayApi.ts",
 
-  // The auth-less "try one phrase" demo (GET /api/guest/demo, POST /api/guest/assess) is served but
-  // NOTHING in the SPA calls it — the landing page offers the guest PLACEMENT test instead, which
-  // is mirrored. These shapes have no consumer to drift from.
-  GuestDemoResponse: "no caller in the SPA — the landing page uses guest placement instead",
-  GuestAssessResponse: "no caller in the SPA — the landing page uses guest placement instead",
-  GuestCriteria: "part of GuestAssessResponse, which has no caller",
-  GuestWordError: "part of GuestAssessResponse, which has no caller",
-
   // GET /api/review returns the raw SRS queue; the app reaches spaced repetition through
   // /api/review/drill (ReviewDrillResponse), which IS mirrored.
   ReviewItemResponse: "GET /api/review has no caller — the app uses /api/review/drill",

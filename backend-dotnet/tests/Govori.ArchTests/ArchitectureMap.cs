@@ -33,7 +33,6 @@ public static class ArchitectureMap
     public const string Classroom = "Govori.Classroom";
     public const string Engagement = "Govori.Engagement";
     public const string Administration = "Govori.Administration";
-    public const string Guest = "Govori.Guest";
 
     /// <summary>Tariffs, subscriptions and payment attempts (docs/08 Faza 6.6). The ninth module:
     /// docs/07 §7.2 froze the list at eight, and this one is added rather than folded into an
@@ -53,7 +52,7 @@ public static class ArchitectureMap
     public static readonly IReadOnlyList<string> DomainModules = new[]
     {
         Identity, Catalog, Practice, Assessment,
-        Classroom, Engagement, Administration, Guest, Billing, Drills,
+        Classroom, Engagement, Administration, Billing, Drills,
     };
 
     /// <summary>The two application-host assemblies no library/module may depend on.</summary>
@@ -98,7 +97,7 @@ public static class ArchitectureMap
         {
             Api, Worker, Contracts, Infrastructure, Platform, Realtime,
             Identity, Catalog, Practice, Assessment,
-            Classroom, Engagement, Administration, Guest, Billing, Drills,
+            Classroom, Engagement, Administration, Billing, Drills,
         };
         all.RemoveAll(ns => ns == self);
         return all.ToArray();

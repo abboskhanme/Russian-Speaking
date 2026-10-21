@@ -4,9 +4,9 @@ namespace Govori.Platform.Stt;
 /// Whether the recogniser is told, in advance, the exact sentence it is about to hear.
 ///
 /// <para><b>This is a separate switch from <c>referenceText</c> on purpose, and the separation is
-/// load-bearing.</b> Two production callers already pass a reference text —
-/// <c>AssessmentService</c> (the shadowing target) and <c>GuestService</c> (the demo phrase) — and
-/// BOTH must keep recognising unscripted. They pass the reference so our own code can compare
+/// load-bearing.</b> A production caller already passes a reference text —
+/// <c>AssessmentService</c> (the shadowing target) — and it must keep recognising unscripted. It
+/// passes the reference so our own code can compare
 /// against it afterwards (<c>ComputeReferenceMatch</c>), never so Azure can be handed the answer.
 /// Deriving the mode from "is there a reference text?" would therefore have flipped shadowing to
 /// scripted the moment this feature landed, silently repairing exactly the mispronunciations the

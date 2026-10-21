@@ -10,13 +10,12 @@ namespace Govori.UnitTests.Ai;
 /// <summary>
 /// The guardrail around scripted recognition (docs/01 F2, the phoneme drill).
 ///
-/// <para><b>The regression these tests exist to prevent is the expensive one.</b> Two production
-/// callers already hand Azure a reference text — <c>AssessmentService</c> passes the shadowing
-/// target, <c>GuestService</c> passes the demo phrase — and both must keep recognising UNSCRIPTED,
-/// because scripted decoding biases the recogniser toward the script and quietly repairs the exact
+/// <para><b>The regression these tests exist to prevent is the expensive one.</b> A production
+/// caller already hands Azure a reference text — <c>AssessmentService</c> passes the shadowing
+/// target — and it must keep recognising UNSCRIPTED, because scripted decoding biases the recogniser toward the script and quietly repairs the exact
 /// mispronunciations the product exists to surface (<c>transcript-must-stay-faithful</c>). The
 /// obvious implementation of the drill — "if a reference text was supplied, script the request" —
-/// would have flipped both of those paths on the day this feature landed, with no test failing and
+/// would have flipped that path on the day this feature landed, with no test failing and
 /// no visible symptom beyond transcripts that had quietly become too good.</para>
 ///
 /// <para>So the mode is a separate, explicit argument that defaults to unscripted, and these tests

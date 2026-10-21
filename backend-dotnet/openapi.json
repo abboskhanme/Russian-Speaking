@@ -1619,26 +1619,6 @@
         ]
       }
     },
-    "/api/guest/assess": {
-      "post": {
-        "summary": "HTTP: POST /api/guest/assess",
-        "responses": {
-          "200": {
-            "description": "OK"
-          }
-        }
-      }
-    },
-    "/api/guest/demo": {
-      "get": {
-        "summary": "HTTP: GET /api/guest/demo",
-        "responses": {
-          "200": {
-            "description": "OK"
-          }
-        }
-      }
-    },
     "/api/guest/placement/complete": {
       "post": {
         "summary": "HTTP: POST /api/guest/placement/complete",
@@ -1672,26 +1652,6 @@
     "/api/guest/placement/submit": {
       "post": {
         "summary": "HTTP: POST /api/guest/placement/submit",
-        "responses": {
-          "200": {
-            "description": "OK"
-          }
-        }
-      }
-    },
-    "/api/guest/tts": {
-      "get": {
-        "summary": "HTTP: GET /api/guest/tts",
-        "parameters": [
-          {
-            "name": "text",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
         "responses": {
           "200": {
             "description": "OK"
@@ -4260,115 +4220,6 @@
           "join_code",
           "member_count",
           "created_at"
-        ]
-      },
-      "GuestAssessResponse": {
-        "type": "object",
-        "properties": {
-          "transcript": {
-            "type": "string",
-            "nullable": true
-          },
-          "phrase": {
-            "type": "string"
-          },
-          "overall": {
-            "type": "integer",
-            "format": "int32",
-            "nullable": true
-          },
-          "criteria": {
-            "$ref": "#/components/schemas/GuestCriteria"
-          },
-          "errors": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/GuestWordError"
-            }
-          },
-          "level": {
-            "type": "string"
-          },
-          "on_topic": {
-            "type": "boolean"
-          },
-          "completeness": {
-            "type": "integer",
-            "format": "int32",
-            "nullable": true
-          },
-          "scored": {
-            "type": "boolean"
-          }
-        },
-        "required": [
-          "phrase",
-          "criteria",
-          "errors",
-          "level",
-          "on_topic",
-          "scored"
-        ]
-      },
-      "GuestCriteria": {
-        "type": "object",
-        "properties": {
-          "pronunciation": {
-            "type": "integer",
-            "format": "int32",
-            "nullable": true
-          },
-          "stress": {
-            "type": "integer",
-            "format": "int32",
-            "nullable": true
-          },
-          "intonation": {
-            "type": "integer",
-            "format": "int32",
-            "nullable": true
-          },
-          "fluency": {
-            "type": "integer",
-            "format": "int32",
-            "nullable": true
-          },
-          "grammar": {
-            "type": "integer",
-            "format": "int32",
-            "nullable": true
-          }
-        }
-      },
-      "GuestDemoResponse": {
-        "type": "object",
-        "properties": {
-          "phrase": {
-            "type": "string"
-          }
-        },
-        "required": [
-          "phrase"
-        ]
-      },
-      "GuestWordError": {
-        "type": "object",
-        "properties": {
-          "word": {
-            "type": "string"
-          },
-          "accuracy": {
-            "type": "integer",
-            "format": "int32"
-          },
-          "error_type": {
-            "type": "string",
-            "nullable": true
-          }
-        },
-        "required": [
-          "word",
-          "accuracy"
         ]
       },
       "InsightsDayPoint": {
