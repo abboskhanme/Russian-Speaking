@@ -1,7 +1,10 @@
+import { Suspense, lazy, useState } from "react";
 import type { ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import type { AiCorrection, AiFeedback } from "../../app/adapters";
-import { Badge, Button, Card, Text, cx } from "../../shared/ui";
+import { Badge, Button, Card, Mascot, ProgressRing, Text } from "../../shared/ui";
+import { useCountUp } from "../../shared/ui/utils/motion";
+import { scoreBand, scoreTone } from "../../shared/score/scoreBand";
 import { AppShell, Brand, NotificationsBell, studentNavItems } from "../../widgets";
 import type { NavItem } from "../../widgets";
 import styles from "./AttemptDetailScreen.module.css";
@@ -107,11 +110,7 @@ export function AttemptDetailScreen({
       <div className={styles.page}>
         {/* ---- Hero: band · question · level · date ---- */}
         <Card variant="panel" padding="lg" className={styles.hero}>
-          <span className={cx(styles.bandRing, !graded && styles.bandRingMuted)} aria-hidden>
-            <Text as="span" variant="display" numeric className={styles.bandNum}>
-              {graded ? detail.band : "—"}
-            </Text>
-          </span>
+          <ScoreRing band={graded ? detail.band : null} />
           <div className={styles.heroBody}>
             <Text as="h1" variant="title-m" className={styles.heroTitle}>
               {detail.questionTitle ?? t("results.attempt")}
@@ -133,6 +132,10 @@ export function AttemptDetailScreen({
             </div>
           </div>
         </Card>
+
+        {graded && detail.band !== null && (
+          <MascotReaction band={detail.band} attemptId={detail.id} />
+        )}
 
         {!graded && (
           <Text as="p" variant="body-s" color="muted">
@@ -262,6 +265,60 @@ export function AttemptDetailScreen({
 /* -------------------------------------------------------------------------- */
 /* Bits                                                                        */
 /* -------------------------------------------------------------------------- */
+
+/** The confetti is its own lazy chunk: only a great score ever downloads it. */
+const Confetti = lazy(() => import("../../shared/ui/Confetti/Confetti"));
+
+/** The band as a ring that fills while the number counts up (--dur-countup),
+ * coloured by the score's band. Reduced motion: both land at once. */
+function ScoreRing({ band }: { band: number | null }) {
+  const shown = useCountUp(band === null ? null : Math.round(band));
+  return (
+    <ProgressRing
+      value={shown === null ? 0 : shown / 100}
+      size={88}
+      stroke={8}
+      tone={band === null ? "primary" : scoreTone(band)}
+      className={styles.scoreRing}
+    >
+      <Text as="span" variant="title-l" numeric className={styles.bandNum}>
+        {shown === null ? "—" : shown}
+      </Text>
+    </ProgressRing>
+  );
+}
+
+/**
+ * Govo reacts to the score: proud and cheering on a good one, kind and
+ * encouraging on a weak one — never sad, never mocking (docs/03 §3.2). A great
+ * score also gets a short confetti burst, once per attempt per session.
+ */
+function MascotReaction({ band, attemptId }: { band: number; attemptId: string }) {
+  const { t } = useTranslation();
+  const b = scoreBand(band);
+  const [celebrate] = useState(() => {
+    if (b !== "great") return false;
+    const key = `govori-cheered:${attemptId}`;
+    try {
+      if (sessionStorage.getItem(key)) return false;
+      sessionStorage.setItem(key, "1");
+    } catch {
+      /* storage blocked — celebrating once more is harmless */
+    }
+    return true;
+  });
+  return (
+    <div className={styles.reaction} data-band={b}>
+      <Mascot mood={b === "great" || b === "good" ? "proud" : "idle"} size={64} label="" />
+      <p className={styles.bubble}>{t(`motivation.react.${b}`)}</p>
+      {celebrate && (
+        <Suspense fallback={null}>
+          <Confetti />
+        </Suspense>
+      )}
+    </div>
+  );
+}
 
 function Section({ title, children }: { title: string; children: ReactNode }) {
   return (

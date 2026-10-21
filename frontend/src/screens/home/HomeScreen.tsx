@@ -10,7 +10,11 @@ import {
   mockHomeToday,
   mockHomeUser,
 } from "./home.mock";
+import { MotivationPanel } from "./MotivationPanel";
+import type { HomeXp } from "./MotivationPanel";
 import styles from "./HomeScreen.module.css";
+
+export type { HomeXp } from "./MotivationPanel";
 
 /* -------------------------------------------------------------------------- */
 /* Public contract                                                            */
@@ -84,6 +88,11 @@ export interface HomeStats {
   /** Practice minutes this week. */
   weekMinutes: number;
   currentStreak: number;
+  /** The last seven days, oldest first and today last — true = practised.
+   * Null/absent (an older API) → the week strip is simply left out. */
+  activeDays?: boolean[] | null;
+  /** Lifetime XP on the level curve; null/absent → no XP bar. */
+  xp?: HomeXp | null;
 }
 
 export interface HomeScreenProps {
@@ -208,6 +217,13 @@ export function HomeScreen({
           </Card>
         )}
 
+        <MotivationPanel
+          stats={stats}
+          goalMinutes={today.goalMinutes}
+          doneSeconds={today.doneSeconds}
+          onRetry={onRetryStats}
+        />
+
         {group ? (
           <TeacherSection
             group={group}
@@ -221,37 +237,6 @@ export function HomeScreen({
           <NoGroupCard onJoin={onJoinGroup} />
         )}
 
-        <section className={styles.section} aria-label={t("home.summary")}>
-          <Text as="h2" variant="label" color="muted" className={styles.sectionLabel}>
-            {t("home.summary")}
-          </Text>
-          <div className={styles.statGrid}>
-            {/* An em dash in every cell, not a zero. The three cells keep their
-                labels so the layout does not jump when the retry succeeds. */}
-            <StatCell value={stats ? (stats.level ?? "—") : "—"} label={t("home.statLevel")} />
-            <StatCell
-              value={stats ? String(stats.weekMinutes) : "—"}
-              unit={stats ? t("home.statWeekUnit") : undefined}
-              label={t("home.statWeek")}
-            />
-            <StatCell
-              value={stats ? String(stats.currentStreak) : "—"}
-              label={t("home.statStreak")}
-            />
-          </div>
-          {!stats && (
-            <div className={styles.statsError} role="status">
-              <Text as="span" variant="body-s" color="muted">
-                {t("home.statsFailed")}
-              </Text>
-              {onRetryStats && (
-                <Button variant="ghost" size="sm" onClick={onRetryStats}>
-                  {t("common.retry")}
-                </Button>
-              )}
-            </div>
-          )}
-        </section>
       </div>
     </AppShell>
   );
@@ -614,33 +599,6 @@ function NoGroupCard({ onJoin }: { onJoin?: (code: string) => Promise<void> }) {
 /* Summary cell                                                               */
 /* -------------------------------------------------------------------------- */
 
-function StatCell({
-  value,
-  unit,
-  label,
-}: {
-  value: string;
-  unit?: string;
-  label: string;
-}) {
-  return (
-    <Card variant="outline" padding="md" className={styles.statCell}>
-      <span className={styles.statValueRow}>
-        <Text as="span" variant="title-l" numeric className={styles.statValue}>
-          {value}
-        </Text>
-        {unit && (
-          <Text as="span" variant="body-s" color="muted" className={styles.statUnit}>
-            {unit}
-          </Text>
-        )}
-      </span>
-      <Text as="span" variant="body-s" color="muted">
-        {label}
-      </Text>
-    </Card>
-  );
-}
 
 /* -------------------------------------------------------------------------- */
 /* Local helpers + glyphs                                                     */

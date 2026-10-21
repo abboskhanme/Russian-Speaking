@@ -91,3 +91,8 @@
   text-align: right;
   color: var(--info);
 }
+
+/* No score for this skill yet: the "—" is information, not a value. */
+.skillRow[data-nodata] .skillScore {
+  color: var(--muted);
+}

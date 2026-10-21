@@ -104,6 +104,7 @@ export default function AllResultsPage() {
       results={results}
       onOpenResult={(id) => navigate(`/results/${id}`)}
       onBack={() => navigate("/profile")}
+      onStartPractice={() => navigate("/practice")}
       activeNavKey="profile"
       onNavigate={onNavigate}
     />

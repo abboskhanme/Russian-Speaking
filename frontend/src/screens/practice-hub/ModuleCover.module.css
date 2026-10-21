@@ -1,0 +1,62 @@
+/* ModuleCover — tinted tile + soft motif + big initial. Tokens only. */
+.cover {
+  position: relative;
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 60px;
+  height: 60px;
+  border-radius: var(--r-md);
+  background: var(--cover-bg);
+  color: var(--cover-fg);
+}
+.lg {
+  width: 96px;
+  height: 96px;
+  border-radius: var(--r-lg);
+}
+.art {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border-radius: inherit;
+}
+.motif {
+  fill: var(--cover-fg);
+  opacity: 0.16;
+}
+.motifStroke {
+  fill: none;
+  stroke: var(--cover-fg);
+  stroke-width: 3;
+  stroke-linecap: round;
+  opacity: 0.18;
+}
+.initial {
+  position: relative;
+  font-family: var(--font-display);
+  font-weight: var(--fw-black);
+  font-size: 28px;
+  line-height: 1;
+  letter-spacing: -0.02em;
+}
+.lg .initial {
+  font-size: 46px;
+}
+.badge {
+  position: absolute;
+  inset-inline-end: -6px;
+  bottom: -6px;
+}
+.cover.dimmed {
+  --cover-bg: var(--surface-3);
+  --cover-fg: var(--muted);
+}
+
+/* Five warm palettes, all from theme tokens (light + dark follow automatically). */
+.toneA { --cover-bg: var(--primary-tint); --cover-fg: var(--primary-ink); }
+.toneB { --cover-bg: var(--accent-tint);  --cover-fg: var(--accent); }
+.toneC { --cover-bg: var(--success-tint); --cover-fg: var(--success-ink); }
+.toneD { --cover-bg: var(--warn-tint);    --cover-fg: var(--warn-ink); }
+.toneE { --cover-bg: var(--info-tint);    --cover-fg: var(--info); }

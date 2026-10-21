@@ -18,6 +18,44 @@
   align-items: center;
   gap: var(--s-4);
 }
+.scoreRing {
+  flex: none;
+}
+/* Govo + a speech bubble with the reaction. */
+.reaction {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+}
+.bubble {
+  position: relative;
+  margin: 0;
+  padding: var(--s-3) var(--s-4);
+  border-radius: var(--r-md);
+  background: var(--surface);
+  border: 1.5px solid var(--line);
+  color: var(--ink);
+  font-size: var(--t-body-size);
+  line-height: var(--t-body-line);
+  font-weight: var(--fw-semibold);
+}
+.reaction[data-band="great"] .bubble,
+.reaction[data-band="good"] .bubble {
+  background: var(--success-tint);
+  border-color: transparent;
+}
+.bubble::before {
+  content: "";
+  position: absolute;
+  inset-inline-start: -7px;
+  top: 50%;
+  width: 12px;
+  height: 12px;
+  background: inherit;
+  border-inline-start: inherit;
+  border-bottom: inherit;
+  transform: translateY(-50%) rotate(45deg);
+}
 .bandRing {
   flex: none;
   display: grid;

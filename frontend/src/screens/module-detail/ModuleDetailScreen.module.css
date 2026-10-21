@@ -45,17 +45,21 @@
   position: absolute;
   inset: 0;
   display: flex;
-  align-items: baseline;
+  align-items: center;
   justify-content: center;
+}
+.ringNum {
+  display: inline-flex;
+  align-items: baseline;
   gap: 1px;
 }
 .ringPct {
-  color: var(--info);
+  color: var(--primary-ink);
   line-height: 1;
   letter-spacing: -0.03em;
 }
 .ringSign {
-  color: var(--info);
+  color: var(--primary-ink);
   font-weight: 700;
   font-size: 1.1rem;
   line-height: 1;
@@ -81,15 +85,32 @@
   display: flex;
   flex-direction: column;
 }
+/* The task list reads as a PATH: each state chip is a stop on one vertical
+ * line, filled green up to where the student is, plain after it. */
 .taskRow {
+  position: relative;
   display: flex;
   align-items: center;
   gap: var(--s-3);
+  min-height: 72px;
   padding: var(--s-3) var(--s-4);
-  border-bottom: 1px solid var(--line);
 }
-.taskRow:last-child {
-  border-bottom: none;
+.taskRow:not(:last-child)::after {
+  content: "";
+  position: absolute;
+  /* centred under the 40px chip; from its bottom edge to the next chip's top */
+  inset-inline-start: calc(var(--s-4) + 19px);
+  top: calc(50% + 22px);
+  height: calc(100% - 44px);
+  width: 2px;
+  border-radius: var(--r-pill);
+  background: var(--line-2);
+}
+.taskRow[data-state="done"]:not(:last-child)::after {
+  background: var(--success);
+}
+.taskRowCurrent {
+  background: var(--primary-tint);
 }
 .taskRowMuted {
   opacity: 0.6;
@@ -109,8 +130,9 @@
   color: var(--success-ink);
 }
 .chip_current {
-  background: var(--warn-tint);
-  color: var(--warn);
+  background: var(--primary);
+  color: var(--primary-on);
+  box-shadow: 0 0 0 4px var(--surface), var(--e-primary);
 }
 .chip_locked {
   background: var(--surface-3);
@@ -155,10 +177,26 @@
   min-width: 2.5ch;
   text-align: right;
 }
+/* Score colour follows its band (shared/score/scoreBand). */
+.band_success {
+  color: var(--success-ink);
+}
+.band_warn {
+  color: var(--warn-ink);
+}
+.band_danger {
+  color: var(--danger);
+}
 
 /* ---- Header back button ---- */
 .back {
   display: inline-grid;
   place-items: center;
   padding-inline: var(--s-2);
+}
+
+/* "Task 3 · current" in the brand ink (AA on the primary tint). The doubled
+ * class outranks shared/ui Text's single-class colour. */
+.taskMeta.taskMetaCurrent {
+  color: var(--primary-ink);
 }

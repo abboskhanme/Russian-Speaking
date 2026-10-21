@@ -77,3 +77,11 @@ export type { RecorderProps, RecorderLabels } from "./Recorder";
 export { copyText } from "./utils/copyText";
 export { cx } from "./utils/cx";
 export type { ClassValue } from "./utils/cx";
+
+/* Learner motivation — a round meter with a centred slot, and Govo + one CTA
+ * for an empty place. */
+export { ProgressRing } from "./ProgressRing";
+export type { ProgressRingProps, ProgressRingTone } from "./ProgressRing";
+
+export { EmptyState } from "./EmptyState";
+export type { EmptyStateProps } from "./EmptyState";
