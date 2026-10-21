@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import type { HTMLAttributes } from "react";
+import type { HTMLAttributes, ReactNode } from "react";
+import { createPortal } from "react-dom";
 import { useTranslation } from "react-i18next";
 import { cx } from "../utils/cx";
 import { Button } from "../Button/Button";
@@ -12,7 +13,7 @@ import { VisuallyHidden } from "../VisuallyHidden/VisuallyHidden";
 import styles from "./Recorder.module.css";
 
 /** Internal state machine. Core path is idle → recording → review. */
-type RecorderStatus =
+export type RecorderStatus =
   | "idle"
   | "requesting"
   | "prep"
@@ -20,6 +21,53 @@ type RecorderStatus =
   | "review"
   | "denied"
   | "error";
+
+/**
+ * WHY recording is not possible — each has a different fix, so each gets its own
+ * sentence:
+ *   insecure    — the page is on plain http:// (not localhost). Browsers hide
+ *                 `navigator.mediaDevices` there; it used to be reported as "your
+ *                 device doesn't support recording", on phones that do.
+ *   unsupported — the browser really has no getUserMedia / MediaRecorder.
+ *   noDevice    — no microphone is connected.
+ *   busy        — another app (a call, another tab) is holding the microphone.
+ *   generic     — anything else.
+ */
+export type RecorderProblem = "insecure" | "unsupported" | "noDevice" | "busy" | "generic";
+
+/** What this browser/page can do, before anything is asked of the user. */
+export function detectRecordingSupport(): "ok" | "insecure" | "unsupported" {
+  if (typeof navigator === "undefined" || typeof window === "undefined") return "unsupported";
+  const md = navigator.mediaDevices;
+  if (md && typeof md.getUserMedia === "function" && "MediaRecorder" in window) return "ok";
+  // An insecure origin hides mediaDevices entirely: a URL problem, not the device's.
+  if (window.isSecureContext === false) return "insecure";
+  return "unsupported";
+}
+
+/** A getUserMedia rejection → what the screen says about it. */
+export function classifyMediaError(err: unknown): "denied" | RecorderProblem {
+  const name = err instanceof DOMException ? err.name : (err as Error | undefined)?.name;
+  switch (name) {
+    case "NotAllowedError":
+    case "PermissionDeniedError":
+      return "denied";
+    case "SecurityError":
+      return typeof window !== "undefined" && window.isSecureContext === false
+        ? "insecure"
+        : "denied";
+    case "NotFoundError":
+    case "DevicesNotFoundError":
+    case "OverconstrainedError":
+      return "noDevice";
+    case "NotReadableError":
+    case "TrackStartError":
+    case "AbortError":
+      return "busy";
+    default:
+      return "generic";
+  }
+}
 
 export interface RecorderLabels {
   idleHint: string;
@@ -40,19 +88,24 @@ export interface RecorderLabels {
   retry: string;
   deniedTitle: string;
   deniedHint: string;
+  /** Generic failure (anything not covered by the specific problems below). */
   errorTitle: string;
   errorHint: string;
+  insecureTitle: string;
+  insecureHint: string;
+  unsupportedTitle: string;
+  unsupportedHint: string;
+  noDeviceTitle: string;
+  noDeviceHint: string;
+  busyTitle: string;
+  busyHint: string;
   /** Accessible name of the whole recorder region. */
   region: string;
 }
 
 /**
  * The built-in labels, from the `recorder.*` keys in the active language.
- *
- * They used to be a hardcoded Uzbek object, and no caller but the phoneme drill
- * passed any overrides — so a Russian- or English-speaking student recorded every
- * answer in the app under Uzbek buttons. Every label now follows the language the
- * rest of the screen is in; `labels` still overrides any of them per call site.
+ * `labels` still overrides any of them per call site.
  */
 function useDefaultLabels(): RecorderLabels {
   const { t } = useTranslation();
@@ -77,6 +130,14 @@ function useDefaultLabels(): RecorderLabels {
       deniedHint: t("recorder.deniedHint"),
       errorTitle: t("recorder.errorTitle"),
       errorHint: t("recorder.errorHint"),
+      insecureTitle: t("recorder.insecureTitle"),
+      insecureHint: t("recorder.insecureHint"),
+      unsupportedTitle: t("recorder.unsupportedTitle"),
+      unsupportedHint: t("recorder.unsupportedHint"),
+      noDeviceTitle: t("recorder.noDeviceTitle"),
+      noDeviceHint: t("recorder.noDeviceHint"),
+      busyTitle: t("recorder.busyTitle"),
+      busyHint: t("recorder.busyHint"),
       region: t("recorder.region"),
     }),
     [t],
@@ -99,6 +160,19 @@ export interface RecorderProps
   mascotSize?: number;
   /** Override any of the built-in (localized, `recorder.*`) strings. */
   labels?: Partial<RecorderLabels>;
+  /**
+   * Docked mode (the focused `/task` flow). When this prop is PRESENT — even as
+   * `null` while the host's ref is still attaching — the controls (mic / stop /
+   * send, the live waveform and the timers) are portalled into this element,
+   * which the host pins to the bottom of the screen. The inline part keeps only
+   * Govo and the words. Absent = the classic all-inline recorder.
+   */
+  dockTarget?: HTMLElement | null;
+  /** Docked mode: a secondary action beside the mic while nothing is being
+   *  captured (the task's "Skip"). Hidden while recording and in review. */
+  dockAside?: ReactNode;
+  /** Reports the internal state, so a host can adapt around it. */
+  onStatusChange?: (status: RecorderStatus) => void;
 }
 
 /** Feature-detect the (prefixed) AudioContext without tripping SSR / TS. */
@@ -159,15 +233,15 @@ function resampleTo(raw: number[], count: number): number[] {
 
 /**
  * Recorder — audio capture (docs/03 §3.6, docs/08 §4.6). States:
- *   idle → recording → review  (+ requesting / prep / denied / error).
+ *   idle → [prep] → recording → review  (+ requesting / denied / error).
  *
- * Captures with `MediaRecorder`, renders a live `Waveform` from a Web-Audio
- * `AnalyserNode` while recording, shows an elapsed timer + progress toward the
- * cap, and on stop offers playback (`<audio>` from the Blob) + re-record +
- * accept. Emits `onComplete(blob)` / `onCancel()` — no upload/backend coupling.
+ * Captures with `MediaRecorder`, renders a live `FlowingWaveform` from a
+ * Web-Audio `AnalyserNode` while recording, shows an elapsed timer + progress
+ * toward the cap, and on stop offers playback + re-record + accept. Emits
+ * `onComplete(blob)` / `onCancel()` — no upload/backend coupling.
  *
- * Every browser API is feature-detected (SSR / type-safe): `navigator.media
- * Devices`, `MediaRecorder`, and `AudioContext || webkitAudioContext`.
+ * Every browser API is feature-detected; an environment that cannot record says
+ * WHY up front (see {@link RecorderProblem}) instead of a disabled mic.
  */
 export function Recorder({
   onComplete,
@@ -177,6 +251,9 @@ export function Recorder({
   mimeType,
   mascotSize = 150,
   labels: labelOverrides,
+  dockTarget,
+  dockAside,
+  onStatusChange,
   className,
   ...rest
 }: RecorderProps) {
@@ -186,19 +263,14 @@ export function Recorder({
     [defaultLabels, labelOverrides],
   );
 
-  const supported = useMemo(() => {
-    if (typeof navigator === "undefined" || typeof window === "undefined") {
-      return false;
-    }
-    const md = navigator.mediaDevices;
-    return Boolean(
-      md &&
-        typeof md.getUserMedia === "function" &&
-        "MediaRecorder" in window,
-    );
-  }, []);
+  const support = useMemo(detectRecordingSupport, []);
+  const supported = support === "ok";
+  const docked = dockTarget !== undefined;
 
-  const [status, setStatus] = useState<RecorderStatus>("idle");
+  const [status, setStatus] = useState<RecorderStatus>(supported ? "idle" : "error");
+  const [problem, setProblem] = useState<RecorderProblem>(
+    support === "insecure" ? "insecure" : support === "unsupported" ? "unsupported" : "generic",
+  );
   const [analyser, setAnalyser] = useState<AnalyserNode | null>(null);
   const [elapsedMs, setElapsedMs] = useState(0);
   const [peaks, setPeaks] = useState<number[]>([]);
@@ -222,6 +294,15 @@ export function Recorder({
   const sampleRef = useRef<number | null>(null);
   const prepRef = useRef<number | null>(null);
   const audioElRef = useRef<HTMLAudioElement | null>(null);
+
+  useEffect(() => {
+    onStatusChange?.(status);
+  }, [onStatusChange, status]);
+
+  const fail = useCallback((p: RecorderProblem) => {
+    setProblem(p);
+    setStatus("error");
+  }, []);
 
   const clearTimers = useCallback(() => {
     if (tickRef.current !== null) window.clearInterval(tickRef.current);
@@ -322,7 +403,7 @@ export function Recorder({
         : new MediaRecorder(stream);
     } catch {
       teardownAudio();
-      setStatus("error");
+      fail("generic");
       return;
     }
 
@@ -338,12 +419,12 @@ export function Recorder({
       rec.start();
     } catch {
       teardownAudio();
-      setStatus("error");
+      fail("generic");
       return;
     }
     setStatus("recording");
     startTimers();
-  }, [finalize, mimeType, startTimers, teardownAudio]);
+  }, [fail, finalize, mimeType, startTimers, teardownAudio]);
 
   const startPrep = useCallback(() => {
     setStatus("prep");
@@ -359,6 +440,11 @@ export function Recorder({
       }
     }, 100);
   }, [clearPrep, prepMs, startMediaRecorder]);
+
+  const endPrepNow = useCallback(() => {
+    clearPrep();
+    startMediaRecorder();
+  }, [clearPrep, startMediaRecorder]);
 
   const setupGraph = useCallback((stream: MediaStream) => {
     const Ctor = getAudioContextCtor();
@@ -377,7 +463,7 @@ export function Recorder({
 
   const requestAndStart = useCallback(async () => {
     if (!supported) {
-      setStatus("error");
+      fail(support === "insecure" ? "insecure" : "unsupported");
       return;
     }
     setStatus("requesting");
@@ -388,19 +474,11 @@ export function Recorder({
       if (prepMs > 0) startPrep();
       else startMediaRecorder();
     } catch (err) {
-      const name =
-        err instanceof DOMException ? err.name : (err as Error)?.name;
-      if (
-        name === "NotAllowedError" ||
-        name === "PermissionDeniedError" ||
-        name === "SecurityError"
-      ) {
-        setStatus("denied");
-      } else {
-        setStatus("error");
-      }
+      const kind = classifyMediaError(err);
+      if (kind === "denied") setStatus("denied");
+      else fail(kind);
     }
-  }, [prepMs, setupGraph, startMediaRecorder, startPrep, supported]);
+  }, [fail, prepMs, setupGraph, startMediaRecorder, startPrep, support, supported]);
 
   const resetToIdle = useCallback(() => {
     clearTimers();
@@ -476,11 +554,211 @@ export function Recorder({
           ? labels.reviewReady
           : "";
 
+  const problemText: Record<RecorderProblem, [string, string]> = {
+    insecure: [labels.insecureTitle, labels.insecureHint],
+    unsupported: [labels.unsupportedTitle, labels.unsupportedHint],
+    noDevice: [labels.noDeviceTitle, labels.noDeviceHint],
+    busy: [labels.busyTitle, labels.busyHint],
+    generic: [labels.errorTitle, labels.errorHint],
+  };
+  const [blockTitle, blockHint] =
+    status === "denied" ? [labels.deniedTitle, labels.deniedHint] : problemText[problem];
+  /** Asking again can help with these; never with an insecure page or a browser
+   *  that has no recording API. */
+  const canRetry =
+    status === "denied" ||
+    (status === "error" && problem !== "insecure" && problem !== "unsupported");
+
+  /* ---------------- shared pieces ---------------- */
+
+  const micButton = (
+    <button
+      type="button"
+      className={cx(styles.recordButton, styles.record, docked && styles.recordDocked)}
+      onClick={status === "prep" ? endPrepNow : requestAndStart}
+      disabled={status === "requesting"}
+      aria-label={
+        status === "requesting"
+          ? labels.requesting
+          : status === "prep"
+            ? labels.skip
+            : labels.start
+      }
+    >
+      {status === "requesting" ? <Spinner size="md" label="" /> : <MicIcon />}
+    </button>
+  );
+
+  const stopButton = (
+    <button
+      type="button"
+      className={cx(styles.recordButton, styles.stop, docked && styles.recordDocked)}
+      onClick={stopRecording}
+      aria-label={labels.stop}
+    >
+      <StopGlyph />
+    </button>
+  );
+
+  const progressBar = showProgress && (
+    <div
+      className={cx(styles.progressTrack, docked && styles.progressTrackDocked)}
+      role="progressbar"
+      aria-label={labels.recording}
+      aria-valuemin={0}
+      aria-valuemax={100}
+      aria-valuenow={Math.round(progressPct)}
+    >
+      <div className={styles.progressFill} style={{ width: `${progressPct}%` }} />
+    </div>
+  );
+
+  const playRow = (
+    <div className={styles.playRow}>
+      <button
+        type="button"
+        className={styles.playButton}
+        onClick={togglePlay}
+        aria-label={playing ? labels.pause : labels.play}
+      >
+        {playing ? <PauseIcon /> : <PlayIcon />}
+      </button>
+      <Waveform mode="static" peaks={peaks} barCount={48} height={40} className={styles.wave} />
+      <span className={styles.playTime} aria-hidden>
+        {formatTime(playing ? playbackMs : durationMs)}
+      </span>
+    </div>
+  );
+
+  const audioEl = (
+    <audio
+      ref={audioElRef}
+      src={audioUrl ?? undefined}
+      preload="metadata"
+      className={styles.audio}
+      onPlay={() => setPlaying(true)}
+      onPause={() => setPlaying(false)}
+      onEnded={() => {
+        setPlaying(false);
+        setPlaybackMs(0);
+      }}
+      onTimeUpdate={(e) => setPlaybackMs(e.currentTarget.currentTime * 1000)}
+    />
+  );
+
+  const reviewButtons = (
+    <div className={cx(styles.reviewActions, docked && styles.reviewActionsDocked)}>
+      <Button variant="secondary" size={docked ? "lg" : "md"} fullWidth onClick={resetToIdle}>
+        {labels.reRecord}
+      </Button>
+      <Button variant="primary" size={docked ? "lg" : "md"} fullWidth onClick={handleAccept}>
+        {labels.accept}
+      </Button>
+    </div>
+  );
+
+  const limitReadout = showProgress && (
+    <span className={styles.limit}>
+      {formatTime(elapsedMs)}
+      <span className={styles.limitTotal}> / {formatTime(maxDurationMs)}</span>
+    </span>
+  );
+
+  /* ---------------- docked: the bottom action bar ---------------- */
+
+  const dock = (() => {
+    if (!docked) return null;
+    const asideSlot = <div className={styles.dockStart}>{dockAside}</div>;
+    switch (status) {
+      case "idle":
+      case "requesting":
+        return (
+          <div className={styles.dockRow}>
+            {asideSlot}
+            <div className={styles.dockCenter}>
+              {micButton}
+              <span className={styles.dockCaption} aria-hidden>
+                {status === "requesting" ? labels.requesting : labels.start}
+              </span>
+            </div>
+            <div className={styles.dockEnd} />
+          </div>
+        );
+      case "prep":
+        return (
+          <div className={styles.dockRow}>
+            {asideSlot}
+            <div className={styles.dockCenter}>
+              {micButton}
+              <span className={styles.dockCaption} aria-hidden>
+                {labels.skip}
+              </span>
+            </div>
+            <div className={styles.dockEnd}>
+              <span className={styles.limit} aria-hidden>
+                {formatTime(prepRemainingMs + 999)}
+              </span>
+            </div>
+          </div>
+        );
+      case "recording":
+        return (
+          <>
+            <div className={styles.dockStrip}>
+              <FlowingWaveform analyser={analyser} height={44} className={styles.dockWave} />
+              {progressBar}
+            </div>
+            <div className={styles.dockRow}>
+              <div className={styles.dockStart}>
+                {onCancel && (
+                  <Button variant="ghost" onClick={cancelRecording}>
+                    {labels.cancel}
+                  </Button>
+                )}
+              </div>
+              <div className={styles.dockCenter}>
+                {stopButton}
+                <span className={cx(styles.dockCaption, styles.stopLabel)} aria-hidden>
+                  {labels.stop}
+                </span>
+              </div>
+              <div className={styles.dockEnd}>{limitReadout || (
+                <span className={styles.limit}>{formatTime(elapsedMs)}</span>
+              )}</div>
+            </div>
+          </>
+        );
+      case "review":
+        return (
+          <>
+            <div className={styles.dockStrip}>{playRow}</div>
+            {reviewButtons}
+          </>
+        );
+      default:
+        // denied / error: the reason is in the stage above; here, the way on.
+        if (!canRetry && !dockAside) return null;
+        return (
+          <div className={styles.dockRow}>
+            {asideSlot}
+            <div className={styles.dockCenter}>
+              {canRetry && (
+                <Button variant="primary" size="lg" onClick={requestAndStart}>
+                  {labels.retry}
+                </Button>
+              )}
+            </div>
+            <div className={styles.dockEnd} />
+          </div>
+        );
+    }
+  })();
+
   return (
     <section
       className={cx(styles.root, className)}
-      // Grouped control; the mic/stop buttons carry their own labels.
       aria-label={labels.region}
+      data-status={status}
       {...rest}
     >
       {/* Polite live region for transient state changes. */}
@@ -493,30 +771,15 @@ export function Recorder({
         <div className={styles.stage}>
           <Mascot mood="idle" size={mascotSize} label="" />
           <Text variant="body" color="ink-soft" align="center">
-            {supported ? labels.idleHint : labels.errorHint}
+            {labels.idleHint}
           </Text>
-          <button
-            type="button"
-            className={cx(styles.recordButton, styles.record)}
-            onClick={requestAndStart}
-            disabled={!supported || status === "requesting"}
-            aria-label={
-              status === "requesting" ? labels.requesting : labels.start
-            }
-          >
-            {status === "requesting" ? (
-              <Spinner size="md" label="" />
-            ) : (
-              <MicIcon />
-            )}
-          </button>
+          {!docked && micButton}
         </div>
       )}
 
       {/* ---- prep countdown ---- */}
       {status === "prep" && (
         <div className={styles.stage}>
-          <Mascot mood="idle" size={mascotSize} label="" />
           <CountdownRing
             remainingMs={prepRemainingMs}
             totalMs={prepMs}
@@ -528,15 +791,11 @@ export function Recorder({
           <Text variant="body-s" color="ink-soft" align="center">
             {labels.prepHint}
           </Text>
-          <Button
-            variant="secondary"
-            onClick={() => {
-              clearPrep();
-              startMediaRecorder();
-            }}
-          >
-            {labels.skip} →
-          </Button>
+          {!docked && (
+            <Button variant="secondary" onClick={endPrepNow}>
+              {labels.skip} →
+            </Button>
+          )}
         </div>
       )}
 
@@ -549,107 +808,48 @@ export function Recorder({
           </span>
           <span className={styles.recIndicator}>
             <span className={styles.pulseDot} aria-hidden />
-            <Text
-              as="span"
-              variant="body-s"
-              color="danger"
-              weight="bold"
-            >
+            <Text as="span" variant="body-s" color="danger" weight="bold">
               {labels.recording}
             </Text>
           </span>
-          {/* Same flowing-thread visual as the AI Suhbat composer — used
-              everywhere the app records voice. */}
-          <FlowingWaveform
-            analyser={analyser}
-            height={72}
-            className={styles.wave}
-          />
-          {showProgress && (
-            <div
-              className={styles.progressTrack}
-              role="progressbar"
-              aria-label={labels.recording}
-              aria-valuemin={0}
-              aria-valuemax={100}
-              aria-valuenow={Math.round(progressPct)}
-            >
-              <div
-                className={styles.progressFill}
-                style={{ width: `${progressPct}%` }}
-              />
-            </div>
+          {!docked && (
+            <>
+              {/* Same flowing-thread visual as the AI Suhbat composer. */}
+              <FlowingWaveform analyser={analyser} height={72} className={styles.wave} />
+              {progressBar}
+              <div className={styles.controls}>
+                <div className={styles.stopWrap}>
+                  {stopButton}
+                  <Text as="span" variant="body-s" weight="bold" className={styles.stopLabel}>
+                    {labels.stop}
+                  </Text>
+                </div>
+                {onCancel && (
+                  <Button variant="ghost" onClick={cancelRecording}>
+                    {labels.cancel}
+                  </Button>
+                )}
+              </div>
+            </>
           )}
-          <div className={styles.controls}>
-            <div className={styles.stopWrap}>
-              <button
-                type="button"
-                className={cx(styles.recordButton, styles.stop)}
-                onClick={stopRecording}
-                aria-label={labels.stop}
-              >
-                <StopGlyph />
-              </button>
-              <Text as="span" variant="body-s" weight="bold" className={styles.stopLabel}>
-                {labels.stop}
-              </Text>
-            </div>
-            {onCancel && (
-              <Button variant="ghost" size="sm" onClick={cancelRecording}>
-                {labels.cancel}
-              </Button>
-            )}
-          </div>
         </div>
       )}
 
       {/* ---- review ---- */}
       {status === "review" && (
         <div className={styles.stage}>
-          <Mascot mood="idle" size={Math.round(mascotSize * 0.75)} label="" />
-          <div className={styles.playRow}>
-            <button
-              type="button"
-              className={styles.playButton}
-              onClick={togglePlay}
-              aria-label={playing ? labels.pause : labels.play}
-            >
-              {playing ? <PauseIcon /> : <PlayIcon />}
-            </button>
-            <Waveform
-              mode="static"
-              peaks={peaks}
-              barCount={48}
-              height={40}
-              className={styles.wave}
-            />
-            <span className={styles.playTime} aria-hidden>
-              {formatTime(playing ? playbackMs : durationMs)}
-            </span>
-          </div>
-          <audio
-            ref={audioElRef}
-            src={audioUrl ?? undefined}
-            preload="metadata"
-            className={styles.audio}
-            onPlay={() => setPlaying(true)}
-            onPause={() => setPlaying(false)}
-            onEnded={() => {
-              setPlaying(false);
-              setPlaybackMs(0);
-            }}
-            onTimeUpdate={(e) =>
-              setPlaybackMs(e.currentTarget.currentTime * 1000)
-            }
-          />
-          <div className={styles.reviewActions}>
-            <Button variant="secondary" fullWidth onClick={resetToIdle}>
-              {labels.reRecord}
-            </Button>
-            <Button variant="primary" fullWidth onClick={handleAccept}>
-              {labels.accept}
-            </Button>
-          </div>
+          <Mascot mood="proud" size={Math.round(mascotSize * 0.75)} label="" />
+          {docked ? (
+            <Text variant="body" color="ink-soft" align="center">
+              {labels.reviewReady}
+            </Text>
+          ) : (
+            <>
+              {playRow}
+              {reviewButtons}
+            </>
+          )}
+          {audioEl}
         </div>
       )}
 
@@ -658,18 +858,20 @@ export function Recorder({
         <div className={styles.stage} role="alert">
           <Mascot mood="sleepy" size={mascotSize} label="" />
           <Text variant="title-s" align="center" weight="black">
-            {status === "denied" ? labels.deniedTitle : labels.errorTitle}
+            {blockTitle}
           </Text>
-          <Text variant="body-s" color="ink-soft" align="center">
-            {status === "denied" ? labels.deniedHint : labels.errorHint}
+          <Text variant="body-s" color="ink-soft" align="center" className={styles.hint}>
+            {blockHint}
           </Text>
-          {status === "denied" && (
+          {!docked && canRetry && (
             <Button variant="secondary" onClick={requestAndStart}>
               {labels.retry}
             </Button>
           )}
         </div>
       )}
+
+      {docked && dockTarget && dock && createPortal(dock, dockTarget)}
     </section>
   );
 }
@@ -681,14 +883,7 @@ export function Recorder({
 function MicIcon() {
   return (
     <svg width="30" height="30" viewBox="0 0 24 24" fill="none" aria-hidden>
-      <rect
-        x="9"
-        y="3"
-        width="6"
-        height="11"
-        rx="3"
-        fill="var(--primary-on)"
-      />
+      <rect x="9" y="3" width="6" height="11" rx="3" fill="var(--primary-on)" />
       <path
         d="M6 11a6 6 0 0 0 12 0M12 17v3"
         stroke="var(--primary-on)"
@@ -740,21 +935,8 @@ function CountdownRing({ remainingMs, totalMs, size }: CountdownRingProps) {
   const seconds = Math.ceil(remainingMs / 1000);
   return (
     <div className={styles.ring} style={{ width: size, height: size }}>
-      <svg
-        width={size}
-        height={size}
-        viewBox="0 0 120 120"
-        className={styles.ringSvg}
-        aria-hidden
-      >
-        <circle
-          cx="60"
-          cy="60"
-          r={R}
-          fill="none"
-          stroke="var(--surface-3)"
-          strokeWidth="8"
-        />
+      <svg width={size} height={size} viewBox="0 0 120 120" className={styles.ringSvg} aria-hidden>
+        <circle cx="60" cy="60" r={R} fill="none" stroke="var(--surface-3)" strokeWidth="8" />
         <circle
           cx="60"
           cy="60"
@@ -765,6 +947,7 @@ function CountdownRing({ remainingMs, totalMs, size }: CountdownRingProps) {
           strokeLinecap="round"
           strokeDasharray={CIRC}
           strokeDashoffset={CIRC * (1 - frac)}
+          className={styles.ringArc}
         />
       </svg>
       <span className={styles.ringNum} aria-hidden>

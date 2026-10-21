@@ -11,42 +11,6 @@
   width: 100%;
 }
 
-/* ---- Header row: progress + attempts ---- */
-.head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--s-3);
-  flex-wrap: wrap;
-}
-
-.progress {
-  display: flex;
-  align-items: center;
-  gap: var(--s-3);
-}
-.pips {
-  display: flex;
-  align-items: center;
-  gap: var(--s-1);
-}
-.pip {
-  width: 8px;
-  height: 8px;
-  border-radius: var(--r-pill);
-  background: var(--line-2);
-  transition:
-    width var(--m-fast),
-    background-color var(--m-fast);
-}
-.pipDone {
-  background: var(--primary);
-}
-.pipCurrent {
-  width: 22px;
-  background: var(--primary);
-}
-
 /* ---- Task-prompt card ---- */
 .taskCard {
   display: flex;
@@ -117,15 +81,51 @@
   gap: var(--s-4);
 }
 .gradeSteps {
+  list-style: none;
+  margin: 0;
+  padding: 0;
   display: flex;
   flex-direction: column;
-  align-items: center;
   gap: var(--s-3);
 }
 .gradeStepRow {
   display: flex;
   align-items: center;
-  gap: var(--s-2);
+  gap: var(--s-3);
+}
+.stepIcon {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  flex: none;
+}
+.stepDot {
+  width: 12px;
+  height: 12px;
+  border-radius: var(--r-pill);
+  border: 2px solid var(--line-2);
+}
+/* Indeterminate shimmer under the steps: "working", without a fake percentage. */
+.indeterminate {
+  position: relative;
+  width: min(240px, 70%);
+  height: 4px;
+  border-radius: var(--r-pill);
+  background: var(--surface-3);
+  overflow: hidden;
+}
+.indeterminate span {
+  position: absolute;
+  inset-block: 0;
+  width: 40%;
+  border-radius: var(--r-pill);
+  background: var(--primary);
+  animation: indet 1.4s ease-in-out infinite;
+}
+@keyframes indet {
+  0% { left: -40%; }
+  100% { left: 100%; }
 }
 
 /* ---- Premium lock · pending · failed ---- */
@@ -343,5 +343,144 @@
   }
   .actions > * {
     width: 100%;
+  }
+}
+
+/* ======================= Focus layout (/task) =========================
+ * Full-screen lesson flow: top bar · scrolling task · bottom action bar.
+ * The column is a fixed-height flex box (100dvh) so the bar is always in
+ * view without fixed positioning or guessed paddings. */
+.focus {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  height: 100dvh;
+  background: var(--bg);
+}
+
+.topBar {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  width: 100%;
+  max-width: 760px;
+  margin: 0 auto;
+  padding: max(var(--s-2), env(safe-area-inset-top)) max(var(--s-4), env(safe-area-inset-right)) var(--s-2)
+    max(var(--s-4), env(safe-area-inset-left));
+  min-height: 60px;
+}
+.closeBtn {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  margin-inline-start: calc(-1 * var(--s-2));
+  border: none;
+  border-radius: var(--r-pill);
+  background: transparent;
+  color: var(--ink-soft);
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: background-color var(--m-fast);
+}
+.closeBtn:hover {
+  background: var(--surface-2);
+}
+.closeBtn:focus-visible {
+  outline: var(--focus-ring-width) solid var(--focus-ring);
+  outline-offset: var(--focus-ring-offset);
+}
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.progress {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+}
+.segments {
+  flex: 1;
+  display: flex;
+  gap: var(--s-1);
+}
+.segment {
+  flex: 1;
+  height: 8px;
+  border-radius: var(--r-pill);
+  background: var(--surface-3);
+  transition: background-color var(--m-base);
+}
+.segmentDone {
+  background: var(--primary);
+}
+.segmentCurrent {
+  background: linear-gradient(90deg, var(--primary) 50%, var(--primary-tint-2) 50%);
+}
+.counter {
+  flex: none;
+  white-space: nowrap;
+}
+
+.scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+.scroll .page {
+  max-width: 760px;
+  margin: 0 auto;
+  padding: var(--s-2) max(var(--s-4), env(safe-area-inset-right)) var(--s-6)
+    max(var(--s-4), env(safe-area-inset-left));
+  gap: var(--s-4);
+}
+.scroll .stage {
+  min-height: 0;
+  padding: var(--s-2) 0;
+}
+
+.dock {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+  padding: var(--s-3) max(var(--s-4), env(safe-area-inset-right)) max(var(--s-3), env(safe-area-inset-bottom))
+    max(var(--s-4), env(safe-area-inset-left));
+  background: var(--surface);
+  border-top: 1px solid var(--line);
+}
+.dock > * {
+  width: 100%;
+  max-width: 560px;
+}
+.dock:empty {
+  display: none;
+}
+.dockSolo {
+  display: flex;
+  justify-content: center;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .indeterminate span {
+    animation: none;
+    left: 30%;
+  }
+  .segment {
+    transition: none;
   }
 }

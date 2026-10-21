@@ -126,6 +126,10 @@
     }
   },
   "practice": {
+    "focusClose": "Close task",
+    "focusSend": "Send",
+    "focusUploading": "Sending your answer",
+    "focusUploaded": "Answer sent",
     "attemptsLeft_one": "{{count}} attempt left",
     "attemptsLeft_other": "{{count}} attempts left",
     "listenModel": "Listen to model",
@@ -206,9 +210,17 @@
     "reviewReady": "Recording ready. Listen back or record again.",
     "retry": "Try again",
     "deniedTitle": "Microphone access denied",
-    "deniedHint": "Allow microphone access in your browser settings to record.",
+    "deniedHint": "Tap the lock icon in the address bar, allow the microphone, then try again.",
     "errorTitle": "Couldn't record",
-    "errorHint": "Your device doesn't support microphone recording.",
+    "errorHint": "Something went wrong with the microphone. Please try again.",
+    "insecureTitle": "A secure connection (HTTPS) is required",
+    "insecureHint": "Browsers only allow the microphone on addresses that start with https://. Open the site over https://.",
+    "unsupportedTitle": "This browser can't record audio",
+    "unsupportedHint": "Your device doesn't support microphone recording. Try a recent version of Chrome, Safari or Edge.",
+    "noDeviceTitle": "No microphone found",
+    "noDeviceHint": "Connect a microphone or check your headset, then try again.",
+    "busyTitle": "The microphone is busy",
+    "busyHint": "Another app (a call or another tab) is using the microphone. Close it and try again.",
     "region": "Voice recording"
   },
   "placement": {

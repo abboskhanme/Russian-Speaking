@@ -194,7 +194,7 @@ export default function PlacementScreen({ mode = "auth" }: PlacementScreenProps)
             <Text as="p" variant="label" color="muted">
               {t("placement.questionKicker")}
             </Text>
-            <Text as="p" variant="mono" className={styles.questionText}>
+            <Text as="p" variant="title-m" lang="ru" className={styles.questionText}>
               {questions[current].prompt_ru}
             </Text>
           </Card>
@@ -277,7 +277,7 @@ function IntroStep({ firstPrompt, total, kicker, body, skipLabel, onStart, onSki
         <Text as="p" variant="label" color="muted">
           {t("placement.firstQuestion")}
         </Text>
-        <Text as="p" variant="mono" className={styles.questionText}>
+        <Text as="p" variant="title-m" lang="ru" className={styles.questionText}>
           {firstPrompt}
         </Text>
       </Card>
