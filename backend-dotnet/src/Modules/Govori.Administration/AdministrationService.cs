@@ -50,8 +50,10 @@ public sealed class AdministrationService
     /// Key of the transaction-scoped Postgres advisory lock that serialises role changes. The value
     /// is arbitrary; it only has to be one no other code in this database locks on, and nothing else
     /// here takes advisory locks. See <see cref="ChangeRoleAsync"/> for why the lock exists.
+    /// <see cref="GroupTransferService"/> takes the same lock, because "who owns groups" is one of
+    /// the facts a role change decides on.
     /// </summary>
-    private const long RoleChangeLockKey = 0x676F_766F_7269_0001;   // "govori" + 1
+    internal const long RoleChangeLockKey = 0x676F_766F_7269_0001;   // "govori" + 1
 
     /// <summary>Minimum digits in a search term before it is also matched against phone numbers.
     /// Fewer than three would match nearly every +998 number and bury the name matches.</summary>

@@ -34,11 +34,20 @@ public static class NotificationTypes
 
     /// <summary>The student's join request was declined. Link <c>/group</c>.</summary>
     public const string JoinRejected = "join_rejected";
+
+    /// <summary>To each STUDENT of a group an admin moved to another teacher: who teaches the class
+    /// now. Link <c>/group</c>.</summary>
+    public const string GroupTeacherChanged = "group_teacher_changed";
+
+    /// <summary>To the two TEACHERS of a group transfer — the one who received the group (link
+    /// <c>/teacher/classes/{group_id}</c>) and the one it was taken from (link
+    /// <c>/teacher/classes</c>, since the group is no longer theirs to open).</summary>
+    public const string GroupHandover = "group_handover";
 }
 
 /// <summary>
-/// The seam Classroom and Practice use to tell a student (or a teacher) that something happened in
-/// class. Every method takes IDS, not text: the implementation resolves names and titles itself and
+/// The seam Classroom and Practice (and Administration, for a group transfer) use to tell a student
+/// (or a teacher) that something happened in class. Every method takes IDS, not text: the implementation resolves names and titles itself and
 /// renders them in each recipient's language, so a raising module never has to know how a
 /// notification reads.
 ///
@@ -72,6 +81,12 @@ public interface IClassroomNotifier
     /// <see cref="NotificationTypes.JoinRejected"/> to the requesting student, chosen from the
     /// request's stored status.</summary>
     Task JoinRequestDecidedAsync(Guid requestId, CancellationToken ct = default);
+
+    /// <summary>After an admin moved <paramref name="groupId"/> from
+    /// <paramref name="fromTeacherId"/> to the group's current teacher:
+    /// <see cref="NotificationTypes.GroupTeacherChanged"/> to every member, and
+    /// <see cref="NotificationTypes.GroupHandover"/> to both teachers.</summary>
+    Task GroupTransferredAsync(Guid groupId, Guid fromTeacherId, CancellationToken ct = default);
 }
 
 /// <summary>The caller's half of the best-effort contract, written once for every raising module.</summary>
@@ -118,4 +133,7 @@ public sealed class NullClassroomNotifier : IClassroomNotifier
     public Task JoinRequestFiledAsync(Guid requestId, CancellationToken ct = default) => Task.CompletedTask;
 
     public Task JoinRequestDecidedAsync(Guid requestId, CancellationToken ct = default) => Task.CompletedTask;
+
+    public Task GroupTransferredAsync(Guid groupId, Guid fromTeacherId, CancellationToken ct = default)
+        => Task.CompletedTask;
 }

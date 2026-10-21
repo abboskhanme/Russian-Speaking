@@ -760,6 +760,8 @@ public sealed partial class ClassroomEndpointsTests
             => throw new InvalidOperationException("notifier down");
         public Task JoinRequestDecidedAsync(Guid requestId, CancellationToken ct = default)
             => throw new InvalidOperationException("notifier down");
+        public Task GroupTransferredAsync(Guid groupId, Guid fromTeacherId, CancellationToken ct = default)
+            => throw new InvalidOperationException("notifier down");
     }
 
     private async Task<int> NotificationCount(Guid userId)

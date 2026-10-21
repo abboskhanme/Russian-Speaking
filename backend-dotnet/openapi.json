@@ -145,6 +145,42 @@
         ]
       }
     },
+    "/api/admin/groups/{id}/transfer": {
+      "post": {
+        "summary": "HTTP: POST /api/admin/groups/{id:guid}/transfer",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GroupTransferRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
     "/api/admin/settings/ai": {
       "get": {
         "summary": "HTTP: GET /api/admin/settings/ai",
@@ -4260,6 +4296,60 @@
           "join_code",
           "member_count",
           "created_at"
+        ]
+      },
+      "GroupTransferRequest": {
+        "type": "object",
+        "properties": {
+          "teacher_id": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          }
+        }
+      },
+      "GroupTransferResponse": {
+        "type": "object",
+        "properties": {
+          "group_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "group_name": {
+            "type": "string"
+          },
+          "from_teacher_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "from_teacher_name": {
+            "type": "string"
+          },
+          "to_teacher_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "to_teacher_name": {
+            "type": "string"
+          },
+          "member_count": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "assignments_moved": {
+            "type": "integer",
+            "format": "int32"
+          }
+        },
+        "required": [
+          "group_id",
+          "group_name",
+          "from_teacher_id",
+          "from_teacher_name",
+          "to_teacher_id",
+          "to_teacher_name",
+          "member_count",
+          "assignments_moved"
         ]
       },
       "GuestAssessResponse": {

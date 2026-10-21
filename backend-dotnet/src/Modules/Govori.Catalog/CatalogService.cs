@@ -159,13 +159,36 @@ public sealed class CatalogService
 
         var teacherIds = await StudentTeacherIdsAsync(userId, ct);
 
+        // The tasks this student holds a LIVE assignment for — the ONE thing that lifts either lock
+        // (AssignmentAccess: a live assignment unlocks THAT task for THAT student, answered or not, so
+        // a retry the attempt budget allows is not re-locked). Read by the same definition submit
+        // attributes answers with, so a task this view opens is a task submit accepts. One query for
+        // the whole view, read before the modules because it also decides which modules are shown.
+        var now = DateTime.UtcNow;
+        var assignedList = await AssignmentAccess.LiveQuestionIds(_db, userId, now)
+            .Distinct()
+            .ToListAsync(ct);
+        var assigned = assignedList.ToHashSet();
+
         // Published modules that are official public OR one of the student's teachers' group
-        // modules. When teacherIds is empty, Contains(...) is always false, so the set correctly
-        // collapses to public-only — a teacherless student still sees the official catalog.
+        // modules OR — the homework door — a group module holding a task this student has a live
+        // assignment for. When teacherIds and assignedList are empty, both Contains(...) are always
+        // false, so the set correctly collapses to public-only — a teacherless student still sees
+        // the official catalog.
+        //
+        // Why the homework door exists: a group module is shown to "students of its teacher", and
+        // that link can break while homework from the module is still live — an admin hands the class
+        // to another teacher (GroupTransferService), or an admin set the task. Submit already accepts
+        // a live assignment as reachability, but the task screen finds tasks through THIS view, so
+        // without the door the student was given homework and shown "this task is unavailable".
+        // Such a module shows ONLY the assigned tasks (see homeworkOnly below): the door is the
+        // assignment, not the module, and exposing the rest would show tasks submit then refuses.
         var blocks = await _db.QuestionBlocks
             .Where(b => b.IsPublished
                         && (b.Visibility == "public"
-                            || (b.Visibility == "group" && teacherIds.Contains(b.TeacherId))))
+                            || (b.Visibility == "group"
+                                && (teacherIds.Contains(b.TeacherId)
+                                    || _db.Questions.Any(q => q.BlockId == b.Id && assignedList.Contains(q.Id))))))
             // Teacher (group) modules first, then official public ones; each by order.
             .OrderBy(b => b.Visibility)
             .ThenBy(b => b.SortOrder)
@@ -191,18 +214,7 @@ public sealed class CatalogService
         // (PremiumAccess: teacher grant OR active subscription). Once, not per module: the module
         // list must not be able to disagree with itself about whether this student has premium, and
         // one EXISTS query is not worth repeating per row.
-        var now = DateTime.UtcNow;
         var hasPremium = await PremiumAccess.HasPremiumAsync(_db, user, now, ct);
-
-        // The tasks this student holds a LIVE assignment for — the ONE thing that lifts either lock
-        // (AssignmentAccess: a live assignment unlocks THAT task for THAT student, answered or not, so
-        // a retry the attempt budget allows is not re-locked). Read by the same definition submit
-        // attributes answers with, so a task this view opens is a task submit accepts. One query for
-        // the whole view.
-        var assigned = (await AssignmentAccess.LiveQuestionIds(_db, userId, now)
-            .Distinct()
-            .ToListAsync(ct))
-            .ToHashSet();
 
         // All published, live tasks for these modules in one query, then group in memory (rather
         // than one query per module) — the per-block ordering key is (sort_order, created_at),
@@ -251,6 +263,16 @@ public sealed class CatalogService
         {
             if (!byBlock.TryGetValue(b.Id, out var qs) || qs.Count == 0)
                 continue;                           // a module with no live tasks is not shown
+
+            // A group module this student reaches only through homework (its teacher is not theirs)
+            // shows only that homework — see the module query above.
+            var homeworkOnly = b.Visibility == "group" && !teacherIds.Contains(b.TeacherId);
+            if (homeworkOnly)
+            {
+                qs = qs.Where(q => assigned.Contains(q.Id)).ToList();
+                if (qs.Count == 0)
+                    continue;                       // its homework is an unpublished/deleted task
+            }
 
             // Positional freemium applies only to official public modules.
             var gated = b.Visibility == "public" && !hasPremium && freeN > 0;

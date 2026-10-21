@@ -1262,6 +1262,28 @@ export interface TeacherOwnsGroupsResponse extends CodedErrorResponse {
   group_count: number;
 }
 
+/** POST /api/admin/groups/{id}/transfer — hand a group to another ACTIVE teacher.
+ * Refusals: 400 `same_teacher` · 400 `invalid_target_teacher` (missing, unknown,
+ * not a teacher, or suspended) · 404 unknown group. */
+export interface GroupTransferArgs {
+  teacher_id: string;
+}
+
+/** What a transfer did. The roster, join code and pending join requests follow the
+ * group; `assignments_moved` counts the previous teacher's assignments set through
+ * this group that now belong to the new one. Students' answers, grades and the old
+ * teacher's modules are not touched — see GroupTransferService on the server. */
+export interface GroupTransferResponse {
+  group_id: string;
+  group_name: string;
+  from_teacher_id: string;
+  from_teacher_name: string;
+  to_teacher_id: string;
+  to_teacher_name: string;
+  member_count: number;
+  assignments_moved: number;
+}
+
 /** 400 `invalid_link` on PATCH /api/admin/settings/links — `field` is the refused
  * link, so the message lands on that input. */
 export interface InvalidLinkResponse extends CodedErrorResponse {

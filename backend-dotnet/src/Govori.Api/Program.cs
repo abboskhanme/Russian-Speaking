@@ -276,6 +276,9 @@ try
     builder.Services.AddSingleton<IAppSettingsCache>(new AppSettingsCache());
     builder.Services.AddScoped<AppSettingsService>();
     builder.Services.AddScoped<AdministrationService>();
+    // Admin group transfer (one teacher's class to another). Separate from AdministrationService
+    // because it is the one admin write that also raises notifications (IClassroomNotifier above).
+    builder.Services.AddScoped<GroupTransferService>();
     // The "test these keys" probe. Scoped because it resolves IAiConfigSource, which reads
     // through the scoped DbContext; the backends it calls are the same singletons the
     // pipeline uses, so a green probe is evidence about the real path and not a parallel one.

@@ -45,8 +45,11 @@ namespace Govori.Classroom;
 /// student once per action. They are sent AFTER the write commits and are best-effort — a ping that
 /// fails never fails the action it reports.</para>
 ///
-/// <para>Still deferred (documented, not silently dropped): the admin (re)assign-teacher routes and a
-/// group overview endpoint.</para>
+/// <para>Handing a group to another teacher is an ADMIN action and lives in Administration
+/// (<c>GroupTransferService</c>, <c>POST /api/admin/groups/{id}/transfer</c>); it rewrites
+/// <c>groups.teacher_id</c> and the previous teacher's group assignments directly, so every
+/// ownership check here follows it without change. Still deferred (documented, not silently
+/// dropped): a group overview endpoint.</para>
 /// </summary>
 public sealed class ClassroomService
 {

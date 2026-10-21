@@ -46,6 +46,8 @@ public sealed class ClassroomNotifier : IClassroomNotifier
     internal const string AssignmentsLink = "/practice?tab=assignments";
     internal const string GroupLink = "/group";
     internal const string JoinRequestsLink = "/teacher/classes?tab=requests";
+    internal const string TeacherClassesLink = "/teacher/classes";
+    internal static string TeacherGroupLink(Guid groupId) => $"/teacher/classes/{groupId}";
     internal static string ResultLink(Guid submissionId) => $"/results/{submissionId}";
 
     // notifications.title is varchar(200); names and task titles are user-authored and can push a
@@ -147,6 +149,50 @@ public sealed class ClassroomNotifier : IClassroomNotifier
                 Add(userId,
                     approved ? NotificationTypes.JoinApproved : NotificationTypes.JoinRejected,
                     title, body, GroupLink);
+            }
+            await _db.SaveChangesAsync(ct);
+        }, ct);
+
+    /// <inheritdoc />
+    /// <remarks>
+    /// Three audiences, because a transfer surprises each of them differently: the STUDENTS find a
+    /// new name on their class (and the old teacher's own modules gone from their list, except the
+    /// homework they still hold), the NEW teacher finds a class they did not create, and the OLD
+    /// teacher finds one missing. Nobody is told by anything else — the admin acted alone — so each
+    /// gets one line saying what happened. Read after the commit, so the group's teacher here IS the
+    /// new one.
+    /// </remarks>
+    public Task GroupTransferredAsync(Guid groupId, Guid fromTeacherId, CancellationToken ct = default)
+        => BestEffortAsync(NotificationTypes.GroupTeacherChanged, async () =>
+        {
+            var group = await _db.Groups
+                .AsNoTracking()
+                .Where(g => g.Id == groupId)
+                .Select(g => new { g.Name, g.TeacherId, TeacherName = g.Teacher.FullName })
+                .FirstOrDefaultAsync(ct);
+            if (group is null || group.TeacherId == fromTeacherId) return;   // gone, or nothing moved
+
+            var memberIds = await _db.GroupMembers
+                .AsNoTracking()
+                .Where(gm => gm.GroupId == groupId)
+                .Select(gm => gm.StudentId)
+                .ToListAsync(ct);
+            var fromName = await NameAsync(fromTeacherId, ct);
+
+            foreach (var (userId, lang) in await RecipientsAsync(memberIds, ct))
+            {
+                var (title, body) = Text.GroupTeacherChanged(lang, group.Name, group.TeacherName);
+                Add(userId, NotificationTypes.GroupTeacherChanged, title, body, GroupLink);
+            }
+            foreach (var (userId, lang) in await RecipientsAsync([group.TeacherId], ct))
+            {
+                var (title, body) = Text.GroupReceived(lang, group.Name, fromName ?? Text.SomeTeacher(lang));
+                Add(userId, NotificationTypes.GroupHandover, title, body, TeacherGroupLink(groupId));
+            }
+            foreach (var (userId, lang) in await RecipientsAsync([fromTeacherId], ct))
+            {
+                var (title, body) = Text.GroupHandedOver(lang, group.Name, group.TeacherName);
+                Add(userId, NotificationTypes.GroupHandover, title, body, TeacherClassesLink);
             }
             await _db.SaveChangesAsync(ct);
         }, ct);
@@ -287,6 +333,27 @@ public sealed class ClassroomNotifier : IClassroomNotifier
             "ru" => ("Заявка отклонена", $"Заявка на вступление в группу «{group}» отклонена."),
             "en" => ("Request declined", $"Your request to join “{group}” was declined."),
             _ => ("So‘rovingiz rad etildi", $"«{group}» guruhiga qo‘shilish so‘rovingiz rad etildi."),
+        };
+
+        public static (string Title, string Body) GroupTeacherChanged(string lang, string group, string teacher) => lang switch
+        {
+            "ru" => ("Новый преподаватель", $"Группу «{group}» теперь ведёт {teacher}. Ваши ответы и результаты сохранены."),
+            "en" => ("New teacher", $"“{group}” is now taught by {teacher}. Your answers and results are kept."),
+            _ => ("Yangi o‘qituvchi", $"«{group}» guruhini endi {teacher} olib boradi. Javoblaringiz va natijalaringiz saqlanib qoladi."),
+        };
+
+        public static (string Title, string Body) GroupReceived(string lang, string group, string fromTeacher) => lang switch
+        {
+            "ru" => ("Вам передана группа", $"Группа «{group}» (ранее у преподавателя {fromTeacher}) теперь ваша."),
+            "en" => ("A group was handed to you", $"“{group}” (previously {fromTeacher}’s) is now yours."),
+            _ => ("Sizga guruh topshirildi", $"«{group}» guruhi endi sizniki (avval uni {fromTeacher} olib borgan)."),
+        };
+
+        public static (string Title, string Body) GroupHandedOver(string lang, string group, string toTeacher) => lang switch
+        {
+            "ru" => ("Группа передана", $"Группа «{group}» передана преподавателю {toTeacher}."),
+            "en" => ("Group handed over", $"“{group}” has been handed over to {toTeacher}."),
+            _ => ("Guruh topshirildi", $"«{group}» guruhi {toTeacher} o‘qituvchiga topshirildi."),
         };
     }
 }
