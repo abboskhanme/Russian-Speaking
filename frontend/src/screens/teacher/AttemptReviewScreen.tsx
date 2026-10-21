@@ -61,8 +61,16 @@ export interface AttemptReviewProps {
    * the text.
    */
   onSave?: (args: { band?: number; comment?: string }) => Promise<void>;
-  /** "Tasdiqlash ✓" — accept the AI's score as it stands. Writes no comment. */
+  /** "Tasdiqlash ✓" — accept the AI's score as it stands. Writes no comment.
+   * Not offered once the attempt is reviewed (it would only re-stamp the same
+   * verdict) nor on a failed attempt (there is no AI score to accept). */
   onConfirm?: () => Promise<void>;
+  /** Grading FAILED for this attempt: the localized reason. Replaces the confirm
+   * action with a regrade (when {@link onRegrade} is given). */
+  failedReason?: string;
+  /** Put a failed attempt back through grading (same recording, no new attempt).
+   * Rejects with a localized message, which the screen shows inline. */
+  onRegrade?: () => Promise<void>;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -111,10 +119,27 @@ export function AttemptReviewScreen({
   onBack,
   onSave,
   onConfirm,
+  failedReason,
+  onRegrade,
 }: AttemptReviewProps) {
   const { t } = useTranslation();
   const [grading, setGrading] = useState(false);
   const [confirming, setConfirming] = useState(false);
+  const [regrading, setRegrading] = useState(false);
+  const [regradeError, setRegradeError] = useState<string | null>(null);
+
+  const regrade = async () => {
+    if (regrading || !onRegrade) return;
+    setRegrading(true);
+    setRegradeError(null);
+    try {
+      await onRegrade();
+    } catch (e) {
+      setRegradeError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setRegrading(false);
+    }
+  };
 
   const confirm = async () => {
     if (confirming) return;
@@ -174,12 +199,26 @@ export function AttemptReviewScreen({
         </header>
 
         {reviewed && (
-          <Card variant="tint" padding="sm" className={styles.reviewedNote}>
+          <Card variant="flat" padding="sm" className={styles.reviewedNote} role="status">
+            <CheckGlyph />
             <Text as="p" variant="body-s" weight="semibold">
               {teacherBand != null
                 ? t("teacher.alreadyReviewedBand", { band: Math.round(teacherBand) })
                 : t("teacher.alreadyReviewed")}
             </Text>
+          </Card>
+        )}
+
+        {failedReason && (
+          <Card variant="flat" padding="sm" className={styles.failedNote} role="status">
+            <Text as="p" variant="body-s" weight="semibold">
+              {failedReason}
+            </Text>
+            {regradeError && (
+              <Text as="p" variant="body-s">
+                {regradeError}
+              </Text>
+            )}
           </Card>
         )}
 
@@ -280,17 +319,39 @@ export function AttemptReviewScreen({
         )}
 
         <div className={styles.bottomBar}>
-          <Button variant="secondary" onClick={() => setGrading(true)} disabled={confirming}>
-            {t("teacher.gradeManually")}
-          </Button>
+          {/* The actions follow the attempt's state (bug 7). A reviewed attempt
+              can only have its grade CHANGED — "Tasdiqlash" would just re-stamp the
+              same verdict. A failed one has no AI score to accept, so its primary
+              action is to grade it again. */}
           <Button
-            variant="primary"
-            className={styles.confirmBtn}
-            loading={confirming}
-            onClick={() => void confirm()}
+            variant="secondary"
+            onClick={() => setGrading(true)}
+            disabled={confirming || regrading}
+            className={reviewed ? styles.confirmBtn : undefined}
           >
-            {t("teacher.confirm")} ✓
+            {reviewed ? t("uiDash.review.changeGrade") : t("teacher.gradeManually")}
           </Button>
+          {failedReason
+            ? onRegrade && (
+                <Button
+                  variant="primary"
+                  className={styles.confirmBtn}
+                  loading={regrading}
+                  onClick={() => void regrade()}
+                >
+                  {t("uiDash.regrade.action")}
+                </Button>
+              )
+            : !reviewed && (
+                <Button
+                  variant="primary"
+                  className={styles.confirmBtn}
+                  loading={confirming}
+                  onClick={() => void confirm()}
+                >
+                  {t("teacher.confirm")} ✓
+                </Button>
+              )}
         </div>
       </div>
 
@@ -303,6 +364,21 @@ export function AttemptReviewScreen({
         onSave={onSave}
       />
     </AppShell>
+  );
+}
+
+/** The tick on the "already reviewed" banner — the banner's tone is not only its colour. */
+function CheckGlyph() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden className={styles.reviewedIcon}>
+      <path
+        d="m5 12.5 4.5 4.5L19 7.5"
+        stroke="currentColor"
+        strokeWidth="2.2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
   );
 }
 

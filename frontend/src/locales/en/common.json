@@ -526,6 +526,71 @@
       "caption": "Earned from completed exercises"
     }
   },
+  "uiDash": {
+    "regrade": {
+      "action": "Grade again",
+      "hint": "The same recording is graded again — no attempt is used.",
+      "sent": "Sent for grading again",
+      "error": {
+        "not_failed": "This answer is already being graded or has been graded.",
+        "audio_expired": "The recording is no longer stored — record the answer again.",
+        "attempts_exhausted": "No attempts are left for this task.",
+        "payment_required": "This task needs Premium.",
+        "ai_unavailable": "AI grading isn't available right now. Try again a little later.",
+        "rate_limited": "Too many requests. Try again a little later.",
+        "generic": "Couldn't send it for grading. Please try again."
+      }
+    },
+    "review": {
+      "changeGrade": "Change grade"
+    },
+    "admin": {
+      "alerts": "Needs attention",
+      "thisWeek": "This week",
+      "totals": "Totals",
+      "show": "Show",
+      "hide": "Hide",
+      "moreFailed_one": "{{count}} more answer isn't listed.",
+      "moreFailed_other": "{{count}} more answers aren't listed.",
+      "openSettings": "Settings",
+      "budgetClosed": "AI grading is closed: {{state}}. New answers aren't being graded.",
+      "kpiAnswers": "Answers · 7 days",
+      "kpiNewStudents": "New students · 7 days",
+      "kpiGradingRate": "Grading success · 7 days",
+      "kpiAiToday": "AI spend today",
+      "deltaUp": "{{value}} vs last week",
+      "deltaDown": "{{value}} vs last week",
+      "deltaSame": "same as last week",
+      "deltaPoints": "{{value}} pts",
+      "noPrev": "No answers last week",
+      "sparkAria": "{{what}}, last 14 days: {{values}}"
+    },
+    "teacher": {
+      "quickAria": "Quick actions",
+      "assign": "Assign a task",
+      "newGroup": "New group",
+      "recentTitle": "Waiting for review",
+      "recentEmpty": "No answers are waiting for review.",
+      "seeAll_one": "All ({{count}})",
+      "seeAll_other": "All ({{count}})",
+      "behindTitle": "Falling behind",
+      "behindEmpty": "Every student is active — nobody is falling behind.",
+      "reasonDrop": "Score dropped by {{points}}",
+      "reasonNever": "Hasn't recorded an answer yet",
+      "reasonIdle_one": "No practice for {{count}} day",
+      "reasonIdle_other": "No practice for {{count}} days",
+      "weekTitle": "This week's activity",
+      "weekAria": "Answers per day: {{values}}",
+      "weekBarTitle_one": "{{day}} · {{count}} answer",
+      "weekBarTitle_other": "{{day}} · {{count}} answers",
+      "agoMin_one": "{{count}} minute ago",
+      "agoMin_other": "{{count}} minutes ago",
+      "agoHour_one": "{{count}} hour ago",
+      "agoHour_other": "{{count}} hours ago",
+      "agoDay_one": "{{count}} day ago",
+      "agoDay_other": "{{count}} days ago"
+    }
+  },
   "teacher": {
     "role": "Teacher",
     "statsAria": "Class metrics",

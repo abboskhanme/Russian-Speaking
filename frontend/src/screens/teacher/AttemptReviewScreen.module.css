@@ -74,8 +74,28 @@
   color: var(--muted);
 }
 
+/* Success TINT, not a green stripe on the pink "tint" card: the banner is good
+   news, so it reads in the success pair (--success-tint / --success-ink, AA). */
 .reviewedNote {
-  border-inline-start: 4px solid var(--success);
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  background: var(--success-tint);
+  color: var(--success-ink);
+  border: 1px solid color-mix(in oklch, var(--success) 35%, transparent);
+}
+.reviewedIcon {
+  flex: none;
+}
+/* A failed grading is a problem to act on — the danger pair, with the regrade
+   button in the bottom bar as the way out. */
+.failedNote {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-1);
+  background: var(--danger-tint);
+  color: var(--danger);
+  border: 1px solid color-mix(in oklch, var(--danger) 30%, transparent);
 }
 
 /* ---- Audio ---- */
