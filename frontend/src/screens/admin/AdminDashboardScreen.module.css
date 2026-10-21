@@ -1,37 +1,244 @@
 /* AdminDashboardScreen — Boshqaruv. The admin panel's own idiom; every value is a
- * token. Full-width (docs/04 §4.10), compact density. */
+ * token. Compact density. Alerts → this week → totals. */
 
 .page {
   --density-scale: 0.75;
   display: flex;
   flex-direction: column;
-  gap: calc(var(--s-5) * var(--density-scale));
+  gap: calc(var(--s-6) * var(--density-scale));
   width: 100%;
 }
 
 .section {
   display: flex;
   flex-direction: column;
-  gap: calc(var(--s-2) * var(--density-scale));
+  gap: calc(var(--s-3) * var(--density-scale));
 }
 .legend {
   text-transform: uppercase;
   letter-spacing: 0.06em;
 }
 
-/* Two-up on a phone, four-up once there is room. The counters pair naturally
-   (teachers/students, tasks/published, answers/graded), so two columns keeps each
-   pair on one line at every width. */
-/* In-flight and failed are two lines in one card: one question ("is grading
-   keeping up?"), two different answers. */
 .notes {
   display: flex;
   flex-direction: column;
   gap: var(--s-1);
 }
 
-.tiles {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+/* ---- Alerts ---- */
+.alerts {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+}
+.alert {
+  display: flex;
+  align-items: center;
   gap: var(--s-3);
+  width: 100%;
+  min-height: 48px;
+  padding: var(--s-2) var(--s-4);
+  border-radius: var(--r-sm);
+  border: 1px solid var(--tone-line);
+  background: var(--tone-tint);
+  color: var(--tone-ink);
+  text-align: start;
+}
+.alertBtn {
+  cursor: pointer;
+  font: inherit;
+  transition: filter var(--m-fast);
+}
+.alertBtn:hover {
+  filter: brightness(0.98);
+}
+.alertBtn:focus-visible {
+  outline: var(--focus-ring-width) solid var(--focus-ring);
+  outline-offset: var(--focus-ring-offset);
+}
+.alertIcon {
+  flex: none;
+  display: grid;
+  place-items: center;
+}
+.alertText {
+  flex: 1;
+  min-width: 0;
+  color: inherit;
+}
+.alertAction {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-1);
+  color: inherit;
+}
+.alertChevron {
+  display: inline-grid;
+  transition: transform var(--m-fast);
+}
+.alertChevronOpen {
+  transform: rotate(90deg);
+}
+.alert-danger {
+  --tone-tint: var(--danger-tint);
+  --tone-ink: var(--danger);
+  --tone-line: color-mix(in oklch, var(--danger) 30%, transparent);
+}
+.alert-warn {
+  --tone-tint: var(--warn-tint);
+  --tone-ink: var(--warn-ink);
+  --tone-line: color-mix(in oklch, var(--warn) 40%, transparent);
+}
+.alert-info {
+  --tone-tint: var(--info-tint);
+  --tone-ink: var(--info);
+  --tone-line: color-mix(in oklch, var(--info) 30%, transparent);
+}
+.alert-ok {
+  --tone-tint: var(--success-tint);
+  --tone-ink: var(--success-ink);
+  --tone-line: color-mix(in oklch, var(--success) 35%, transparent);
+}
+
+.failedWrap {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+}
+.failedList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  background: var(--surface);
+}
+.failedItem {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-3);
+  padding: var(--s-2) var(--s-4);
+}
+.failedItem:not(:last-child),
+.failedMore:not(:last-child) {
+  border-bottom: 1px solid var(--line);
+}
+.failedText {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.failedMore {
+  padding: var(--s-2) var(--s-4);
+}
+
+/* ---- This week: KPI tiles ---- */
+.kpis {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--s-3);
+}
+.kpi {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-1);
+  min-width: 0;
+}
+/* The AI tile is a link to Settings — a whole-tile button with the outline-card look. */
+.kpiBtn {
+  padding: var(--s-3) var(--s-4);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  text-align: start;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+  transition:
+    background var(--m-fast),
+    border-color var(--m-fast);
+}
+.kpiBtn:hover {
+  background: var(--surface-2);
+  border-color: var(--line-2);
+}
+.kpiBtn:focus-visible {
+  outline: var(--focus-ring-width) solid var(--focus-ring);
+  outline-offset: var(--focus-ring-offset);
+}
+.kpiValue {
+  display: flex;
+  align-items: baseline;
+  gap: var(--s-1);
+}
+.kpiSpark {
+  margin-top: auto;
+  padding-top: var(--s-2);
+}
+
+.delta {
+  display: inline-flex;
+  align-items: baseline;
+  gap: var(--s-1);
+}
+.deltaText {
+  color: inherit;
+}
+.delta-up {
+  color: var(--success-ink);
+}
+.delta-down {
+  color: var(--danger);
+}
+.delta-flat {
+  color: var(--muted);
+}
+
+.meter {
+  display: block;
+  height: 6px;
+  border-radius: var(--r-pill);
+  background: var(--surface-3);
+  overflow: hidden;
+}
+.meterFill {
+  display: block;
+  height: 100%;
+  border-radius: var(--r-pill);
+}
+.meter-ok {
+  background: var(--primary);
+}
+.meter-warn {
+  background: var(--warn);
+}
+.meter-danger {
+  background: var(--danger);
+}
+
+/* ---- Totals ---- */
+.totals {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: var(--s-3);
+}
+
+@media (max-width: 1100px) {
+  .kpis {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .totals {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+@media (max-width: 560px) {
+  .totals {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .failedItem {
+    flex-direction: column;
+    align-items: stretch;
+  }
 }

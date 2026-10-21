@@ -458,6 +458,21 @@
         ]
       }
     },
+    "/api/admin/stats/activity": {
+      "get": {
+        "summary": "HTTP: GET /api/admin/stats/activity",
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
     "/api/admin/students": {
       "get": {
         "summary": "HTTP: GET /api/admin/students",
@@ -2603,6 +2618,14 @@
             }
           },
           {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
             "name": "limit",
             "in": "query",
             "required": false,
@@ -2700,6 +2723,32 @@
         ]
       }
     },
+    "/api/submissions/{id}/regrade": {
+      "post": {
+        "summary": "HTTP: POST /api/submissions/{id:guid}/regrade",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
     "/api/submissions/{id}/review": {
       "patch": {
         "summary": "HTTP: PATCH /api/submissions/{id:guid}/review",
@@ -2769,6 +2818,62 @@
           "progress",
           "target",
           "unlocked"
+        ]
+      },
+      "AdminActivityDay": {
+        "type": "object",
+        "properties": {
+          "date": {
+            "type": "string",
+            "format": "date"
+          },
+          "submissions": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "graded": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "failed": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "active_students": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "new_students": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "ai_cost_usd": {
+            "type": "number",
+            "format": "double"
+          }
+        },
+        "required": [
+          "date",
+          "submissions",
+          "graded",
+          "failed",
+          "active_students",
+          "new_students",
+          "ai_cost_usd"
+        ]
+      },
+      "AdminActivityResponse": {
+        "type": "object",
+        "properties": {
+          "days": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AdminActivityDay"
+            }
+          }
+        },
+        "required": [
+          "days"
         ]
       },
       "AdminAuditEntryResponse": {
@@ -3556,6 +3661,10 @@
             }
           },
           "student_name": {
+            "type": "string",
+            "nullable": true
+          },
+          "error_message": {
             "type": "string",
             "nullable": true
           }

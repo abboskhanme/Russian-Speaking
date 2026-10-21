@@ -35,9 +35,13 @@ import { useNavigate } from "react-router-dom";
 import { TeacherDashboardScreen } from "../../screens/teacher";
 import type {
   TeacherAttentionItem,
+  TeacherBehindItem,
   TeacherProfile,
+  TeacherQuickAction,
+  TeacherRecentItem,
   TeacherStats,
 } from "../../screens/teacher";
+import type { MiniBar } from "../../shared/ui/Chart";
 import { endpoints } from "../../shared/api";
 import type {
   GradebookRowResponse,
@@ -45,6 +49,7 @@ import type {
   GroupJoinRequestResponse,
   GroupResponse,
   InsightsResponse,
+  SubmissionResponse,
 } from "../../shared/api";
 import { useAuth } from "../../shared/auth";
 import { firstName } from "../adapters";
@@ -57,6 +62,10 @@ import { useTranslation } from "react-i18next";
  * has someone a fraction down, and a card that fires every morning is one a
  * teacher learns to scroll past. */
 const DROP_POINTS = 5;
+/** Days without an answer before a student counts as "falling behind". */
+const IDLE_DAYS = 7;
+/** How many waiting answers / falling-behind students the Obzor lists. */
+const LIST_MAX = 5;
 
 export default function TeacherDashboardPage() {
   const { user } = useAuth();
@@ -70,6 +79,7 @@ export default function TeacherDashboardPage() {
   const [requests, setRequests] = useState<GroupJoinRequestResponse[]>([]);
   const [gradebook, setGradebook] = useState<GradebookRowResponse[]>([]);
   const [insights, setInsights] = useState<InsightsResponse | null>(null);
+  const [waiting, setWaiting] = useState<SubmissionResponse[] | null>(null);
   const [loading, setLoading] = useState(true);
   const [failed, setFailed] = useState(false);
   const [reloadKey, setReloadKey] = useState(0);
@@ -84,12 +94,13 @@ export default function TeacherDashboardPage() {
     // Each attention card sits behind its own fetch, so a failing aggregate costs
     // exactly one card rather than the whole triage screen.
     (async () => {
-      const [g, s, r, gb, ins] = await Promise.allSettled([
+      const [g, s, r, gb, ins, w] = await Promise.allSettled([
         endpoints.teacherGroups(),
         endpoints.teacherReviewCount(),
         endpoints.teacherJoinRequests(),
         endpoints.teacherGradebook(),
         endpoints.teacherInsights(),
+        endpoints.teacherReviewQueue(LIST_MAX),
       ]);
       if (!alive) return;
       if (g.status === "fulfilled") setGroups(g.value);
@@ -98,6 +109,7 @@ export default function TeacherDashboardPage() {
       setRequests(r.status === "fulfilled" ? r.value : []);
       setGradebook(gb.status === "fulfilled" ? gb.value : []);
       setInsights(ins.status === "fulfilled" ? ins.value : null);
+      setWaiting(w.status === "fulfilled" ? w.value : null);
 
       // The rosters, for a DISTINCT student count. One request per group — a
       // teacher runs a handful — and a failed one only costs that group's dedup.
@@ -221,6 +233,80 @@ export default function TeacherDashboardPage() {
     [navigate, dropped],
   );
 
+  // The first few answers waiting for review — each opens straight into B2.
+  const recent = useMemo<TeacherRecentItem[] | undefined>(
+    () =>
+      waiting?.map((s) => ({
+        id: s.id,
+        studentName: s.student_name ?? "—",
+        taskTitle: s.question_title ?? t("results.attempt"),
+        score: s.overall_band,
+        when: relativeWhen(t, s.created_at),
+      })),
+    [waiting, t],
+  );
+
+  // Falling behind: a big score drop first (it is a signal about the work), then
+  // the students who have gone quiet, then the ones who never started.
+  const behind = useMemo<TeacherBehindItem[]>(() => {
+    const now = Date.now();
+    const rows: Array<TeacherBehindItem & { rank: number }> = [];
+    for (const r of gradebook) {
+      if (r.trend_delta != null && r.trend_delta <= -DROP_POINTS) {
+        rows.push({
+          id: r.student_id,
+          name: r.full_name,
+          reason: t("uiDash.teacher.reasonDrop", { points: Math.abs(Math.round(r.trend_delta)) }),
+          tone: "danger",
+          rank: 0,
+        });
+        continue;
+      }
+      if (r.attempts === 0 || !r.last_activity) {
+        rows.push({ id: r.student_id, name: r.full_name, reason: t("uiDash.teacher.reasonNever"), tone: "warn", rank: 2 });
+        continue;
+      }
+      const days = Math.floor((now - Date.parse(r.last_activity)) / 86_400_000);
+      if (days >= IDLE_DAYS)
+        rows.push({
+          id: r.student_id,
+          name: r.full_name,
+          reason: t("uiDash.teacher.reasonIdle", { count: days }),
+          tone: days >= 2 * IDLE_DAYS ? "danger" : "warn",
+          rank: 1,
+        });
+    }
+    return rows
+      .sort((a, b) => a.rank - b.rank)
+      .slice(0, LIST_MAX)
+      .map(({ rank: _rank, ...item }) => item);
+  }, [gradebook, t]);
+
+  // The class's week: 7 product days ending today (the last entry IS today).
+  const week = useMemo<MiniBar[] | undefined>(() => {
+    if (!insights) return undefined;
+    const last = insights.week.length - 1;
+    return insights.week.map((d, i) => {
+      const idx = weekdayIndex(d.date);
+      const label = idx == null ? "" : t(`time.wd${idx + 1}`);
+      return {
+        label,
+        value: d.attempts,
+        title: t("uiDash.teacher.weekBarTitle", { day: label, count: d.attempts }),
+        current: i === last,
+      };
+    });
+  }, [insights, t]);
+
+  const quickAction = useCallback(
+    (a: TeacherQuickAction) => {
+      if (a === "assign") navigate("/teacher/assign");
+      else if (a === "new-group") navigate("/teacher/classes?new=1");
+      else navigate(TEACHER_NAV_PATH.queue);
+    },
+    [navigate],
+  );
+
   if (loading) return <PageLoading />;
   if (failed || !user) return <PageError onRetry={() => setReloadKey((k) => k + 1)} />;
 
@@ -234,8 +320,32 @@ export default function TeacherDashboardPage() {
       onOpenAttention={openAttention}
       // The teacher nav has no Profil item — the header avatar is that entry.
       onOpenProfile={() => navigate("/teacher/profile")}
+      recent={recent}
+      behind={groups.length > 0 ? behind : undefined}
+      week={week}
+      onOpenSubmission={(id) => navigate(`${TEACHER_NAV_PATH.queue}/${encodeURIComponent(id)}`)}
+      onOpenStudent={(id) => navigate(`/teacher/students/${encodeURIComponent(id)}`)}
+      onQuickAction={quickAction}
     />
   );
+}
+
+/** Monday-first weekday index 0–6 of a `YYYY-MM-DD`, parsed as a LOCAL date. */
+function weekdayIndex(isoDate: string): number | null {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(isoDate);
+  if (!m) return null;
+  const d = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
+  return Number.isNaN(d.getTime()) ? null : (d.getDay() + 6) % 7;
+}
+
+/** "5 daqiqa oldin" / "3 soat oldin" / "2 kun oldin" — short, for a list row. */
+function relativeWhen(t: (k: string, o?: Record<string, unknown>) => string, iso: string): string {
+  const mins = Math.max(0, Math.round((Date.now() - Date.parse(iso)) / 60_000));
+  if (Number.isNaN(mins)) return "";
+  if (mins < 60) return t("uiDash.teacher.agoMin", { count: Math.max(1, mins) });
+  const hours = Math.round(mins / 60);
+  if (hours < 24) return t("uiDash.teacher.agoHour", { count: hours });
+  return t("uiDash.teacher.agoDay", { count: Math.round(hours / 24) });
 }
 
 /** "Aziz Karimov" → "AK" (up to two letters), for the header avatar. */

@@ -44,22 +44,17 @@
    D1 — Hero: class average + CEFR + delta chip + 3-month chart
    ========================================================================== */
 
-/* The mockup's hero is an INVERTED card (dark surface, light ink). Taken
-   literally that flips to a glaring near-white slab in dark mode, so the tokens
-   are declared locally and re-pointed for dark: the card stays the darkest thing
-   on the page in BOTH themes, which is the point of the treatment. */
+/* The mockup's hero was an INVERTED card (near-black in the light theme). It
+   read as a hole in the page and needed its own off-scale greys to stay legible,
+   so it is now an ordinary surface card in both themes, set apart by a hairline
+   and its size — every colour a theme token, the global greys valid on it. */
 .hero {
-  --hero-bg: var(--ink);
-  --hero-ink: var(--bg);
-  --hero-soft: oklch(0.78 0.015 78);
-  /* 0.640, not 0.620: this card is a DARK surface inside the LIGHT theme, so it is
-     the one place on the page where the global greys say nothing useful — they are
-     tuned against --bg and --primary-tint. Measured on this card's own ground
-     (--ink, #30231b): 0.620 gives 4.17:1 and 0.640 gives 4.51:1, so this is the
-     lightest value that clears AA rather than a round number. It carries the CEFR
-     band line and the three month labels under the chart — words, not decoration. */
-  --hero-faint: oklch(0.640 0.015 78);
+  --hero-bg: var(--surface);
+  --hero-ink: var(--ink);
+  --hero-soft: var(--ink-soft);
+  --hero-faint: var(--muted);
   --hero-line: var(--primary);
+  border: 1px solid var(--line);
 
   display: flex;
   flex-direction: column;
@@ -293,17 +288,19 @@
   flex: none;
   line-height: 1;
 }
+/* One series hue across the panels' charts: the brand --primary (today) and a
+   lighter step of it (the other days) — not the off-palette indigo it used to be. */
 .weekBar {
   width: 100%;
   max-width: 26px;
   min-height: 0;
-  background: var(--accent-tint);
+  background: color-mix(in oklch, var(--primary) 40%, var(--surface));
   border-radius: 7px 7px 3px 3px;
   transition: height var(--m-slow);
 }
 /* Today's column — weight + colour, and the label beneath repeats it. */
 .weekBarToday {
-  background: var(--accent);
+  background: var(--primary);
 }
 .weekAxis {
   display: flex;
@@ -317,7 +314,7 @@
   font-weight: var(--fw-semibold);
 }
 .weekLabelToday {
-  color: var(--accent);
+  color: var(--ink);
   font-weight: var(--fw-black);
 }
 

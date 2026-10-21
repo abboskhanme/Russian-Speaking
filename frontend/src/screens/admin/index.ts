@@ -9,7 +9,13 @@
  * Presentational + prop-driven, composed from `shared/ui` + `widgets` + tokens.
  */
 export { AdminDashboardScreen, default as AdminDashboardDemo } from "./AdminDashboardScreen";
-export type { AdminStats, AdminDashboardProps } from "./AdminDashboardScreen";
+export type {
+  AdminStats,
+  AdminDashboardProps,
+  AdminActivityPoint,
+  AdminBudgetGlance,
+  AdminFailedItem,
+} from "./AdminDashboardScreen";
 
 export { AdminPeopleScreen, default as AdminPeopleDemo } from "./AdminPeopleScreen";
 export type { AdminPerson, AdminPeopleProps, AdminStaffTab } from "./AdminPeopleScreen";

@@ -616,6 +616,97 @@
       "caption": "За выполненные задания"
     }
   },
+  "uiDash": {
+    "regrade": {
+      "action": "Оценить заново",
+      "hint": "Оценится та же запись — попытка не тратится.",
+      "sent": "Отправлено на повторную оценку",
+      "error": {
+        "not_failed": "Этот ответ уже оценивается или оценён.",
+        "audio_expired": "Запись не сохранилась — запишите ответ заново.",
+        "attempts_exhausted": "Попытки для этого задания закончились.",
+        "payment_required": "Для этого задания нужен Premium.",
+        "ai_unavailable": "AI-оценка сейчас недоступна. Попробуйте чуть позже.",
+        "rate_limited": "Слишком много запросов. Попробуйте чуть позже.",
+        "generic": "Не удалось отправить на оценку. Попробуйте ещё раз."
+      }
+    },
+    "review": {
+      "changeGrade": "Изменить оценку"
+    },
+    "admin": {
+      "alerts": "Внимание",
+      "thisWeek": "Эта неделя",
+      "totals": "Всего",
+      "show": "Показать",
+      "hide": "Скрыть",
+      "moreFailed_one": "Ещё {{count}} ответ не показан в списке.",
+      "moreFailed_few": "Ещё {{count}} ответа не показаны в списке.",
+      "moreFailed_many": "Ещё {{count}} ответов не показаны в списке.",
+      "moreFailed_other": "Ещё {{count}} ответа не показаны в списке.",
+      "openSettings": "Настройки",
+      "budgetClosed": "AI-оценка закрыта: {{state}}. Новые ответы не оцениваются.",
+      "kpiAnswers": "Ответы · 7 дней",
+      "kpiNewStudents": "Новые ученики · 7 дней",
+      "kpiGradingRate": "Успешная оценка · 7 дней",
+      "kpiAiToday": "Расходы на AI сегодня",
+      "deltaUp": "{{value}} к прошлой неделе",
+      "deltaDown": "{{value}} к прошлой неделе",
+      "deltaSame": "как на прошлой неделе",
+      "deltaPoints": "{{value}} п.",
+      "noPrev": "На прошлой неделе ответов не было",
+      "sparkAria": "{{what}}, последние 14 дней: {{values}}"
+    },
+    "teacher": {
+      "quickAria": "Быстрые действия",
+      "assign": "Дать задание",
+      "newGroup": "Новая группа",
+      "recentTitle": "Ждут проверки",
+      "recentEmpty": "Нет ответов, ожидающих проверки.",
+      "seeAll_one": "Все ({{count}})",
+      "seeAll_few": "Все ({{count}})",
+      "seeAll_many": "Все ({{count}})",
+      "seeAll_other": "Все ({{count}})",
+      "behindTitle": "Отстают",
+      "behindEmpty": "Все ученики активны — отстающих нет.",
+      "reasonDrop": "Балл упал на {{points}}",
+      "reasonNever": "Ещё не записал ни одного ответа",
+      "reasonIdle_one": "Не занимается {{count}} день",
+      "reasonIdle_few": "Не занимается {{count}} дня",
+      "reasonIdle_many": "Не занимается {{count}} дней",
+      "reasonIdle_other": "Не занимается {{count}} дня",
+      "weekTitle": "Активность за неделю",
+      "weekAria": "Ответы по дням: {{values}}",
+      "weekBarTitle_one": "{{day}} · {{count}} ответ",
+      "weekBarTitle_few": "{{day}} · {{count}} ответа",
+      "weekBarTitle_many": "{{day}} · {{count}} ответов",
+      "weekBarTitle_other": "{{day}} · {{count}} ответа",
+      "agoMin_one": "{{count}} минуту назад",
+      "agoMin_few": "{{count}} минуты назад",
+      "agoMin_many": "{{count}} минут назад",
+      "agoMin_other": "{{count}} минуты назад",
+      "agoHour_one": "{{count}} час назад",
+      "agoHour_few": "{{count}} часа назад",
+      "agoHour_many": "{{count}} часов назад",
+      "agoHour_other": "{{count}} часа назад",
+      "agoDay_one": "{{count}} день назад",
+      "agoDay_few": "{{count}} дня назад",
+      "agoDay_many": "{{count}} дней назад",
+      "agoDay_other": "{{count}} дня назад"
+    },
+    "invite": {
+      "copyCode": "Скопировать код",
+      "copyLink": "Скопировать ссылку",
+      "present": "Показать классу",
+      "close": "Закрыть",
+      "presentTitle": "Присоединяйтесь к группе «{{group}}»",
+      "qrCaption": "Отсканируйте камерой телефона",
+      "qrAria": "QR-код ссылки-приглашения в группу «{{group}}»"
+    },
+    "analytics": {
+      "oneMonth": "Пока оценён только {{month}}: {{score}} / 100. Тренд появится со второго месяца."
+    }
+  },
   "teacher": {
     "role": "Преподаватель",
     "statsAria": "Показатели класса",

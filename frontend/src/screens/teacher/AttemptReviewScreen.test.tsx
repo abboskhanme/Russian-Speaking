@@ -78,3 +78,35 @@ describe("manual grade", () => {
     expect(within(sheet).getByRole("button", { name: t("teacher.saveReview") })).toBeDisabled();
   });
 });
+
+/**
+ * Bug 7 — the actions follow the attempt's state. A reviewed attempt used to
+ * still offer "Tasdiqlash", which only re-stamped the same verdict; a failed one
+ * offered to "confirm" a score that does not exist.
+ */
+describe("actions by state", () => {
+  it("offers confirm on a fresh attempt", () => {
+    render(<AttemptReviewScreen {...BASE} />);
+    expect(screen.getByRole("button", { name: new RegExp(t("teacher.confirm")) })).toBeInTheDocument();
+  });
+
+  it("hides confirm once reviewed and relabels manual grading", () => {
+    render(<AttemptReviewScreen {...BASE} reviewed teacherBand={80} />);
+    expect(screen.queryByRole("button", { name: new RegExp(t("teacher.confirm")) })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: t("uiDash.review.changeGrade") })).toBeInTheDocument();
+    // Not the only status on the page: the audio player has its own (its "unavailable" row).
+    const note = screen
+      .getAllByRole("status")
+      .find((el) => el.textContent?.includes(t("teacher.alreadyReviewedBand", { band: 80 })));
+    expect(note).toBeDefined();
+  });
+
+  it("offers a regrade instead of confirm when grading failed, and shows a refusal", async () => {
+    const onRegrade = vi.fn().mockRejectedValue(new Error("AI hozir yo'q"));
+    render(<AttemptReviewScreen {...BASE} score={undefined} failedReason="Baholanmadi" onRegrade={onRegrade} />);
+    expect(screen.queryByRole("button", { name: new RegExp(t("teacher.confirm")) })).not.toBeInTheDocument();
+    await userEvent.setup().click(screen.getByRole("button", { name: t("uiDash.regrade.action") }));
+    expect(onRegrade).toHaveBeenCalledOnce();
+    expect(await screen.findByText("AI hozir yo'q")).toBeInTheDocument();
+  });
+});

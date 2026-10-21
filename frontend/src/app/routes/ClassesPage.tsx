@@ -231,6 +231,7 @@ export default function ClassesPage() {
       onNavigate={onNavigate}
       queuedCount={queued}
       onCreateGroup={createGroup}
+      startCreating={params.get("new") === "1"}
       onDecideRequest={decideRequest}
       // A5 group detail · D3 assign (`?group=`) · A6 student profile.
       onOpenGroup={(id) => navigate(`${TEACHER_NAV_PATH.classes}/${encodeURIComponent(id)}`)}

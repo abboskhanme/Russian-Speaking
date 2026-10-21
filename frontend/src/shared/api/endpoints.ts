@@ -16,6 +16,7 @@ import type {
   CreateTeacherArgs,
   UserRoleUpdateArgs,
   UserRoleResponse,
+  AdminActivityResponse,
   AdminStatsResponse,
   AdminStudentResponse,
   AdminStudentUpdateArgs,
@@ -330,6 +331,23 @@ export function attemptDetail(id: string, signal?: AbortSignal): Promise<Attempt
 export function mySubmissions(limit = 100): Promise<SubmissionResponse[]> {
   return apiClient.get<SubmissionResponse[]>(
     `/submissions?limit=${encodeURIComponent(String(limit))}`,
+  );
+}
+
+/** POST /api/submissions/{id}/regrade → put a FAILED attempt back through grading
+ * (202, the row now `pending`). Same row, same recording — it never spends a new
+ * attempt. Refusals carry a {@link RegradeErrorCode}: 409 not_failed /
+ * audio_expired / attempts_exhausted, 402 payment_required, 503 ai_unavailable.
+ * Owner, roster teacher or admin; 404 for anyone else. */
+export function regradeSubmission(id: string): Promise<SubmissionResponse> {
+  return apiClient.post<SubmissionResponse>(`/submissions/${encodeURIComponent(id)}/regrade`);
+}
+
+/** GET /api/submissions?status=failed → failed attempts, newest first, under the
+ * caller's scope (admin: everyone). The admin dashboard's alert row lists these. */
+export function failedSubmissions(limit = 20): Promise<SubmissionResponse[]> {
+  return apiClient.get<SubmissionResponse[]>(
+    `/submissions?status=failed&limit=${encodeURIComponent(String(limit))}`,
   );
 }
 
@@ -931,6 +949,12 @@ export function adminAudit(query: AdminAuditQuery = {}): Promise<AdminAuditPageR
 /** GET /api/admin/stats → the six dashboard counters. */
 export function adminStats(): Promise<AdminStatsResponse> {
   return apiClient.get<AdminStatsResponse>("/admin/stats");
+}
+
+/** GET /api/admin/stats/activity → 14 Tashkent days of answers / graded / failed /
+ * active + new students / AI spend, oldest first (deltas + sparklines). */
+export function adminActivity(): Promise<AdminActivityResponse> {
+  return apiClient.get<AdminActivityResponse>("/admin/stats/activity");
 }
 
 /** GET /api/admin/teachers (?search) → teachers with their authored-task counts. */

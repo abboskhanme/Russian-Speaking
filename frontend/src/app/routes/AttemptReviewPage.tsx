@@ -16,7 +16,8 @@ import { AttemptReviewScreen } from "../../screens/teacher";
 import type { ReviewCriterion, ReviewWord } from "../../screens/teacher";
 import { endpoints } from "../../shared/api";
 import type { AttemptDetailResponse } from "../../shared/api";
-import { parseCorrections, parseFeedback } from "../adapters";
+import { gradingFailureKey, parseCorrections, parseFeedback } from "../adapters";
+import { canRegrade, requestRegrade } from "../regrade";
 import { PageError, PageLoading } from "../PageState";
 import { TEACHER_NAV_PATH, useTeacherNavHandler } from "../nav";
 
@@ -109,6 +110,12 @@ export default function AttemptReviewPage() {
     navigate(TEACHER_NAV_PATH.queue);
   }, [attemptId, navigate]);
 
+  const regrade = useCallback(async () => {
+    await requestRegrade(t, attemptId);
+    // Back to "grading…" — the stored state is the truth, so reload it.
+    setReloadKey((k) => k + 1);
+  }, [attemptId, t]);
+
   if (loading) return <PageLoading />;
   if (failed || !detail) return <PageError onRetry={() => setReloadKey((k) => k + 1)} />;
 
@@ -133,6 +140,12 @@ export default function AttemptReviewPage() {
       onBack={() => navigate(TEACHER_NAV_PATH.queue)}
       onSave={save}
       onConfirm={confirm}
+      failedReason={
+        detail.status === "failed"
+          ? t("results.notGradedReason", { reason: t(gradingFailureKey(detail.error_message)) })
+          : undefined
+      }
+      onRegrade={canRegrade(detail.status, detail.audio_expired) ? regrade : undefined}
     />
   );
 }

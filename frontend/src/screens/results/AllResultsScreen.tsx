@@ -6,6 +6,7 @@ import { scoreTone } from "../../shared/score/scoreBand";
 import { AppShell, Brand, NotificationsBell, studentNavItems } from "../../widgets";
 import type { NavItem } from "../../widgets";
 import { formatRelativeDay } from "../../shared/format/date";
+import { RegradeButton } from "./RegradeButton";
 import styles from "./AllResultsScreen.module.css";
 
 /* -------------------------------------------------------------------------- */
@@ -30,6 +31,8 @@ export interface AllResultsItem {
   trend?: ResultTrend;
   /** A failed attempt's reason, already localized. */
   reason?: string;
+  /** A failed attempt whose grading can be retried (the recording still exists). */
+  canRegrade?: boolean;
 }
 
 export interface AllResultsScreenProps {
@@ -43,6 +46,9 @@ export interface AllResultsScreenProps {
   onStartPractice?: () => void;
   activeNavKey?: string;
   onNavigate?: (key: string, item: NavItem) => void;
+  /** Retry a failed attempt's grading (same recording, no attempt spent). Rejects
+   * with an already-localized Error. Absent ⇒ no retry control. */
+  onRegrade?: (id: string) => Promise<void>;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -68,6 +74,7 @@ export function AllResultsScreen({
   onStartPractice,
   activeNavKey = "profile",
   onNavigate,
+  onRegrade,
 }: AllResultsScreenProps) {
   const { t } = useTranslation();
   const now = useMemo(() => new Date(), []);
@@ -170,6 +177,11 @@ export function AllResultsScreen({
                       </span>
                     </span>
                   </button>
+                  {r.status === "failed" && r.canRegrade && onRegrade && (
+                    <div className={styles.regrade}>
+                      <RegradeButton onRegrade={() => onRegrade(r.id)} label={r.title} />
+                    </div>
+                  )}
                 </li>
               ))}
             </ul>

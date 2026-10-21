@@ -11,8 +11,8 @@
  * above a line saying work was still outstanding. Only a genuinely finished queue may
  * read 100 %.
  */
-import { describe, expect, it } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { describe, expect, it, vi } from "vitest";
+import { fireEvent, render, screen } from "@testing-library/react";
 import i18n from "../../shared/i18n";
 import { AdminDashboardScreen } from "./AdminDashboardScreen";
 import type { AdminStats } from "./AdminDashboardScreen";
@@ -73,5 +73,66 @@ describe("the graded percentage", () => {
     render(<AdminDashboardScreen stats={stats({ evaluatedSubmissions: 768 })} />);
     expect(screen.getByText("99")).toBeInTheDocument();
     expect(screen.queryByText("100")).not.toBeInTheDocument();
+  });
+});
+
+describe("trend tiles, AI budget and the failed list", () => {
+  const day = (i: number, submissions: number, graded = submissions) => ({
+    date: `2026-10-${String(8 + i).padStart(2, "0")}`,
+    submissions,
+    graded,
+    failed: submissions - graded,
+    activeStudents: 1,
+    newStudents: 0,
+    aiCostUsd: 0.01,
+  });
+
+  it("compares this week with the one before", () => {
+    // previous 7 days: 10 answers; this 7 days: 15 → ↑ 50%
+    const activity = [
+      ...Array.from({ length: 7 }, (_, i) => day(i, i < 2 ? 5 : 0)),
+      ...Array.from({ length: 7 }, (_, i) => day(7 + i, i < 3 ? 5 : 0)),
+    ];
+    render(<AdminDashboardScreen stats={stats()} activity={activity} />);
+    expect(screen.getByText(t("uiDash.admin.deltaUp", { value: "50%" }))).toBeInTheDocument();
+  });
+
+  it("shows AI spend against the cap and links to Settings", async () => {
+    const onOpen = vi.fn();
+    render(
+      <AdminDashboardScreen
+        stats={stats()}
+        budget={{ spentTodayUsd: 1.5, dailyCapUsd: 5, state: "open" }}
+        onOpenAiSettings={onOpen}
+      />,
+    );
+    expect(screen.getByText("$1.50")).toBeInTheDocument();
+    expect(screen.getByRole("meter")).toHaveAttribute("aria-valuenow", "1.5");
+    fireEvent.click(screen.getByRole("button", { name: new RegExp(t("uiDash.admin.kpiAiToday")) }));
+    expect(onOpen).toHaveBeenCalled();
+  });
+
+  it("raises a closed budget as an alert", () => {
+    render(<AdminDashboardScreen stats={stats()} budget={{ spentTodayUsd: 5, dailyCapUsd: 5, state: "daily_cap" }} />);
+    expect(
+      screen.getByText(t("uiDash.admin.budgetClosed", { state: t("admin.aiBudgetState.daily_cap") })),
+    ).toBeInTheDocument();
+  });
+
+  it("expands the failed alert into answers that can be graded again", async () => {
+    const onRegrade = vi.fn().mockResolvedValue(undefined);
+    render(
+      <AdminDashboardScreen
+        stats={stats()}
+        onRegrade={onRegrade}
+        failedItems={[
+          { id: "s1", studentName: "Ali", taskTitle: "Еда", reason: "x", when: "21.10.2026 10:00", canRegrade: true },
+        ]}
+      />,
+    );
+    fireEvent.click(screen.getByRole("button", { name: new RegExp(t("admin.failedNote", { count: 3 })) }));
+    fireEvent.click(screen.getByRole("button", { name: new RegExp(t("uiDash.regrade.action")) }));
+    expect(onRegrade).toHaveBeenCalledWith("s1");
+    expect(await screen.findByText(t("uiDash.regrade.sent"))).toBeInTheDocument();
   });
 });

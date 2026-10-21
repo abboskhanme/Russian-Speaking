@@ -1,0 +1,17 @@
+/* RegradeButton — the failed-grading retry. Tokens only. */
+.wrap {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-1);
+}
+.row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s-2) var(--s-3);
+}
+/* 44px: the shared "sm" button is 40px, under the mobile tap-target floor. */
+.btn {
+  min-height: 44px;
+  gap: var(--s-2);
+}
