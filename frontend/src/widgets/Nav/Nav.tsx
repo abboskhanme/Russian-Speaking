@@ -129,6 +129,12 @@ function NavEntry({ item, active, isBottom, onNavigate }: NavEntryProps) {
         {isBottom && item.shortLabel ? item.shortLabel : item.label}
       </span>
       {!isBottom && hasBadge && <span className={styles.badge}>{item.badge}</span>}
+      {/* A featured item (AI Suhbat, Navbat) is marked by a small dot, not by
+          painting its label in the brand colour — orange is reserved for the
+          CURRENT page, and two orange items read as two current pages. */}
+      {!isBottom && item.emphasized && !hasBadge && !active && (
+        <span className={styles.featureDot} aria-hidden />
+      )}
     </>
   );
 

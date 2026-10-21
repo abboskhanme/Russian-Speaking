@@ -2,7 +2,7 @@ import { useCallback, useId, useRef, useState, type ChangeEvent } from "react";
 import { useTranslation } from "react-i18next";
 import { isApiError } from "../../shared/api";
 import { Badge, Card, Spinner, Tabs, Text, VisuallyHidden } from "../../shared/ui";
-import { AppShell, Brand, NotificationsBell, studentNavItems } from "../../widgets";
+import { Page } from "../../widgets";
 import type { NavItem, ThemeMode } from "../../widgets";
 import { InfoTab } from "./tabs/InfoTab";
 import type { InfoTabProps } from "./tabs/InfoTab";
@@ -201,8 +201,6 @@ export function ProfileScreen({
   onUpgrade,
   proPriceFrom = null,
   onLogout,
-  activeNavKey = "profile",
-  onNavigate,
 }: ProfileScreenProps) {
   const { t } = useTranslation();
   const panelId = useId();
@@ -227,21 +225,7 @@ export function ProfileScreen({
   ];
 
   return (
-    <AppShell
-      brand={<Brand />}
-      nav={{
-        items: studentNavItems(t),
-        activeKey: activeNavKey,
-        onNavigate,
-        label: t("nav.landmark"),
-      }}
-      headerStart={
-        <Text as="h1" variant="title-m">
-          {t("nav.profile")}
-        </Text>
-      }
-      headerEnd={<NotificationsBell />}
-    >
+    <Page title={t("nav.profile")}>
       <div className={styles.page}>
         <IdentityCard
           user={user}
@@ -312,7 +296,7 @@ export function ProfileScreen({
           )}
         </div>
       </div>
-    </AppShell>
+    </Page>
   );
 }
 
@@ -454,7 +438,7 @@ export function IdentityCard({
 
       <div className={styles.identityMeta}>
         <div className={styles.identityNameRow}>
-          <Text as="h2" variant="title-l" truncate className={styles.identityName}>
+          <Text as="h2" variant="title-l" className={styles.identityName}>
             {user.name}
           </Text>
           {user.verified && (
@@ -469,6 +453,14 @@ export function IdentityCard({
           <Text as="p" variant="body" color="muted" truncate>
             {user.phone}
           </Text>
+        )}
+
+        {/* Under the name, not beside it: beside it the badge took the room a long
+            name needs and cut it to "Talaba De…" on a phone. */}
+        {user.level && (
+          <Badge variant="primary" size="md" className={styles.identityLevel}>
+            {user.level}
+          </Badge>
         )}
 
         {(removable || error) && (
@@ -492,11 +484,6 @@ export function IdentityCard({
         )}
       </div>
 
-      {user.level && (
-        <Badge variant="primary" size="md" className={styles.identityLevel}>
-          {user.level}
-        </Badge>
-      )}
     </Card>
   );
 }

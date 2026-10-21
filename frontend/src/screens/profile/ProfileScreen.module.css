@@ -2,8 +2,7 @@
  * around the three inner tabs. Each tab owns its own stylesheet; this file
  * styles only the page rhythm and the identity card above the tab strip.
  * Composed from shared/ui + widgets; every colour / space / radius / shadow /
- * motion value is a token. Full-width per docs/04 §4.10 — the page root spans
- * its column with no max-width + auto-margin centring. */
+ * motion value is a token. The column width comes from the layout's <Page>. */
 
 .page {
   display: flex;
@@ -144,6 +143,11 @@
   border-radius: var(--r-xs);
   transition: color var(--m-fast);
 }
+@media (pointer: coarse) {
+  .avatarRemoveBtn {
+    min-height: 44px;
+  }
+}
 .avatarRemoveBtn:hover:not(:disabled) {
   color: var(--danger);
   text-decoration: underline;
@@ -174,6 +178,8 @@
 }
 .identityName {
   min-width: 0;
+  /* Wraps rather than truncating: a name is worth a second line. */
+  overflow-wrap: anywhere;
 }
 .verified {
   display: grid;
@@ -189,5 +195,6 @@
  * stays put whether or not the phone line is present. */
 .identityLevel {
   flex: none;
-  align-self: center;
+  align-self: flex-start;
+  margin-top: var(--s-1);
 }
