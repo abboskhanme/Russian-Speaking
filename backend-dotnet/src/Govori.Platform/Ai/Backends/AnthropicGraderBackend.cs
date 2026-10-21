@@ -9,8 +9,8 @@ namespace Govori.Platform.Ai.Backends;
 /// <summary>
 /// Claude as a grader, over the official Anthropic SDK. It sits first in the default chain because
 /// it is the strongest at the judgement this app asks for — reading an Uzbek learner's Russian and
-/// saying, in Uzbek, what to fix — and it ships with no key, so until an admin pastes one
-/// <see cref="IsConfigured"/> is false and the chain passes over it for nothing.
+/// saying, in the learner's own language, what to fix — and it ships with no key, so until an
+/// admin pastes one <see cref="IsConfigured"/> is false and the chain passes over it for nothing.
 ///
 /// <para>The SDK is used rather than hand-rolled HTTP because it owns the two things that are easy
 /// to get subtly wrong and expensive to discover in production: the structured-output contract and
@@ -24,8 +24,8 @@ public sealed class AnthropicGraderBackend : IGraderBackend
 
     /// <summary>
     /// Output cap for one grading run. The grader emits a bounded JSON object — six numbers and a
-    /// short block of Uzbek — so this is generous; it exists to stop a runaway generation from
-    /// billing indefinitely. Opus 5 reasons before answering and those tokens come out of the same
+    /// short block of feedback prose — so this is generous; it exists to stop a runaway generation
+    /// from billing indefinitely. Opus 5 reasons before answering and those tokens come out of the same
     /// budget, which is why a truncation is detected explicitly below instead of being left to fail
     /// as unparseable JSON further down.
     /// </summary>
@@ -67,7 +67,7 @@ public sealed class AnthropicGraderBackend : IGraderBackend
                 // date-suffixed here: the configured string is the contract with the settings row.
                 Model = config.AnthropicModel,
                 MaxTokens = MaxOutputTokens,
-                System = new List<TextBlockParam> { new() { Text = GraderContract.RubricSystem } },
+                System = new List<TextBlockParam> { new() { Text = GraderContract.Rubric(request.FeedbackLanguage) } },
                 Messages = new List<MessageParam>
                 {
                     new() { Role = Role.User, Content = BuildContent(request) },
@@ -78,7 +78,7 @@ public sealed class AnthropicGraderBackend : IGraderBackend
                     // investigation. Low effort keeps the latency budget intact; the rubric, not
                     // extra deliberation, is what makes the score consistent.
                     Effort = Effort.Low,
-                    Format = new JsonOutputFormat { Schema = GraderContract.AnthropicSchema },
+                    Format = new JsonOutputFormat { Schema = GraderContract.AnthropicSchema(request.FeedbackLanguage) },
                 },
                 // Thinking is left at the model default. On Opus 5 it is already on, and pinning
                 // a budget_tokens here would be a downgrade, not a tuning knob.

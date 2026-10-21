@@ -245,6 +245,16 @@ public sealed class AssessmentService
                 }
             }
 
+            // The student's interface language, read NOW rather than at submit time: the feedback is
+            // written for whoever opens it next, and a student who switched the app to Russian
+            // between recording and grading should not get an Uzbek card under Russian headings.
+            // A missing row (deleted account mid-queue) or an unknown value grades in Uzbek.
+            var feedbackLanguage = FeedbackLanguage.Normalize(await _db.Users
+                .AsNoTracking()
+                .Where(u => u.Id == sub.StudentId)
+                .Select(u => u.PreferredLanguage)
+                .FirstOrDefaultAsync(ct));
+
             failureCode = SubmissionErrorCodes.GraderFailed;
             var graderStarted = DateTime.UtcNow;
             var grade = await _grader.AnalyzeAsync(new GraderRequest
@@ -258,6 +268,7 @@ public sealed class AssessmentService
                 Topic = question?.Topic,
                 ImageBytes = imageBytes,
                 ImageMime = imageMime,
+                FeedbackLanguage = feedbackLanguage,
             }, ct);
             failureCode = SubmissionErrorCodes.Internal;
             GradingMetrics.RecordStage("grade", (DateTime.UtcNow - graderStarted).TotalSeconds);
@@ -280,6 +291,12 @@ public sealed class AssessmentService
                 improvements = grade.Improvements,
                 vocabulary_suggestions = grade.VocabularySuggestions,
                 orthoepy_errors = Array.Empty<object>(),                    // TODO(orthoepy): fill when wired
+                // The language the grader was ASKED to write in. A student's history spans language
+                // switches, so without this a mixed list (Uzbek cards, then Russian ones) cannot be
+                // told apart from a model ignoring its instruction. Requested, not detected: a
+                // vendor that strayed still records the language it was told to use. Rows graded
+                // before this key existed have none, and were all asked for Uzbek.
+                lang = feedbackLanguage,
             };
 
             var nowE = DateTime.UtcNow;

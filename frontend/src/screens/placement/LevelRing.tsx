@@ -4,7 +4,7 @@ import styles from "./PlacementScreen.module.css";
 export interface LevelRingProps {
   /** CEFR level shown large in the ring centre (e.g. "A2"). */
   level: string;
-  /** Short Uzbek label under the level (e.g. "boshlang'ich"). */
+  /** Short caption under the level, already in the UI language (see `cefrLabel`). */
   label: string;
   /** 0–100 band that drives how far the ring sweeps. */
   band: number;
@@ -15,7 +15,7 @@ const CIRC = 2 * Math.PI * R;
 
 /**
  * LevelRing — the placement result ring (mockup frame A3): a progress ring whose sweep reflects the
- * averaged band, with the CEFR level + Uzbek label stacked in the centre. Tokens only (no hardcoded
+ * averaged band, with the CEFR level + its caption stacked in the centre. Tokens only (no hardcoded
  * colours); the sweep is legitimate dynamic geometry via stroke-dashoffset.
  */
 export function LevelRing({ level, label, band }: LevelRingProps) {

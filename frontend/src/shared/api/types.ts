@@ -377,6 +377,9 @@ export interface PlacementSubmitResponse {
  * label (e.g. A2 · "boshlang'ich") + the averaged band. */
 export interface PlacementResultResponse {
   level: string;
+  /** Uzbek ONLY, whatever the UI language — so it is not rendered directly. The screen
+   * captions `level` through i18n (`screens/placement/cefrLabel`) and falls back to this
+   * only for a level it has no key for. Kept because it is part of the wire contract. */
   label_uz: string;
   band: number;
 }

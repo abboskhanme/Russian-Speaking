@@ -2,7 +2,8 @@ namespace Govori.Platform.Grader;
 
 /// <summary>
 /// LLM grader abstraction (docs/07 §7.7, Faza 3.4). Given the task + a transcript of the spoken
-/// answer, returns structured 0–100 band scores (absolute + level-relative), Uzbek feedback and
+/// answer, returns structured 0–100 band scores (absolute + level-relative), feedback in the
+/// student's language (<see cref="GraderRequest.FeedbackLanguage"/>, Uzbek by default) and
 /// targeted corrections. TEXT-ONLY — delivery (pronunciation/intonation) is NOT judged here; the
 /// Azure PronScore is folded into the final band later by the C5 blend.
 ///
@@ -35,11 +36,23 @@ public sealed record GraderRequest
     /// <summary>Picture-description tasks: the image bytes, so the grader can judge the description.</summary>
     public byte[]? ImageBytes { get; init; }
     public string? ImageMime { get; init; }
+
+    /// <summary>
+    /// Language of the explanatory feedback — <c>uz</c>, <c>ru</c> or <c>en</c> (see
+    /// <see cref="global::Govori.Platform.Grader.FeedbackLanguage"/>). Defaults to Uzbek so a caller
+    /// that does not know the student (placement, the admin probe) keeps the behaviour every stored
+    /// evaluation was made with. The prompt builders run it through
+    /// <c>FeedbackLanguage.Normalize</c>, so a stray value degrades to Uzbek rather than to a prompt
+    /// with no language instruction at all.
+    /// </summary>
+    public string FeedbackLanguage { get; init; } = global::Govori.Platform.Grader.FeedbackLanguage.Uzbek;
 }
 
 /// <summary>
 /// Structured grader output. Scores are 0–100;
-/// <c>Summary</c>/<c>Strengths</c>/<c>Improvements</c>/correction explanations are Uzbek.
+/// <c>Summary</c>/<c>Strengths</c>/<c>Improvements</c>/correction explanations are in the requested
+/// <see cref="GraderRequest.FeedbackLanguage"/> — asked for in the prompt, not enforced: a model can
+/// still stray, which is what the golden set's language check watches for.
 /// </summary>
 public sealed record GraderResult
 {

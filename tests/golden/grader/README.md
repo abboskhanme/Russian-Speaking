@@ -50,6 +50,10 @@ Three kinds of assertion, in increasing order of how much they are worth:
 2. **Behaviour** — did it find the error that is actually there (`must_find_correction_types`), is
    the feedback in Uzbek, did it avoid inventing corrections on already-correct text
    (`max_corrections`)? These catch a grader that produces plausible numbers and useless feedback.
+   `feedback_language` is also what the case *asks* the grader for, and the language check covers
+   the summary, the strengths, the improvements and the correction explanations (each list judged
+   joined; an empty list is skipped). Every case is `uz` today — the `ru` and `en` prompts are
+   pinned by unit tests on the prompt text, not by paid runs.
 
 3. **Ordering** (`ordering` in `cases.json`) — *the strongest check here.* A clearly better answer
    must score clearly higher than a worse one, by at least the stated margin. Ordering survives

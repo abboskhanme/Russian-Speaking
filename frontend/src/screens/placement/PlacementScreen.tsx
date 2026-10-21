@@ -24,6 +24,7 @@ import type { PlacementQuestionResponse, PlacementResultResponse } from "../../s
 import { useAuth } from "../../shared/auth";
 import { PageError } from "../../app/PageState";
 import { LevelRing } from "./LevelRing";
+import { cefrLabel } from "./cefrLabel";
 import { hasPlaced, markPlaced } from "./placed";
 import styles from "./PlacementScreen.module.css";
 
@@ -317,7 +318,7 @@ function ResultStep({
         {t("placement.resultKicker")}
       </Text>
       <Mascot mood="proud" size={92} label="Govo" className={styles.resultMascot} />
-      <LevelRing level={result.level} label={result.label_uz} band={result.band} />
+      <LevelRing level={result.level} label={cefrLabel(t, result.level, result.label_uz)} band={result.band} />
       <Text as="h1" variant="title-l" weight="black" align="center" className={styles.resultTitle}>
         {t("placement.resultTitle")}
       </Text>
@@ -351,7 +352,7 @@ function GuestResultStep({
         {t("placement.resultKicker")}
       </Text>
       <Mascot mood="proud" size={92} label="Govo" className={styles.resultMascot} />
-      <LevelRing level={result.level} label={result.label_uz} band={result.band} />
+      <LevelRing level={result.level} label={cefrLabel(t, result.level, result.label_uz)} band={result.band} />
       <Text as="h1" variant="title-l" weight="black" align="center" className={styles.resultTitle}>
         {t("placement.guest.resultTitle")}
       </Text>
