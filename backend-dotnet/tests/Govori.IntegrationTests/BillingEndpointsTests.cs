@@ -111,6 +111,17 @@ public sealed class BillingEndpointsTests : IClassFixture<BillingEndpointsTests.
             ctx.Subscriptions.Add(NewSubscription(unpaid, planId, SubscriptionStatuses.Pending,
                 now.AddDays(-1), now.AddDays(29)));
             await ctx.SaveChangesAsync();
+
+            // Every student has already answered q[2], so q[3] is next in the module's order and the
+            // only gate left in front of it is the one under test — premium.
+            foreach (var student in new[] { free, granted, subscribed, lapsed, unpaid })
+                ctx.Submissions.Add(new Submission
+                {
+                    Id = Guid.NewGuid(), StudentId = student, QuestionId = q[2],
+                    AudioKey = $"answers/seed-{Guid.NewGuid():N}.webm", Status = SubmissionStatus.Done,
+                    CreatedAt = now, UpdatedAt = now,
+                });
+            await ctx.SaveChangesAsync();
         }
 
         try

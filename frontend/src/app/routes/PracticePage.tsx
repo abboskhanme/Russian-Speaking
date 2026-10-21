@@ -158,9 +158,12 @@ function submitErrorMessage(t: TFunction, err: unknown): string {
  *   unavailable — the task is not (or no longer) in the student's catalogue: an
  *                 unknown `?task=` id, or a submit answered 404 (soft-deleted);
  *   closed      — it exists but refuses this student's answer: a submit answered
- *                 403 (unpublished, not assigned, deadline passed, no attempts left).
+ *                 403 (unpublished, not assigned, deadline passed, no attempts left);
+ *   sequence    — it is behind the module's order (`locked`): the task before it is
+ *                 unanswered. Said BEFORE recording, like the premium lock, because the
+ *                 server refuses the answer (403) and the work would be thrown away.
  */
-type Blocked = "unavailable" | "closed" | null;
+type Blocked = "unavailable" | "closed" | "sequence" | null;
 
 type PollOutcome =
   | { kind: "done"; sub: SubmissionResponse }
@@ -183,6 +186,8 @@ export default function PracticePage() {
   const [empty, setEmpty] = useState(false);
   /** Nothing to answer here, and why (see {@link Blocked}). */
   const [blocked, setBlocked] = useState<Blocked>(null);
+  /** The presented task's module `next_task_id` — where a "sequence" block sends them. */
+  const [moduleNextId, setModuleNextId] = useState<string | null>(null);
   const [phase, setPhase] = useState<PracticePhase>("idle");
   const [feedback, setFeedback] = useState<PracticeFeedback | null>(null);
   const [failureMessage, setFailureMessage] = useState<string | undefined>(undefined);
@@ -219,7 +224,10 @@ export default function PracticePage() {
     setTarget(toUiTarget(picked));
     setCanSkip(nextOpenTarget(modules, picked.task.id) !== null);
     setEmpty(false);
-    setBlocked(null);
+    // The premium lock has its own screen (it can be bought past); a task behind only
+    // the order cannot be answered at all until the one before it is.
+    setBlocked(picked.task.locked && !picked.task.premium_locked ? "sequence" : null);
+    setModuleNextId(picked.module.next_task_id);
     setPhase("idle");
     setFeedback(null);
     setFailureMessage(undefined);
@@ -387,6 +395,19 @@ export default function PracticePage() {
   if (error) return <PageError onRetry={() => void load(taskParam)} />;
   if (loading && !target) return <PageLoading />;
 
+  if (blocked === "sequence" && moduleNextId) {
+    return (
+      <PracticeStateScreen
+        title={t("practice.sequence.title")}
+        body={t("practice.sequence.body")}
+        actionLabel={t("practice.sequence.cta")}
+        onAction={() =>
+          setSearchParams(fromDaily ? { task: moduleNextId, from: "daily" } : { task: moduleNextId })
+        }
+        onNavigate={onNavigate}
+      />
+    );
+  }
   if (blocked) {
     return (
       <PracticeStateScreen

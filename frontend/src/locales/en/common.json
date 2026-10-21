@@ -177,6 +177,11 @@
       "title": "This task can't be answered",
       "body": "It's closed, not assigned to you, past its deadline, or out of attempts."
     },
+    "sequence": {
+      "title": "Finish the previous task first",
+      "body": "Tasks in a module open in order. Answer the one before this and it opens too.",
+      "cta": "Go to the current task"
+    },
     "empty": {
       "title": "No tasks yet",
       "cta": "Go home"

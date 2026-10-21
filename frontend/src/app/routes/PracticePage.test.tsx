@@ -9,7 +9,8 @@
  *     the first open task, so a stale or unpublished assignment was answered as a
  *     different question.
  *   • A premium-locked task says so before recording (the 402 used to arrive
- *     after a whole answer had been recorded for nothing).
+ *     after a whole answer had been recorded for nothing). So does a task behind
+ *     the module's order — the server refuses that answer too.
  *   • Skip moves to the NEXT open task and the URL follows (it used to reload the
  *     task being skipped).
  */
@@ -118,6 +119,32 @@ describe("a task the student cannot answer", () => {
 
     fireEvent.click(screen.getByRole("button", { name: t("practice.locked.cta") }));
     expect(await screen.findByTestId("location")).toHaveTextContent("/premium");
+  });
+
+  it("shows the order lock BEFORE recording, and sends them to the module's current task", async () => {
+    catalogue = [{
+      ...CATALOGUE[0],
+      tasks: [CATALOGUE[0].tasks[0], task("t2", { title: "Oila haqida", locked: true })],
+    }];
+    renderAt("/task?task=t2");
+
+    expect(await screen.findByText(t("practice.sequence.title"))).toBeInTheDocument();
+    expect(screen.queryByTestId("recorder")).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: t("practice.sequence.cta") }));
+    expect(await screen.findByText("Расскажите, что вы вчера купили в магазине.")).toBeInTheDocument();
+    expect(screen.getByTestId("location")).toHaveTextContent("task=t1");
+  });
+
+  it("a task behind both locks gets the premium screen, the one that can change", async () => {
+    catalogue = [{
+      ...CATALOGUE[0],
+      tasks: [CATALOGUE[0].tasks[0], task("t3", { locked: true, premium_locked: true })],
+    }];
+    renderAt("/task?task=t3");
+
+    expect(await screen.findByText(t("practice.locked.title"))).toBeInTheDocument();
+    expect(screen.queryByText(t("practice.sequence.title"))).not.toBeInTheDocument();
   });
 });
 

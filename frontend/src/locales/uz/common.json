@@ -177,6 +177,11 @@
       "title": "Bu vazifaga javob berib bo'lmaydi",
       "body": "U yopilgan, sizga tayinlanmagan, muddati o'tgan yoki urinishlar tugagan."
     },
+    "sequence": {
+      "title": "Avval oldingi vazifani bajaring",
+      "body": "Moduldagi vazifalar ketma-ket ochiladi. Oldingisiga javob bersangiz, bu vazifa ham ochiladi.",
+      "cta": "Navbatdagi vazifaga o'tish"
+    },
     "empty": {
       "title": "Hozircha vazifa yo'q",
       "cta": "Bosh sahifaga"

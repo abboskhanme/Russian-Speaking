@@ -73,6 +73,10 @@ public static class PracticeEndpoints
                 // service supplies the message because only it knows the limit.
                 SubmitStatus.AttemptsExhausted => Detail(
                     result.Detail ?? "No attempts left for this task.", StatusCodes.Status403Forbidden),
+                // 403 like the rest: this answer is refused. Unlike them it CAN change — by answering
+                // the task before it — which the detail says; the SPA shows that before recording.
+                SubmitStatus.SequenceLocked => Detail(
+                    result.Detail ?? "Finish the previous task in this module first.", StatusCodes.Status403Forbidden),
                 _ => Results.Json(result.Submission, statusCode: StatusCodes.Status201Created),
             };
         // RATE LIMIT submit_audio (60/hour, per USER, FAIL-OPEN). This is the only authenticated

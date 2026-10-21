@@ -67,7 +67,7 @@ public sealed class PracticeService
     /// <summary>
     /// Submit an audio answer. The guard ORDER is load-bearing and must not be rearranged:
     /// 404 (no question, or a soft-deleted one) → [non-admin] 403 (unpublished, or not reachable) →
-    /// 402 (freemium gate) → store audio → create the <c>pending</c> Submission → enqueue grading →
+    /// 402 (freemium gate) → 403 (sequence lock) → store audio → create the <c>pending</c> Submission → enqueue grading →
     /// 201. Every rejection happens before the upload, so a rejected attempt leaves no object and no
     /// row behind.
     ///
@@ -147,6 +147,22 @@ public sealed class PracticeService
             // teacher can already grant premium outright, so this opens no new door.
             if (assignment is null && await _catalog.NeedsPremiumAsync(student, question, ct))
                 return new SubmitResult(SubmitStatus.PaymentRequired);
+
+            // Sequence lock — the module view's `locked`, enforced where it matters. It used to live
+            // only in the UI: the view withheld a locked task's prompt, but a direct POST answered it
+            // anyway, so a student could skip the module's order and spend an STT and a grader call
+            // doing it. Same two doors the view opens (a live assignment for THIS task; the review
+            // queue, which by definition replays a task already reached), and only for students —
+            // teachers trying their own content are not walking a curriculum.
+            //
+            // After the 402 on purpose: a task behind both locks answers "upgrade", which is the
+            // thing that can actually change, rather than "finish the previous one" and a second
+            // refusal after that.
+            if (student.Role == UserRole.Student && assignment is null && !inReview
+                && !await PreviousTaskAnsweredAsync(student.Id, question, ct))
+                return new SubmitResult(
+                    SubmitStatus.SequenceLocked,
+                    Detail: "Finish the previous task in this module first.");
         }
 
         // Store the audio only once the gates have passed, under the "answers" key prefix.
@@ -496,6 +512,43 @@ public sealed class PracticeService
         return teacherIds.Contains(block.TeacherId);                        // the student's teacher's group module
     }
 
+    /// <summary>
+    /// True when the task immediately before <paramref name="q"/> in its module — by the same
+    /// <c>(sort_order, created_at)</c> key and the same published, live siblings the module view
+    /// walks (<c>CatalogService.TaskIndexAsync</c>) — has an answer from this student. The first
+    /// task, and a task with no module, have no predecessor and are always open.
+    ///
+    /// <para>One rule looser than the view on purpose: the view counts a task as done only once it
+    /// is GRADED, while this accepts any answer that has not failed. Grading runs off-request, so
+    /// "graded" would race the student's own next tap; and a failed attempt does not count, the
+    /// same way it does not count against an attempt budget.</para>
+    /// </summary>
+    private async Task<bool> PreviousTaskAnsweredAsync(Guid studentId, Question q, CancellationToken ct)
+    {
+        if (q.BlockId is null)
+            return true;
+
+        var blockId = q.BlockId.Value;
+        var previousId = await _db.Questions
+            .Where(x => x.BlockId == blockId
+                        && !x.IsDeleted
+                        && x.IsPublished
+                        && (x.SortOrder < q.SortOrder
+                            || (x.SortOrder == q.SortOrder && x.CreatedAt < q.CreatedAt)))
+            .OrderByDescending(x => x.SortOrder)
+            .ThenByDescending(x => x.CreatedAt)
+            .Select(x => (Guid?)x.Id)
+            .FirstOrDefaultAsync(ct);
+        if (previousId is null)
+            return true;                                                    // the module's first task
+
+        return await _db.Submissions.AnyAsync(
+            s => s.StudentId == studentId
+                 && s.QuestionId == previousId
+                 && s.Status != SubmissionStatus.Failed,
+            ct);
+    }
+
     // Presign the audio URL (local SigV4 signing — no network), then project: the wire shape
     // carries audio_url plus denormalized student/question labels so clients need no extra fetch.
     private async Task<SubmissionResponse> ToResponseAsync(
@@ -547,7 +600,7 @@ public sealed record SubmitAudio(Guid QuestionId, Stream Content, string Content
 /// <summary>Outcome of <see cref="PracticeService.SubmitAsync"/> — the service owns the status decision (§7.2).
 /// <c>AttemptsExhausted</c> is separate from <c>Forbidden</c> because it is the one refusal here that
 /// is not about permission: the task IS the student's, they have simply spent its budget.</summary>
-public enum SubmitStatus { Ok, Unauthorized, QuestionNotFound, Forbidden, PaymentRequired, AttemptsExhausted }
+public enum SubmitStatus { Ok, Unauthorized, QuestionNotFound, Forbidden, PaymentRequired, AttemptsExhausted, SequenceLocked }
 
 /// <summary><paramref name="Detail"/> carries a message the endpoint can pass through verbatim, for
 /// the refusals whose specifics (a limit, a count) the endpoint has no way to know.</summary>
