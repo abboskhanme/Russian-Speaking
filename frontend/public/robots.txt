@@ -1,0 +1,21 @@
+# Govori — everything past the login screen is a signed-in app, so crawlers get
+# an ALLOW-list: the entry pages, the static files they need to render them, and
+# nothing else. A new route is private by default; it never has to be remembered here.
+# (`$` = end of URL — honoured by Google, Bing and Yandex.)
+User-agent: *
+Allow: /$
+Allow: /login$
+Allow: /register$
+Allow: /try$
+Allow: /assets/
+Allow: /favicon.svg
+Allow: /favicon.ico
+Allow: /favicon-32.png
+Allow: /apple-touch-icon.png
+Allow: /icon-512.png
+Allow: /og-image.png
+Allow: /manifest.webmanifest
+Disallow: /api/
+Disallow: /hubs/
+Disallow: /j/
+Disallow: /

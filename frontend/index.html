@@ -3,11 +3,38 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-    <meta name="theme-color" content="#e8722e" />
+    <!-- --primary (src/shared/styles/tokens.css) as sRGB. -->
+    <meta name="theme-color" content="#ed622a" />
     <!-- Fonts are fully self-hosted via src/shared/styles/fonts.css (Onest +
          JetBrains Mono, variable woff2). No Google Fonts CDN — docs/08 §4.4
          forbids CDN fonts in prod (LCP + availability + privacy). -->
     <title>Govori — Rus tilida gapiring</title>
+    <meta name="description" content="Rus tilida gapirishni ovoz orqali mashq qiling: topshiriqlarga ovozli javob bering, tezkor baho va izoh oling, oʻqituvchingiz natijangizni kuzatib boradi." />
+    <meta name="application-name" content="Govori" />
+
+    <link rel="icon" href="/favicon.ico" sizes="32x32" />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <link rel="manifest" href="/manifest.webmanifest" />
+
+    <!-- Link previews (Telegram, WhatsApp, Facebook, X). Absolute URLs are required by
+         the spec and by most scrapers; the prod nginx rewrites https://govorim.uz to
+         https://${GOVORI_SERVER_NAME} (sub_filter in deploy/nginx/govori-prod.conf.template),
+         so a different domain needs no rebuild. -->
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Govori" />
+    <meta property="og:locale" content="uz_UZ" />
+    <meta property="og:title" content="Govori — Rus tilida gapiring" />
+    <meta property="og:description" content="Rus tilida gapirishni ovoz orqali mashq qiling: ovozli topshiriqlar, tezkor baho va oʻqituvchi nazorati." />
+    <meta property="og:url" content="https://govorim.uz/" />
+    <meta property="og:image" content="https://govorim.uz/og-image.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="Govori logotipi va “Rus tilida gapiring” yozuvi" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Govori — Rus tilida gapiring" />
+    <meta name="twitter:description" content="Rus tilida gapirishni ovoz orqali mashq qiling: ovozli topshiriqlar, tezkor baho va oʻqituvchi nazorati." />
+    <meta name="twitter:image" content="https://govorim.uz/og-image.png" />
   </head>
   <body>
     <div id="root"></div>
