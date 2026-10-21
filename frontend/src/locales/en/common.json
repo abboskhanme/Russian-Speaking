@@ -589,6 +589,18 @@
       "agoHour_other": "{{count}} hours ago",
       "agoDay_one": "{{count}} day ago",
       "agoDay_other": "{{count}} days ago"
+    },
+    "invite": {
+      "copyCode": "Copy code",
+      "copyLink": "Copy link",
+      "present": "Show to the class",
+      "close": "Close",
+      "presentTitle": "Join the “{{group}}” group",
+      "qrCaption": "Scan with a phone camera",
+      "qrAria": "QR code of the invite link to the “{{group}}” group"
+    },
+    "analytics": {
+      "oneMonth": "Only {{month}} is graded so far: {{score}} / 100. The trend appears from the second month."
     }
   },
   "teacher": {

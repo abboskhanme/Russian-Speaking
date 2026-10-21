@@ -1,0 +1,14 @@
+/* Scanners need dark modules on a light plate, so these two fills are fixed and
+ * NOT themed: the plate stays white and the modules stay ink-dark in dark mode. */
+.qr {
+  display: block;
+  width: 100%;
+  height: auto;
+  border-radius: var(--r-sm);
+}
+.plate {
+  fill: #ffffff;
+}
+.modules {
+  fill: #1a1410;
+}

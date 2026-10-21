@@ -589,6 +589,18 @@
       "agoHour_other": "{{count}} soat oldin",
       "agoDay_one": "{{count}} kun oldin",
       "agoDay_other": "{{count}} kun oldin"
+    },
+    "invite": {
+      "copyCode": "Kodni nusxalash",
+      "copyLink": "Havolani nusxalash",
+      "present": "Sinfga koʻrsatish",
+      "close": "Yopish",
+      "presentTitle": "«{{group}}» guruhiga qoʻshiling",
+      "qrCaption": "Telefon kamerasi bilan skanerlang",
+      "qrAria": "«{{group}}» guruhiga taklif havolasining QR kodi"
+    },
+    "analytics": {
+      "oneMonth": "Hozircha faqat {{month}} baholangan: {{score}} / 100. Trend ikkinchi oydan boshlab chiziladi."
     }
   },
   "teacher": {

@@ -614,6 +614,18 @@
       "agoDay_few": "{{count}} дня назад",
       "agoDay_many": "{{count}} дней назад",
       "agoDay_other": "{{count}} дня назад"
+    },
+    "invite": {
+      "copyCode": "Скопировать код",
+      "copyLink": "Скопировать ссылку",
+      "present": "Показать классу",
+      "close": "Закрыть",
+      "presentTitle": "Присоединяйтесь к группе «{{group}}»",
+      "qrCaption": "Отсканируйте камерой телефона",
+      "qrAria": "QR-код ссылки-приглашения в группу «{{group}}»"
+    },
+    "analytics": {
+      "oneMonth": "Пока оценён только {{month}}: {{score}} / 100. Тренд появится со второго месяца."
     }
   },
   "teacher": {
