@@ -31,6 +31,8 @@ import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router-dom";
 import i18n from "../../shared/i18n";
 import type {
+  AiBudgetResponse,
+  AiBudgetUpdateArgs,
   AiSettingsResponse,
   FeatureFlagsResponse,
   FeatureFlagsUpdateArgs,
@@ -89,6 +91,20 @@ const FLAGS: FeatureFlagsResponse = {
   roleplay_daily_turns: 24,
 };
 
+const BUDGET: AiBudgetResponse = {
+  ai_paused: false,
+  daily_cap_usd: 10,
+  monthly_cap_usd: 200,
+  spent_today_usd: 1.25,
+  spent_month_usd: 12.5,
+  state: "open",
+  day: "2026-10-21",
+  month: [{ provider: "azure", operation: "stt", calls: 40, failed_calls: 1, cost_usd: 1.25 }],
+};
+
+/** Every AI-budget PATCH body the page sent. */
+const budgetPatches: AiBudgetUpdateArgs[] = [];
+
 /** The server's answer to the last feature-flags PATCH, set per test. */
 let flagsAfterSave: FeatureFlagsResponse;
 
@@ -102,6 +118,11 @@ vi.mock("../../shared/api", async (importOriginal) => {
       adminLinks: () => Promise.resolve(LINKS),
       adminFeatureFlags: () => Promise.resolve(FLAGS),
       adminUpdateFeatureFlags: (_args: FeatureFlagsUpdateArgs) => Promise.resolve(flagsAfterSave),
+      adminAiBudget: () => Promise.resolve(BUDGET),
+      adminUpdateAiBudget: (args: AiBudgetUpdateArgs) => {
+        budgetPatches.push(args);
+        return Promise.resolve({ ...BUDGET, ai_paused: true, state: "paused" });
+      },
     },
   };
 });
@@ -158,5 +179,20 @@ describe("flipping a switch", () => {
 
     await waitFor(() => expect(screen.getByText(t("admin.saved"))).toBeInTheDocument());
     expect(claudeKeyInput().value).toBe("sk-ant-half-ty");
+  });
+});
+
+describe("the AI budget card", () => {
+  it("pauses AI with the switch alone and shows the state the server stored", async () => {
+    budgetPatches.length = 0;
+    const user = renderPage();
+    const pause = await screen.findByRole("switch", { name: t("admin.aiPaused") });
+    expect(screen.getByText("$1.25 / $10.00")).toBeInTheDocument();
+
+    await user.click(pause);
+    await user.click(screen.getByRole("button", { name: t("admin.saveAiBudget") }));
+
+    await waitFor(() => expect(screen.getByText(t("admin.aiBudgetState.paused"))).toBeInTheDocument());
+    expect(budgetPatches).toEqual([{ ai_paused: "true", daily_cap_usd: undefined, monthly_cap_usd: undefined }]);
   });
 });

@@ -3,7 +3,9 @@
  * priority #5). No React, no i18n (labels that need `t` are built in the pages);
  * these just reshape the wire DTOs into the presentational screens' contracts.
  */
+import type { AdminAiBudget } from "../screens/admin/AiBudgetCard";
 import type {
+  AiBudgetResponse,
   LeaderboardEntryResponse,
   PlanResponse,
   StudentModuleResponse,
@@ -204,7 +206,14 @@ export function nextOpenTarget(
 }
 
 /** The grading-failure codes the backend writes to `submissions.error_message`. */
-const KNOWN_FAILURES = ["grading_timeout", "stt_failed", "grader_failed", "internal"];
+const KNOWN_FAILURES = [
+  "grading_timeout",
+  "stt_failed",
+  "grader_failed",
+  // The platform-wide AI budget is paused or spent: "try again later", not "it broke".
+  "ai_unavailable",
+  "internal",
+];
 
 /**
  * A grading-failure machine code → its `results.failure.*` i18n key.
@@ -328,4 +337,24 @@ export function parseCorrections(raw?: string | null): AiCorrection[] {
   } catch {
     return [];
   }
+}
+
+/** `GET /api/admin/settings/ai-budget` → the AI budget card's props. */
+export function toAdminAiBudget(b: AiBudgetResponse): AdminAiBudget {
+  return {
+    paused: b.ai_paused,
+    dailyCapUsd: b.daily_cap_usd,
+    monthlyCapUsd: b.monthly_cap_usd,
+    spentTodayUsd: b.spent_today_usd,
+    spentMonthUsd: b.spent_month_usd,
+    state: b.state,
+    day: b.day,
+    month: b.month.map((l) => ({
+      provider: l.provider,
+      operation: l.operation,
+      calls: l.calls,
+      failedCalls: l.failed_calls,
+      costUsd: l.cost_usd,
+    })),
+  };
 }

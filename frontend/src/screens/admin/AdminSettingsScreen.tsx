@@ -8,6 +8,8 @@ import type { NavItem } from "../../widgets";
 import { AdminAccountButton } from "./AdminChrome";
 import { adminErrorBody, isNetworkError } from "./adminErrors";
 import { mockAdminSettings } from "./admin.mock";
+import { AiBudgetCard } from "./AiBudgetCard";
+import type { AdminAiBudget, AdminAiBudgetPatch } from "./AiBudgetCard";
 import styles from "./AdminSettingsScreen.module.css";
 
 /** The three independently saved sections. */
@@ -152,6 +154,11 @@ export interface AdminSettingsProps {
     phonemeDrillDailyAttempts: string;
     paymentsEnabled: string;
   }) => Promise<void>;
+  /** The global AI spend ceiling + kill switch. Optional: without it (an older API, or
+   * a failed read) the card is simply not shown, and nothing else on the page depends
+   * on it. */
+  aiBudget?: AdminAiBudget | null;
+  onSaveAiBudget?: (patch: AdminAiBudgetPatch) => Promise<void>;
 }
 
 
@@ -253,6 +260,8 @@ export function AdminSettingsScreen({
   onTestAi,
   onSaveLinks,
   onSaveFeatures,
+  aiBudget,
+  onSaveAiBudget,
 }: AdminSettingsProps) {
   const { t } = useTranslation();
 
@@ -568,6 +577,9 @@ export function AdminSettingsScreen({
       }
     >
       <div className={styles.page} data-density="compact">
+        {/* ---- AI budget: first, because it is the switch an operator reaches for in a hurry ---- */}
+        {aiBudget && <AiBudgetCard budget={aiBudget} onSave={onSaveAiBudget} />}
+
         {/* ---- AI grader ---- */}
         <section className={styles.section} aria-label={t("admin.aiGrader")}>
           <div className={styles.sectionHead}>

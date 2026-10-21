@@ -29,13 +29,20 @@ public sealed class AiProbeService
     private readonly IEnumerable<IGraderBackend> _graders;
     private readonly IEnumerable<ISttBackend> _stt;
     private readonly IAiConfigSource _config;
+    private readonly IAiBudget? _budget;
 
+    /// <param name="budget">Where the probe's own spend is recorded. The probe is deliberately NOT
+    /// gated by the budget — an admin checking a key while AI is paused is exactly when the check is
+    /// needed — but what it costs still lands in the ledger, so the totals stay honest. Optional so a
+    /// test can build the probe without a ledger.</param>
     public AiProbeService(
-        IEnumerable<IGraderBackend> graders, IEnumerable<ISttBackend> stt, IAiConfigSource config)
+        IEnumerable<IGraderBackend> graders, IEnumerable<ISttBackend> stt, IAiConfigSource config,
+        IAiBudget? budget = null)
     {
         _graders = graders;
         _stt = stt;
         _config = config;
+        _budget = budget;
     }
 
     // Short on purpose: the probe is checking credentials and reachability, not quality, and every
@@ -61,7 +68,22 @@ public sealed class AiProbeService
                 continue;                       // a name from a newer build; the chain ignores it too
             results.Add(await ProbeOneAsync(
                 backend.Name, "grader", backend.IsConfigured(config),
-                async () => (await backend.AnalyzeAsync(Probe, config, ct)).Model, ct));
+                async () =>
+                {
+                    GraderResult? graded = null;
+                    try
+                    {
+                        graded = await backend.AnalyzeAsync(Probe, config, ct);
+                        return graded.Model;
+                    }
+                    finally
+                    {
+                        var (cost, input, output) = AiCostEstimator.Grader(
+                            backend.Name, graded?.InputTokens, graded?.OutputTokens, config.Prices);
+                        await RecordAsync(new AiUsage(backend.Name, AiOperations.Grader, graded is not null, cost,
+                            InputTokens: input, OutputTokens: output));
+                    }
+                }, ct));
         }
 
         foreach (var name in config.SttChain.Concat(
@@ -72,11 +94,28 @@ public sealed class AiProbeService
                 continue;
             results.Add(await ProbeOneAsync(
                 backend.Name, "stt", backend.IsConfigured(config),
-                async () => (await backend.TranscribeAsync(SilentWav(1), "probe.wav", null, config, ct)).Model, ct));
+                async () =>
+                {
+                    var ok = false;
+                    try
+                    {
+                        var model = (await backend.TranscribeAsync(SilentWav(1), "probe.wav", null, config, ct)).Model;
+                        ok = true;
+                        return model;
+                    }
+                    finally
+                    {
+                        await RecordAsync(new AiUsage(backend.Name, AiOperations.Stt, ok,
+                            AiCostEstimator.Stt(backend.Name, 1, config.Prices), AudioSeconds: 1));
+                    }
+                }, ct));
         }
 
         return new AiProbeResponse(results);
     }
+
+    private Task RecordAsync(AiUsage usage)
+        => _budget?.RecordAsync(usage, CancellationToken.None) ?? Task.CompletedTask;
 
     private static async Task<ProviderProbe> ProbeOneAsync(
         string name, string kind, bool configured, Func<Task<string?>> call, CancellationToken ct)

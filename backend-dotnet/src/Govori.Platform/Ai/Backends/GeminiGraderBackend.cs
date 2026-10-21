@@ -167,6 +167,22 @@ public sealed class GeminiGraderBackend : IGraderBackend
             throw new InvalidOperationException(
                 $"Gemini returned a candidate with no text: {GraderContract.Excerpt(payload)}");
 
-        return GraderContract.Parse(builder.ToString(), servedModel);
+        return GraderContract.Parse(builder.ToString(), servedModel) with
+        {
+            InputTokens = UsageField(root, "promptTokenCount"),
+            // Thinking tokens are billed at the output rate but reported separately.
+            OutputTokens = UsageField(root, "candidatesTokenCount") is { } output
+                ? output + (UsageField(root, "thoughtsTokenCount") ?? 0)
+                : null,
+        };
     }
+
+    // usageMetadata.{field} as a number, or null when absent — read only by the spend ledger.
+    private static long? UsageField(JsonElement root, string field)
+        => root.TryGetProperty("usageMetadata", out var usage)
+           && usage.ValueKind == JsonValueKind.Object
+           && usage.TryGetProperty(field, out var value)
+           && value.TryGetInt64(out var n)
+            ? n
+            : null;
 }

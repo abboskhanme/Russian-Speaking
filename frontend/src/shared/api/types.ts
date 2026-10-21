@@ -282,7 +282,7 @@ export interface SubmissionResponse {
   audio_url: string | null;
   audio_duration_sec: number | null;
   status: SubmissionStatus;
-  /** A grading-failure MACHINE CODE (`grading_timeout` · `stt_failed` · `grader_failed` ·
+  /** A grading-failure MACHINE CODE (`grading_timeout` · `stt_failed` · `grader_failed` · `ai_unavailable` ·
    * `internal`) — never text to show. Rows that failed before the codes existed still hold
    * free text. Map it through `gradingFailureKey` (app/adapters): anything unknown reads as
    * `internal`. */
@@ -927,6 +927,39 @@ export interface FeatureFlagsUpdateArgs {
   payments_enabled?: string;
   phoneme_drill_enabled?: string;
   phoneme_drill_daily_attempts?: string;
+}
+
+/** One backend × operation's share of this month's estimated AI spend. */
+export interface AiSpendLine {
+  provider: string;
+  /** `stt` | `grader` */
+  operation: string;
+  calls: number;
+  failed_calls: number;
+  cost_usd: number;
+}
+
+/** GET/PATCH /api/admin/settings/ai-budget — the global AI ceiling: the kill switch,
+ *  the daily/monthly caps (US dollars) and the ESTIMATED spend against them. `day` is
+ *  the product day (Tashkent); the month is that day's calendar month. */
+export interface AiBudgetResponse {
+  ai_paused: boolean;
+  daily_cap_usd: number;
+  monthly_cap_usd: number;
+  spent_today_usd: number;
+  spent_month_usd: number;
+  /** `open` | `paused` | `daily_cap` | `monthly_cap` */
+  state: string;
+  day: string;
+  month: AiSpendLine[];
+}
+
+/** PATCH body — the usual tri-state strings: omit = keep, "" = clear to the env
+ *  default, value = store. Caps are positive dollar amounts; there is no "unlimited". */
+export interface AiBudgetUpdateArgs {
+  ai_paused?: string | null;
+  daily_cap_usd?: string | null;
+  monthly_cap_usd?: string | null;
 }
 
 export interface LinksResponse {

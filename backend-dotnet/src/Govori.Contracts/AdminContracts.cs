@@ -210,6 +210,58 @@ public sealed record FeatureFlagsUpdate(
     string? PhonemeDrillDailyAttempts = null,
     string? PaymentsEnabled = null);
 
+// ─── Global AI budget (kill switch + caps) ───────────────────────────────────
+
+/// <summary>Wire values of <see cref="AiBudgetResponse.State"/>.</summary>
+public static class AiBudgetStates
+{
+    /// <summary>New AI work may start.</summary>
+    public const string Open = "open";
+    /// <summary>An admin paused all AI (the kill switch).</summary>
+    public const string Paused = "paused";
+    /// <summary>Today's estimated spend reached the daily cap; re-opens at Tashkent midnight.</summary>
+    public const string DailyCap = "daily_cap";
+    /// <summary>This month's estimated spend reached the monthly cap; re-opens on the 1st.</summary>
+    public const string MonthlyCap = "monthly_cap";
+}
+
+/// <summary>
+/// <c>GET/PATCH /api/admin/settings/ai-budget</c> — the global AI spend ceiling as the admin sees it:
+/// the kill switch, both caps, and the ESTIMATED spend so far against them. Amounts are US dollars.
+/// <see cref="Day"/> is the current product day (Tashkent); the month is that day's calendar month.
+/// </summary>
+/// <param name="AiPaused">The kill switch. True ⇒ no new vendor call starts.</param>
+/// <param name="DailyCapUsd">Cap on the estimated spend of one product day.</param>
+/// <param name="MonthlyCapUsd">Cap on the estimated spend of one calendar month.</param>
+/// <param name="SpentTodayUsd">Estimated spend recorded for <see cref="Day"/>.</param>
+/// <param name="SpentMonthUsd">Estimated spend recorded for the month containing <see cref="Day"/>.</param>
+/// <param name="State">One of <see cref="AiBudgetStates"/>.</param>
+/// <param name="Day">The product day the figures are for.</param>
+/// <param name="Month">This month's spend per backend and operation, dearest first.</param>
+public sealed record AiBudgetResponse(
+    bool AiPaused,
+    double DailyCapUsd,
+    double MonthlyCapUsd,
+    double SpentTodayUsd,
+    double SpentMonthUsd,
+    string State,
+    DateOnly Day,
+    IReadOnlyList<AiSpendLine> Month);
+
+/// <summary>One backend × operation's share of the month (<c>operation</c>: <c>stt</c> | <c>grader</c>).</summary>
+public sealed record AiSpendLine(string Provider, string Operation, int Calls, int FailedCalls, double CostUsd);
+
+/// <summary>
+/// Partial update of the AI budget — the same tri-state as every other settings write: omit to leave
+/// unchanged, <c>""</c> to clear back to the environment default, a value to store it. Strings for
+/// the same reason as <see cref="FeatureFlagsUpdate"/>: a <c>bool?</c> cannot express "clear".
+/// Caps are positive dollar amounts (e.g. <c>"12.50"</c>); there is no "unlimited".
+/// </summary>
+public sealed record AiBudgetUpdate(
+    string? AiPaused = null,
+    string? DailyCapUsd = null,
+    string? MonthlyCapUsd = null);
+
 // ─── Admin user management ───────────────────────────────────────────────────
 
 /// <summary>

@@ -106,11 +106,13 @@ public sealed class ProviderChainTests
     private static ChainGraderProvider Grader(string chain, params FakeGraderBackend[] backends)
         => new(backends,
                new StaticConfig(new AiRuntimeConfig { GraderChain = chain.Split(',') }),
+               new TestBudget(),
                NullLogger<ChainGraderProvider>.Instance);
 
     private static ChainSttProvider Stt(string chain, params FakeSttBackend[] backends)
         => new(backends,
                new StaticConfig(new AiRuntimeConfig { SttChain = chain.Split(',') }),
+               new TestBudget(),
                NullLogger<ChainSttProvider>.Instance);
 
     // ── Rule 1 — skipped is not failed ──────────────────────────────────────

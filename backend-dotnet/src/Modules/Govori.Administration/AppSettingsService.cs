@@ -102,6 +102,21 @@ public sealed class AppSettingsService
             ["stt_chain"] = ("STT_CHAIN", false),
             ["anthropic_api_key"] = ("ANTHROPIC_API_KEY", true),
             ["anthropic_model"] = ("ANTHROPIC_MODEL", false),
+            // The global AI budget (AiBudgetService): the kill switch and the two caps, editable in
+            // the admin panel. Unset → the documented defaults in AiBudgetSettings, never "unlimited".
+            ["ai_paused"] = ("AI_PAUSED", false),
+            ["ai_daily_cap_usd"] = ("AI_DAILY_CAP_USD", false),
+            ["ai_monthly_cap_usd"] = ("AI_MONTHLY_CAP_USD", false),
+            // Unit prices for the spend estimate (AiPriceTable). Env-configurable; not on the admin
+            // screen — they change when a vendor's price list does, not day to day.
+            ["ai_price_azure_stt_per_hour"] = ("AI_PRICE_AZURE_STT_PER_HOUR", false),
+            ["ai_price_whisper_per_min"] = ("AI_PRICE_WHISPER_PER_MIN", false),
+            ["ai_price_anthropic_in_per_mtok"] = ("AI_PRICE_ANTHROPIC_IN_PER_MTOK", false),
+            ["ai_price_anthropic_out_per_mtok"] = ("AI_PRICE_ANTHROPIC_OUT_PER_MTOK", false),
+            ["ai_price_gemini_in_per_mtok"] = ("AI_PRICE_GEMINI_IN_PER_MTOK", false),
+            ["ai_price_gemini_out_per_mtok"] = ("AI_PRICE_GEMINI_OUT_PER_MTOK", false),
+            ["ai_price_openai_in_per_mtok"] = ("AI_PRICE_OPENAI_IN_PER_MTOK", false),
+            ["ai_price_openai_out_per_mtok"] = ("AI_PRICE_OPENAI_OUT_PER_MTOK", false),
         };
 
     /// <summary>The secret keys. The reveal endpoint accepts ONLY these, so a non-secret setting

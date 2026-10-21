@@ -48,6 +48,11 @@ public sealed record AiRuntimeConfig
     // ─── OpenAI Whisper (STT fallback — transcribe only, no pronunciation) ──
     public string WhisperModel { get; init; } = "whisper-1";
 
+    // ─── Cost estimation (the global AI budget, IAiBudget) ──────────────────
+    /// <summary>Unit prices the chain uses to estimate each call's cost for the spend ledger. Part
+    /// of the snapshot so a price change takes effect on the next run, like a key change does.</summary>
+    public AiPriceTable Prices { get; init; } = new();
+
     /// <summary>True when Azure OpenAI can be addressed; see <see cref="AzureOpenAiEndpoint"/>.</summary>
     public bool AzureOpenAiReady =>
         !string.IsNullOrWhiteSpace(AzureOpenAiEndpoint)

@@ -1104,7 +1104,8 @@
       "grading_timeout": "Baholash juda uzoq cho'zildi.",
       "stt_failed": "Ovozni matnga aylantirib bo'lmadi.",
       "grader_failed": "AI javobni baholay olmadi.",
-      "internal": "Texnik xatolik yuz berdi."
+      "internal": "Texnik xatolik yuz berdi.",
+      "ai_unavailable": "AI baholash vaqtincha ishlamayapti. Birozdan keyin qayta yozib ko'ring."
     },
     "notGraded": "Baholanmadi",
     "notGradedReason": "Baholanmadi · {{reason}}",
@@ -1692,7 +1693,29 @@
       "errSame": "Guruh allaqachon shu o'qituvchida.",
       "errTarget": "Tanlangan o'qituvchi faol emas yoki endi o'qituvchi emas. Ro'yxatni yangilab, qayta tanlang.",
       "errNotFound": "Bu guruh endi mavjud emas — ro'yxatni yangilang."
-    }
+    },
+    "aiBudget": "AI byudjeti",
+    "aiBudgetState": {
+      "open": "Ochiq",
+      "paused": "To'xtatilgan",
+      "daily_cap": "Kunlik limit tugadi",
+      "monthly_cap": "Oylik limit tugadi"
+    },
+    "aiPaused": "Butun AI ni to'xtatish",
+    "aiPausedHint": "Barcha yangi AI chaqiruvlarini darhol to'xtatadi — baholash, dastlabki sinov, suhbatlar, mashqlar. O'quvchilarga keyinroq urinish aytiladi; yozuvlar saqlanadi.",
+    "aiSpentToday": "Bugun ({{day}})",
+    "aiSpentMonth": "Shu oy",
+    "aiDailyCap": "Kunlik limit, USD",
+    "aiMonthlyCap": "Oylik limit, USD",
+    "aiSpendBreakdown": "Shu oy xizmatlar bo'yicha",
+    "aiOperation": {
+      "stt": "nutqni aniqlash",
+      "grader": "baholash"
+    },
+    "aiCalls": "{{calls}} ta chaqiruv · {{failed}} tasi xato",
+    "aiBudgetHint": "Summalar sozlangan narxlar bo'yicha taxmin, vendor hisobi emas. Limit tugasa, kun (Toshkent yarim tuni) yoki oy almashguncha yoxud limit oshirilguncha yangi AI ishi boshlanmaydi.",
+    "aiBudgetInvalid": "Saqlanmadi: limit 0 dan katta dollar summasi bo'lishi kerak.",
+    "saveAiBudget": "AI byudjetini saqlash"
   },
   "billing": {
     "title": "Premium",

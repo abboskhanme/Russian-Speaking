@@ -278,3 +278,37 @@
   color: var(--primary);
   opacity: 0.85;
 }
+
+/* ---- AI budget (AiBudgetCard) ---- */
+.meter {
+  height: var(--s-2);
+  border-radius: var(--r-pill);
+  background: var(--surface-3);
+  overflow: hidden;
+}
+.meterFill {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--success);
+}
+.meter[data-tone="warn"] .meterFill {
+  background: var(--warn);
+}
+.meter[data-tone="danger"] .meterFill {
+  background: var(--danger);
+}
+.spendList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-1);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.spendLine {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  align-items: baseline;
+  gap: var(--s-3);
+}

@@ -270,6 +270,7 @@ describe("gradingFailureKey", () => {
     expect(gradingFailureKey("grader_failed")).toBe("results.failure.grader_failed");
     expect(gradingFailureKey("grading_timeout")).toBe("results.failure.grading_timeout");
     expect(gradingFailureKey("stt_failed")).toBe("results.failure.stt_failed");
+    expect(gradingFailureKey("ai_unavailable")).toBe("results.failure.ai_unavailable");
   });
 
   it("reads free text (pre-code rows), an unknown code, or none as `internal` — never raw", () => {

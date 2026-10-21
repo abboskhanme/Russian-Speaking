@@ -198,6 +198,20 @@ public sealed class OpenAiGraderBackend : IGraderBackend
             throw new InvalidOperationException(
                 $"{vendor} returned a choice with no content: {GraderContract.Excerpt(payload)}");
 
-        return GraderContract.Parse(content, servedModel);
+        // completion_tokens already includes any reasoning tokens, which are billed as output.
+        return GraderContract.Parse(content, servedModel) with
+        {
+            InputTokens = UsageField(root, "prompt_tokens"),
+            OutputTokens = UsageField(root, "completion_tokens"),
+        };
     }
+
+    // usage.{field} as a number, or null when absent — read only by the spend ledger.
+    private static long? UsageField(JsonElement root, string field)
+        => root.TryGetProperty("usage", out var usage)
+           && usage.ValueKind == JsonValueKind.Object
+           && usage.TryGetProperty(field, out var value)
+           && value.TryGetInt64(out var n)
+            ? n
+            : null;
 }

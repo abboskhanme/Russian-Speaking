@@ -128,6 +128,7 @@ public sealed class LiveVendorSmokeTests
         var chain = new ChainGraderProvider(
             backends,
             new StaticAiConfig(config),
+            new TestBudget(),
             Microsoft.Extensions.Logging.Abstractions.NullLogger<ChainGraderProvider>.Instance);
 
         Assert.True(await chain.IsConfiguredAsync(CancellationToken.None),

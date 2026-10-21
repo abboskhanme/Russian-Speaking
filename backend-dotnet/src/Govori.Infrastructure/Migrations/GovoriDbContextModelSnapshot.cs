@@ -85,6 +85,72 @@ namespace Govori.Infrastructure.Migrations
                     b.ToTable("admin_audit_log", (string)null);
                 });
 
+            modelBuilder.Entity("Govori.Infrastructure.Entities.AiSpendDay", b =>
+                {
+                    b.Property<DateOnly>("Day")
+                        .HasColumnType("date")
+                        .HasColumnName("day");
+
+                    b.Property<string>("Provider")
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)")
+                        .HasColumnName("provider");
+
+                    b.Property<string>("Operation")
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)")
+                        .HasColumnName("operation");
+
+                    b.Property<decimal>("AudioSeconds")
+                        .ValueGeneratedOnAdd()
+                        .HasPrecision(14, 2)
+                        .HasColumnType("numeric(14,2)")
+                        .HasDefaultValue(0m)
+                        .HasColumnName("audio_seconds");
+
+                    b.Property<int>("Calls")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(0)
+                        .HasColumnName("calls");
+
+                    b.Property<decimal>("CostUsd")
+                        .ValueGeneratedOnAdd()
+                        .HasPrecision(14, 6)
+                        .HasColumnType("numeric(14,6)")
+                        .HasDefaultValue(0m)
+                        .HasColumnName("cost_usd");
+
+                    b.Property<int>("FailedCalls")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(0)
+                        .HasColumnName("failed_calls");
+
+                    b.Property<long>("InputTokens")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasDefaultValue(0L)
+                        .HasColumnName("input_tokens");
+
+                    b.Property<long>("OutputTokens")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasDefaultValue(0L)
+                        .HasColumnName("output_tokens");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at")
+                        .HasDefaultValueSql("now()");
+
+                    b.HasKey("Day", "Provider", "Operation")
+                        .HasName("ai_spend_daily_pkey");
+
+                    b.ToTable("ai_spend_daily", (string)null);
+                });
+
             modelBuilder.Entity("Govori.Infrastructure.Entities.AppSetting", b =>
                 {
                     b.Property<string>("Key")

@@ -107,7 +107,13 @@ public sealed class AnthropicGraderBackend : IGraderBackend
 
         // The served model, not the configured one: after an alias resolves or a fallback runs, the
         // configured name no longer describes what graded the answer (docs/07 §7.9).
-        return GraderContract.Parse(text, message.Model?.Raw() ?? config.AnthropicModel);
+        // Usage feeds the spend ledger only. Output tokens include the thinking Opus does before
+        // answering — they are billed at the output rate.
+        return GraderContract.Parse(text, message.Model?.Raw() ?? config.AnthropicModel) with
+        {
+            InputTokens = message.Usage?.InputTokens,
+            OutputTokens = message.Usage?.OutputTokens,
+        };
     }
 
     /// <summary>

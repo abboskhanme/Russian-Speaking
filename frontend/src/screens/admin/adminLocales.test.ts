@@ -28,6 +28,7 @@ import dashboard from "./AdminDashboardScreen.tsx?raw";
 import billing from "./AdminBillingScreen.tsx?raw";
 import audit from "./AdminAuditScreen.tsx?raw";
 import settings from "./AdminSettingsScreen.tsx?raw";
+import aiBudget from "./AiBudgetCard.tsx?raw";
 import errors from "./adminErrors.ts?raw";
 import navItems from "../../widgets/Nav/navItems.tsx?raw";
 
@@ -44,6 +45,7 @@ const SOURCES: Record<string, string> = {
   AdminBillingScreen: billing,
   AdminAuditScreen: audit,
   AdminSettingsScreen: settings,
+  AiBudgetCard: aiBudget,
   adminErrors: errors,
   navItems,
 };

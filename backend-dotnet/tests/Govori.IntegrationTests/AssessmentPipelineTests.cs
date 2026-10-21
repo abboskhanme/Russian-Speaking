@@ -5,6 +5,7 @@ using Govori.Contracts;
 using Govori.Engagement;
 using Govori.Infrastructure;
 using Govori.Infrastructure.Entities;
+using Govori.Platform.Ai;
 using Govori.Platform.Grader;
 using Govori.Platform.Storage;
 using Govori.Platform.Stt;
@@ -253,6 +254,78 @@ public sealed class AssessmentPipelineTests
         }
     }
 
+    // ─── The global AI budget: paused or capped ────────────────────────────────
+
+    [Theory]
+    [InlineData(AiBudgetBlock.Paused)]
+    [InlineData(AiBudgetBlock.DailyCap)]
+    [InlineData(AiBudgetBlock.MonthlyCap)]
+    public async Task A_closed_AI_budget_fails_the_attempt_at_once_with_its_own_code_and_calls_no_vendor(AiBudgetBlock block)
+    {
+        // Not DEFERRED: a deferred attempt sits pending until the sweeper fails it twenty minutes
+        // later. A closed budget is known now, so the student is told now ("try again later").
+        var ids = await SeedResumableAsync(withTranscript: false);
+        var events = new RecordingGradingEvents();
+        var stt = new FakeSttProvider();
+        var grader = new FakeGraderProvider();
+
+        try
+        {
+            await using (var ctx = CreateContext())
+            {
+                var outcome = await Service(ctx, stt, grader, events, block).RunAsync(ids.SubmissionId);
+                Assert.Equal(AssessmentOutcome.Failed, outcome);
+            }
+
+            Assert.Equal(0, stt.TranscribeCalls);
+            Assert.Equal(0, grader.AnalyzeCalls);
+
+            await using (var ctx = CreateContext())
+            {
+                var sub = await ctx.Submissions.SingleAsync(s => s.Id == ids.SubmissionId);
+                Assert.Equal(SubmissionStatus.Failed, sub.Status);
+                Assert.Equal(SubmissionErrorCodes.AiUnavailable, sub.ErrorMessage);
+                Assert.False(string.IsNullOrEmpty(sub.AudioKey));               // the recording is kept
+            }
+            var failed = Assert.Single(events.Events, e => e.State == GradingState.Failed);
+            Assert.Equal(SubmissionErrorCodes.AiUnavailable, failed.Message);
+        }
+        finally
+        {
+            await CleanupSeedAsync(ids);
+        }
+    }
+
+    [Fact]
+    public async Task A_budget_that_closes_mid_run_fails_with_the_same_code_and_keeps_the_transcript()
+    {
+        // The cap is reached between STT and the grader: the chain refuses the grader call. The
+        // transcript already paid for stays, so a later re-grade does not buy it twice.
+        var ids = await SeedResumableAsync(withTranscript: false);
+        var grader = new ThrowingGrader(new AiBudgetExceededException(AiBudgetBlock.DailyCap));
+
+        try
+        {
+            await using (var ctx = CreateContext())
+            {
+                var outcome = await Service(ctx, new FakeSttProvider(), grader, new RecordingGradingEvents())
+                    .RunAsync(ids.SubmissionId);
+                Assert.Equal(AssessmentOutcome.Failed, outcome);
+            }
+
+            await using (var ctx = CreateContext())
+            {
+                Assert.Equal(SubmissionErrorCodes.AiUnavailable,
+                    await ctx.Submissions.Where(s => s.Id == ids.SubmissionId).Select(s => s.ErrorMessage).SingleAsync());
+                Assert.True(await ctx.Transcripts.AnyAsync(t => t.SubmissionId == ids.SubmissionId));
+            }
+        }
+        finally
+        {
+            await CleanupSeedAsync(ids);
+        }
+    }
+
     [Fact]
     public async Task A_shutdown_mid_grade_rethrows_leaves_the_row_processing_and_a_rerun_finishes_it()
     {
@@ -472,8 +545,17 @@ public sealed class AssessmentPipelineTests
     // AssessmentService built directly — the pipeline alone, without GradingJob or a host — so a test
     // can hand RunAsync its own cancellation token, which is what a Hangfire shutdown does.
     private static AssessmentService Service(
-        GovoriDbContext ctx, ISttProvider stt, IGraderProvider grader, IGradingEvents events)
-        => new(ctx, new BytesOnlyStorage(), stt, grader, events, NullLogger<AssessmentService>.Instance);
+        GovoriDbContext ctx, ISttProvider stt, IGraderProvider grader, IGradingEvents events,
+        AiBudgetBlock budget = AiBudgetBlock.None)
+        => new(ctx, new BytesOnlyStorage(), stt, grader, new FixedBudget(budget), events,
+               NullLogger<AssessmentService>.Instance);
+
+    /// <summary>The global AI budget pinned to one answer, for the pipeline-alone tests.</summary>
+    private sealed class FixedBudget(AiBudgetBlock block) : IAiBudget
+    {
+        public Task<AiBudgetCheck> CheckAsync(CancellationToken ct = default) => Task.FromResult(new AiBudgetCheck(block));
+        public Task RecordAsync(AiUsage usage, CancellationToken ct = default) => Task.CompletedTask;
+    }
 
     /// <summary>Returns a few bytes for any audio read, so an STT fake is actually reached.</summary>
     private sealed class BytesOnlyStorage : IObjectStorage

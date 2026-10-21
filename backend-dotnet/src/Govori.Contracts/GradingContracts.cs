@@ -97,6 +97,11 @@ public static class SubmissionErrorCodes
     /// attempt deferred for lack of any configured AI provider ends as.</summary>
     public const string GradingTimeout = "grading_timeout";
 
+    /// <summary>AI grading is switched off right now — an operator paused it, or the platform's
+    /// daily/monthly AI budget is spent. The recording is kept; trying again later is the next step,
+    /// and the attempt does not count against an assignment's attempt budget (it is failed).</summary>
+    public const string AiUnavailable = "ai_unavailable";
+
     /// <summary>Anything else: a database write, an unexpected bug. Not the student's doing.</summary>
     public const string Internal = "internal";
 }

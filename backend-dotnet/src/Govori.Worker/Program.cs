@@ -78,6 +78,11 @@ try
     // its implementation lives in a domain module, which Platform must not reference.
     builder.Services.AddGovoriAi();
     builder.Services.AddScoped<IAiConfigSource, AiConfigSource>();
+    // The global AI budget (kill switch + daily/monthly caps). The chain providers refuse every
+    // vendor call while it is closed and record each call's estimated cost in ai_spend_daily —
+    // registered in BOTH hosts so grading in the Worker is bounded by the same ledger as the API.
+    builder.Services.AddScoped<AiBudgetService>();
+    builder.Services.AddScoped<IAiBudget>(sp => sp.GetRequiredService<AiBudgetService>());
     builder.Services.AddScoped<AssessmentService>();
 
     // XP/streak award for a graded submission (Stage 6 gamification). GradingJob resolves
