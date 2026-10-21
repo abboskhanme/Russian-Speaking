@@ -16,6 +16,14 @@
   </ItemGroup>
 
   <ItemGroup>
+    <!-- For Audit/AdminAuditFilter only: the admin audit trail is an endpoint filter, and the three
+         modules that carry admin routes (Administration, Billing, Catalog) may not reference each
+         other, so the one assembly they all share is where it can live. Every module and both hosts
+         already carry this framework, so it adds nothing to any deployed image. -->
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+  <ItemGroup>
     <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="9.0.4">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>

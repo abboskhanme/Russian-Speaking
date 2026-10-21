@@ -1,0 +1,149 @@
+/* AdminAuditScreen — Jurnal. Every value is a token; px only for structural geometry
+   (the 44px touch-target floor), as in the shared/ui tier. */
+
+.page {
+  --density-scale: 0.75;
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--s-5) * var(--density-scale));
+  width: 100%;
+}
+
+/* Three filters side by side on a desk, stacked on a phone. `min()` keeps a 375px
+   screen from gaining the sideways scroll the full-width rule forbids. */
+.filters {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(12rem, 100%), 1fr));
+  gap: var(--s-3);
+  align-items: end;
+}
+
+/* The action picker is a native <select> — shared/ui has no select, and a native one
+   is the accessible control on every phone. Styled to sit beside `Input` as a twin. */
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-1);
+}
+.label {
+  font-family: var(--font-sans);
+  font-size: var(--t-body-s-size);
+  font-weight: var(--fw-semibold);
+  color: var(--ink);
+}
+.select {
+  min-height: 44px;
+  width: 100%;
+  padding: 0 var(--s-4);
+  background: var(--surface);
+  border: 1.5px solid var(--line-2);
+  border-radius: var(--r-md);
+  color: var(--ink);
+  font-family: var(--font-sans);
+  font-size: var(--t-body-size);
+  font-weight: var(--fw-medium);
+  transition: border-color var(--m-instant);
+}
+.select:focus-visible {
+  border-color: var(--primary);
+  outline: var(--focus-ring-width) solid var(--focus-ring);
+  outline-offset: var(--focus-ring-offset);
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s-2);
+}
+
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--s-2) * var(--density-scale));
+}
+.sectionHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-2);
+}
+.legend {
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  transition: opacity var(--m-fast);
+}
+/* A refetch keeps the old rows visible but quiet, so the filters above do not jump. */
+.list[data-loading] {
+  opacity: 0.55;
+}
+
+.row {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-1);
+  padding: var(--s-3) var(--s-4);
+  border-top: 1px solid var(--line);
+}
+.row:first-child {
+  border-top: none;
+}
+.rowHead {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--s-2);
+  flex-wrap: wrap;
+}
+/* Names and ids can be long and unbroken (a uuid); they wrap rather than overflow. */
+.target {
+  overflow-wrap: anywhere;
+}
+.details {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s-1);
+  overflow-wrap: anywhere;
+}
+.meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s-3);
+}
+
+/* The actor's name is a filter. A text-styled button: it reads as a name in the row,
+   and behaves as a control — underlined so it is not a colour-only cue. */
+.actor {
+  min-height: 44px;
+  padding: 0;
+  background: none;
+  border: none;
+  color: var(--primary-ink);
+  font-family: var(--font-sans);
+  font-size: var(--t-body-s-size);
+  font-weight: var(--fw-semibold);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+.actor:focus-visible {
+  border-radius: var(--r-sm);
+  outline: var(--focus-ring-width) solid var(--focus-ring);
+  outline-offset: var(--focus-ring-offset);
+}
+
+.pager {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--s-3);
+  padding-top: var(--s-2);
+}

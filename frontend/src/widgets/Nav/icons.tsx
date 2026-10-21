@@ -278,3 +278,21 @@ export function TariffIcon(props: IconProps) {
     </svg>
   );
 }
+
+/** Jurnal (the admin audit trail) — a clipboard with ticked lines: a record of what
+ *  was done, kept in order. Not a clock or a shield: "history" and "security" both
+ *  promise more than an append-only list of actions delivers. */
+export function AuditIcon(props: IconProps) {
+  return (
+    <svg {...base(props)}>
+      <rect x="5" y="4.5" width="14" height="16" rx="2" stroke="currentColor" strokeWidth={1.8} />
+      <path
+        d="M9 3.5h6v2.5H9zM8.5 11l1.2 1.2 2-2.2M8.5 16l1.2 1.2 2-2.2M13.5 11.5h2.5M13.5 16.5h2.5"
+        stroke="currentColor"
+        strokeWidth={1.8}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}

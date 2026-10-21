@@ -111,6 +111,8 @@ export const ADMIN_NAV_PATH: Record<AdminNavKey, string> = {
   // The teacher's Kontent pages, run inside the admin shell (see app/contentPanel).
   content: "/admin/content",
   billing: "/admin/billing",
+  // Jurnal — the audit trail. Sidebar-only in the nav; on a phone it opens from Boshqaruv.
+  audit: "/admin/audit",
   settings: "/admin/settings",
 };
 

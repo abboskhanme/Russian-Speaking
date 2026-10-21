@@ -1310,6 +1310,49 @@ export interface AdminStudentUpdateArgs {
   is_premium?: boolean;
 }
 
+/** One row of `GET /api/admin/audit` — a SUCCESSFUL admin mutation (a refused request
+ * leaves no row). `actor_name` is null once the acting account has been deleted; the
+ * row outlives it and `actor_id` still says who. `fields` are the request fields the
+ * admin sent (for a settings save: which keys changed); `values` carries values only
+ * for a per-endpoint allow-list — a credential's value is never stored, so it can never
+ * arrive here. `target_label` is the target's name AT THE TIME, so a deleted teacher
+ * still reads as a name rather than an id. */
+export interface AdminAuditEntryResponse {
+  id: string;
+  created_at: string;
+  actor_id: string;
+  actor_name: string | null;
+  /** Dotted verb, e.g. `student.update`, `settings.ai.update`. */
+  action: string;
+  /** `user` · `module` · `task` · `plan` · `group` · `settings` · `secret`. */
+  target_type: string;
+  target_id: string | null;
+  target_label: string | null;
+  fields: string[];
+  values: Record<string, string>;
+  ip: string | null;
+}
+
+/** `GET /api/admin/audit` — one page, newest first. `total` counts every matching row. */
+export interface AdminAuditPageResponse {
+  items: AdminAuditEntryResponse[];
+  total: number;
+  page: number;
+  page_size: number;
+}
+
+/** Query for `GET /api/admin/audit`. Each is sent only when set. `action` is a PREFIX
+ * (`settings` → every settings change); `from`/`to` are inclusive `YYYY-MM-DD` days in
+ * the product's time zone (Tashkent), the same day every other screen uses. */
+export interface AdminAuditQuery {
+  actor_id?: string;
+  action?: string;
+  from?: string;
+  to?: string;
+  page?: number;
+  page_size?: number;
+}
+
 /** A secret is never sent to the client — only whether it is set, plus a hint
  * (its last characters). The raw value comes from `GET /api/admin/reveal/{key}`
  * on an explicit, deliberate request. */

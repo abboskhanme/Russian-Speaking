@@ -352,3 +352,31 @@ public sealed record StudentUpdateRequest(
     string? FullName = null,
     bool? IsActive = null,
     bool? IsPremium = null);
+
+/// <summary>
+/// One row of <c>GET /api/admin/audit</c>: a successful admin mutation. <c>ActorName</c> is null when
+/// the acting account has since been deleted (the row survives it; <c>ActorId</c> still says who).
+/// <c>Fields</c> are the request fields the admin SENT — for a settings save, which keys changed —
+/// and <c>Values</c> holds values only for the per-endpoint allow-list; a credential's value is
+/// never stored, so it can never be listed here.
+/// </summary>
+public sealed record AdminAuditEntryResponse(
+    Guid Id,
+    DateTime CreatedAt,
+    Guid ActorId,
+    string? ActorName,
+    string Action,
+    string TargetType,
+    string? TargetId,
+    string? TargetLabel,
+    IReadOnlyList<string> Fields,
+    IReadOnlyDictionary<string, string> Values,
+    string? Ip);
+
+/// <summary><c>GET /api/admin/audit</c> — one page, newest first. <c>Total</c> counts every row that
+/// matches the filters, so the UI can say "page 2 of 7" without a second request.</summary>
+public sealed record AdminAuditPageResponse(
+    IReadOnlyList<AdminAuditEntryResponse> Items,
+    int Total,
+    int Page,
+    int PageSize);

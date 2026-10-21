@@ -1,5 +1,6 @@
 using System.Security.Claims;
 using Govori.Contracts;
+using Govori.Infrastructure.Audit;
 using Govori.Platform.Ai;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
@@ -35,6 +36,7 @@ public static class AdministrationEndpoints
     {
         MapUserManagement(app);
         MapSettings(app);
+        MapAudit(app);
         return app;
     }
 
@@ -66,21 +68,24 @@ public static class AdministrationEndpoints
         {
             if (!TryGetUserId(p, out var uid)) return Results.Unauthorized();
             return Map(await svc.CreateTeacherAsync(uid, body, ct), StatusCodes.Status201Created);
-        }).RequireAuthorization();
+        }).RequireAuthorization()
+            .AdminAudited("teacher.create", AdminAuditTargets.User);
 
         // PATCH /api/admin/teachers/{id} — edit a teacher (full_name/is_active).
         admin.MapPatch("/teachers/{id:guid}", async (Guid id, TeacherUpdateRequest body, ClaimsPrincipal p, AdministrationService svc, CancellationToken ct) =>
         {
             if (!TryGetUserId(p, out var uid)) return Results.Unauthorized();
             return Map(await svc.UpdateTeacherAsync(uid, id, body, ct), StatusCodes.Status200OK, notFound: "Teacher not found");
-        }).RequireAuthorization();
+        }).RequireAuthorization()
+            .AdminAudited("teacher.update", AdminAuditTargets.User, values: ["full_name", "is_active"]);
 
         // DELETE /api/admin/teachers/{id} — 204 on success, no body.
         admin.MapDelete("/teachers/{id:guid}", async (Guid id, ClaimsPrincipal p, AdministrationService svc, CancellationToken ct) =>
         {
             if (!TryGetUserId(p, out var uid)) return Results.Unauthorized();
             return MapNoContent(await svc.DeleteTeacherAsync(uid, id, ct), notFound: "Teacher not found");
-        }).RequireAuthorization();
+        }).RequireAuthorization()
+            .AdminAudited("teacher.delete", AdminAuditTargets.User);
 
         // GET /api/admin/students[?search] — student list, each with its submission count.
         admin.MapGet("/students", async (string? search, ClaimsPrincipal p, AdministrationService svc, CancellationToken ct) =>
@@ -95,14 +100,16 @@ public static class AdministrationEndpoints
         {
             if (!TryGetUserId(p, out var uid)) return Results.Unauthorized();
             return Map(await svc.UpdateStudentAsync(uid, id, body, ct), StatusCodes.Status200OK, notFound: "Student not found");
-        }).RequireAuthorization();
+        }).RequireAuthorization()
+            .AdminAudited("student.update", AdminAuditTargets.User, values: ["full_name", "is_active", "is_premium"]);
 
         // DELETE /api/admin/students/{id} — 204 on success, no body.
         admin.MapDelete("/students/{id:guid}", async (Guid id, ClaimsPrincipal p, AdministrationService svc, CancellationToken ct) =>
         {
             if (!TryGetUserId(p, out var uid)) return Results.Unauthorized();
             return MapNoContent(await svc.DeleteStudentAsync(uid, id, ct), notFound: "Student not found");
-        }).RequireAuthorization();
+        }).RequireAuthorization()
+            .AdminAudited("student.delete", AdminAuditTargets.User);
 
         // GET /api/admin/admins — every admin, each flagged is_self for the caller's own row.
         admin.MapGet("/admins", async (ClaimsPrincipal p, AdministrationService svc, CancellationToken ct) =>
@@ -118,7 +125,8 @@ public static class AdministrationEndpoints
         {
             if (!TryGetUserId(p, out var uid)) return Results.Unauthorized();
             return Map(await svc.ChangeRoleAsync(uid, id, body, ct), StatusCodes.Status200OK, notFound: "User not found");
-        }).RequireAuthorization();
+        }).RequireAuthorization()
+            .AdminAudited("user.role_change", AdminAuditTargets.User, values: ["role"]);
     }
 
     // ─── Runtime app settings (admin editor + public links read) ─────────────
@@ -199,7 +207,10 @@ public static class AdministrationEndpoints
 
             await svc.SetManyAsync(vals, ct);
             return Results.Ok(await svc.GetAiSettingsAsync(ct));
-        }).RequireAuthorization();
+        }).RequireAuthorization()
+            // Key NAMES only for the AI settings — the values here are mostly vendor credentials.
+            .AdminAudited("settings.ai.update", AdminAuditTargets.Settings,
+                values: ["llm_provider", "stt_provider", "grader_chain", "stt_chain", "orthoepy_enabled"]);
 
         // POST /api/admin/settings/ai/test — probe every backend with one real call each.
         //
@@ -214,7 +225,8 @@ public static class AdministrationEndpoints
         {
             var (uid, deny) = await AdminGate(p, admin, ct);
             return deny ?? Results.Ok(await probe.RunAsync(ct));
-        }).RequireAuthorization().RequireRateLimiting(RateLimitPolicyNames.AdminProbe);
+        }).RequireAuthorization().RequireRateLimiting(RateLimitPolicyNames.AdminProbe)
+            .AdminAudited("settings.ai.test", AdminAuditTargets.Settings);
 
         // GET /api/admin/settings/features — the Faza 6 switches (docs/08 Faza 6).
         settings.MapGet("/features", async (ClaimsPrincipal p, AdministrationService admin, AppSettingsService svc, CancellationToken ct) =>
@@ -270,7 +282,13 @@ public static class AdministrationEndpoints
 
             await svc.SetManyAsync(vals, ct);
             return Results.Ok(await svc.GetFeatureFlagsAsync(ct));
-        }).RequireAuthorization();
+        }).RequireAuthorization()
+            .AdminAudited("settings.features.update", AdminAuditTargets.Settings, values:
+            [
+                "review_drill_enabled", "roleplay_enabled", "roleplay_max_turns", "roleplay_daily_turns",
+                "class_insights_enabled", "daily_five_enabled", "phoneme_drill_enabled",
+                "phoneme_drill_daily_attempts", "payments_enabled",
+            ]);
 
         // GET /api/admin/settings/reveal/{key} — the raw secret value, for the admin's "show" button.
         // Restricted to the known secret keys so this can't be used to dump arbitrary settings.
@@ -281,7 +299,10 @@ public static class AdministrationEndpoints
             if (!AppSettingsService.SecretKeys.Contains(key))
                 return Detail("Unknown secret key", StatusCodes.Status404NotFound);
             return Results.Ok(new RevealResponse(key, await svc.GetAsync(key, ct: ct)));
-        }).RequireAuthorization();
+        }).RequireAuthorization()
+            // A read, but the one read that hands out a credential — so who looked, and at which key,
+            // is worth as much as who changed it. The key NAME is the target; its value is never recorded.
+            .AdminAudited("settings.secret_reveal", AdminAuditTargets.Secret, targetRoute: "key");
 
         // GET /api/admin/settings/links — resolved outbound links (admin view).
         settings.MapGet("/links", async (ClaimsPrincipal p, AdministrationService admin, AppSettingsService svc, CancellationToken ct) =>
@@ -313,7 +334,8 @@ public static class AdministrationEndpoints
             }
             await svc.SetManyAsync(vals, ct);
             return Results.Ok(await svc.ResolveLinksAsync(ct));
-        }).RequireAuthorization();
+        }).RequireAuthorization()
+            .AdminAudited("settings.links.update", AdminAuditTargets.Settings, values: ["tg_support_url", "tg_channel_url"]);
 
         // GET /api/settings/links — PUBLIC read of the links: any active user, no admin role needed.
         app.MapGet("/api/settings/links", async (ClaimsPrincipal p, AdministrationService admin, AppSettingsService svc, CancellationToken ct) =>
@@ -321,6 +343,24 @@ public static class AdministrationEndpoints
             if (!TryGetUserId(p, out var uid)) return Results.Unauthorized();
             if (await admin.CheckActiveUserAsync(uid, ct) != AdminOutcome.Ok) return Results.Unauthorized();
             return Results.Ok(await svc.ResolveLinksAsync(ct));
+        }).RequireAuthorization();
+    }
+
+    // ─── Audit trail (read side; the write side is .AdminAudited on each route) ─
+
+    private static void MapAudit(IEndpointRouteBuilder app)
+    {
+        // GET /api/admin/audit[?actor_id&action&from&to&page&page_size] — successful admin mutations,
+        // newest first. `action` is a prefix ("settings" → every settings change); from/to are inclusive
+        // product-time days (YYYY-MM-DD). page is 1-based; page_size defaults to 50, capped at 200.
+        // Admin-only like the rest of /api/admin: the trail names people and IPs.
+        app.MapGet("/api/admin/audit", async (
+            Guid? actor_id, string? action, DateOnly? from, DateOnly? to, int? page, int? page_size,
+            ClaimsPrincipal p, AdministrationService admin, AdminAuditService audit, CancellationToken ct) =>
+        {
+            var (_, deny) = await AdminGate(p, admin, ct);
+            return deny ?? Results.Ok(await audit.ListAsync(
+                actor_id, action, from, to, page ?? 1, page_size ?? AdminAuditService.DefaultPageSize, ct));
         }).RequireAuthorization();
     }
 

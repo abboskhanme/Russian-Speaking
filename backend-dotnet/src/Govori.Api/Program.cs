@@ -274,6 +274,9 @@ try
     builder.Services.AddSingleton<IAppSettingsCache>(new AppSettingsCache());
     builder.Services.AddScoped<AppSettingsService>();
     builder.Services.AddScoped<AdministrationService>();
+    // Read side of the admin audit trail (GET /api/admin/audit). The write side needs no
+    // registration: it is an endpoint filter each audited route attaches with .AdminAudited(...).
+    builder.Services.AddScoped<AdminAuditService>();
     // The "test these keys" probe. Scoped because it resolves IAiConfigSource, which reads
     // through the scoped DbContext; the backends it calls are the same singletons the
     // pipeline uses, so a green probe is evidence about the real path and not a parallel one.

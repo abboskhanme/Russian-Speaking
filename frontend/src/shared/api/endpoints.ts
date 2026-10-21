@@ -10,6 +10,8 @@
 import { apiClient } from "./client";
 import type {
   AchievementResponse,
+  AdminAuditPageResponse,
+  AdminAuditQuery,
   ReviewCountResponse,
   CreateTeacherArgs,
   UserRoleUpdateArgs,
@@ -909,6 +911,18 @@ export function deleteBlock(id: string): Promise<void> {
  * Every route here is admin-gated server-side (the token's `sub` is looked up
  * and its role read from the DB). The client never decides who is an admin — it
  * only decides what to render. */
+
+/** GET /api/admin/audit → one page of the audit trail, newest first. Every filter is
+ * sent only when set, so an empty query is "everything, page 1". Read-only: the trail
+ * is written server-side by the audited routes themselves, never by the client. */
+export function adminAudit(query: AdminAuditQuery = {}): Promise<AdminAuditPageResponse> {
+  const params = new URLSearchParams();
+  for (const [key, value] of Object.entries(query)) {
+    if (value !== undefined && value !== "") params.set(key, String(value));
+  }
+  const qs = params.toString();
+  return apiClient.get<AdminAuditPageResponse>(`/admin/audit${qs ? `?${qs}` : ""}`);
+}
 
 /** GET /api/admin/stats → the six dashboard counters. */
 export function adminStats(): Promise<AdminStatsResponse> {

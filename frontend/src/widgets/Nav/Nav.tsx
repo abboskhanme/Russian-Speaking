@@ -19,6 +19,10 @@ export interface NavItem {
   badge?: ReactNode;
   /** Bottom-nav only: render as the raised centre FAB (the AI Suhbat CTA). */
   emphasized?: boolean;
+  /** Leave this item out of the bottom bar; the sidebar still lists it. For a
+   * destination the narrow bar has no slot for — it must then be reachable on a phone
+   * some other way (the admin's Jurnal opens from Boshqaruv). */
+  sidebarOnly?: boolean;
 }
 
 export type NavVariant = "sidebar" | "bottom";
@@ -71,7 +75,7 @@ export function Nav({
       aria-label={label}
     >
       <ul className={styles.list}>
-        {items.map((item) => (
+        {(isBottom ? items.filter((item) => !item.sidebarOnly) : items).map((item) => (
           <li key={item.key} className={styles.li}>
             <NavEntry
               item={item}
