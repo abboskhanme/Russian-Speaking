@@ -27,12 +27,14 @@ function Svg({ children, ...props }: IconProps & { children: ReactNode }) {
   );
 }
 
-/** В аптеке — a capsule. */
+/** В аптеке — the pharmacy cross. (A lone capsule outline read as a "link" glyph.) */
 function PillGlyph(props: IconProps) {
   return (
     <Svg {...props}>
-      <rect x="3.5" y="8.5" width="17" height="7" rx="3.5" transform="rotate(-45 12 12)" {...stroke} />
-      <path d="m9.5 9.5 5 5" {...stroke} />
+      <path
+        d="M9.5 4.5h5v5h5v5h-5v5h-5v-5h-5v-5h5z"
+        {...stroke}
+      />
     </Svg>
   );
 }
