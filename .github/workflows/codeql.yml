@@ -1,0 +1,76 @@
+name: CodeQL
+
+# Static security analysis of the C# backend and the TypeScript frontend. Findings land in
+# Security → Code scanning; with branch protection's "code scanning results" rule they can
+# block a PR (docs/09-DOCKER.md, CI).
+#
+# ⚠ The weekly `schedule` runs on the DEFAULT branch only. While that is `main` (the old
+#   Python stack), the scheduled scan analyses the wrong code; the push/PR triggers cover
+#   `dotnet-rewrite` regardless. Making `dotnet-rewrite` the default fixes both.
+on:
+  push:
+    branches: [main, dotnet-rewrite]
+  pull_request:
+    branches: [main, dotnet-rewrite]
+  schedule:
+    # Mondays 03:17 UTC — new queries and new advisories land without a code change.
+    - cron: "17 3 * * 1"
+  workflow_dispatch:
+
+concurrency:
+  group: codeql-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+
+jobs:
+  analyze:
+    name: Analyze (${{ matrix.language }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    permissions:
+      contents: read
+      security-events: write
+      actions: read
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # C# is built for real (manual) rather than buildless: the solution is net9.0 and
+          # buildless extraction misses source-generated code and resolves fewer types.
+          - language: csharp
+            build-mode: manual
+          - language: javascript-typescript
+            build-mode: none
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        if: matrix.language == 'csharp'
+        with:
+          dotnet-version: "9.0.x"
+
+      - uses: github/codeql-action/init@v4
+        with:
+          languages: ${{ matrix.language }}
+          build-mode: ${{ matrix.build-mode }}
+          queries: security-extended
+          config: |
+            paths-ignore:
+              - frontend/node_modules
+              - frontend/dist
+              - "**/bin"
+              - "**/obj"
+
+      - name: Build (C#)
+        if: matrix.build-mode == 'manual'
+        working-directory: backend-dotnet
+        env:
+          DOTNET_NOLOGO: "1"
+          DOTNET_CLI_TELEMETRY_OPTOUT: "1"
+        run: dotnet build Govori.sln -c Release
+
+      - uses: github/codeql-action/analyze@v4
+        with:
+          category: "/language:${{ matrix.language }}"
