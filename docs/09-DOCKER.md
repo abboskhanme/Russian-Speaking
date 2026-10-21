@@ -261,3 +261,79 @@ prod yuzasini tasvirlaydi va ikkala muhitda bayt-ma-bayt bir xil qoladi.
 - Real AI kalitlari: `AZURE_SPEECH_KEY/REGION`, `GEMINI_API_KEY`, `OPENAI_API_KEY`
   (hozir STT/Grader fake/stub — kalit kelganda real provider ulanadi).
 - TLS nginx'da terminatsiya qilinadi (deploy/nginx + sertifikatlar).
+
+## CI (GitHub Actions)
+
+2026-10 gacha `ci.yml` faqat `main` ga (eski Python stack) quloq solardi, ya'ni quyidagi
+job'larning **birortasi ham .NET kodida hech qachon ishlamagan**. Endi `main` **va**
+`dotnet-rewrite` dagi har push va PR'da yuradi (`workflow_dispatch` bilan qo'lda ham).
+
+### `ci.yml` — nima tekshiriladi
+
+| Job | Nima qiladi | Yiqiladi, agar… |
+|---|---|---|
+| **backend** | restore → build (Release) → `openapi.json` qayta yaratiladi va `git diff` → Unit · Arch · Characterization → NuGet zaiflik darvozasi | build xatosi; hujjat eskirgan; test yiqildi **yoki 0 ta test ishladi**; High/Critical NuGet advisory (tranzitiv ham) |
+| **golden** | Grader golden set real vendor bilan (docs/08 Faza 1.6) | `GOLDEN_GATE=enabled`, lekin kalit yo'q; < 90% assertion |
+| **frontend** | `npm ci` → `tsc` → `check:contract` → vitest → build → `check:budget` → `npm audit` | har biri; runtime dependency'da high/critical advisory |
+| **e2e** | to'liq compose stack → **migratsiyalar** (ef-baseline + migrate) → Playwright + axe | biror journey yiqildi |
+| **integration** | db + redis + minio (pgsty) compose'da, testlar `sdk:9.0` konteynerida `govori-net` ustida | biror test yiqildi yoki < 100 ta test ishladi |
+| **images** | `docker-compose.prod.yml build`, root emasligi, web image SPA'ni beradi | — |
+| **ops** | shellcheck, ikkala compose render, prod faqat 80/443 publish qiladi, log rotation, backup xavfsizlik suite'i | — |
+
+Nozik joylar (har biri lokal tekshiruvda topilgan):
+
+- **Har `dotnet test` `.trx` yozadi** va `.github/scripts/assert-trx.sh` hisoblagichlarni
+  o'qiydi. "exit 0" va "0 ta test ishladi" hech qachon bir xil ko'rinmasligi kerak (yuqorida:
+  `dotnet test` ba'zi muhitda jim qoladi). Linux SDK konteynerida `dotnet test` normal ishlaydi.
+- **Integration testlar runner'da emas, konteynerda.** Compose Redis portini publish qilmaydi,
+  suite esa `govori-redis:6379` / `govori-minio:9000` ni kutadi — lokaldagi buyruq bilan bir xil.
+- **`docker compose up --wait db` ishlatilmaydi.** Yangi volume'da seed'dan keyingi restart
+  paytida healthcheck bir marta yiqiladi va `--wait` darhol chiqadi (lokalda exit 1). Postgres
+  tayyorligi TCP orqali tekshiriladi (`pg_isready -h 127.0.0.1`).
+- **Zaiflik darvozasi.** `dotnet list package --vulnerable` har doim exit 0 qaytaradi — feed'ga
+  yetolmasa ham. Skript chiqishni o'qiydi: `error` → yiqiladi, High/Critical → yiqiladi,
+  Moderate/Low → faqat ogohlantirish. npm'da **runtime** dependency'lar darvoza (`--omit=dev`),
+  dev asboblar (vite, vitest, jsdom) faqat hisobot — ular foydalanuvchi brauzeriga yetmaydi.
+- ⚠ **e2e yangi (toza) bazada hozir 12/14.** `student-golden-path.spec.ts` `student@govori.uz`
+  ning baholangan urinishini kutadi, seed'larda esa unga urinish yo'q (namunaviy urinishlar
+  boshqa o'quvchilarga tegishli). Uzoq yashagan dev bazada qo'lda qilingan urinish bor, shuning
+  uchun u yerda 14/14. CI har safar toza baza quradi — seed'ga shu o'quvchi uchun bitta
+  baholangan submission qo'shilmaguncha `e2e` qizil bo'ladi.
+
+### Boshqa skanerlar
+
+- **`.github/dependabot.yml`** — nuget (`backend-dotnet`), npm (`frontend`), github-actions,
+  docker (3 ta Dockerfile), docker-compose (postgres/redis/pgsty). PR'lar `dotnet-rewrite`
+  ga ochiladi; .NET/Npgsql/EF major'lari va base image major'lari e'tiborsiz qoldiriladi.
+- **`.github/workflows/codeql.yml`** — `csharp` (haqiqiy build) + `javascript-typescript`,
+  `security-extended` so'rovlari; push/PR + har dushanba.
+
+### Egasi qilishi kerak bo'lgan ishlar (biz qila olmaymiz)
+
+1. **Default branch'ni `dotnet-rewrite` ga o'zgartiring** (Settings → General) — yoki
+   `dependabot.yml` ni `main` ga ham ko'chiring. Dependabot konfiguratsiyani **faqat default
+   branch'dan** o'qiydi, CodeQL'ning haftalik `schedule` i ham faqat default branch'da yuradi.
+   Hozir default `main` — ya'ni bu ikkalasi aslida ishlamaydi.
+2. **Secrets** (Settings → Secrets and variables → Actions):
+
+   | Nom | Turi | Kerakmi |
+   |---|---|---|
+   | `GOLDEN_GATE` | **Variable** (secret emas) | `enabled` — golden job'ni yoqadi |
+   | `GEMINI_API_KEY` / `OPENAI_API_KEY` / `ANTHROPIC_API_KEY` | Secret | golden uchun kamida bittasi |
+   | `GRADER_CHAIN`, `GEMINI_MODEL`, `OPENAI_GRADER_MODEL`, `ANTHROPIC_MODEL` | Secret | ixtiyoriy (bo'sh → test sukuti) |
+
+   Boshqa job'larga **hech qanday secret kerak emas** — hamma qiymatlar o'zini tushuntiruvchi
+   CI placeholder'lari. `GOLDEN_GATE` qo'yilmasa golden job **skipped** (kulrang) bo'ladi;
+   qo'yilib kalit bo'lmasa — **yiqiladi**, jim o'tib ketmaydi. Fork PR'lariga secret
+   berilmaydi, ular uchun golden har doim skipped.
+3. **Branch protection** (`dotnet-rewrite` va `main`, Settings → Branches → Rules):
+   - Require a pull request before merging; 1 approval.
+   - Require status checks to pass: `backend`, `frontend`, `integration`, `e2e`, `images`,
+     `ops`, `Analyze (csharp)`, `Analyze (javascript-typescript)`; golden yoqilgan bo'lsa
+     `golden` ham. "Require branches to be up to date" — yoqing.
+   - ⚠ GitHub **skipped** job'ni required check uchun "o'tdi" deb hisoblaydi. Golden'ni majburiy
+     qilsangiz, `GOLDEN_GATE=enabled` ni olib tashlamang.
+   - Block force pushes; Do not allow deletions.
+   - Code scanning: "Require code scanning results" — High va undan yuqori.
+   - Settings → Code security: Dependabot alerts + security updates, Secret scanning + push
+     protection — yoqing.

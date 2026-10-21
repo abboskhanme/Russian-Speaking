@@ -375,9 +375,13 @@ jobs:
         run: |
           cp .env.example .env
           sed -i "s|^SECRET_KEY=.*|SECRET_KEY=$(openssl rand -hex 32)|" .env
-          # --wait: minio must be HEALTHY before the one-shot init runs, and --no-deps below
-          # skips the depends_on that would otherwise have waited for it.
-          docker compose up -d --wait db redis minio
+          # MinIO must be HEALTHY before the one-shot init runs (--no-deps below skips the
+          # depends_on that would otherwise wait for it). NOT `--wait db` as well: on a fresh
+          # volume the db healthcheck can fail once across the post-seed restart and `--wait`
+          # aborts on the first "unhealthy" (reproduced locally: exit 1). The TCP loop below
+          # is the db's readiness check.
+          docker compose up -d db redis
+          docker compose up -d --wait minio
           docker compose up --no-deps --exit-code-from minio-init minio-init
           for _ in $(seq 1 90); do
             if docker compose exec -T db pg_isready -h 127.0.0.1 -U russpeak -q 2>/dev/null; then
