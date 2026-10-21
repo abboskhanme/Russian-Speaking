@@ -8,7 +8,7 @@
  * and a route declared outside the layout gets no frame at all.
  */
 import { describe, expect, it, vi } from "vitest";
-import { render, screen, within } from "@testing-library/react";
+import { act, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter, Route, Routes, useLocation } from "react-router-dom";
 import i18n from "../../shared/i18n";
@@ -79,6 +79,22 @@ describe("RoleLayout", () => {
     expect(avatar).toHaveTextContent("AD");
     await user.click(avatar);
     expect(screen.getByTestId("where")).toHaveTextContent("/admin/profile");
+  });
+
+  it("redraws the nav when the language changes after it mounted", async () => {
+    // The live case: the frame is up before `/me` arrives, and the server's
+    // preferred_language switches the UI under it. The nav stayed Uzbek around an
+    // English page until the next navigation.
+    renderAt("/admin/audit");
+    expect(screen.getAllByRole("button", { name: t("nav.adminBilling") }).length).toBeGreaterThan(0);
+    try {
+      await act(() => i18n.changeLanguage("en"));
+      const en = i18n.getFixedT("en", "common");
+      expect(screen.getAllByRole("button", { name: en("nav.adminBilling") }).length).toBeGreaterThan(0);
+      expect(document.documentElement.lang).toBe("en");
+    } finally {
+      await act(() => i18n.changeLanguage("uz"));
+    }
   });
 
   it("frames nothing for a route declared outside it", () => {

@@ -19,6 +19,7 @@ import type { ReactNode } from "react";
 import { Outlet, useLocation, useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { useFeatures, useOptionalAuth } from "../../shared/auth";
+import { useUiLang } from "../../shared/i18n";
 import { endpoints } from "../../shared/api";
 import { Spinner } from "../../shared/ui";
 import {
@@ -83,7 +84,12 @@ function ContentFallback() {
 }
 
 export default function RoleLayout({ role, children }: { role: LayoutRole; children?: ReactNode }) {
-  const { t } = useTranslation();
+  // Bound to the language explicitly: this frame mounts before `/me` can switch the
+  // language, and a `t` that missed that switch left the nav in Uzbek around an English
+  // page until the next navigation (see useUiLang).
+  const { i18n } = useTranslation();
+  const lang = useUiLang();
+  const t = useMemo(() => i18n.getFixedT(lang), [i18n, lang]);
   // Optional: the frame must not take a screen down when rendered without auth
   // (a test, a demo) — the avatar just shows no initials then.
   const user = useOptionalAuth()?.user;

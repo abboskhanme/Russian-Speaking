@@ -18,6 +18,7 @@
  */
 import i18n from "i18next";
 import { initReactI18next } from "react-i18next";
+import { useSyncExternalStore } from "react";
 
 import enCommon from "../../locales/en/common.json";
 import ruCommon from "../../locales/ru/common.json";
@@ -114,6 +115,30 @@ export function getLang(): AppLang {
   return (SUPPORTED_LANGS as readonly string[]).includes(code)
     ? (code as AppLang)
     : DEFAULT_LANG;
+}
+
+// <html lang> follows the UI language: index.html ships `uz`, and without this a
+// Russian or English page was announced to screen readers (and hyphenated) as Uzbek.
+function syncDocumentLang(): void {
+  if (typeof document !== "undefined") document.documentElement.lang = getLang();
+}
+syncDocumentLang();
+i18n.on("languageChanged", syncDocumentLang);
+
+function subscribeLang(onChange: () => void): () => void {
+  i18n.on("languageChanged", onChange);
+  return () => i18n.off("languageChanged", onChange);
+}
+
+/**
+ * The UI language as React state that cannot miss a change. A long-lived frame (the
+ * role layout) mounts before `/me` arrives, and the server's `preferred_language` can
+ * switch the language in that gap — before react-i18next's own listener is attached —
+ * leaving the frame in the old language until something else re-rendered it.
+ * useSyncExternalStore re-reads the snapshot after subscribing, so that gap is closed.
+ */
+export function useUiLang(): AppLang {
+  return useSyncExternalStore(subscribeLang, getLang, getLang);
 }
 
 export default i18n;
