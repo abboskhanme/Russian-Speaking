@@ -547,7 +547,7 @@ function PlanSheet({ open, plan, onClose, onSubmit }: PlanSheetProps) {
           label={t("admin.billing.name")}
           value={name}
           onChange={(e) => setName(e.currentTarget.value)}
-          placeholder="1 oylik Premium"
+          placeholder={t("admin.billing.namePlaceholder")}
         />
         <Input
           label={t("admin.billing.code")}

@@ -1625,6 +1625,7 @@
       "deleteConfirm": "Delete",
       "deleteFailed": "Couldn't delete. Try again.",
       "name": "Name",
+      "namePlaceholder": "1-month Premium",
       "code": "Code",
       "codeHint": "Used in URLs and requests. Do not rename it later.",
       "price": "Price (so'm)",

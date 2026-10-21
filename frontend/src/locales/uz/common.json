@@ -1625,6 +1625,7 @@
       "deleteConfirm": "O'chirish",
       "deleteFailed": "O'chirib bo'lmadi. Qaytadan urinib ko'ring.",
       "name": "Nomi",
+      "namePlaceholder": "1 oylik Premium",
       "code": "Kod",
       "codeHint": "URL va so'rovlarda ishlatiladi. Keyin o'zgartirmang.",
       "price": "Narxi (so'm)",
