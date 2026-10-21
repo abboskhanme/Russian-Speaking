@@ -78,6 +78,42 @@ describe("Russian plurals", () => {
   });
 });
 
+describe("count-bearing UI strings (audit bug 3: \"1 students\" / \"1 учеников\")", () => {
+  it("agrees the student count on Home in every language", () => {
+    expect(en("home.students", { count: 1 })).toBe("1 student");
+    expect(en("home.students", { count: 12 })).toBe("12 students");
+    expect(ru("home.students", { count: 1 })).toBe("1 ученик");
+    expect(ru("home.students", { count: 3 })).toBe("3 ученика");
+    expect(ru("home.students", { count: 11 })).toBe("11 учеников");
+    expect(ru("home.students", { count: 21 })).toBe("21 ученик");
+    expect(uz("home.students", { count: 1 })).toContain("1 o");
+  });
+
+  it("pluralises the other counted nouns", () => {
+    expect(en("results.count", { count: 1 })).toBe("1 result");
+    expect(en("progress.skills.trendFlat", { count: 1, weeks: 1 })).toBe("No change in 1 week");
+    expect(en("progress.lb.meDeltaUp", { count: 1, n: 1, xp: "10" })).toBe("10 XP · ↑ up 1 place");
+    expect(ru("progress.lb.meDeltaUp", { count: 2, n: 2, xp: "10" })).toBe("10 XP · ↑ поднялись на 2 места");
+    expect(ru("suhbat.phrasesLabel", { count: 5 })).toBe("5 полезных фраз");
+    expect(ru("billing.perDays", { count: 30, days: 30 })).toBe("на 30 дней");
+    expect(en("billing.perDays", { count: 1, days: 1 })).toBe("for 1 day");
+  });
+
+  it("never resolves a Russian count string from the Uzbek fallback", () => {
+    // ru must carry every plural base uz/en carry: otherwise i18next walks to the
+    // uz fallback for ru_one and prints Uzbek inside the Russian UI.
+    const bases = (lang: "uz" | "ru" | "en") =>
+      new Set(
+        Object.keys(flatten(resources[lang].common))
+          .filter((k) => /_(one|other)$/.test(k))
+          .map((k) => k.replace(/_(one|other)$/, "")),
+      );
+    const ruBases = bases("ru");
+    expect([...bases("en")].filter((b) => !ruBases.has(b))).toEqual([]);
+    expect([...bases("uz")].filter((b) => !ruBases.has(b))).toEqual([]);
+  });
+});
+
 describe("other languages", () => {
   it("uses the two-form English split", () => {
     expect(en("units.points", { count: 1 })).toBe("1 point");

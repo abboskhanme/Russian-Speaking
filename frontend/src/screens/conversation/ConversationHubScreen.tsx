@@ -2,7 +2,7 @@ import { useTranslation } from "react-i18next";
 import { Card, Mascot, Text, cx } from "../../shared/ui";
 import { AppShell, Brand, NotificationsBell, studentNavItems } from "../../widgets";
 import type { NavItem } from "../../widgets";
-import { SCENARIOS } from "./scenarios";
+import { SCENARIOS, scenarioGoal } from "./scenarios";
 import { ScenarioIcon } from "./ScenarioIcon";
 import type { Scenario } from "./scenarios";
 import styles from "./ConversationHubScreen.module.css";
@@ -104,7 +104,7 @@ export function ConversationHubScreen({
                   </Text>
 
                   <Text as="span" variant="body-s" color="muted" className={styles.tileMeta}>
-                    {s.level} · {s.goalUz}
+                    {s.level} · {scenarioGoal(s, t)}
                   </Text>
                 </button>
               </Card>

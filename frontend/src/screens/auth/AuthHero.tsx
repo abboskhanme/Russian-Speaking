@@ -22,7 +22,9 @@ export function AuthHero({ active }: AuthHeroProps) {
       <header className={styles.hero}>
         <div className={styles.heroInner}>
           <Brand className={styles.heroBrand} style={{ color: "var(--primary-on)" }} />
-          <Mascot mood="idle" size={78} label="Govo" className={styles.heroMascot} />
+          <span className={styles.heroMascotTile}>
+            <Mascot mood="idle" size={78} label="Govo" />
+          </span>
           <Text as="h1" variant="title-m" className={styles.heroTitle}>
             {t("auth.hero.tagline")}
           </Text>

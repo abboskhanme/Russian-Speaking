@@ -304,9 +304,9 @@ function deltaLine(
   rankDelta: number | null,
 ): string {
   if (rankDelta === null) return t("progress.lb.meNoDelta", { xp: xpText });
-  if (rankDelta > 0) return t("progress.lb.meDeltaUp", { xp: xpText, n: rankDelta });
+  if (rankDelta > 0) return t("progress.lb.meDeltaUp", { xp: xpText, n: rankDelta, count: rankDelta });
   if (rankDelta < 0)
-    return t("progress.lb.meDeltaDown", { xp: xpText, n: Math.abs(rankDelta) });
+    return t("progress.lb.meDeltaDown", { xp: xpText, n: Math.abs(rankDelta), count: Math.abs(rankDelta) });
   return t("progress.lb.meDeltaFlat", { xp: xpText });
 }
 

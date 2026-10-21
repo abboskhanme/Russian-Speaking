@@ -19,7 +19,18 @@
  * scenario's CEFR band. Only the UI chrome around it goes through i18n
  * (`suhbat.*`).
  */
+import type { TFunction } from "i18next";
 import type { RoleplayScenario } from "./roleplayApi";
+
+/**
+ * The scenario goal line in the interface language. The server row only carries
+ * an Uzbek goal (`goal_uz`), which an English or Russian UI used to show as-is
+ * (UI audit, 20-). Known slugs are translated under `suhbat.goals.*`; a scenario
+ * the bundle has never seen keeps the server line rather than showing a raw key.
+ */
+export function scenarioGoal(s: Pick<Scenario, "id" | "goalUz">, t: TFunction): string {
+  return t(`suhbat.goals.${s.id}`, { defaultValue: s.goalUz });
+}
 
 /* -------------------------------------------------------------------------- */
 /* Public contract — the SHAPE the AI Suhbat hub grid consumes.               */

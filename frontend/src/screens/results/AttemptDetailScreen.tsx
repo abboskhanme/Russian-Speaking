@@ -7,6 +7,7 @@ import { useCountUp } from "../../shared/ui/utils/motion";
 import { scoreBand, scoreTone } from "../../shared/score/scoreBand";
 import { AppShell, Brand, NotificationsBell, studentNavItems } from "../../widgets";
 import type { NavItem } from "../../widgets";
+import { FeedbackLangNote } from "../../widgets/FeedbackLangNote";
 import styles from "./AttemptDetailScreen.module.css";
 
 /* -------------------------------------------------------------------------- */
@@ -184,6 +185,7 @@ export function AttemptDetailScreen({
         {detail.feedback && (
           <Section title={t("results.feedback")}>
             <div className={styles.fbBlock}>
+              <FeedbackLangNote lang={detail.feedback.lang} />
               {detail.feedback.summary && (
                 <Text as="p" variant="body" className={styles.prose}>
                   {detail.feedback.summary}

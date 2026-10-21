@@ -181,10 +181,10 @@ function TrendLine({
 
   const text =
     dir === "up"
-      ? t("progress.skills.trendUp", { weeks: deltaWeeks, points: rounded })
+      ? t("progress.skills.trendUp", { count: deltaWeeks, weeks: deltaWeeks, points: rounded })
       : dir === "down"
-        ? t("progress.skills.trendDown", { weeks: deltaWeeks, points: rounded })
-        : t("progress.skills.trendFlat", { weeks: deltaWeeks });
+        ? t("progress.skills.trendDown", { count: deltaWeeks, weeks: deltaWeeks, points: rounded })
+        : t("progress.skills.trendFlat", { count: deltaWeeks, weeks: deltaWeeks });
 
   return (
     <Text

@@ -304,7 +304,7 @@ export interface SubmissionResponse {
   audio_url: string | null;
   audio_duration_sec: number | null;
   status: SubmissionStatus;
-  /** A grading-failure MACHINE CODE (`grading_timeout` · `stt_failed` · `grader_failed` · `ai_unavailable` ·
+  /** A grading-failure MACHINE CODE (`grading_timeout` · `stt_failed` · `grader_failed` · `ai_unavailable` · `no_speech` ·
    * `internal`) — never text to show. Rows that failed before the codes existed still hold
    * free text. Map it through `gradingFailureKey` (app/adapters): anything unknown reads as
    * `internal`. */

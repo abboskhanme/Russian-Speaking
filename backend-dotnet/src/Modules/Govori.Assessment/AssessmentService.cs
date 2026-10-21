@@ -245,6 +245,22 @@ public sealed class AssessmentService
                 return AssessmentOutcome.Shadowing;
             }
 
+            // NOTHING SAID: STT heard no words (a muted or broken mic, silence). There is nothing to
+            // grade, so the grader is not called — it used to be, and answered with a 0, an "the
+            // transcript is empty" lecture and a "None" strength, billed like any other call. The
+            // attempt fails with its own code instead, so the screen can say "we heard nothing —
+            // check the microphone and record again"; a failed attempt does not count against an
+            // assignment's attempt budget. The (empty) transcript row stays, as for any failure
+            // after STT.
+            if (string.IsNullOrWhiteSpace(stt.Text))
+            {
+                _logger.LogInformation("no speech in the recording; not graded (submission {SubmissionId})", submissionId);
+                GradingMetrics.RecordOutcome("no_speech");
+                await MarkFailedAsync(submissionId, SubmissionErrorCodes.NoSpeech);
+                await EmitAsync(submissionId, GradingState.Failed, "failed", SubmissionErrorCodes.NoSpeech);
+                return AssessmentOutcome.Failed;
+            }
+
             await EmitAsync(submissionId, GradingState.Grading, "processing", null);
 
             // GRADE. Picture tasks feed the image to the grader best-effort: if the fetch fails we
@@ -309,9 +325,11 @@ public sealed class AssessmentService
             var feedback = new
             {
                 summary = grade.Summary,
-                strengths = grade.Strengths,
-                improvements = grade.Improvements,
-                vocabulary_suggestions = grade.VocabularySuggestions,
+                // Cleaned here too, not only in the vendor parser: whichever backend graded, a
+                // "None" / "-" placeholder item must never be stored as a bullet (FeedbackText).
+                strengths = FeedbackText.Clean(grade.Strengths),
+                improvements = FeedbackText.Clean(grade.Improvements),
+                vocabulary_suggestions = FeedbackText.Clean(grade.VocabularySuggestions),
                 orthoepy_errors = Array.Empty<object>(),                    // TODO(orthoepy): fill when wired
                 // The language the grader was ASKED to write in. A student's history spans language
                 // switches, so without this a mixed list (Uzbek cards, then Russian ones) cannot be

@@ -13,6 +13,7 @@ import { useTranslation } from "react-i18next";
 import { useLocation, useNavigate } from "react-router-dom";
 import { Button } from "../../shared/ui";
 import { ThemeToggle } from "../../widgets";
+import { AuthLangSwitch } from "./AuthLangSwitch";
 import { tokenStore, useAuth } from "../../shared/auth";
 import { endpoints } from "../../shared/api";
 import type { DevUserResponse, OtpRequestResponse } from "../../shared/api";
@@ -163,6 +164,7 @@ export default function LoginScreen() {
   return (
     <div className={styles.page}>
       <ThemeToggle className={styles.themeToggle} />
+      <AuthLangSwitch />
       <AuthHero active="login" />
 
       <div className={styles.content}>

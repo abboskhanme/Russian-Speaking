@@ -26,6 +26,7 @@ import {
   myLeaderboardRow,
   parseCorrections,
   parseFeedback,
+  isPlaceholderItem,
   nextOpenTarget,
   pickPracticeTarget,
   relativeTime,
@@ -271,11 +272,12 @@ describe("gradingFailureKey", () => {
     expect(gradingFailureKey("grading_timeout")).toBe("results.failure.grading_timeout");
     expect(gradingFailureKey("stt_failed")).toBe("results.failure.stt_failed");
     expect(gradingFailureKey("ai_unavailable")).toBe("results.failure.ai_unavailable");
+    expect(gradingFailureKey("no_speech")).toBe("results.failure.no_speech");
   });
 
   it("reads free text (pre-code rows), an unknown code, or none as `internal` — never raw", () => {
     expect(gradingFailureKey("NullReferenceException: boom")).toBe("results.failure.internal");
-    expect(gradingFailureKey("no_speech")).toBe("results.failure.internal");
+    expect(gradingFailureKey("some_future_code")).toBe("results.failure.internal");
     expect(gradingFailureKey(null)).toBe("results.failure.internal");
     expect(gradingFailureKey(undefined)).toBe("results.failure.internal");
   });
@@ -307,7 +309,30 @@ describe("parseFeedback", () => {
       strengths: ["talaffuz"],
       improvements: ["tezlik"],
       vocabulary: ["привет"],
+      // Pre-S9 rows carry no lang and were all graded in Uzbek.
+      lang: "uz",
     });
+  });
+
+  it("reads the stored feedback language", () => {
+    expect(parseFeedback(JSON.stringify({ summary: "Good", lang: "en" }))?.lang).toBe("en");
+    expect(parseFeedback(JSON.stringify({ summary: "Хорошо", lang: "ru" }))?.lang).toBe("ru");
+    expect(parseFeedback(JSON.stringify({ summary: "Yaxshi", lang: "de" }))?.lang).toBe("uz");
+  });
+
+  it("drops None / N/A / dash placeholder bullets (rows stored before the server filter)", () => {
+    const raw = JSON.stringify({
+      summary: "s",
+      strengths: ["None", " none. ", "N/A", "-", "", "Нет", "yoʻq"],
+      improvements: ["None", "Speak more"],
+      vocabulary_suggestions: ["—", "кстати"],
+    });
+    const fb = parseFeedback(raw);
+    expect(fb?.strengths).toEqual([]);
+    expect(fb?.improvements).toEqual(["Speak more"]);
+    expect(fb?.vocabulary).toEqual(["кстати"]);
+    // A real sentence that merely contains the word stays.
+    expect(isPlaceholderItem("None of the verbs were wrong")).toBe(false);
   });
 
   it("never lets a JSON brace reach the screen", () => {

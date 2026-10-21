@@ -275,7 +275,7 @@ function TodayCard({
             is one; without it the card is the plain daily-goal card. */}
         <Text as="p" variant="title-l" className={styles.todayTitle}>
           {daily
-            ? t("home.todayTitle", { min: today.goalMinutes })
+            ? t("home.todayTitle", { count: today.goalMinutes, min: today.goalMinutes })
             : t("home.practiceTitle")}
         </Text>
         <Text as="p" variant="body" color="muted">
