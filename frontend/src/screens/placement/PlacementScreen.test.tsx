@@ -8,7 +8,7 @@
  * offer leaving the test for later — and keep the plain retry message for every
  * other failure, where waiting would not help.
  */
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
@@ -35,6 +35,7 @@ vi.mock("../../shared/api", async (importOriginal) => {
           { index: 2, prompt_ru: "Ваши планы?" },
         ]),
       guestPlacementSubmit: () => submit(),
+      guestPlacementComplete: () => Promise.resolve({ level: "B2", label_uz: "o'rta-yuqori", band: 78 }),
     },
   };
 });
@@ -89,5 +90,26 @@ describe("an answer the server cannot score right now", () => {
 
     expect(await screen.findByRole("alert")).toHaveTextContent(t("placement.submitError"));
     expect(screen.queryByRole("button", { name: t("placement.guest.introSkip") })).toBeNull();
+  });
+});
+
+describe("the result caption", () => {
+  afterEach(async () => {
+    await i18n.changeLanguage("uz");
+  });
+
+  it("is in the UI language, not the server's Uzbek label_uz", async () => {
+    // A student reading the app in Russian finishes the test; the server still sends label_uz.
+    await i18n.changeLanguage("ru");
+    const ru = i18n.getFixedT("ru", "common");
+    const user = renderGuest();
+    await user.click(await screen.findByRole("button", { name: ru("placement.startCta") }));
+    for (let i = 0; i < 3; i++) {
+      await user.click(await screen.findByRole("button", { name: "fake-record" }));
+    }
+
+    const ring = await screen.findByRole("img", { name: "B2 · выше среднего" });
+    expect(ring).toBeInTheDocument();
+    expect(screen.queryByText("o'rta-yuqori")).toBeNull();
   });
 });

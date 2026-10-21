@@ -225,6 +225,13 @@
     "submitError": "Couldn't send your answer. Please try again.",
     "unavailable": "Your answer can't be assessed right now. Try again in a moment, or take the test later.",
     "resultKicker": "Placement complete",
+    "levelLabel": {
+      "A1": "beginner",
+      "A2": "elementary",
+      "B1": "intermediate",
+      "B2": "upper-intermediate",
+      "C1": "advanced"
+    },
     "resultTitle": "Great start!",
     "resultBody": "You can already speak. Five minutes a day — you'll feel it in 8 weeks.",
     "enterApp": "Start",

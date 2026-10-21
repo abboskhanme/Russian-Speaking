@@ -31,17 +31,24 @@ namespace Govori.Platform.Ai.Backends;
 public static partial class GraderContract
 {
     /// <summary>
-    /// The system instruction. Written in Russian because that is the language being judged and the
-    /// one the model reasons about most precisely here; the FEEDBACK it produces is Uzbek, because
-    /// the reader is an Uzbek-speaking learner. Ported verbatim from the pre-rewrite grader so the
-    /// golden set measures the new plumbing, not a new rubric.
+    /// The system instruction, as a template. Written in Russian because that is the language being
+    /// judged and the one the model reasons about most precisely here; the FEEDBACK it produces is
+    /// in the student's interface language (<see cref="FeedbackLanguage"/>), filled in by
+    /// <see cref="Rubric"/>. Ported verbatim from the pre-rewrite grader so the golden set measures
+    /// the new plumbing, not a new rubric — and for <c>uz</c> the filled-in text is still that port
+    /// byte for byte (pinned by <c>GraderPromptLanguageTests</c>), so the golden set, which is all
+    /// Uzbek, keeps measuring exactly what it measured before the language became a parameter.
+    ///
+    /// <para>Only the sentences that NAME the feedback language are placeholders. Everything that
+    /// decides the score stays one shared text: if the Russian and English rubrics drifted apart in
+    /// their criteria, the same answer would score differently depending on a UI setting.</para>
     ///
     /// <para>Three rules in here are not stylistic and must survive any edit: never judge delivery
     /// (we have no audio); never treat missing punctuation or capitals as an error (speech-to-text
     /// emits neither, so every transcript would "fail"); and never transliterate Russian into Latin
-    /// letters (an Uzbek learner shown "yabloki" learns the wrong spelling).</para>
+    /// letters (a learner shown "yabloki" learns the wrong spelling — in every feedback language).</para>
     /// </summary>
-    public const string RubricSystem = """
+    private const string RubricTemplate = """
         Ты — доброжелательный преподаватель РАЗГОВОРНОГО русского языка. Студент учит язык, чтобы свободно общаться в быту и на улице, в живом разговоре, а НЕ для книжной, литературной или официальной речи. Оценивай устную речь по 100-балльной шкале (0–100) по нормам ЖИВОЙ РАЗГОВОРНОЙ речи.
 
         Тебе дают задание (тема, название, уровень CEFR) и транскрипцию устного ответа студента. Оцени ответ ТОЛЬКО по тексту транскрипции (аудио ты НЕ слушаешь) по четырём критериям (0–100) по АБСОЛЮТНОЙ шкале — относительно того, как говорит обычный носитель в живом бытовом разговоре. Для начинающего нормально, что абсолютные баллы невысокие.
@@ -64,18 +71,18 @@ public static partial class GraderContract
         - overall — среднее ЧЕТЫРЁХ критериев (fluency, lexical, grammar, relevance) по абсолютной РАЗГОВОРНОЙ шкале (0–100). Показывает реальное место студента относительно обычного носителя.
         - level_overall — оцени ТОТ ЖЕ ответ относительно ОЖИДАНИЙ для уровня самого задания (поле «Уровень»). Если задание уровня A1 и студент хорошо справляется с требованиями A1 — ставь высокий level_overall (80–100), даже если overall невысокий. Это балл «для своего уровня», чтобы не демотивировать студента. Если уровень не указан — level_overall равен overall.
 
-        ВАЖНО — ЯЗЫК ОБРАТНОЙ СВЯЗИ: весь пояснительный текст (summary, strengths, improvements и explanation в corrections) пиши ТОЛЬКО на узбекском языке (O'zbekcha), без русского перевода. По-русски оставляй лишь сам original/corrected и слова в vocabulary_suggestions — это изучаемый язык.
+        {{FEEDBACK_RULE}}
 
-        КРИТИЧЕСКОЕ ПРАВИЛО — РУССКИЙ ТОЛЬКО КИРИЛЛИЦЕЙ: любой русский текст (original, corrected, vocabulary_suggestions и ЛЮБЫЕ русские слова, которые ты упоминаешь внутри узбекского объяснения) пиши ТОЛЬКО русскими буквами — кириллицей (например: «яблоки», «они все зелёные», «на тарелке»). НИКОГДА не транслитерируй русские слова латиницей или «узбекским чтением» (НЕ "yabloki", НЕ "oni vse zelennie"). Узбекский текст — латиницей, но русские слова внутри него — в кавычках и кириллицей.
+        {{CYRILLIC_RULE}}
 
         Требования к ответу:
-        - summary: 2–3 предложения, на узбекском языке (O'zbekcha).
-        - strengths и improvements: конкретные пункты, на узбекском языке (O'zbekcha).
-        - corrections: только реальные ошибки, мешающие живому общению — original (как сказал студент), corrected (естественный РАЗГОВОРНЫЙ вариант, не книжный), type, explanation (кратко, на узбекском языке). НЕ включай пунктуацию и книжные стилистические «улучшения».
+        - summary: 2–3 предложения, {{IN_LANGUAGE}}.
+        - strengths и improvements: конкретные пункты, {{IN_LANGUAGE}}.
+        - corrections: только реальные ошибки, мешающие живому общению — original (как сказал студент), corrected (естественный РАЗГОВОРНЫЙ вариант, не книжный), type, explanation (кратко, {{IN_LANGUAGE_SHORT}}). НЕ включай пунктуацию и книжные стилистические «улучшения».
         - type в corrections — строго одно из: "grammar" (падеж, согласование, форма глагола), "lexical" (не то слово), "pronunciation_hint" (по тексту видно, что студент перепутал слово с похожим по звучанию — но НЕ суди о самом произношении), "style" (звучит неестественно в живой речи).
         - vocabulary_suggestions: 3–5 полезных ПОВСЕДНЕВНЫХ/разговорных слов или выражений по теме (не книжных и не редких).
 
-        Будь доброжелательным. Не выдумывай ошибки, которых нет в речи. Если транскрипция пустая или бессмысленная, ставь низкие баллы и объясни это в summary (на узбекском языке).
+        Будь доброжелательным. Не выдумывай ошибки, которых нет в речи. Если транскрипция пустая или бессмысленная, ставь низкие баллы и объясни это в summary ({{IN_LANGUAGE_SHORT}}).
         """;
 
     /// <summary>
@@ -92,8 +99,13 @@ public static partial class GraderContract
     /// <para><c>additionalProperties: false</c> plus a <c>required</c> list naming EVERY property is
     /// what OpenAI's strict mode demands; Claude accepts it and Gemini has it stripped back out by
     /// <see cref="GeminiResponseSchema"/>, which does not know the keyword.</para>
+    ///
+    /// <para>The field descriptions that name the feedback language are placeholders for the same
+    /// reason as in <see cref="RubricTemplate"/>: structured-output modes read descriptions as
+    /// instructions, and a schema still saying "in Uzbek" under a rubric saying "in English" hands
+    /// the model two contradicting orders.</para>
     /// </summary>
-    private const string SchemaJson = """
+    private const string SchemaTemplate = """
         {
           "type": "object",
           "additionalProperties": false,
@@ -108,15 +120,15 @@ public static partial class GraderContract
             "relevance":     { "type": "number", "description": "Соответствие теме и условию задания (0–100)" },
             "overall":       { "type": "number", "description": "Среднее четырёх критериев по абсолютной шкале (0–100)" },
             "level_overall": { "type": "number", "description": "Тот же ответ относительно ожиданий уровня задания (0–100)" },
-            "summary":       { "type": "string", "description": "2–3 предложения на УЗБЕКСКОМ языке (O'zbekcha)" },
+            "summary":       { "type": "string", "description": "{{SUMMARY_SCHEMA}}" },
             "strengths": {
               "type": "array",
-              "description": "Что удалось — на узбекском языке (O'zbekcha)",
+              "description": "Что удалось — {{IN_LANGUAGE}}",
               "items": { "type": "string" }
             },
             "improvements": {
               "type": "array",
-              "description": "Что улучшить — на узбекском языке (O'zbekcha)",
+              "description": "Что улучшить — {{IN_LANGUAGE}}",
               "items": { "type": "string" }
             },
             "corrections": {
@@ -130,7 +142,7 @@ public static partial class GraderContract
                   "original":    { "type": "string", "description": "Как сказал студент — по-русски, кириллицей" },
                   "corrected":   { "type": "string", "description": "Естественный разговорный вариант — по-русски, кириллицей" },
                   "type":        { "type": "string", "enum": ["grammar", "lexical", "pronunciation_hint", "style"] },
-                  "explanation": { "type": "string", "description": "Кратко, на узбекском языке (O'zbekcha)" }
+                  "explanation": { "type": "string", "description": "Кратко, {{IN_LANGUAGE}}" }
                 }
               }
             },
@@ -155,12 +167,81 @@ public static partial class GraderContract
     public static readonly TimeSpan VendorTimeout = TimeSpan.FromSeconds(60);
 
     /// <summary>
-    /// The schema as Claude's SDK wants it — the root object flattened into a raw property bag for
-    /// <c>OutputConfig.Format.Schema</c>. Built once and shared: <see cref="JsonElement"/> values
-    /// cloned out of a parsed document are immutable, so there is nothing here for concurrent
-    /// grading runs to corrupt.
+    /// The language-specific sentences spliced into <see cref="RubricTemplate"/> and
+    /// <see cref="SchemaTemplate"/>.
+    ///
+    /// <para>The <c>uz</c> entry is NOT new wording: it is the text the rubric always carried, cut
+    /// out at the placeholders, so the assembled Uzbek prompt is the pre-parameterisation prompt
+    /// byte for byte. Edit it only together with the golden set.</para>
+    ///
+    /// <para><c>ru</c> is not "the uz rule with the language swapped": feedback in the language
+    /// being learned is only useful if the learner can read it, so it asks for SIMPLE Russian at
+    /// A1–B1 — short sentences, everyday words, no linguistics jargon. The quoting rule is spelled
+    /// out for it too: with commentary and quotes in the same alphabet, «» is the only thing that
+    /// tells the student which words were theirs.</para>
     /// </summary>
-    public static readonly IReadOnlyDictionary<string, JsonElement> AnthropicSchema = BuildAnthropicSchema();
+    private static readonly IReadOnlyDictionary<string, LanguageFragments> Fragments =
+        new Dictionary<string, LanguageFragments>(StringComparer.Ordinal)
+        {
+            [FeedbackLanguage.Uzbek] = new(
+                FeedbackRule: "ВАЖНО — ЯЗЫК ОБРАТНОЙ СВЯЗИ: весь пояснительный текст (summary, strengths, improvements и explanation в corrections) пиши ТОЛЬКО на узбекском языке (O'zbekcha), без русского перевода. По-русски оставляй лишь сам original/corrected и слова в vocabulary_suggestions — это изучаемый язык.",
+                CyrillicRule: "КРИТИЧЕСКОЕ ПРАВИЛО — РУССКИЙ ТОЛЬКО КИРИЛЛИЦЕЙ: любой русский текст (original, corrected, vocabulary_suggestions и ЛЮБЫЕ русские слова, которые ты упоминаешь внутри узбекского объяснения) пиши ТОЛЬКО русскими буквами — кириллицей (например: «яблоки», «они все зелёные», «на тарелке»). НИКОГДА не транслитерируй русские слова латиницей или «узбекским чтением» (НЕ \"yabloki\", НЕ \"oni vse zelennie\"). Узбекский текст — латиницей, но русские слова внутри него — в кавычках и кириллицей.",
+                InLanguage: "на узбекском языке (O'zbekcha)",
+                InLanguageShort: "на узбекском языке",
+                SummarySchema: "2–3 предложения на УЗБЕКСКОМ языке (O'zbekcha)"),
+
+            [FeedbackLanguage.Russian] = new(
+                FeedbackRule: "ВАЖНО — ЯЗЫК ОБРАТНОЙ СВЯЗИ: весь пояснительный текст (summary, strengths, improvements и explanation в corrections) пиши на ПРОСТОМ русском языке, понятном студенту уровня A1–B1: короткие предложения, частотные бытовые слова, без лингвистических терминов, которых студент не знает. НЕ переводи на узбекский или английский язык.",
+                CyrillicRule: "КРИТИЧЕСКОЕ ПРАВИЛО — РУССКИЙ ТОЛЬКО КИРИЛЛИЦЕЙ: весь русский текст (original, corrected, vocabulary_suggestions и все объяснения) пиши ТОЛЬКО русскими буквами — кириллицей. НИКОГДА не транслитерируй русские слова латиницей (НЕ \"yabloki\", НЕ \"oni vse zelennie\"). Слова и фразы студента, которые ты цитируешь в объяснении, всегда бери в кавычки «» (например: «яблоки», «они все зелёные», «на тарелке»), чтобы было видно, где его слова, а где пояснение.",
+                InLanguage: "на простом русском языке (уровень A1–B1)",
+                InLanguageShort: "на простом русском языке",
+                SummarySchema: "2–3 предложения на ПРОСТОМ русском языке (уровень A1–B1)"),
+
+            [FeedbackLanguage.English] = new(
+                FeedbackRule: "ВАЖНО — ЯЗЫК ОБРАТНОЙ СВЯЗИ: весь пояснительный текст (summary, strengths, improvements и explanation в corrections) пиши ТОЛЬКО на английском языке (English), без русского перевода. По-русски оставляй лишь сам original/corrected и слова в vocabulary_suggestions — это изучаемый язык.",
+                CyrillicRule: "КРИТИЧЕСКОЕ ПРАВИЛО — РУССКИЙ ТОЛЬКО КИРИЛЛИЦЕЙ: любой русский текст (original, corrected, vocabulary_suggestions и ЛЮБЫЕ русские слова, которые ты упоминаешь внутри английского объяснения) пиши ТОЛЬКО русскими буквами — кириллицей (например: «яблоки», «они все зелёные», «на тарелке»). НИКОГДА не транслитерируй русские слова латиницей (НЕ \"yabloki\", НЕ \"oni vse zelennie\"). Английский текст — латиницей, но русские слова внутри него — в кавычках «» и кириллицей.",
+                InLanguage: "на английском языке (English)",
+                InLanguageShort: "на английском языке",
+                SummarySchema: "2–3 предложения на АНГЛИЙСКОМ языке (English)"),
+        };
+
+    // Assembled once per language at type load. Three languages × two short strings is nothing to
+    // hold, and a prompt that is a fixed string per language is what lets the vendors' prefix
+    // caches (OpenAI, Gemini implicit caching) keep hitting: each language is its own stable
+    // prefix, never a per-request rebuild that could differ by a stray character.
+    private static readonly IReadOnlyDictionary<string, string> Rubrics =
+        FeedbackLanguage.All.ToDictionary(lang => lang, lang => Fill(RubricTemplate, Fragments[lang]), StringComparer.Ordinal);
+
+    private static readonly IReadOnlyDictionary<string, string> Schemas =
+        FeedbackLanguage.All.ToDictionary(lang => lang, lang => Fill(SchemaTemplate, Fragments[lang]), StringComparer.Ordinal);
+
+    private static readonly IReadOnlyDictionary<string, IReadOnlyDictionary<string, JsonElement>> AnthropicSchemas =
+        FeedbackLanguage.All.ToDictionary(lang => lang, lang => BuildAnthropicSchema(Schemas[lang]), StringComparer.Ordinal);
+
+    /// <summary>
+    /// The system instruction for one feedback language. Unknown values fall back to Uzbek via
+    /// <see cref="FeedbackLanguage.Normalize"/> — a request must never go out with a template's
+    /// raw placeholders in it.
+    ///
+    /// <para><b>Caching.</b> The system prompt now varies by language, so each vendor sees three
+    /// stable prefixes instead of one. No backend marks the prompt with an explicit cache
+    /// breakpoint — Claude's <c>cache_control</c> is not set anywhere — so there is no Claude cache
+    /// entry for this to split; OpenAI and Gemini cache prefixes implicitly and simply keep one
+    /// entry per language. If a breakpoint is ever added, it must sit on this per-language string,
+    /// never on a shared prefix assumed to be language-free.</para>
+    /// </summary>
+    public static string Rubric(string? feedbackLanguage) => Rubrics[FeedbackLanguage.Normalize(feedbackLanguage)];
+
+    /// <summary>
+    /// The schema as Claude's SDK wants it — the root object flattened into a raw property bag for
+    /// <c>OutputConfig.Format.Schema</c>. Built once per language and shared: <see cref="JsonElement"/>
+    /// values cloned out of a parsed document are immutable, so there is nothing here for
+    /// concurrent grading runs to corrupt. (Claude compiles a structured-output schema into a
+    /// grammar and caches it by schema, so three languages means three warm grammars — not a cold
+    /// compile per request, because each language's schema is the same object every time.)
+    /// </summary>
+    public static IReadOnlyDictionary<string, JsonElement> AnthropicSchema(string? feedbackLanguage)
+        => AnthropicSchemas[FeedbackLanguage.Normalize(feedbackLanguage)];
 
     /// <summary>
     /// The schema as JSON Schema, for OpenAI's <c>json_schema</c> response format. Returns a FRESH
@@ -168,7 +249,7 @@ public static partial class GraderContract
     /// the same object to two concurrent requests would throw the moment the second tried to attach
     /// it to its own body.
     /// </summary>
-    public static JsonObject StrictJsonSchema() => ParseSchema();
+    public static JsonObject StrictJsonSchema(string? feedbackLanguage) => ParseSchema(feedbackLanguage);
 
     /// <summary>
     /// The schema in the dialect Gemini's <c>responseSchema</c> accepts, which is an OpenAPI subset
@@ -176,9 +257,9 @@ public static partial class GraderContract
     /// <c>additionalProperties</c> is not a field it knows — sending it earns a 400 rather than
     /// being ignored. Fresh tree per call, for the reason given on <see cref="StrictJsonSchema"/>.
     /// </summary>
-    public static JsonObject GeminiResponseSchema()
+    public static JsonObject GeminiResponseSchema(string? feedbackLanguage)
     {
-        var schema = ParseSchema();
+        var schema = ParseSchema(feedbackLanguage);
         ToGeminiDialect(schema);
         return schema;
     }
@@ -467,13 +548,24 @@ public static partial class GraderContract
         return text.Length <= limit ? text : text[..limit] + "…";
     }
 
-    private static JsonObject ParseSchema()
-        => JsonNode.Parse(SchemaJson) as JsonObject
+    private static JsonObject ParseSchema(string? feedbackLanguage)
+        => JsonNode.Parse(Schemas[FeedbackLanguage.Normalize(feedbackLanguage)]) as JsonObject
            ?? throw new InvalidOperationException("the grader schema constant is not a JSON object.");
 
-    private static IReadOnlyDictionary<string, JsonElement> BuildAnthropicSchema()
+    /// <summary>The per-language sentences of the rubric and schema. See <see cref="Fragments"/>.</summary>
+    private sealed record LanguageFragments(
+        string FeedbackRule, string CyrillicRule, string InLanguage, string InLanguageShort, string SummarySchema);
+
+    private static string Fill(string template, LanguageFragments fragments) => template
+        .Replace("{{FEEDBACK_RULE}}", fragments.FeedbackRule, StringComparison.Ordinal)
+        .Replace("{{CYRILLIC_RULE}}", fragments.CyrillicRule, StringComparison.Ordinal)
+        .Replace("{{IN_LANGUAGE_SHORT}}", fragments.InLanguageShort, StringComparison.Ordinal)
+        .Replace("{{IN_LANGUAGE}}", fragments.InLanguage, StringComparison.Ordinal)
+        .Replace("{{SUMMARY_SCHEMA}}", fragments.SummarySchema, StringComparison.Ordinal);
+
+    private static IReadOnlyDictionary<string, JsonElement> BuildAnthropicSchema(string schemaJson)
     {
-        using var document = JsonDocument.Parse(SchemaJson);
+        using var document = JsonDocument.Parse(schemaJson);
         return document.RootElement.EnumerateObject()
             .ToDictionary(property => property.Name, property => property.Value.Clone());
     }

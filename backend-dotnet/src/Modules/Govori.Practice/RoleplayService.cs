@@ -299,8 +299,18 @@ public sealed class RoleplayService
         {
             try
             {
+                // The correction explanations come back to this student in this response, so they
+                // are written in the language their app is set to (unknown → Uzbek). Inside the
+                // try: a failed lookup must cost the coaching, never the turn.
+                var feedbackLanguage = FeedbackLanguage.Normalize(await _db.Users
+                    .AsNoTracking()
+                    .Where(u => u.Id == userId)
+                    .Select(u => u.PreferredLanguage)
+                    .FirstOrDefaultAsync(ct));
+
                 var grade = await _grader.AnalyzeAsync(new GraderRequest
                 {
+                    FeedbackLanguage = feedbackLanguage,
                     QuestionPrompt = last.PartnerText,          // what the student was answering
                     Instruction = beat.GoalRu,                  // what this turn had to achieve
                     TranscriptText = Truncate(studentText),

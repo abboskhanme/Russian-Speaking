@@ -151,6 +151,14 @@ public sealed class GraderGoldenSetTests
         return latin > 10 && latin > cyrillic;
     }
 
+    private static void CheckUzbekList(Tally tally, string caseId, string field, IEnumerable<string> items)
+    {
+        var joined = string.Join(" ", items.Where(s => !string.IsNullOrWhiteSpace(s)));
+        if (joined.Length == 0)
+            return;
+        tally.Check(LooksUzbek(joined), $"{caseId}: {field} do not read as Uzbek — \"{Trim(joined)}\"");
+    }
+
     /// <summary>C6: a "correction" whose only difference is punctuation, casing or whitespace is not
     /// a correction. Checked on every case rather than per case, because it is a property of the
     /// grader — showing a student a fix for a mistake they could not have made out loud is the way
@@ -205,6 +213,9 @@ public sealed class GraderGoldenSetTests
                     TranscriptText = c.Transcript,
                     Level = c.Level,
                     Topic = c.Topic,
+                    // Asked for explicitly rather than left to the default, so the language check
+                    // below measures the instruction the case names, whatever the default becomes.
+                    FeedbackLanguage = FeedbackLanguage.Normalize(c.Expect.FeedbackLanguage),
                 }, CancellationToken.None);
             }
             catch (Exception ex)
@@ -240,9 +251,19 @@ public sealed class GraderGoldenSetTests
                     tally.Check(
                         r.Corrections.Any(x => string.Equals(x.Type, t, StringComparison.OrdinalIgnoreCase)),
                         $"{c.Id}: no correction of type '{t}'");
-            if (e.FeedbackLanguage == "uz")
+            if (e.FeedbackLanguage == FeedbackLanguage.Uzbek)
+            {
+                // Every explanatory field, not just the summary: the regression this set exists to
+                // catch showed up as an Uzbek summary above Russian bullet points. The list fields
+                // are judged JOINED — one bullet is often too short for a script count to mean
+                // anything — and an empty list is not a language failure (a perfect answer has no
+                // corrections to explain).
                 tally.Check(LooksUzbek(r.Summary),
-                    $"{c.Id}: feedback does not read as Uzbek — \"{Trim(r.Summary)}\"");
+                    $"{c.Id}: summary does not read as Uzbek — \"{Trim(r.Summary)}\"");
+                CheckUzbekList(tally, c.Id, "strengths", r.Strengths);
+                CheckUzbekList(tally, c.Id, "improvements", r.Improvements);
+                CheckUzbekList(tally, c.Id, "correction explanations", r.Corrections.Select(x => x.Explanation));
+            }
 
             // C6, on every case.
             var cosmetic = r.Corrections.Where(IsCosmetic).ToList();

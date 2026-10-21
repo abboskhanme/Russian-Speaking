@@ -104,7 +104,10 @@ public sealed class AssessmentPipelineTests
             Assert.Equal(70.0, eval.PronunciationScore!.Value, 6);
             Assert.Equal("fake-grader", eval.LlmModel);
             using (var fb = JsonDocument.Parse(eval.Feedback!))
+            {
                 Assert.True(fb.RootElement.TryGetProperty("summary", out _));
+                Assert.Equal("uz", fb.RootElement.GetProperty("lang").GetString());   // seeded student is uz
+            }
             using (var corr = JsonDocument.Parse(eval.Corrections!))
                 Assert.Equal(JsonValueKind.Array, corr.RootElement.ValueKind);
 
@@ -152,6 +155,43 @@ public sealed class AssessmentPipelineTests
         finally
         {
             await CleanupAsync([], storage, teacherId, studentId, blockId, questionId, submissionId);
+        }
+    }
+
+    // ─── Feedback language ──────────────────────────────────────────────────
+
+    [Theory]
+    [InlineData("ru", "ru", "Хороший ответ.")]
+    [InlineData("en", "en", "Good answer.")]
+    [InlineData("de", "uz", "Yaxshi javob.")]     // a locale the UI does not ship grades in Uzbek
+    public async Task Feedback_is_written_in_the_students_language_and_the_language_is_recorded(
+        string preferred, string expectedLang, string expectedSummary)
+    {
+        // The language is read at GRADING time, not copied from somewhere at submit time — so it is
+        // set here, after seeding, exactly like a student switching the app between the two.
+        var ids = await SeedResumableAsync();
+        await using (var ctx = CreateContext())
+            await ctx.Users.Where(u => u.Id == ids.Student)
+                .ExecuteUpdateAsync(set => set.SetProperty(u => u.PreferredLanguage, preferred));
+
+        var grader = new FakeGraderProvider();
+        try
+        {
+            await using (var ctx = CreateContext())
+                Assert.Equal(AssessmentOutcome.Done,
+                    await Service(ctx, new FakeSttProvider(), grader, new RecordingGradingEvents()).RunAsync(ids.SubmissionId));
+
+            Assert.Equal(expectedLang, grader.LastFeedbackLanguage);
+
+            await using var check = CreateContext();
+            var eval = await check.Evaluations.SingleAsync(e => e.SubmissionId == ids.SubmissionId);
+            using var fb = JsonDocument.Parse(eval.Feedback!);
+            Assert.Equal(expectedLang, fb.RootElement.GetProperty("lang").GetString());
+            Assert.Equal(expectedSummary, fb.RootElement.GetProperty("summary").GetString());
+        }
+        finally
+        {
+            await CleanupSeedAsync(ids);
         }
     }
 

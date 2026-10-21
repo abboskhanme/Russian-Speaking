@@ -88,7 +88,7 @@ public sealed class GeminiGraderBackend : IGraderBackend
         {
             ["systemInstruction"] = new JsonObject
             {
-                ["parts"] = new JsonArray { new JsonObject { ["text"] = GraderContract.RubricSystem } },
+                ["parts"] = new JsonArray { new JsonObject { ["text"] = GraderContract.Rubric(request.FeedbackLanguage) } },
             },
             ["contents"] = new JsonArray
             {
@@ -97,7 +97,7 @@ public sealed class GeminiGraderBackend : IGraderBackend
             ["generationConfig"] = new JsonObject
             {
                 ["responseMimeType"] = "application/json",
-                ["responseSchema"] = GraderContract.GeminiResponseSchema(),
+                ["responseSchema"] = GraderContract.GeminiResponseSchema(request.FeedbackLanguage),
             },
         };
 

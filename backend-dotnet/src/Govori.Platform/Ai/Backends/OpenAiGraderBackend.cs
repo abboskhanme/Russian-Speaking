@@ -91,7 +91,7 @@ public sealed class OpenAiGraderBackend : IGraderBackend
         {
             ["messages"] = new JsonArray
             {
-                new JsonObject { ["role"] = "system", ["content"] = GraderContract.RubricSystem },
+                new JsonObject { ["role"] = "system", ["content"] = GraderContract.Rubric(request.FeedbackLanguage) },
                 new JsonObject { ["role"] = "user", ["content"] = BuildUserContent(request) },
             },
             // `strict` is what makes the schema binding rather than advisory. It is also why the
@@ -104,7 +104,7 @@ public sealed class OpenAiGraderBackend : IGraderBackend
                 {
                     ["name"] = GraderContract.SchemaName,
                     ["strict"] = true,
-                    ["schema"] = GraderContract.StrictJsonSchema(),
+                    ["schema"] = GraderContract.StrictJsonSchema(request.FeedbackLanguage),
                 },
             },
         };
