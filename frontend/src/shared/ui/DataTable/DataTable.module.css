@@ -1,0 +1,125 @@
+/* DataTable — dense, sortable list for ≥1080px. Every value is a token. */
+
+/* `overflow: clip`, not `auto`: an auto container would become the sticky header's
+ * scroll root and the header would stop following the page. */
+.wrap {
+  width: 100%;
+  overflow-x: clip;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+}
+
+.table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  table-layout: fixed;
+  font-family: var(--font-sans);
+  font-size: var(--t-body-s-size);
+  color: var(--ink);
+}
+
+.table th,
+.table td {
+  padding: var(--s-2) var(--s-3);
+  text-align: start;
+  vertical-align: middle;
+  border-bottom: 1px solid var(--line);
+  overflow-wrap: anywhere;
+}
+.table tbody tr:last-child > * {
+  border-bottom: 0;
+}
+
+/* Sticky under the app's top bar (60px + its hairline). */
+.table thead th {
+  position: sticky;
+  top: var(--shell-topbar-h, 61px);
+  z-index: 1;
+  background: var(--surface-2);
+  color: var(--muted);
+  font-size: var(--t-label-size, var(--t-body-s-size));
+  font-weight: var(--fw-bold);
+  white-space: nowrap;
+}
+.table thead th:first-child {
+  border-start-start-radius: var(--r-sm);
+}
+.table thead th:last-child {
+  border-start-end-radius: var(--r-sm);
+}
+
+.rowHead {
+  font-weight: var(--fw-semibold, var(--fw-bold));
+}
+.table tbody tr {
+  transition: background-color var(--m-instant);
+}
+.table tbody tr:hover {
+  background: var(--surface-2);
+}
+
+.end {
+  text-align: end !important;
+}
+.center {
+  text-align: center !important;
+}
+
+.headText {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.sortBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-1);
+  max-width: 100%;
+  min-height: 32px;
+  margin: calc(var(--s-1) * -1) calc(var(--s-2) * -1);
+  padding: var(--s-1) var(--s-2);
+  font: inherit;
+  color: inherit;
+  background: transparent;
+  border: 0;
+  border-radius: var(--r-xs);
+  cursor: pointer;
+}
+.end .sortBtn {
+  flex-direction: row-reverse;
+}
+.sortBtn:hover {
+  color: var(--ink);
+  background: var(--surface);
+}
+.sortBtn:focus-visible {
+  outline: var(--focus-ring-width) solid var(--focus-ring);
+  outline-offset: 0;
+}
+.sortActive {
+  color: var(--ink);
+}
+.sortIcon {
+  flex: none;
+}
+.arrow {
+  fill: currentColor;
+  opacity: 0.3;
+}
+.arrowOn {
+  opacity: 1;
+}
+
+.emptyCell {
+  padding: var(--s-6) var(--s-4) !important;
+  text-align: center !important;
+  color: var(--muted);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .table tbody tr {
+    transition: none;
+  }
+}

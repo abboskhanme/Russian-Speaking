@@ -77,3 +77,8 @@ export type { RecorderProps, RecorderLabels } from "./Recorder";
 export { copyText } from "./utils/copyText";
 export { cx } from "./utils/cx";
 export type { ClassValue } from "./utils/cx";
+
+/* Data — the dense, sortable list for wide screens (cards stay below 1080px). */
+export { DataTable, sortRows } from "./DataTable";
+export type { DataTableColumn, DataTableProps, SortDirection, SortState } from "./DataTable";
+export { useMediaQuery, WIDE_QUERY } from "./utils/useMediaQuery";

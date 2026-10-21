@@ -45,6 +45,9 @@ export interface ContentScreenProps {
   moduleExtra?: (m: ContentModule) => ReactNode;
   /** Replaces the Modullar tab's empty line. */
   modulesEmpty?: ReactNode;
+  /** Replaces the Modullar tab's card list when there are modules — the admin's
+   * wide-screen table. Absent = the cards. */
+  modulesView?: ReactNode;
   queuedCount?: number;
   /** "+ Yaratish" on the Modullar tab — a new draft module. */
   onCreate?: () => void;
@@ -95,6 +98,7 @@ export function ContentScreen({
   shell,
   moduleExtra,
   modulesEmpty,
+  modulesView,
   queuedCount = 0,
   onCreate,
   onOpenModule,
@@ -175,6 +179,8 @@ export function ContentScreen({
         {activeTab === "modules" ? (
           modules.length === 0 ? (
             (modulesEmpty ?? <EmptyCard text={t("teacher.noModules")} />)
+          ) : modulesView ? (
+            modulesView
           ) : (
             <ul className={styles.list}>
               {modules.map((m) => (

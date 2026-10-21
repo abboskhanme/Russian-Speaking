@@ -191,3 +191,79 @@
   outline: 2px solid var(--focus-ring);
   outline-offset: 2px;
 }
+
+/* ---- Filter chips ----
+   Toggle buttons, not checkboxes: one tap filters, the pressed state is both drawn
+   and announced (aria-pressed). 44px on a phone, where they are tap targets first. */
+.filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-2);
+}
+.chip {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 0 var(--s-3);
+  font: inherit;
+  font-size: var(--t-body-s-size);
+  font-weight: var(--fw-semibold);
+  color: var(--ink-soft);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r-pill, 999px);
+  cursor: pointer;
+  transition: background-color var(--m-instant), border-color var(--m-instant), color var(--m-instant);
+}
+.chip:hover {
+  background: var(--surface-2);
+}
+.chip:focus-visible {
+  outline: var(--focus-ring-width) solid var(--focus-ring);
+  outline-offset: var(--focus-ring-offset);
+}
+.chipOn,
+.chipOn:hover {
+  color: var(--primary-ink);
+  background: var(--primary-tint);
+  border-color: var(--primary-ink);
+}
+.groupSelect {
+  max-width: 100%;
+  padding-inline-end: var(--s-2);
+}
+@media (min-width: 1080px) {
+  .chip {
+    min-height: 36px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .chip {
+    transition: none;
+  }
+}
+
+/* ---- Table cells (≥1080px) ---- */
+.rowSuspended {
+  color: var(--muted);
+}
+.cellName {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--s-1) var(--s-2);
+  min-width: 0;
+}
+.cellNameText {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.cellStack {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+.cellMuted {
+  color: var(--muted);
+}

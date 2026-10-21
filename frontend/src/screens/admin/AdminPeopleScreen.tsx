@@ -1,7 +1,23 @@
 import { useEffect, useMemo, useState } from "react";
+import type { ReactNode } from "react";
+import type { TFunction } from "i18next";
 import { useTranslation } from "react-i18next";
-import { Badge, Button, Card, Input, Modal, Switch, Tabs, Text, cx } from "../../shared/ui";
-import type { TabItem } from "../../shared/ui";
+import {
+  Badge,
+  Button,
+  Card,
+  DataTable,
+  Input,
+  Modal,
+  Switch,
+  Tabs,
+  Text,
+  WIDE_QUERY,
+  cx,
+  sortRows,
+  useMediaQuery,
+} from "../../shared/ui";
+import type { DataTableColumn, SortState, TabItem } from "../../shared/ui";
 import type { UserRole } from "../../shared/api";
 import { AppShell, Brand, NotificationsBell, adminNavItems } from "../../widgets";
 import type { NavItem } from "../../widgets";
@@ -41,6 +57,26 @@ export interface AdminPerson {
    * "this also deletes 770 answers" is not.
    */
   ownedCount: number;
+  /* ---- Table columns (≥1080px). All optional: the cards need none of them. ---- */
+  /** Students: their latest answer (ISO) — the sort key — and its label ("2 soat oldin"). */
+  lastActiveAt?: string | null;
+  lastActiveLabel?: string;
+  /** Students: mean AI band, 0–100; null when nothing is graded. */
+  avgBand?: number | null;
+  /** Students: their groups, each with its teacher. */
+  groups?: AdminPersonGroup[];
+  /** Teachers: groups owned and distinct students across them. */
+  groupCount?: number;
+  studentCount?: number;
+  /** When the account was created (ISO) and its label. */
+  createdAt?: string;
+  createdLabel?: string;
+}
+
+export interface AdminPersonGroup {
+  id: string;
+  name: string;
+  teacherName: string;
 }
 
 /** The teachers screen's second segment. */
@@ -170,11 +206,36 @@ export function AdminPeopleScreen({
   const editing = useMemo(() => people.find((p) => p.id === editingId) ?? null, [people, editingId]);
   const deleting = useMemo(() => people.find((p) => p.id === deletingId) ?? null, [people, deletingId]);
 
+  const wide = useMediaQuery(WIDE_QUERY);
+  const [filters, setFilters] = useState<PeopleFilters>(NO_FILTERS);
+  const [sort, setSort] = useState<SortState | null>(null);
+
   const navKey = activeNavKey ?? kind;
   const title = kind === "teachers" ? t("admin.teachers") : t("admin.students");
   const personRole: UserRole = kind === "teachers" ? "teacher" : "student";
   const onAdmins = kind === "teachers" && staff?.tab === "admins";
-  const visible = people.slice(0, shown);
+
+  // Every group any listed student is in, for the group filter. Built from the rows
+  // themselves, so it offers only groups that can match.
+  const groupOptions = useMemo(() => {
+    const byId = new Map<string, AdminPersonGroup>();
+    for (const p of people) for (const g of p.groups ?? []) byId.set(g.id, g);
+    return [...byId.values()].sort((a, b) => a.name.localeCompare(b.name));
+  }, [people]);
+
+  const columns = useMemo(
+    () => (kind === "teachers" ? teacherColumns(t, setEditingId) : studentColumns(t, setEditingId)),
+    [kind, t],
+  );
+
+  // Filter → sort → page. Sorting happens BEFORE the page is cut, so "Javoblar ↓"
+  // ranks everyone, not just the 50 rows already on screen.
+  const filtered = useMemo(() => applyFilters(people, filters), [people, filters]);
+  const ordered = useMemo(() => {
+    const col = sort && columns.find((c) => c.key === sort.key);
+    return col?.sortValue && sort ? sortRows(filtered, col.sortValue, sort.dir) : filtered;
+  }, [filtered, sort, columns]);
+  const visible = ordered.slice(0, shown);
   const count = onAdmins ? (staff?.admins?.length ?? 0) : people.length;
 
   const staffTabs: TabItem[] = [
@@ -271,6 +332,16 @@ export function AdminPeopleScreen({
               aria-label={t("admin.searchPlaceholder")}
             />
 
+            <FilterBar
+              kind={kind}
+              filters={filters}
+              groups={groupOptions}
+              onChange={(next) => {
+                setFilters(next);
+                setShown(PEOPLE_PAGE_SIZE);
+              }}
+            />
+
             {people.length === 0 ? (
               <EmptyState
                 kind={kind}
@@ -278,8 +349,33 @@ export function AdminPeopleScreen({
                 filtered={term.trim().length > 0}
                 onAdd={kind === "teachers" && onCreateTeacher ? () => setAdding(true) : undefined}
               />
+            ) : filtered.length === 0 ? (
+              <Card variant="flat" padding="lg" className={styles.empty}>
+                <Text as="p" variant="body" color="muted">
+                  {t("admin.table.noMatch")}
+                </Text>
+                <Button variant="secondary" size="sm" onClick={() => setFilters(NO_FILTERS)}>
+                  {t("admin.table.clearFilters")}
+                </Button>
+              </Card>
             ) : (
               <>
+                {wide ? (
+                  <DataTable
+                    columns={columns}
+                    rows={visible}
+                    rowKey={(p) => p.id}
+                    caption={
+                      kind === "teachers"
+                        ? t("admin.table.captionTeachers")
+                        : t("admin.table.captionStudents")
+                    }
+                    sort={sort}
+                    onSortChange={setSort}
+                    sortLabel={(h) => t("admin.table.sortBy", { column: String(h) })}
+                    rowClassName={(p) => (p.active ? undefined : styles.rowSuspended)}
+                  />
+                ) : (
                 <ul className={styles.list}>
                   {visible.map((p) => (
                     <li key={p.id}>
@@ -316,10 +412,11 @@ export function AdminPeopleScreen({
                     </li>
                   ))}
                 </ul>
-                {people.length > visible.length && (
+                )}
+                {ordered.length > visible.length && (
                   <div className={styles.more}>
                     <Text as="span" variant="body-s" color="muted">
-                      {t("admin.shownOf", { shown: visible.length, total: people.length })}
+                      {t("admin.shownOf", { shown: visible.length, total: ordered.length })}
                     </Text>
                     <Button
                       variant="secondary"
@@ -402,6 +499,275 @@ export function AdminPeopleScreen({
 /* -------------------------------------------------------------------------- */
 /* Parts                                                                      */
 /* -------------------------------------------------------------------------- */
+
+/** The chips above the list. Applied to the rows the server returned for the current
+ * search — the API has no paging, so the full match set is already here. */
+interface PeopleFilters {
+  status: "all" | "active" | "suspended";
+  premium: boolean;
+  noGroup: boolean;
+  /** "" = every group. */
+  groupId: string;
+}
+
+const NO_FILTERS: PeopleFilters = { status: "all", premium: false, noGroup: false, groupId: "" };
+
+function hasGroups(p: AdminPerson): boolean {
+  return p.groups ? p.groups.length > 0 : (p.groupCount ?? 0) > 0;
+}
+
+export function applyFilters(people: AdminPerson[], f: PeopleFilters): AdminPerson[] {
+  if (f === NO_FILTERS) return people;
+  return people.filter(
+    (p) =>
+      (f.status === "all" || (f.status === "active") === p.active) &&
+      (!f.premium || Boolean(p.premium)) &&
+      (!f.noGroup || !hasGroups(p)) &&
+      (!f.groupId || Boolean(p.groups?.some((g) => g.id === f.groupId))),
+  );
+}
+
+/** Toggle chips (`aria-pressed`) plus, for students, a group picker. 44px tall on a
+ * phone — they are tap targets first. */
+function FilterBar({
+  kind,
+  filters,
+  groups,
+  onChange,
+}: {
+  kind: "teachers" | "students";
+  filters: PeopleFilters;
+  groups: AdminPersonGroup[];
+  onChange: (next: PeopleFilters) => void;
+}) {
+  const { t } = useTranslation();
+  const set = (patch: Partial<PeopleFilters>) => {
+    const next = { ...filters, ...patch };
+    const empty =
+      next.status === "all" && !next.premium && !next.noGroup && next.groupId === "";
+    onChange(empty ? NO_FILTERS : next);
+  };
+  const chip = (pressed: boolean, label: string, onClick: () => void) => (
+    <button
+      type="button"
+      className={cx(styles.chip, pressed && styles.chipOn)}
+      aria-pressed={pressed}
+      onClick={onClick}
+    >
+      {label}
+    </button>
+  );
+
+  return (
+    <div className={styles.filters} role="group" aria-label={t("admin.table.filters")}>
+      {chip(filters.status === "active", t("admin.table.filterActive"), () =>
+        set({ status: filters.status === "active" ? "all" : "active" }),
+      )}
+      {chip(filters.status === "suspended", t("admin.table.filterSuspended"), () =>
+        set({ status: filters.status === "suspended" ? "all" : "suspended" }),
+      )}
+      {kind === "students" &&
+        chip(filters.premium, t("admin.table.filterPremium"), () => set({ premium: !filters.premium }))}
+      {chip(filters.noGroup, t("admin.table.filterNoGroup"), () =>
+        set({ noGroup: !filters.noGroup, groupId: "" }),
+      )}
+      {kind === "students" && groups.length > 0 && (
+        <select
+          className={cx(styles.chip, styles.groupSelect, filters.groupId && styles.chipOn)}
+          value={filters.groupId}
+          onChange={(e) => set({ groupId: e.currentTarget.value, noGroup: false })}
+          aria-label={t("admin.table.groupFilter")}
+        >
+          <option value="">{t("admin.table.allGroups")}</option>
+          {groups.map((g) => (
+            <option key={g.id} value={g.id}>
+              {g.name} · {g.teacherName}
+            </option>
+          ))}
+        </select>
+      )}
+    </div>
+  );
+}
+
+const ms = (iso?: string | null) => {
+  if (!iso) return null;
+  const v = Date.parse(iso);
+  return Number.isNaN(v) ? null : v;
+};
+
+function NameCell({ p }: { p: AdminPerson }) {
+  const { t } = useTranslation();
+  return (
+    <span className={styles.cellName}>
+      <span className={styles.cellNameText}>{p.fullName}</span>
+      {p.premium && (
+        <Badge variant="accent" size="sm">
+          {t("admin.premium")}
+        </Badge>
+      )}
+    </span>
+  );
+}
+
+function StatusCell({ p }: { p: AdminPerson }) {
+  const { t } = useTranslation();
+  return p.active ? (
+    <Badge variant="success" size="sm">
+      {t("admin.table.active")}
+    </Badge>
+  ) : (
+    <Badge variant="danger" size="sm">
+      {t("admin.suspended")}
+    </Badge>
+  );
+}
+
+function Muted({ children }: { children: ReactNode }) {
+  return <span className={styles.cellMuted}>{children}</span>;
+}
+
+function sharedHead(t: TFunction): DataTableColumn<AdminPerson>[] {
+  return [
+    {
+      key: "name",
+      header: t("admin.table.name"),
+      rowHeader: true,
+      width: "22%",
+      cell: (p) => <NameCell p={p} />,
+      sortValue: (p) => p.fullName,
+    },
+    {
+      key: "phone",
+      header: t("admin.table.phone"),
+      width: "11.5rem",
+      cell: (p) => <span className={styles.mono}>{formatPhone(p.contact)}</span>,
+    },
+  ];
+}
+
+function tailColumns(t: TFunction, onManage: (id: string) => void): DataTableColumn<AdminPerson>[] {
+  return [
+    {
+      key: "status",
+      header: t("admin.table.status"),
+      width: "9.5rem",
+      cell: (p) => <StatusCell p={p} />,
+      sortValue: (p) => (p.active ? 0 : 1),
+    },
+    {
+      key: "actions",
+      header: t("admin.table.actions"),
+      hideHeader: true,
+      align: "end",
+      width: "8.5rem",
+      cell: (p) => (
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => onManage(p.id)}
+          aria-label={t("admin.table.manageName", { name: p.fullName })}
+        >
+          {t("admin.manage")}
+        </Button>
+      ),
+    },
+  ];
+}
+
+function studentColumns(t: TFunction, onManage: (id: string) => void): DataTableColumn<AdminPerson>[] {
+  return [
+    ...sharedHead(t),
+    {
+      key: "groups",
+      header: t("admin.table.groupTeacher"),
+      cell: (p) => {
+        const gs = p.groups ?? [];
+        if (gs.length === 0) return <Muted>{t("admin.table.noGroup")}</Muted>;
+        const [first, ...rest] = gs;
+        return (
+          <span className={styles.cellStack}>
+            <span>{first.name}</span>
+            <Muted>
+              {first.teacherName}
+              {rest.length > 0 && ` · ${t("admin.table.moreGroups", { count: rest.length })}`}
+            </Muted>
+          </span>
+        );
+      },
+      sortValue: (p) => p.groups?.[0]?.name ?? null,
+    },
+    {
+      key: "answers",
+      header: t("admin.table.answers"),
+      align: "end",
+      width: "7.5rem",
+      cell: (p) => p.ownedCount,
+      sortValue: (p) => p.ownedCount,
+      firstDir: "desc",
+    },
+    {
+      key: "avg",
+      header: t("admin.table.avgScore"),
+      align: "end",
+      width: "8.5rem",
+      cell: (p) => (p.avgBand == null ? <Muted>—</Muted> : Math.round(p.avgBand)),
+      sortValue: (p) => p.avgBand ?? null,
+      firstDir: "desc",
+    },
+    {
+      key: "lastActive",
+      header: t("admin.table.lastActive"),
+      width: "10rem",
+      cell: (p) => (p.lastActiveAt ? p.lastActiveLabel : <Muted>{t("admin.table.never")}</Muted>),
+      sortValue: (p) => ms(p.lastActiveAt),
+      firstDir: "desc",
+    },
+    ...tailColumns(t, onManage),
+  ];
+}
+
+function teacherColumns(t: TFunction, onManage: (id: string) => void): DataTableColumn<AdminPerson>[] {
+  return [
+    ...sharedHead(t),
+    {
+      key: "groups",
+      header: t("admin.table.groups"),
+      align: "end",
+      width: "7rem",
+      cell: (p) => p.groupCount ?? 0,
+      sortValue: (p) => p.groupCount ?? 0,
+      firstDir: "desc",
+    },
+    {
+      key: "students",
+      header: t("admin.table.students"),
+      align: "end",
+      width: "8rem",
+      cell: (p) => p.studentCount ?? 0,
+      sortValue: (p) => p.studentCount ?? 0,
+      firstDir: "desc",
+    },
+    {
+      key: "tasks",
+      header: t("admin.table.tasks"),
+      align: "end",
+      width: "7rem",
+      cell: (p) => p.ownedCount,
+      sortValue: (p) => p.ownedCount,
+      firstDir: "desc",
+    },
+    {
+      key: "joined",
+      header: t("admin.table.joined"),
+      width: "10rem",
+      cell: (p) => p.createdLabel ?? "",
+      sortValue: (p) => ms(p.createdAt),
+      firstDir: "desc",
+    },
+    ...tailColumns(t, onManage),
+  ];
+}
 
 /** Three different empties, three different sentences. "Nobody found" after a search
  * is a result; "nobody yet" on a fresh install is an instruction — and for teachers

@@ -1,0 +1,48 @@
+/* AdminModulesTable — Kontent › Modullar at ≥1080px. Every value is a token. */
+
+.wrap {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+}
+
+.name {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--s-1) var(--s-2);
+  min-width: 0;
+}
+
+/* The module name is the row's link into the editor. */
+.link {
+  padding: 0;
+  font: inherit;
+  font-weight: var(--fw-semibold);
+  color: var(--ink);
+  text-align: start;
+  overflow-wrap: anywhere;
+  background: none;
+  border: 0;
+  border-radius: var(--r-xs);
+  cursor: pointer;
+}
+.link:hover {
+  color: var(--primary-ink);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.link:focus-visible {
+  outline: var(--focus-ring-width) solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+.muted {
+  color: var(--muted);
+}
+
+/* A copy of another module's name: a thin warn stripe at the row's start, on top
+ * of the labelled badge (never colour alone). */
+.dupe > :first-child {
+  box-shadow: inset 3px 0 0 var(--warn);
+}
