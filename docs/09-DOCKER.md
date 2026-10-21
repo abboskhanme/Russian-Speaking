@@ -256,6 +256,145 @@ prod yuzasini tasvirlaydi va ikkala muhitda bayt-ma-bayt bir xil qoladi.
 > `docker-compose.prod.yml` hech narsa uzatmaydi va qat'iy javobni oladi; dev compose esa
 > `development` deb yozadi.
 
+## Backup va monitoring (prod)
+
+### Tungi backup endi audioni ham oladi
+
+`deploy/prod-backup-cron.sh` (droplet'da root cron'idan, INSTALL.md 9.1) har kecha **ikki
+mustaqil faza** bajaradi:
+
+| Faza | Natija (`/var/backups/govori/`) | Tekshiruv |
+|---|---|---|
+| DB | `govori_<ts>.dump` + `.meta` | hajm ≥ `MIN_BYTES`, `pg_restore --list` TOC bo'sh emas, real foydalanuvchi > 0 |
+| Audio | `govori_<ts>.audio/<bucket>/…` + `.backup-meta` | `mc ls` ro'yxati bilan solishtiriladi (≤1% farq), 0 baytli fayl yo'q |
+
+- Audio avval `.audio-mirror/` ishchi nusxaga `mc mirror` qilinadi (faqat o'zgarganlar
+  ko'chadi), keyin **hard-link snapshot** (`cp -al`) sifatida muzlatiladi — har tungi snapshot
+  faqat o'sha kuni yangi bo'lgan fayllarcha joy oladi. Retention DB bilan bir xil:
+  `KEEP_DAYS` (7), kamida bittasi doim qoladi.
+- **Prod ma'lumotiga hech narsa yozilmaydi.** Kalit read-only, `mc mirror` faqat backup
+  papkasiga yozadi. `--remove` faqat **ishchi nusxada** ishlaydi: audio — biometrik ma'lumot,
+  90 kunlik saqlash siyosati bor (docs/02 §2.8), cheksiz saqlaydigan backup uni buzardi.
+  O'chirilgan obyekt baribir `KEEP_DAYS` davomida oldingi snapshot'larda turadi. `mc` faylni
+  vaqtinchalik nom bilan yozib rename qiladi, ya'ni qayta yozilgan obyekt eski snapshot'dagi
+  baytlarga tegmaydi (test 7 buni tekshiradi).
+- Bucket bo'sh ro'yxat qaytarsa-yu, oldingi backup'da fayl bo'lsa — **rad etadi** (bo'sh
+  bucket'ni backup ustiga ko'chirmaydi).
+- Bir faza yiqilsa ikkinchisi baribir ishlaydi (audio buzilsa ham DB dump chiqadi), lekin
+  skript `exit 1` qiladi va alert yuboradi.
+- `OFFSITE_DEST` berilsa audio ham u yerga **o'chirishsiz** sync qilinadi (`<dest>/audio/`).
+  Offsite'dagi eski audioni tozalash — o'sha saqlash joyining lifecycle qoidasi (masalan S3
+  lifecycle 90 kun); skript u yerda hech narsa o'chirmaydi.
+
+### Yangi env o'zgaruvchilar
+
+| O'zgaruvchi | Qayerda | Nima |
+|---|---|---|
+| `S3_BACKUP_ACCESS_KEY` / `S3_BACKUP_SECRET_KEY` | `.env` | Backup'ning **read-only** MinIO foydalanuvchisi (policy `govori-backup`: bucket'da faqat List + Get). `minio-init` yaratadi. Bo'sh bo'lsa backup app kalitiga qaytadi va har kecha WARN yozadi. Root va app juftligidan farq qilishi shart |
+| `SENTRY_DSN` | `.env` (faqat `api`) | Sentry-mos xato hisoboti. **Bo'sh = o'chiq**: SDK umuman ulanmaydi, tarmoqqa hech narsa chiqmaydi |
+| `BACKUP_ALERT_WEBHOOK_URL` | cron qatori | Har qanday muvaffaqiyatsizlikda (DB yoki audio) POST. Bo'sh bo'lsa logga baland WARN, backup baribir ishlaydi |
+| `BACKUP_HEARTBEAT_URL` | cron qatori | Faqat **muvaffaqiyatli** yugurishdan keyin GET — dead-man's switch |
+| `BACKUP_AUDIO` | cron (ixtiyoriy) | `0` audioni o'tkazib yuboradi (har kecha WARN). Sukut `1` |
+| `MINIO_CONTAINER`, `GOVORI_ENV_FILE`, `MC_IMAGE` | cron (ixtiyoriy) | Sukut: compose label `com.docker.compose.service=minio` bo'yicha topiladi; `.env` — o'sha konteynerning compose ishchi papkasidan |
+
+### Egasining qiladigan ishlari (bir martalik)
+
+**1. Read-only backup foydalanuvchisi.**
+```bash
+# .env ga:
+S3_BACKUP_ACCESS_KEY=govori-backup
+S3_BACKUP_SECRET_KEY=$(openssl rand -base64 30)     # qiymatni yozing, buyruqni emas
+docker compose -f docker-compose.prod.yml up -d --force-recreate minio-init
+docker compose -f docker-compose.prod.yml logs minio-init | tail -3
+#   → "backup user 'govori-backup' holds only policy govori-backup (read-only)"
+```
+Keyin cron'ni yangi skript bilan qayta o'rnating: `install -m 0755 deploy/prod-backup-cron.sh
+/usr/local/bin/govori-backup` (INSTALL.md 9.1).
+
+**2. Alert + heartbeat — yangi vendor hisobisiz ham ishlaydi.** Webhook umumiy: JSON body
+`{"text": …, "content": …}` POST qilinadi, Telegram URL'i esa avtomatik form sifatida.
+
+| Variant | `BACKUP_ALERT_WEBHOOK_URL` | `BACKUP_HEARTBEAT_URL` |
+|---|---|---|
+| **Telegram** (bor bot) | `https://api.telegram.org/bot<TOKEN>/sendMessage?chat_id=<CHAT_ID>` | — |
+| **healthchecks.io** (bepul) | `https://hc-ping.com/<uuid>/fail` | `https://hc-ping.com/<uuid>` |
+| Slack / Discord / Mattermost | incoming webhook URL | — |
+
+Tavsiya — ikkalasi birga: Telegram'ga darhol xabar **va** healthchecks.io'da check (Period
+1 kun, Grace 2 soat). Faqat heartbeat "cron umuman ishlamay qoldi / droplet o'chdi"ni
+ushlaydi — buni hech qanday skript o'zi xabar qila olmaydi. Telegram `chat_id`: botga
+`/start` yozing, keyin `https://api.telegram.org/bot<TOKEN>/getUpdates` dagi `chat.id`.
+
+URL'larni cron'ga qo'yish: `crontab -e` ning **eng tepasiga** alohida qatorlar (`NAME=value`,
+qo'shtirnoqsiz) — cron buyruq ichidagi `%` ni yangi qator deb tushunadi:
+```
+BACKUP_ALERT_WEBHOOK_URL=https://hc-ping.com/<uuid>/fail
+BACKUP_HEARTBEAT_URL=https://hc-ping.com/<uuid>
+17 3 * * * OFFSITE_DEST=<boshqa-joy> /usr/local/bin/govori-backup >> /var/log/govori-backup.log 2>&1
+```
+Tekshirish: `BACKUP_ALERT_WEBHOOK_URL=… MIN_BYTES=999999999999 /usr/local/bin/govori-backup`
+— DB fazasi ataylab yiqiladi va xabar kelishi kerak (eski backup'larga tegilmaydi).
+
+**3. Uptime tekshiruvi (tashqi).** UptimeRobot / Better Stack / healthchecks.io'ning HTTP
+monitori, har 5 daqiqa:
+
+| URL | Nimani isbotlaydi |
+|---|---|
+| `https://govorim.uz/api/ping` → `{"status":"ok"}` (keyword `ok`) | nginx + TLS + api jonli. Autentifikatsiyasiz, bazaga tegmaydi — arzon |
+| `https://govorim.uz/healthz` | faqat nginx (api'ni tekshirmaydi) |
+
+`/health/ready` (Postgres + Redis + MinIO) api'da bor, lekin nginx uni **tashqariga
+proksilamaydi** — hozircha faqat konteyner ichidan. Tashqi readiness kerak bo'lsa nginx'ga
+alohida `location = /health/ready` qo'shiladi (alohida o'zgarish).
+
+**4. Sentry (ixtiyoriy).** sentry.io yoki self-hosted GlitchTip'da loyiha oching, DSN ni
+`.env` ga `SENTRY_DSN=` qilib yozing, `docker compose -f docker-compose.prod.yml up -d api`.
+Boot logida `Error reporting (SENTRY_DSN): on` chiqadi. Faqat **ishlov berilmagan request
+exception**lari yuboriladi; request body, header'lar (Authorization, Cookie), query string
+(SignalR `access_token`), foydalanuvchi (id/IP/email) va breadcrumb'lar **yuborilmaydi**,
+exception matnidagi token/kalit/parol shakllari `[redacted]` qilinadi
+(`Govori.Api/Startup/ErrorReporting.cs`, `ErrorReportingTests`). Worker'da Sentry yo'q.
+
+### Audioni tiklash
+
+```bash
+SNAP=$(ls -td /var/backups/govori/govori_*.audio | head -1)
+bash deploy/restore.sh --audio "$SNAP"                         # faqat tekshiradi, hech narsaga tegmaydi
+bash deploy/restore.sh --audio "$SNAP" --into-stack --yes      # bucket'ga qaytaradi
+bash deploy/restore.sh --dump <f>.dump --audio "$SNAP" --into-stack --yes   # DB + audio birga
+```
+
+- `--audio` **qo'shuvchi (additive)**: bucket'da yo'q obyektlar qaytariladi; bor obyekt
+  o'chirilmaydi va **ustiga yozilmaydi** (`--remove` ham, `--overwrite` ham yo'q). Backup'dan
+  keyin yozilgan yozuvlar saqlanib qoladi. Ikkala tomonda turlicha bo'lgan obyekt uchun `mc`
+  "Overwrite not allowed" deb yozadi — bu kutilgan, jonli versiya qoladi.
+- Faqat `--audio` berilsa api/worker to'xtatilmaydi va baza tushirilmaydi. Root kalit faqat
+  `minio-init` konteyneri orqali ishlatiladi.
+- Snapshot'dagi fayllar soni `.backup-meta` dagi `files=` ga teng bo'lmasa tiklash rad etiladi.
+- Butun volume'ni **almashtirish** (IAM holati bilan) — eski yo'l: `--minio <minio.tgz>`
+  (`deploy/backup-prod.sh` arxivi). `--minio` va `--audio` birga berilmaydi.
+- Bucket boshqa joyga ko'chgan bo'lsa (masalan offsite'dan), papkani `<snapshot>/<bucket>/`
+  ko'rinishiga keltiring — `.backup-meta` bo'lmasa ichidagi yagona papka bucket deb olinadi.
+
+### Testlar
+
+```bash
+# Linux host'da to'g'ridan-to'g'ri:
+bash deploy/test-backup-cron.sh
+# Docker Desktop'da (Windows/Mac) — skript temp papkalarni qo'shni konteynerlarga mount qiladi,
+# shuning uchun daemon bilan bir xil yo'lni ko'radigan Linux konteyner ichidan:
+docker run --rm -v /var/run/docker.sock:/var/run/docker.sock \
+  -v /tmp/govori-bt:/tmp/govori-bt -e TMPDIR=/tmp/govori-bt \
+  -v "$PWD":/repo:ro -w /repo docker:27.5.1-cli \
+  sh -c 'apk add -q bash coreutils findutils grep curl diffutils && bash deploy/test-backup-cron.sh'
+```
+47 ta tekshiruv: DB himoyalari (1–4), **haqiqiy prod `minio-init`** yaratgan read-only
+foydalanuvchi yoza/o'chira olmasligi (5), to'liq backup + heartbeat (6), hard-link
+snapshot'lar keyingi mirror'dan buzilmasligi (7), noto'g'ri kalit → alert + DB baribir
+chiqadi (8), bo'shatilgan bucket rad etiladi (9), `restore.sh --audio` additive tiklash
+(10), kam faylli snapshot rad etiladi (11), audio retention (12), kutilmagan buyruq xatosi fazani to'xtatadi (13). Hammasi scratch
+project/volume/tarmoqda — dev stack'ga tegmaydi.
+
 ## Prod'da nima farq qiladi
 - Real prod Postgres / S3 (MinIO emas) ulanadi; `S3_PUBLIC_URL` real domenga.
 - Real AI kalitlari: `AZURE_SPEECH_KEY/REGION`, `GEMINI_API_KEY`, `OPENAI_API_KEY`

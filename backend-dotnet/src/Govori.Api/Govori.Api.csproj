@@ -31,6 +31,8 @@
     <PackageReference Include="OpenTelemetry.Exporter.OpenTelemetryProtocol" Version="1.17.0" />
     <!-- /metrics Prometheus scrape endpoint (docs/07 §2.8). Ships prerelease-only. -->
     <PackageReference Include="OpenTelemetry.Exporter.Prometheus.AspNetCore" Version="1.17.0-beta.1" />
+    <!-- Optional error reporting, OFF unless SENTRY_DSN is set (Startup/ErrorReporting.cs). -->
+    <PackageReference Include="Sentry.AspNetCore" Version="6.12.1" />
   </ItemGroup>
 
   <PropertyGroup>

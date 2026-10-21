@@ -296,8 +296,8 @@ Attempt(pending)
 | Log | Serilog JSON + `trace_id`, `attempt_id` har qatorda |
 | Trace | OpenTelemetry: HTTP → Hangfire → Azure/Gemini uzluksiz span |
 | Metrika | `attempt_grade_duration_seconds`, `ai_cost_usd_total{provider}`, `stage_failures_total{stage}` |
-| Alert | TTFS p95 > 40s · stage failure > 5% · kunlik AI xarajat > $X · **backup muvaffaqiyatsiz** |
-| Backup | `pg_dump -Fc` + **MinIO** + **offsite** + **haftalik restore-drill** (avtomatik) |
+| Alert | TTFS p95 > 40s · stage failure > 5% · kunlik AI xarajat > $X · **backup muvaffaqiyatsiz** (✅ webhook + heartbeat, docs/09 "Backup va monitoring") |
+| Backup | `pg_dump -Fc` + **MinIO** (✅ tungi hard-link snapshot) + **offsite** + **haftalik restore-drill** (avtomatik) |
 
 > **`Evaluation.llm_model` bugun `GEMINI_MODEL` deb hardcode qilingan** (`tasks.py:266`) — Azure yoki
 > OpenAI baholaganda ham. Mavjud qatorlar provider bo'yicha ishonchsiz. Port'da haqiqiy provider

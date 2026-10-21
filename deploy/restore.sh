@@ -36,6 +36,13 @@
 #   deploy/restore.sh --dump prod-backup/<ts>/db.dump --minio prod-backup/<ts>/minio.tgz
 #   deploy/restore.sh --dump <f> --compare-to prod-backup/<ts>/row_counts.csv
 #   deploy/restore.sh --dump <f> --minio <f> --into-stack --yes
+#   deploy/restore.sh --audio /var/backups/govori/govori_<ts>.audio            (verify)
+#   deploy/restore.sh --audio /var/backups/govori/govori_<ts>.audio --into-stack --yes
+#
+#   --minio <tgz>  a whole-VOLUME archive (backup-prod.sh): replaces everything.
+#   --audio <dir>  a nightly audio snapshot (prod-backup-cron.sh): ADDITIVE — puts
+#                  missing objects back, never deletes or overwrites one. Works
+#                  with or without --dump; on its own it stops and drops nothing.
 #
 # ENVIRONMENT
 #   COMPOSE_FILE   compose file for --into-stack   (default docker-compose.prod.yml)
@@ -53,6 +60,7 @@ shopt -s inherit_errexit 2>/dev/null || true
 
 DUMP=""
 MINIO_TGZ=""
+AUDIO_DIR=""
 COMPARE_TO=""
 MODE="verify"
 CONFIRMED=0
@@ -80,12 +88,13 @@ ok()   { printf '  \033[32mOK\033[0m    %s\n' "$*"; }
 # shellcheck disable=SC2154  # rc IS assigned, in the first statement of this same trap
 trap 'rc=$?; printf "\n\033[31mABORTED\033[0m  %s failed at line %s (exit %s). Nothing further was attempted.\n" "$(basename "$0")" "$LINENO" "$rc" >&2' ERR
 
-usage() { sed -n '2,45p' "$0" | sed 's/^# \{0,1\}//'; exit 2; }
+usage() { sed -n '2,56p' "$0" | sed 's/^# \{0,1\}//'; exit 2; }
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --dump)        DUMP="${2:?--dump needs a file}"; shift 2 ;;
     --minio)       MINIO_TGZ="${2:?--minio needs a file}"; shift 2 ;;
+    --audio)       AUDIO_DIR="${2:?--audio needs a directory}"; shift 2 ;;
     --compare-to)  COMPARE_TO="${2:?--compare-to needs a file}"; shift 2 ;;
     --verify-only) MODE="verify"; shift ;;
     --into-stack)  MODE="stack"; shift ;;
@@ -95,7 +104,94 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
-[[ -n "$DUMP" ]] || { echo "✗ --dump <file> is required" >&2; usage; }
+[[ -n "$DUMP" || -n "$AUDIO_DIR" ]] || { echo "✗ --dump <file> and/or --audio <dir> is required" >&2; usage; }
+[[ -z "$MINIO_TGZ" || -z "$AUDIO_DIR" ]] || die "--minio (replace the whole volume) and --audio (add objects back) are two different restores — pick one"
+
+dc() {
+  if [[ -n "$ENV_FILE" ]]; then
+    docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" "$@"
+  else
+    docker compose -f "$COMPOSE_FILE" "$@"
+  fi
+}
+
+# ── audio snapshots (govori_<ts>.audio/, written by deploy/prod-backup-cron.sh) ──
+# Layout: <snapshot>/<bucket>/<object key…> plus <snapshot>/.backup-meta. A snapshot
+# is a set of hard links that never changes after it is published, so its file
+# count must equal the count recorded when it was taken — anything else means it
+# was tampered with or half-deleted, and is not something to restore from.
+AUDIO_N=0
+AUDIO_BUCKET_DIR=""
+verify_audio() {
+  echo
+  log "verifying the audio snapshot ${AUDIO_DIR}"
+  local meta="${AUDIO_DIR}/.backup-meta" bucket="" want="" empty
+  if [[ -f "$meta" ]]; then
+    bucket="$(sed -n 's/^bucket=//p' "$meta" | head -1)"
+    want="$(sed -n 's/^files=//p' "$meta" | head -1)"
+  fi
+  if [[ -z "$bucket" ]]; then
+    # No meta (e.g. a hand-made copy): accept exactly one top-level directory.
+    local dirs
+    dirs="$(find "$AUDIO_DIR" -mindepth 1 -maxdepth 1 -type d ! -name '.*')"
+    [[ -n "$dirs" && "$(printf '%s\n' "$dirs" | wc -l | tr -d ' ')" == 1 ]] \
+      || die "cannot tell which bucket ${AUDIO_DIR} holds: no .backup-meta and not exactly one directory inside"
+    bucket="$(basename "$dirs")"
+  fi
+  AUDIO_BUCKET_DIR="${AUDIO_DIR}/${bucket}"
+  [[ -d "$AUDIO_BUCKET_DIR" ]] || die "${AUDIO_BUCKET_DIR} does not exist"
+
+  AUDIO_N="$(find "$AUDIO_BUCKET_DIR" -type f ! -name '*.part.minio' | wc -l | tr -d ' ')"
+  (( AUDIO_N > 0 )) || die "the audio snapshot holds no files — nothing to restore"
+  empty="$(find "$AUDIO_BUCKET_DIR" -type f -size 0 ! -name '*.part.minio' | wc -l | tr -d ' ')"
+  (( empty == 0 )) || die "${empty} files in the audio snapshot are zero bytes — it is damaged"
+  if [[ -n "$want" ]]; then
+    [[ "$AUDIO_N" == "$want" ]] || die "the audio snapshot holds ${AUDIO_N} files but recorded ${want} when it was taken"
+    ok "${AUDIO_N} audio files, matching the ${want} recorded at backup time (bucket ${bucket})"
+  else
+    ok "${AUDIO_N} audio files (bucket ${bucket}; no .backup-meta to compare against)"
+  fi
+}
+
+# ADDITIVE, never destructive: objects missing from the bucket are put back, and
+# nothing that exists there is deleted or overwritten — recordings made after the
+# backup stay, and an object present in both is left as the live one. That is why
+# there is no `--remove` and no `--overwrite` here. Runs as the MinIO root via the
+# minio-init service, the only thing in the stack that holds it.
+restore_audio() {
+  log "mirroring ${AUDIO_N} files back into the live bucket (additive: nothing is deleted or overwritten)"
+  # shellcheck disable=SC2016  # expanded by the sh inside the minio-init container
+  dc run --rm -T -v "${AUDIO_BUCKET_DIR}:/restore:ro" --entrypoint /bin/sh "$MINIO_INIT_SERVICE" -c \
+    'set -e
+     mc alias set local http://minio:9000 "$MINIO_ROOT_USER" "$MINIO_ROOT_PASSWORD" >/dev/null
+     mc mb --ignore-existing "local/$S3_BUCKET"
+     mc mirror --quiet /restore "local/$S3_BUCKET"
+     echo "bucket $S3_BUCKET now holds $(mc ls --recursive "local/$S3_BUCKET" | wc -l) objects"' \
+    || die "the audio mirror into the live bucket failed — see the mc output above"
+}
+
+if [[ -n "$AUDIO_DIR" ]]; then
+  [[ -d "$AUDIO_DIR" ]] || die "audio snapshot not found: $AUDIO_DIR"
+  AUDIO_DIR="$(cd "$AUDIO_DIR" && pwd)"
+fi
+
+# Audio only: no database involved, so nothing is stopped and nothing is dropped.
+if [[ -z "$DUMP" ]]; then
+  verify_audio
+  if [[ "$MODE" == "verify" ]]; then
+    echo
+    printf '\033[32mVERIFIED\033[0m  %s — %s audio files\n' "$(basename "$AUDIO_DIR")" "$AUDIO_N"
+    echo "Nothing was touched."
+    exit 0
+  fi
+  [[ -f "$COMPOSE_FILE" ]] || die "compose file not found: ${COMPOSE_FILE} (set COMPOSE_FILE=)"
+  (( CONFIRMED == 1 )) || die "refusing to continue without --yes"
+  restore_audio
+  echo
+  printf '\033[32mRESTORED\033[0m  audio from %s (additive).\n' "$(basename "$AUDIO_DIR")"
+  exit 0
+fi
+
 [[ -f "$DUMP" ]] || die "dump not found: $DUMP"
 DUMP="$(cd "$(dirname "$DUMP")" && pwd)/$(basename "$DUMP")"   # absolute, for docker cp
 [[ -z "$MINIO_TGZ" || -f "$MINIO_TGZ" ]] || die "minio archive not found: $MINIO_TGZ"
@@ -270,6 +366,7 @@ if [[ -n "$MINIO_TGZ" ]]; then
   docker volume rm -f "$SCRATCH_VOL" >/dev/null 2>&1 || true
   SCRATCH_VOL=""
 fi
+[[ -z "$AUDIO_DIR" ]] || verify_audio
 
 cleanup_verify
 trap - EXIT
@@ -277,7 +374,7 @@ trap - EXIT
 echo
 printf '\033[32mVERIFIED\033[0m  %s — %s tables, %s real users, schema %s%s\n' \
   "$(basename "$DUMP")" "$TABLES" "$USERS" "$SCHEMA" \
-  "$([[ -n "$MINIO_TGZ" ]] && echo ", ${AUDIO_N} stored objects")"
+  "$([[ -n "$MINIO_TGZ" ]] && echo ", ${AUDIO_N} stored objects")$([[ -n "$AUDIO_DIR" ]] && echo ", ${AUDIO_N} audio files")"
 
 if [[ "$MODE" == "verify" ]]; then
   echo "This backup is proven, not assumed. Nothing outside the scratch container was touched."
@@ -291,19 +388,12 @@ echo
 echo "─────────────────────────────────────────────────────────────────────────"
 echo " --into-stack: this DROPS the live database and rebuilds it from the dump."
 [[ -n "$MINIO_TGZ" ]] && echo " It will also REPLACE the entire MinIO volume with the archive."
+[[ -n "$AUDIO_DIR" ]] && echo " It will also ADD the snapshot's audio back into the bucket (nothing deleted)."
 echo " Compose file : ${COMPOSE_FILE}"
 echo "─────────────────────────────────────────────────────────────────────────"
 
 [[ -f "$COMPOSE_FILE" ]] || die "compose file not found: ${COMPOSE_FILE} (set COMPOSE_FILE=)"
 (( CONFIRMED == 1 )) || die "refusing to continue without --yes"
-
-dc() {
-  if [[ -n "$ENV_FILE" ]]; then
-    docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" "$@"
-  else
-    docker compose -f "$COMPOSE_FILE" "$@"
-  fi
-}
 
 PGUSER_V="$(dc exec -T "$DB_SERVICE" printenv POSTGRES_USER | tr -d '\r\n')"
 PGDB_V="$(dc exec -T "$DB_SERVICE" printenv POSTGRES_DB | tr -d '\r\n')"
@@ -339,6 +429,7 @@ if [[ -n "$MINIO_TGZ" ]]; then
   log "re-applying the app's MinIO user and policy (${MINIO_INIT_SERVICE})"
   dc run --rm "$MINIO_INIT_SERVICE" || die "${MINIO_INIT_SERVICE} failed after the restore — the api/worker could not reach storage; see its output above"
 fi
+[[ -z "$AUDIO_DIR" ]] || restore_audio
 
 psql_t() { dc exec -T "$DB_SERVICE" psql -U "$PGUSER_V" "$@"; }
 

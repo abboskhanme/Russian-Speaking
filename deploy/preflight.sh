@@ -182,6 +182,19 @@ if [ -f "$ENV_FILE" ]; then
        fi ;;
   esac
 
+  # The nightly audio backup's read-only key (minio-init creates it when set).
+  # Optional — the backup falls back to the app key — but that key can delete.
+  BK="$(envval S3_BACKUP_ACCESS_KEY)"; BS="$(envval S3_BACKUP_SECRET_KEY)"
+  if [ -z "$BK" ]; then
+    warn "S3_BACKUP_ACCESS_KEY unset — the nightly audio backup will use the app key, which can also delete. See docs/09-DOCKER.md (Backup)."
+  elif [ "$BK" = "$RU" ] || [ "$BK" = "$AK" ]; then
+    bad "S3_BACKUP_ACCESS_KEY equals the root or app user — it must be its own read-only user"
+  elif [ "${#BS}" -lt 8 ] || [ "$BS" = "$RP" ] || [ "$BS" = "$AS" ]; then
+    bad "S3_BACKUP_SECRET_KEY is missing, under 8 chars, or shared with the root/app secret (minio-init would refuse it)"
+  else
+    ok "S3_BACKUP_ACCESS_KEY is a separate read-only backup user"
+  fi
+
   CORS="$(envval BACKEND_CORS_ORIGINS)"
   case "$CORS" in
     "")  ok "BACKEND_CORS_ORIGINS is empty (correct: the SPA and API share one origin)" ;;
@@ -436,6 +449,18 @@ if [ -n "$LATEST" ]; then
     bad "latest backup is ${AGE_H}h old — the nightly cron is not running"
   fi
   warn "a dump nobody restored is a hypothesis. Prove it: bash deploy/restore.sh --dump ${LATEST}"
+  # The audio half. pg_dump does not contain a single recording.
+  LATEST_AUDIO="$(find "$BACKUP_DIR" -maxdepth 1 -name 'govori_*.audio' -type d 2>/dev/null | sort | tail -1 || true)"
+  if [ -n "$LATEST_AUDIO" ]; then
+    A_AGE_H=$(( ( $(date -u +%s) - $(stat -c%Y "$LATEST_AUDIO" 2>/dev/null || stat -f%m "$LATEST_AUDIO") ) / 3600 ))
+    if [ "$A_AGE_H" -le "$MAX_BACKUP_AGE_H" ]; then
+      ok "latest audio snapshot $(basename "$LATEST_AUDIO") is ${A_AGE_H}h old"
+    else
+      bad "latest audio snapshot is ${A_AGE_H}h old — the audio half of the nightly backup is failing (see /var/log/govori-backup.log)"
+    fi
+  else
+    warn "no audio snapshot in ${BACKUP_DIR} yet — student recordings are not backed up until the cron runs the current deploy/prod-backup-cron.sh (reinstall it: INSTALL.md 9.1)."
+  fi
 elif [ "$MODE" = install ]; then
   warn "no backup in ${BACKUP_DIR} yet — expected before the first install, but it is the FIRST thing to do once the site is up. INSTALL.md step 9 installs the nightly cron (deploy/prod-backup-cron.sh)."
 else
