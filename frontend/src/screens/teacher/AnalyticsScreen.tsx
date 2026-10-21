@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { cefrLabel } from "../../shared/i18n/cefrLabel";
 import { Badge, Button, Card, Modal, StatTile, Tabs, Text, VisuallyHidden, cx } from "../../shared/ui";
 import type { TabItem } from "../../shared/ui";
 import { AppShell, Brand, NotificationsBell, teacherNavItems } from "../../widgets";
@@ -306,7 +307,9 @@ function InsightsTab({
 
 function HeroCard({ insights }: { insights: AnalyticsInsights }) {
   const { t } = useTranslation();
-  const { classAvg, classLevel, classLevelLabel, trendDelta, trend } = insights;
+  const { classAvg, classLevel, trendDelta, trend } = insights;
+  // The server's `class_level_label` is Uzbek-only; caption the level in the UI language instead.
+  const classLevelLabel = cefrLabel(t, classLevel, insights.classLevelLabel);
   const hasTrend = trend.some((p) => p.avg != null);
 
   return (

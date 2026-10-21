@@ -225,13 +225,6 @@
     "submitError": "Javobni yuborib bo'lmadi. Qayta urinib ko'ring.",
     "unavailable": "Hozir javobni baholab bo'lmadi. Birozdan keyin qayta urinib ko'ring yoki testni keyinroqqa qoldiring.",
     "resultKicker": "Joylashtiruv tugadi",
-    "levelLabel": {
-      "A1": "yangi boshlovchi",
-      "A2": "boshlang'ich",
-      "B1": "o'rta",
-      "B2": "o'rta-yuqori",
-      "C1": "yuqori"
-    },
     "resultTitle": "Yaxshi boshladik!",
     "resultBody": "Siz allaqachon gapira olasiz. Har kuni 5 daqiqa — 8 haftada seziladi.",
     "enterApp": "Boshlash",
@@ -1656,5 +1649,14 @@
       "feedback": "Har javob uchun to'liq tahlil"
     },
     "lockedReason": "Siz ochmoqchi bo'lgan vazifa Premium bilan ochiladi."
+  },
+  "cefr": {
+    "label": {
+      "A1": "yangi boshlovchi",
+      "A2": "boshlang'ich",
+      "B1": "o'rta",
+      "B2": "o'rta-yuqori",
+      "C1": "yuqori"
+    }
   }
 }

@@ -1,11 +1,12 @@
 /**
- * cefrLabel — the placement caption follows the UI language, keyed by level.
+ * cefrLabel — every CEFR caption (placement, profile, progress, analytics) follows the UI
+ * language, keyed by level.
  *
  * The server's `label_uz` is Uzbek whatever the student reads the app in; printed raw it was the
  * one untranslated phrase on the Russian and English result screens.
  */
 import { describe, expect, it } from "vitest";
-import i18n from "../../shared/i18n";
+import i18n from ".";
 import { cefrLabel } from "./cefrLabel";
 
 const LEVELS = ["A1", "A2", "B1", "B2", "C1"] as const;
@@ -26,7 +27,7 @@ describe("cefrLabel", () => {
       const t = i18n.getFixedT(lang, "common");
       for (const level of LEVELS) {
         const label = cefrLabel(t, level, "label_uz");
-        expect(label).not.toContain("placement.levelLabel");
+        expect(label).not.toContain("cefr.label");
         expect(label).not.toBe("label_uz");
       }
     }
@@ -47,5 +48,15 @@ describe("cefrLabel", () => {
 
   it("falls back to the server label for a level it does not know", () => {
     expect(cefrLabel(i18n.getFixedT("ru", "common"), "C2", "mukammal")).toBe("mukammal");
+  });
+});
+
+describe("cefrLabel without a level", () => {
+  it("is null even if the server sent a caption — nothing graded, nothing to caption", () => {
+    const t = i18n.getFixedT("en", "common");
+    expect(cefrLabel(t, null, null)).toBeNull();
+    expect(cefrLabel(t, undefined, "o'rta")).toBeNull();
+    expect(cefrLabel(t, "B1", null)).toBe("intermediate");
+    expect(cefrLabel(t, "C2", null)).toBeNull();
   });
 });

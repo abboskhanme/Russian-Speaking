@@ -1,5 +1,6 @@
 import { useId, useMemo, useState, type FormEvent, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
+import { cefrLabel } from "../../../shared/i18n/cefrLabel";
 import { Button, Card, Modal, Text } from "../../../shared/ui";
 import { isApiError, type OtpDeliveryInfo } from "../../../shared/api";
 import { UZ_REGION_NAMES, districtsFor } from "../../../shared/uz-regions";
@@ -144,8 +145,9 @@ export function InfoTab({
   // are never a blank cell (which reads as a layout bug) or a literal "null".
   const notSet = t("profile.info.notSet");
 
+  // The server's `level_label` is Uzbek-only; caption the level in the UI language instead.
   const level = user.level
-    ? [user.level, user.levelLabel].filter(Boolean).join(" · ")
+    ? [user.level, cefrLabel(t, user.level, user.levelLabel)].filter(Boolean).join(" · ")
     : notSet;
 
   const registered = useMemo(() => {

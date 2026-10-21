@@ -1,4 +1,5 @@
 import { useTranslation } from "react-i18next";
+import { cefrLabel } from "../../../shared/i18n/cefrLabel";
 import type { TFunction } from "i18next";
 import { Card, Text } from "../../../shared/ui";
 import type { TextColor } from "../../../shared/ui";
@@ -15,7 +16,7 @@ export type SkillKey = "fluency" | "pronunciation" | "lexical" | "grammar";
 export interface SkillsTabProps {
   /** CEFR level (e.g. "A2"). Null → nothing graded yet (empty state). */
   level: string | null;
-  /** Short Uzbek level caption (e.g. "boshlang'ich"); null exactly when `level` is. */
+  /** The server's Uzbek-only caption — rendered only as the fallback for a level `cefrLabel` has no key for. */
   levelLabel: string | null;
   /** Current average OverallBand, 1dp. Drives the trend line + chart summary. */
   band: number | null;
@@ -53,6 +54,8 @@ export function SkillsTab({
   skills,
 }: SkillsTabProps) {
   const { t } = useTranslation();
+  // The server's `level_label` is Uzbek-only; caption the level in the UI language instead.
+  const caption = cefrLabel(t, level, levelLabel);
 
   return (
     <div className={styles.tab}>
@@ -72,9 +75,9 @@ export function SkillsTab({
               <Text as="p" variant="display" numeric className={styles.levelValue}>
                 {level}
               </Text>
-              {levelLabel && (
+              {caption && (
                 <Text as="span" variant="body-s" color="muted" className={styles.levelLabel}>
-                  {levelLabel}
+                  {caption}
                 </Text>
               )}
             </div>

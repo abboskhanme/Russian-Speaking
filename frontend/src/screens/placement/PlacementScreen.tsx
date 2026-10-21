@@ -24,7 +24,7 @@ import type { PlacementQuestionResponse, PlacementResultResponse } from "../../s
 import { useAuth } from "../../shared/auth";
 import { PageError } from "../../app/PageState";
 import { LevelRing } from "./LevelRing";
-import { cefrLabel } from "./cefrLabel";
+import { cefrLabel } from "../../shared/i18n/cefrLabel";
 import { hasPlaced, markPlaced } from "./placed";
 import styles from "./PlacementScreen.module.css";
 
