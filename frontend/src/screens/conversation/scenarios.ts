@@ -277,24 +277,3 @@ export function getScenario(id: string | undefined): ScenarioScript | undefined 
   if (id === FREE_SCENARIO_ID) return FREE_SCENARIO;
   return SCENARIOS.find((s) => s.id === id);
 }
-
-/** Fallback icon per tone, so an unknown id still renders a coherent tile glyph. */
-const TONE_ICON: Record<Scenario["tone"], string> = {
-  peach: "💬",
-  blue: "💬",
-  green: "💬",
-  amber: "💬",
-};
-
-/**
- * Decorative emoji for a scenario — the server's own glyph when it sent one, else
- * the bundled scenario's, else a generic speech mark. The server wins because a
- * scenario an admin added after this bundle shipped has no entry here at all, and
- * a new tile with no icon reads as a broken one.
- */
-export function scenarioIcon(id: string, tone?: Scenario["tone"], icon?: string): string {
-  if (icon) return icon;
-  const found = SCENARIOS.find((s) => s.id === id);
-  if (found) return found.icon;
-  return tone ? TONE_ICON[tone] : "💬";
-}

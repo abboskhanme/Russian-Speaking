@@ -24,11 +24,13 @@ import {
 } from "../../screens/conversation";
 import type { RoleplayState, Scenario } from "../../screens/conversation";
 import { useNavHandler } from "../nav";
+import { useFeatures } from "../../shared/auth";
 
 export default function ConversationHubPage() {
   const navigate = useNavigate();
   const onNavigate = useNavHandler();
   const { t } = useTranslation();
+  const { ai_available: aiAvailable } = useFeatures();
 
   const [scenarios, setScenarios] = useState<Scenario[] | undefined>(undefined);
   const [state, setState] = useState<RoleplayState | undefined>(undefined);
@@ -51,7 +53,9 @@ export default function ConversationHubPage() {
     return () => ctrl.abort();
   }, []);
 
-  const noteKey = roleplayNoteKey(state);
+  // A global AI pause / spent budget outranks the per-student states: it is the
+  // reason nothing works right now, whatever else is true.
+  const noteKey = aiAvailable ? roleplayNoteKey(state) : "suhbat.aiPaused";
 
   return (
     <ConversationHubScreen

@@ -98,7 +98,7 @@ export default function PremiumPage() {
         // same fact — never as "purchase failed", which implies one was attempted and lost.
         setNotice(
           isApiError(err) && err.status === 503
-            ? { tone: "info", message: t("billing.notConnected.short") }
+            ? { tone: "info", message: t("billing.unavailableShort") }
             : { tone: "danger", message: t("billing.checkoutFailed") },
         );
       } finally {
@@ -140,7 +140,7 @@ export default function PremiumPage() {
       // The reason states only the FACT (this task needs Premium). It used to add "upgrade to
       // continue" directly under "Premium cannot be bought yet" — two sentences contradicting each
       // other. How to actually get Premium is said once, by the screen itself: buy it when payments
-      // are connected, otherwise ask the teacher (the notConnected card).
+      // are connected, otherwise ask the teacher (the askTeacher card).
       notice={
         notice ?? (arrivedFromLock ? { tone: "info", message: t("billing.lockedReason") } : null)
       }

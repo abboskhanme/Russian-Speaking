@@ -18,7 +18,7 @@ import { useNavigate } from "react-router-dom";
 import { HomeScreen } from "../../screens/home";
 import type { HomeDaily, HomeGroup, HomeStats, HomeToday, HomeUser } from "../../screens/home";
 import { endpoints, isApiError } from "../../shared/api";
-import { useAuth } from "../../shared/auth";
+import { useAuth, useFeatures } from "../../shared/auth";
 import { firstName } from "../adapters";
 import { takePendingJoin } from "../pendingJoin";
 import { PageError, PageLoading } from "../PageState";
@@ -34,6 +34,7 @@ type JoinOutcome = string | null;
 export default function HomePage() {
   const { t } = useTranslation();
   const { user } = useAuth();
+  const { daily_five: dailyOn } = useFeatures();
   const navigate = useNavigate();
   const onNavigate = useNavHandler();
 
@@ -54,8 +55,8 @@ export default function HomePage() {
    * and the screen says "I don't know" instead of "you have none".
    */
   const [stats, setStats] = useState<HomeStats | null>(null);
-  /** Today's F3 session — null while `daily_five_enabled` is off (the probe 404s)
-   * and null on any other failure. Both draw Home exactly as it was before F3, so
+  /** Today's F3 session — null while `daily_five_enabled` is off (never asked
+   * for: `useFeatures` says so) and null on any other failure. Both draw Home exactly as it was before F3, so
    * a switched-off feature leaves no mark here at all. */
   const [daily, setDaily] = useState<HomeDaily | null>(null);
   const [loading, setLoading] = useState(true);
@@ -100,15 +101,14 @@ export default function HomePage() {
       })
       .then(() =>
         // allSettled, not all: one dead section must not blank the page.
-        // The daily probe rides along on the same allSettled rule and rejects with
-        // a 404 whenever `daily_five_enabled` is off — which is exactly how a
-        // flagged-off feature should read here: its entry simply never appears.
+        // The daily session is only asked for while the flag is on — reading a 404
+        // as "off" put a red console error on every Home load.
         Promise.allSettled([
           endpoints.profileStats(),
           endpoints.myGroups(),
           endpoints.assignmentsMine().catch(() => []),
           endpoints.myJoinRequests().catch(() => []),
-          endpoints.dailySession(),
+          dailyOn ? endpoints.dailySession() : Promise.reject(new Error("daily off")),
         ]),
       )
       .then(([s, g, a, r, d]) => {
@@ -186,7 +186,7 @@ export default function HomePage() {
     return () => {
       alive = false;
     };
-  }, [reloadKey]);
+  }, [reloadKey, dailyOn]);
 
   const homeUser: HomeUser = useMemo(
     () => ({ name: user ? firstName(user.full_name) : "" }),

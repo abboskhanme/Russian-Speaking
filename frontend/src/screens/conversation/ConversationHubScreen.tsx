@@ -2,7 +2,8 @@ import { useTranslation } from "react-i18next";
 import { Card, Mascot, Text, cx } from "../../shared/ui";
 import { AppShell, Brand, NotificationsBell, studentNavItems } from "../../widgets";
 import type { NavItem } from "../../widgets";
-import { SCENARIOS, scenarioIcon } from "./scenarios";
+import { SCENARIOS } from "./scenarios";
+import { ScenarioIcon } from "./ScenarioIcon";
 import type { Scenario } from "./scenarios";
 import styles from "./ConversationHubScreen.module.css";
 
@@ -95,7 +96,7 @@ export function ConversationHubScreen({
               <Card variant="panel" padding="md" interactive asChild className={styles.tile}>
                 <button type="button" onClick={() => onOpenScenario(s.id)}>
                   <span className={cx(styles.icon, TONE_CLASS[s.tone])} aria-hidden>
-                    {scenarioIcon(s.id, s.tone, s.icon)}
+                    <ScenarioIcon id={s.id} />
                   </span>
 
                   <Text as="span" variant="title-s" className={styles.title}>

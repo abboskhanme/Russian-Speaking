@@ -119,6 +119,8 @@
     "joinPendingHint": "Waiting for your teacher to approve",
     "nextAssignmentUndated": "Next assignment",
     "openAssignment": "Open the assignment {{title}}",
+    "practiceTitle": "Your daily practice",
+    "practiceTagline": "Goal: {{min}} minutes of speaking a day. Modules and tasks are waiting in Practice.",
     "todayTaglineNoDrill": "Warm-up · speaking",
     "joinLink": {
       "invalid": "The invite link's group code is wrong, or the group wasn't found.",
@@ -1250,12 +1252,12 @@
     },
     "blocked": {
       "disabled": {
-        "title": "This drill isn't switched on",
-        "hint": "An administrator can enable it under Features."
+        "title": "This drill isn't available right now",
+        "hint": "Try the other exercises in Practice in the meantime."
       },
       "unconfigured": {
-        "title": "Speech recognition isn't configured",
-        "hint": "Checking pronunciation needs an Azure Speech key. That's one for an administrator."
+        "title": "Pronunciation checking is unavailable right now",
+        "hint": "Please try again later. No attempt was used."
       },
       "budget_spent": {
         "title": "Today's attempts are used up",
@@ -1305,6 +1307,7 @@
     "coachLabel": "Corrections",
     "fixesLabel": "WHAT TO FIX",
     "turnFailed": "Couldn't send your answer. Try speaking again.",
+    "aiPaused": "AI is temporarily unavailable. Please try again a little later.",
     "stateDisabled": "AI chat isn't switched on yet. Coming soon.",
     "stateUnconfigured": "The AI isn't connected yet — you can't speak just now. No attempt was used.",
     "stateBudget": "You've used today's conversation limit. Let's continue tomorrow."
@@ -1759,6 +1762,11 @@
       "allModules": "New modules as soon as they ship",
       "feedback": "Full feedback on every answer"
     },
+    "askTeacher": {
+      "title": "Get Premium from your teacher",
+      "body": "Your teacher can turn Premium on for you. Ask them in class or in your group chat."
+    },
+    "unavailableShort": "Buying Premium isn't available right now. Nothing was charged.",
     "lockedReason": "The task you opened needs Premium."
   },
   "cefr": {

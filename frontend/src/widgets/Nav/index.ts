@@ -1,4 +1,4 @@
-export { Nav } from "./Nav";
+export { Nav, NavHiddenKeysContext } from "./Nav";
 export type { NavProps, NavItem, NavVariant } from "./Nav";
 
 export {

@@ -58,20 +58,23 @@
   width: 44px;
   height: 44px;
   border-radius: var(--r-md);
-  font-size: 22px;
-  line-height: 1;
 }
+/* Tint + the matching strong colour for the line glyph (≥3:1 on its tint). */
 .tonePeach {
   background: var(--accent-tint);
+  color: var(--accent);
 }
 .toneBlue {
   background: var(--info-tint);
+  color: var(--info);
 }
 .toneGreen {
   background: var(--success-tint);
+  color: var(--success-ink);
 }
 .toneAmber {
   background: var(--warn-tint);
+  color: var(--warn-ink);
 }
 
 .title {

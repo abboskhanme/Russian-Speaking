@@ -119,6 +119,8 @@
     "joinPendingHint": "O‘qituvchi tasdiqlashini kuting",
     "nextAssignmentUndated": "Keyingi topshiriq",
     "openAssignment": "{{title}} topshirig'ini ochish",
+    "practiceTitle": "Kundalik mashqingiz",
+    "practiceTagline": "Maqsad — kuniga {{min}} daqiqa gapirish. Modullar va vazifalar «Mashq» boʻlimida.",
     "todayTaglineNoDrill": "Tayyorlanish · gapirish",
     "joinLink": {
       "invalid": "Taklif havolasidagi guruh kodi noto'g'ri yoki guruh topilmadi.",
@@ -1250,12 +1252,12 @@
     },
     "blocked": {
       "disabled": {
-        "title": "Bu mashq hozircha yoqilmagan",
-        "hint": "Administrator uni Funksiyalar bo'limidan yoqishi mumkin."
+        "title": "Bu mashq hozircha mavjud emas",
+        "hint": "Shu paytgacha «Mashq» boʻlimidagi boshqa mashqlarni bajaring."
       },
       "unconfigured": {
-        "title": "Nutqni tanish sozlanmagan",
-        "hint": "Talaffuzni tekshirish uchun Azure Speech kaliti kerak. Bu administrator hal qiladigan masala."
+        "title": "Talaffuzni tekshirish hozircha ishlamayapti",
+        "hint": "Keyinroq qayta urinib koʻring. Urinish sarflanmadi."
       },
       "budget_spent": {
         "title": "Bugungi urinishlar tugadi",
@@ -1305,6 +1307,7 @@
     "coachLabel": "Tuzatishlar",
     "fixesLabel": "NIMANI TUZATISH KERAK",
     "turnFailed": "Javobni yuborib bo'lmadi. Yana bir bor gapirib ko'ring.",
+    "aiPaused": "AI vaqtincha ishlamayapti. Birozdan keyin qayta urinib koʻr.",
     "stateDisabled": "AI suhbat hozircha yoqilmagan. Tez orada ochamiz.",
     "stateUnconfigured": "AI hali ulanmagan — hozircha gapira olmaysan. Urinishing sarflanmadi.",
     "stateBudget": "Bugungi suhbat limiting tugadi. Ertaga yana davom etamiz."
@@ -1759,6 +1762,11 @@
       "allModules": "Yangi modullar chiqishi bilan",
       "feedback": "Har javob uchun to'liq tahlil"
     },
+    "askTeacher": {
+      "title": "Premiumni oʻqituvchingizdan oling",
+      "body": "Oʻqituvchingiz sizga Premiumni yoqib berishi mumkin. Darsda yoki guruh chatida soʻrang."
+    },
+    "unavailableShort": "Hozircha Premiumni sotib olib boʻlmaydi. Hech qanday toʻlov olinmadi.",
     "lockedReason": "Siz ochmoqchi bo'lgan vazifa Premium bilan ochiladi."
   },
   "cefr": {

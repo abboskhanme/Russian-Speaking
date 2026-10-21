@@ -31,6 +31,7 @@
 import { Suspense, lazy } from "react";
 import { Navigate, Route, Routes, useLocation } from "react-router-dom";
 import { ErrorBoundary, Spinner } from "./shared/ui";
+import { FeatureNavFilter, RequireFeature } from "./app/features";
 import { useTranslation } from "react-i18next";
 import {
   JoinLink,
@@ -117,6 +118,8 @@ export default function App() {
      * routes — so that even those end at a page with a way out instead of at a
      * blank white screen with none. */
     <ErrorBoundary>
+      {/* Hides switched-off destinations (AI Suhbat while roleplay is off) from every Nav. */}
+      <FeatureNavFilter>
       <Suspense fallback={<RouteFallback />}>
         <ErrorBoundary resetKey={pathname}>
           <Routes>
@@ -208,22 +211,33 @@ export default function App() {
                 <Route path="/task" element={<PracticePage />} />
                 {/* AI Suhbat — the centre FAB's own destination: the scenario grid,
                     then each scenario's chat. */}
-                <Route path="/chat" element={<ConversationHubPage />} />
-                <Route path="/chat/:scenarioId" element={<ConversationPage />} />
+                {/* Flag-gated surfaces (GET /api/auth/me → features). Reached while off
+                    (a bookmark, an old notification) they redirect to the page the
+                    student most plausibly wanted — never an operator's explanation. */}
+                <Route element={<RequireFeature feature="roleplay" fallback="/" />}>
+                  <Route path="/chat" element={<ConversationHubPage />} />
+                  <Route path="/chat/:scenarioId" element={<ConversationPage />} />
+                </Route>
                 {/* Xatolar ustida — the F5 replay drill (flagged; the route 404s
                     itself back to /practice when the deployment has it off). This is
                     the path `review_added` notifications have always linked to. */}
-                <Route path="/review" element={<ReviewDrillPage />} />
+                <Route element={<RequireFeature feature="review_drill" fallback="/practice" />}>
+                  <Route path="/review" element={<ReviewDrillPage />} />
+                </Route>
                 {/* Bugungi 5 daqiqa — the F3 daily session (flagged; the route
                     404s itself back to Home when the deployment has it off). It
                     keeps `activeNavKey="home"`: it is the shape of today's
                     practice, not a sixth destination, and the bar stays 5 items. */}
-                <Route path="/daily" element={<DailyPage />} />
+                <Route element={<RequireFeature feature="daily_five" fallback="/" />}>
+                  <Route path="/daily" element={<DailyPage />} />
+                </Route>
                 {/* Tovushlar mashqi — the F2 minimal-pair drill (flagged). Unlike
                     the two above it does NOT bounce when the flag is off: the
                     screen distinguishes "not enabled here" from "no speech key is
                     wired" from "today's attempts are used", and each needs saying. */}
-                <Route path="/drill" element={<DrillPage />} />
+                <Route element={<RequireFeature feature="phoneme_drill" fallback="/practice" />}>
+                  <Route path="/drill" element={<DrillPage />} />
+                </Route>
                 <Route path="/progress" element={<ProgressPage />} />
                 {/* Group view (classmates + group leaderboard), reached from Home. */}
                 <Route path="/group" element={<GroupPage />} />
@@ -241,6 +255,7 @@ export default function App() {
           </Routes>
         </ErrorBoundary>
       </Suspense>
+      </FeatureNavFilter>
     </ErrorBoundary>
   );
 }
