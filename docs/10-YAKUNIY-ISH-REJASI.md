@@ -289,7 +289,7 @@ yo'q 4 foydalanuvchiga FK xatosi bilan init'ni to'xtatadi (**ochiq — egasining
 menyu `/me` tilni almashtirganda eski tilda qolardi — tuzatildi, `<html lang>` ham endi tilga ergashadi.
 
 **O'lchov (2026-10-22, hammasi birlashgandan keyin):** backend build **0 warning / 0 error**,
-to'rtala suite **721 passed, 0 failed, 4 skipped** · frontend **512 vitest** (ketma-ket 2 marta),
+to'rtala suite **721 passed, 0 failed, 4 skipped** · frontend **513 vitest** (oxirgi tuzatish bilan),
 `tsc`, build yashil, bundle **160.4 / 180 KB gz** · kontrakt 0 xato (16 ogohlantirish) ·
 NuGet zaif paket 0, `npm audit --omit=dev` high 0 · `openapi.json` qayta yaratilganda farq yo'q.
 
