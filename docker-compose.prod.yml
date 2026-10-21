@@ -334,23 +334,61 @@ services:
         EOF
         # `policy create` overwrites an existing policy and `user add` resets an
         # existing user's secret, so a re-run converges on the current .env.
-        mc admin policy create local govori-app /tmp/govori-app-policy.json
-        mc admin user add local "$${S3_APP_ACCESS_KEY}" "$${S3_APP_SECRET_KEY}"
-        # Attach ours unless it already is, then detach anything else attached by hand:
-        # the app key must end up with exactly this policy, not "this and readwrite".
+        #
+        # ensure_user <access-key> <secret> <policy>: the user ends up holding EXACTLY
+        # that policy. Attach ours unless it already is, then detach anything else
+        # attached by hand — "this and readwrite" is not least privilege.
         # Parsed with parameter expansion: the mc image has no sed, grep, awk or jq.
-        INFO="$$(mc admin user info local "$${S3_APP_ACCESS_KEY}" --json)"
-        ATTACHED=""
-        case "$$INFO" in
-          *'"policyName":"'*) ATTACHED=$${INFO#*'"policyName":"'}; ATTACHED=$${ATTACHED%%'"'*} ;;
-        esac
-        case ",$${ATTACHED}," in
-          *,govori-app,*) ;;
-          *) mc admin policy attach local govori-app --user "$${S3_APP_ACCESS_KEY}" ;;
-        esac
-        for p in $$(printf '%s' "$${ATTACHED}" | tr ',' ' '); do
-          [ "$$p" = govori-app ] || mc admin policy detach local "$$p" --user "$${S3_APP_ACCESS_KEY}"
-        done
+        ensure_user() {
+          mc admin user add local "$$1" "$$2"
+          INFO="$$(mc admin user info local "$$1" --json)"
+          ATTACHED=""
+          case "$$INFO" in
+            *'"policyName":"'*) ATTACHED=$${INFO#*'"policyName":"'}; ATTACHED=$${ATTACHED%%'"'*} ;;
+          esac
+          case ",$${ATTACHED}," in
+            *,"$$3",*) ;;
+            *) mc admin policy attach local "$$3" --user "$$1" ;;
+          esac
+          for p in $$(printf '%s' "$${ATTACHED}" | tr ',' ' '); do
+            [ "$$p" = "$$3" ] || mc admin policy detach local "$$p" --user "$$1"
+          done
+        }
+        mc admin policy create local govori-app /tmp/govori-app-policy.json
+        ensure_user "$${S3_APP_ACCESS_KEY}" "$${S3_APP_SECRET_KEY}" govori-app
+
+        # The nightly backup's own key (deploy/prod-backup-cron.sh): READ-ONLY on this
+        # bucket — list it and get objects, nothing else. If that key ever leaks it
+        # can read recordings but cannot delete or overwrite a single one. Optional:
+        # unset, the backup falls back to the app key and says so on every run.
+        if [ -n "$${S3_BACKUP_ACCESS_KEY:-}" ]; then
+          if [ "$${S3_BACKUP_ACCESS_KEY}" = "$${MINIO_ROOT_USER}" ] || [ "$${S3_BACKUP_ACCESS_KEY}" = "$${S3_APP_ACCESS_KEY}" ]; then
+            echo "S3_BACKUP_ACCESS_KEY must differ from MINIO_ROOT_USER and S3_APP_ACCESS_KEY" >&2
+            exit 1
+          fi
+          if [ -z "$${S3_BACKUP_SECRET_KEY:-}" ] || [ "$${S3_BACKUP_SECRET_KEY}" = "$${MINIO_ROOT_PASSWORD}" ] || [ "$${S3_BACKUP_SECRET_KEY}" = "$${S3_APP_SECRET_KEY}" ]; then
+            echo "S3_BACKUP_SECRET_KEY must be set and differ from the root and app secrets" >&2
+            exit 1
+          fi
+          cat > /tmp/govori-backup-policy.json <<EOF
+        {
+          "Version": "2012-10-17",
+          "Statement": [
+            { "Effect": "Allow",
+              "Action": ["s3:ListBucket", "s3:GetBucketLocation"],
+              "Resource": ["arn:aws:s3:::$${S3_BUCKET}"] },
+            { "Effect": "Allow",
+              "Action": ["s3:GetObject"],
+              "Resource": ["arn:aws:s3:::$${S3_BUCKET}/*"] }
+          ]
+        }
+        EOF
+          mc admin policy create local govori-backup /tmp/govori-backup-policy.json
+          ensure_user "$${S3_BACKUP_ACCESS_KEY}" "$${S3_BACKUP_SECRET_KEY}" govori-backup
+          echo "backup user '$${S3_BACKUP_ACCESS_KEY}' holds only policy govori-backup (read-only)"
+        else
+          echo "S3_BACKUP_ACCESS_KEY unset: no read-only backup user (the nightly backup falls back to the app key)"
+        fi
         echo "minio bucket '$${S3_BUCKET}' ready; app user '$${S3_APP_ACCESS_KEY}' holds only policy govori-app"
     environment:
       MINIO_ROOT_USER: ${MINIO_ROOT_USER}
@@ -358,6 +396,9 @@ services:
       S3_BUCKET: ${S3_BUCKET}
       S3_APP_ACCESS_KEY: ${S3_APP_ACCESS_KEY}
       S3_APP_SECRET_KEY: ${S3_APP_SECRET_KEY}
+      # Optional read-only key for the nightly audio backup. Never given to api/worker.
+      S3_BACKUP_ACCESS_KEY: ${S3_BACKUP_ACCESS_KEY:-}
+      S3_BACKUP_SECRET_KEY: ${S3_BACKUP_SECRET_KEY:-}
     logging: *logging
     <<: *hardening
     restart: "no"
@@ -375,6 +416,10 @@ services:
     environment:
       <<: *backend-env
       GOVORI_HANGFIRE: "true"   # client only: enqueues jobs, the worker runs them
+      # Optional Sentry-compatible error reporting (Govori.Api/Startup/ErrorReporting.cs).
+      # Empty = OFF: the SDK is not even wired, nothing leaves the box. Api only — not in
+      # the shared anchor, because the worker does not read it.
+      SENTRY_DSN: "${SENTRY_DSN:-}"
     depends_on:
       db:
         condition: service_healthy

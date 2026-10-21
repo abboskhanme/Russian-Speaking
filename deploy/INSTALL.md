@@ -626,12 +626,20 @@ the promise that never gets kept unless it is kept now.
 
 ```bash
 install -m 0755 deploy/prod-backup-cron.sh /usr/local/bin/govori-backup
-(crontab -l 2>/dev/null; echo '17 3 * * * OFFSITE_DEST=<somewhere-else> /usr/local/bin/govori-backup >> /var/log/govori-backup.log 2>&1') | crontab -
+(crontab -l 2>/dev/null; echo '17 3 * * * OFFSITE_DEST=<somewhere-else> BACKUP_ALERT_WEBHOOK_URL=<alert-url> BACKUP_HEARTBEAT_URL=<heartbeat-url> /usr/local/bin/govori-backup >> /var/log/govori-backup.log 2>&1') | crontab -
 crontab -l
 ```
 
 Set `OFFSITE_DEST`. A backup that lives only on the machine it backs up shares
 every failure mode with the thing it protects.
+
+Set `BACKUP_ALERT_WEBHOOK_URL` and `BACKUP_HEARTBEAT_URL` too: the first is told
+about every failed run (DB or audio), the second is pinged after every good one, so
+a monitor notices when the cron stops running at all. If a URL contains `%` or `&`,
+put it on its own line at the top of `crontab -e` instead (`NAME=value`, no quotes)
+— cron treats `%` in the command as a newline. Which services work and how to set
+them up: docs/09-DOCKER.md, "Backup va monitoring". The audio half also wants the
+read-only `S3_BACKUP_ACCESS_KEY` / `S3_BACKUP_SECRET_KEY` in `.env` (env.prod.example).
 
 Check it the next morning:
 
@@ -643,7 +651,8 @@ tail -30 /var/log/govori-backup.log
 **Then prove one restores.** A dump nobody has restored is a hypothesis:
 
 ```bash
-bash deploy/restore.sh --dump "$(ls -t /var/backups/govori/govori_*.dump | head -1)"
+bash deploy/restore.sh --dump "$(ls -t /var/backups/govori/govori_*.dump | head -1)" \
+  --audio "$(ls -td /var/backups/govori/govori_*.audio | head -1)"
 ```
 
 It restores into a throwaway container, verifies, and deletes it. Touches nothing
