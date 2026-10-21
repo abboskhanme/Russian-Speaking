@@ -155,6 +155,11 @@ services:
       # rising band-trend, recent weekly XP, streaks) so the Progress screen is populated, not
       # empty. Idempotent; runs after the sample data. DEV ONLY — do not mount for prod.
       - ./deploy/seed/35-progress-sample-data.sql:/docker-entrypoint-initdb.d/35-progress-sample-data.sql:ro
+      # Graded attempts for the dev login student@govori.uz, who 35- doesn't cover (its id is
+      # random). The e2e golden path opens one. Numbered BEFORE 35-: on a fresh volume 35-
+      # currently aborts the init (it references 4 users the dump lacks), and nothing after
+      # it runs. DEV ONLY — do not mount for prod.
+      - ./deploy/seed/33-dev-student-history.sql:/docker-entrypoint-initdb.d/33-dev-student-history.sql:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-russpeak} -d ${POSTGRES_DB:-russpeak}"]
       interval: 5s
