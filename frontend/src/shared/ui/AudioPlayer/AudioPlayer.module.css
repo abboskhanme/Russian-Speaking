@@ -1,0 +1,229 @@
+/* AudioPlayer — tokens only; `--progress` (0–100%) is set inline by the component. */
+
+.root {
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr) auto;
+  grid-template-areas:
+    "play track rate"
+    ".    clock .";
+  align-items: center;
+  column-gap: var(--s-3);
+  row-gap: 2px;
+  width: 100%;
+  padding: var(--s-2) var(--s-3);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+}
+
+@media (min-width: 560px) {
+  .root {
+    grid-template-columns: 44px minmax(0, 1fr) auto auto;
+    grid-template-areas: "play track clock rate";
+  }
+}
+
+.play {
+  grid-area: play;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border: none;
+  border-radius: var(--r-pill);
+  background: var(--primary);
+  color: var(--primary-on);
+  cursor: pointer;
+  transition: background-color var(--m-instant);
+}
+.play:hover {
+  background: var(--primary-press);
+}
+.play:focus-visible,
+.rate:focus-visible,
+.retry:focus-visible {
+  outline: var(--focus-ring-width) solid var(--focus-ring);
+  outline-offset: var(--focus-ring-offset);
+}
+
+.track {
+  grid-area: track;
+  position: relative;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  min-width: 0;
+}
+
+.waveBase {
+  color: var(--line-2);
+}
+
+.wavePlayedClip {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  clip-path: inset(0 calc(100% - var(--progress, 0%)) 0 0);
+  pointer-events: none;
+}
+.wavePlayed {
+  color: var(--primary);
+}
+
+.bar {
+  position: relative;
+  width: 100%;
+  height: 6px;
+  border-radius: var(--r-pill);
+  background: var(--line-2);
+  overflow: hidden;
+}
+.barFill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: var(--progress, 0%);
+  background: var(--primary);
+  border-radius: inherit;
+}
+
+/* The real control: a native range stretched over the track. Its own track is
+ * invisible (the waveform/bar is the visual); the thumb is the playhead. */
+.range {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  background: transparent;
+  cursor: pointer;
+  -webkit-appearance: none;
+  appearance: none;
+  border-radius: var(--r-xs);
+}
+.range:disabled {
+  cursor: default;
+}
+.range:focus-visible {
+  outline: var(--focus-ring-width) solid var(--focus-ring);
+  outline-offset: 2px;
+}
+.range::-webkit-slider-runnable-track {
+  height: 100%;
+  background: transparent;
+}
+.range::-moz-range-track {
+  height: 100%;
+  background: transparent;
+}
+.range::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 4px;
+  height: 36px;
+  margin-top: 4px;
+  border-radius: var(--r-pill);
+  background: var(--primary-ink);
+  border: none;
+}
+.range::-moz-range-thumb {
+  width: 4px;
+  height: 36px;
+  border-radius: var(--r-pill);
+  background: var(--primary-ink);
+  border: none;
+}
+.range:disabled::-webkit-slider-thumb {
+  background: transparent;
+}
+.range:disabled::-moz-range-thumb {
+  background: transparent;
+}
+
+.clock {
+  grid-area: clock;
+  font-family: var(--font-sans);
+  font-size: var(--t-body-s-size);
+  font-weight: var(--fw-medium);
+  font-variant-numeric: tabular-nums;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.rate {
+  grid-area: rate;
+  min-width: 52px;
+  height: 44px;
+  padding: 0 var(--s-2);
+  border: 1.5px solid var(--line-2);
+  border-radius: var(--r-pill);
+  background: var(--surface);
+  color: var(--ink);
+  font-family: var(--font-sans);
+  font-size: var(--t-body-s-size);
+  font-weight: var(--fw-semibold);
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+  transition:
+    background-color var(--m-instant),
+    border-color var(--m-instant);
+}
+.rate:hover {
+  background: var(--surface-3);
+}
+
+/* ---- Unavailable ---- */
+.unavailable {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  width: 100%;
+  padding: var(--s-3);
+  background: var(--surface-2);
+  border: 1px dashed var(--line-2);
+  border-radius: var(--r-md);
+  color: var(--ink-soft);
+}
+.alert {
+  display: inline-flex;
+  flex: none;
+  color: var(--muted);
+}
+.unavailableText {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1 1 auto;
+  min-width: 0;
+  font-family: var(--font-sans);
+  font-size: var(--t-body-s-size);
+  font-weight: var(--fw-semibold);
+}
+.unavailableHint {
+  font-weight: var(--fw-medium);
+  color: var(--muted);
+}
+.retry {
+  flex: none;
+  min-height: 44px;
+  padding: 0 var(--s-4);
+  border: 1.5px solid var(--line-2);
+  border-radius: var(--r-pill);
+  background: var(--surface);
+  color: var(--ink);
+  font-family: var(--font-sans);
+  font-size: var(--t-body-s-size);
+  font-weight: var(--fw-semibold);
+  cursor: pointer;
+}
+.retry:hover {
+  background: var(--surface-3);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .play,
+  .rate {
+    transition: none;
+  }
+}

@@ -1769,5 +1769,25 @@
       "B2": "upper-intermediate",
       "C1": "advanced"
     }
+  },
+  "audioPlayer": {
+    "play": "Play",
+    "pause": "Pause",
+    "seek": "Position in recording",
+    "speed": "Playback speed: {{rate}}",
+    "unavailable": "Recording unavailable",
+    "unavailableHint": "Check your connection and try again.",
+    "retry": "Try again"
+  },
+  "dateField": {
+    "date": "Date",
+    "time": "Time",
+    "placeholder": "dd.mm.yyyy",
+    "timePlaceholder": "hh:mm",
+    "openCalendar": "Pick from calendar",
+    "invalid": "Enter the date as dd.mm.yyyy",
+    "timeInvalid": "Enter the time as hh:mm (24-hour)",
+    "tooEarly": "The date can’t be before {{date}}",
+    "tooLate": "The date can’t be after {{date}}"
   }
 }

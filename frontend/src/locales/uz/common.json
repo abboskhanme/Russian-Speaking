@@ -1769,5 +1769,25 @@
       "B2": "o'rta-yuqori",
       "C1": "yuqori"
     }
+  },
+  "audioPlayer": {
+    "play": "Tinglash",
+    "pause": "Pauza",
+    "seek": "Yozuvdagi oʻrin",
+    "speed": "Tinglash tezligi: {{rate}}",
+    "unavailable": "Yozuvni ochib boʻlmadi",
+    "unavailableHint": "Internet aloqasini tekshirib, qayta urinib koʻring.",
+    "retry": "Qayta urinish"
+  },
+  "dateField": {
+    "date": "Sana",
+    "time": "Vaqt",
+    "placeholder": "kk.oo.yyyy",
+    "timePlaceholder": "ss:dd",
+    "openCalendar": "Kalendardan tanlash",
+    "invalid": "Sanani kk.oo.yyyy koʻrinishida kiriting",
+    "timeInvalid": "Vaqtni ss:dd koʻrinishida kiriting (24 soatlik)",
+    "tooEarly": "Sana {{date}} dan oldin boʻlmasin",
+    "tooLate": "Sana {{date}} dan keyin boʻlmasin"
   }
 }
