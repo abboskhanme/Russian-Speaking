@@ -21,7 +21,7 @@
   font-weight: var(--fw-semibold);
   color: var(--ink);
   text-align: start;
-  overflow-wrap: anywhere;
+  overflow-wrap: break-word;
   background: none;
   border: 0;
   border-radius: var(--r-xs);

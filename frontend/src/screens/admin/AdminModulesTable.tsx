@@ -55,7 +55,7 @@ export function AdminModulesTable({
         key: "name",
         header: t("admin.modulesTable.module"),
         rowHeader: true,
-        width: "26%",
+        width: "28%",
         sortValue: (r) => r.name,
         cell: (r) => {
           const n = dupes.get(nameKey(r.name)) ?? 1;
@@ -89,14 +89,14 @@ export function AdminModulesTable({
       {
         key: "visibility",
         header: t("admin.modulesTable.visibility"),
-        width: "9rem",
+        nowrap: true,
         sortValue: (r) => r.visibility,
         cell: (r) => <VisibilityBadge visibility={r.visibility} />,
       },
       {
         key: "status",
         header: t("admin.modulesTable.status"),
-        width: "8rem",
+        nowrap: true,
         sortValue: (r) => (r.is_published ? 0 : 1),
         cell: (r) => (
           <Badge variant={r.is_published ? "success" : "neutral"} size="sm">
@@ -107,7 +107,7 @@ export function AdminModulesTable({
       {
         key: "level",
         header: t("admin.modulesTable.level"),
-        width: "6.5rem",
+        nowrap: true,
         sortValue: (r) => r.level,
         cell: (r) => r.level ?? <span className={styles.muted}>—</span>,
       },
@@ -115,7 +115,7 @@ export function AdminModulesTable({
         key: "tasks",
         header: t("admin.modulesTable.tasks"),
         align: "end",
-        width: "7rem",
+        nowrap: true,
         firstDir: "desc",
         sortValue: (r) => r.task_count,
         cell: (r) => r.task_count,
@@ -124,7 +124,7 @@ export function AdminModulesTable({
         key: "students",
         header: t("admin.modulesTable.students"),
         align: "end",
-        width: "8rem",
+        nowrap: true,
         firstDir: "desc",
         // A draft reaches nobody: "—", never a 0 that reads like an empty roster.
         sortValue: (r) => (r.is_published ? r.student_count : null),
@@ -133,7 +133,7 @@ export function AdminModulesTable({
       {
         key: "updated",
         header: t("admin.modulesTable.updated"),
-        width: "9rem",
+        nowrap: true,
         firstDir: "desc",
         sortValue: (r) => Date.parse(r.updated_at) || null,
         cell: (r) => formatDate(r.updated_at),

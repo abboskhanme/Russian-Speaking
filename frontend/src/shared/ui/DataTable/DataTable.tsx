@@ -30,6 +30,9 @@ export interface DataTableColumn<T> {
   width?: string;
   /** The header is read to screen readers but not drawn (an actions column). */
   hideHeader?: boolean;
+  /** Keep the cell on one line (numbers, dates, badges, actions). End-aligned
+   * columns never wrap anyway. */
+  nowrap?: boolean;
   /** The cell that names the row: rendered as `<th scope="row">`. One per table. */
   rowHeader?: boolean;
 }
@@ -137,6 +140,8 @@ export function DataTable<T>({
 
   const alignClass = (a?: "start" | "end" | "center") =>
     a === "end" ? styles.end : a === "center" ? styles.center : undefined;
+  const cellClass = (c: DataTableColumn<T>) =>
+    cx(alignClass(c.align), (c.nowrap || c.align === "end") && styles.nowrap);
 
   return (
     <div className={cx(styles.wrap, className)}>
@@ -204,11 +209,11 @@ export function DataTable<T>({
               <tr key={rowKey(row)} className={rowClassName?.(row)}>
                 {columns.map((c) =>
                   c.rowHeader ? (
-                    <th key={c.key} scope="row" className={cx(styles.rowHead, alignClass(c.align))}>
+                    <th key={c.key} scope="row" className={cx(styles.rowHead, cellClass(c))}>
                       {c.cell(row)}
                     </th>
                   ) : (
-                    <td key={c.key} className={alignClass(c.align)}>
+                    <td key={c.key} className={cellClass(c)}>
                       {c.cell(row)}
                     </td>
                   ),

@@ -1245,7 +1245,15 @@ export interface AdminStatsResponse {
 
 /** GET /api/admin/teachers (?search) → one row per teacher. `?search=` matches the
  * name, the email AND the phone digits. */
-export interface AdminTeacherResponse {
+export interface AdminTeacherResponse extends AdminAccountRow {
+  /** Groups they own. Additive — optional so an older API image still type-checks. */
+  group_count?: number;
+  /** Distinct students across their groups. Additive. */
+  student_count?: number;
+}
+
+/** The fields a teacher row and an admin row share. */
+export interface AdminAccountRow {
   id: string;
   email: string;
   full_name: string;
@@ -1256,14 +1264,10 @@ export interface AdminTeacherResponse {
   created_at: string;
   /** Tasks they authored — also what a deletion would destroy. */
   question_count: number;
-  /** Groups they own. Additive — optional so an older API image still type-checks. */
-  group_count?: number;
-  /** Distinct students across their groups. Additive. */
-  student_count?: number;
 }
 
 /** GET /api/admin/admins → one row per admin: the teacher row plus `is_self`. */
-export interface AdminUserResponse extends AdminTeacherResponse {
+export interface AdminUserResponse extends AdminAccountRow {
   /** True for the caller's own row — the one row that offers no role change (the
    * server refuses `cannot_change_own_role`). */
   is_self: boolean;

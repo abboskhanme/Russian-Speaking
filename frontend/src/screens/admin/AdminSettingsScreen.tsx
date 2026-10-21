@@ -289,6 +289,11 @@ export function AdminSettingsScreen({
     if (controlledTab === undefined) setOwnTab(next);
     onTabChange?.(next);
   };
+  // On a phone the strip scrolls sideways; a link to ?tab=links must not open with
+  // its own tab off-screen. Instant (no smooth option), so reduced motion is moot.
+  useEffect(() => {
+    document.getElementById(`settings-${tab}-tab`)?.scrollIntoView?.({ block: "nearest", inline: "nearest" });
+  }, [tab]);
 
   const [model, setModel] = useState(settings.geminiModel);
   const [claudeModel, setClaudeModel] = useState(settings.anthropicModel);
