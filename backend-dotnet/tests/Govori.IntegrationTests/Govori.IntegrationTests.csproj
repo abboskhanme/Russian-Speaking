@@ -14,7 +14,7 @@
     <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" Version="9.0.4" />
     <!-- SignalR client — connects a real HubConnection to /hubs/attempts over the TestServer to
          assert the attempt-progress event contract + ownership auth (docs/08 Faza 3.10). -->
-    <PackageReference Include="Microsoft.AspNetCore.SignalR.Client" Version="9.0.4" />
+    <PackageReference Include="Microsoft.AspNetCore.SignalR.Client" Version="9.0.21" />
     <PackageReference Include="Microsoft.EntityFrameworkCore" Version="9.0.4" />
     <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="9.0.4" />
     <!-- NO Testcontainers here, deliberately. Every project targets net9.0 while the host SDK is
