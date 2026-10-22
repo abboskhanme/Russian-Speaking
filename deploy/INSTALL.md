@@ -304,16 +304,21 @@ OOM killer, and it means step 1.3 was skipped. Add the swapfile and re-run.
 
 ### 4b. Build locally, copy the images over (faster, no SDK on the droplet)
 
-On your own machine, in the repo:
+On your own machine, in the repo, with a clean working tree:
 
 ```bash
-IMAGE_TAG=$(git rev-parse --short HEAD)
-IMAGE_TAG=$IMAGE_TAG docker compose -f docker-compose.prod.yml build
-docker save govori/api:$IMAGE_TAG govori/worker:$IMAGE_TAG govori/web:$IMAGE_TAG \
-  | gzip | ssh root@<droplet IP> 'gunzip | docker load'
+bash deploy/build-images.sh --ship root@<droplet IP>
+# with Google Sign-In: GOOGLE_CLIENT_ID=<id> bash deploy/build-images.sh --ship root@<droplet IP>
 ```
 
-**Cost:** ~2 GB over the wire, and your laptop must be building the *same commit*
+It builds for **`linux/amd64`** — the droplet's platform, not the laptop's. A
+plain `docker compose build` on an Apple-silicon Mac produces arm64 images, and
+the droplet then refuses every container with `exec format error`. It also feeds
+compose placeholder values for the prod secrets it needs only to parse the file,
+so it never reads your dev `.env`. It checks each image's architecture, here and
+again on the droplet after the load, and prints the `IMAGE_TAG=` line for `.env`.
+
+**Cost:** ~1 GB over the wire, and your laptop must be building the *same commit*
 that is checked out on the droplet — `IMAGE_TAG` is the only thing tying them
 together, and a mismatch produces a stack running code nobody can identify later.
 Verify on the droplet:

@@ -8,7 +8,8 @@
 # Build context = backend-dotnet/.
 
 # ─────────────────────────── build ───────────────────────────
-FROM mcr.microsoft.com/dotnet/sdk:9.0-bookworm-slim AS build
+# Native SDK, target-platform runtime — the output is portable IL. See the Api Dockerfile.
+FROM --platform=$BUILDPLATFORM mcr.microsoft.com/dotnet/sdk:9.0-bookworm-slim AS build
 WORKDIR /src
 
 # `--mount=type=cache` on the NuGet folder makes builds resilient to nuget.org

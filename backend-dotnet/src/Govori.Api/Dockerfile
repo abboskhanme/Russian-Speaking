@@ -6,7 +6,12 @@
 # reference — is available to restore). Only the Api project graph is published.
 
 # ─────────────────────────── build ───────────────────────────
-FROM mcr.microsoft.com/dotnet/sdk:9.0-bookworm-slim AS build
+# `--platform=$BUILDPLATFORM`: the publish below is framework-dependent IL (no RID, no
+# apphost), so the SDK stage runs natively on whatever machine builds the image and only
+# the runtime stage is the target platform. Without it, building on an arm64 laptop for
+# an amd64 droplet (deploy/build-images.sh) runs the whole SDK under emulation. On the
+# droplet the two platforms are the same and nothing changes.
+FROM --platform=$BUILDPLATFORM mcr.microsoft.com/dotnet/sdk:9.0-bookworm-slim AS build
 WORKDIR /src
 
 # Source only (bin/obj/tests excluded via .dockerignore). Restore the Api project

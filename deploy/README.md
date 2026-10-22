@@ -23,6 +23,7 @@ In order. Each is documented step by step in [`INSTALL.md`](INSTALL.md).
 | Script | What it does | Safe to run any time? |
 | --- | --- | --- |
 | `preflight.sh` | asserts preconditions; detects **install** vs **live** and says which | yes — read-only, starts nothing |
+| `build-images.sh` | **on your laptop**: builds the three images for the droplet's platform (`linux/amd64`) and, with `--ship`, loads them there (step 4b) | yes — builds locally, changes nothing on the droplet but its image list |
 | `migrate.sh --list` | what is applied, what is pending | yes — read-only |
 | `migrate.sh` | applies pending EF migrations | deliberately, once per change |
 | `bootstrap-admin.sh` | creates or promotes the **first admin** — the one account a clean database cannot make for itself | yes — idempotent, prints its plan and asks first |

@@ -12,7 +12,11 @@
 # node 22 matches .github/workflows/ci.yml. A build that passes CI on 22 and ships
 # from 20 is a difference nobody is measuring — and the two versions do not agree
 # on every transitive native dep.
-FROM node:22-alpine AS build
+#
+# `--platform=$BUILDPLATFORM`: this stage only produces static files, so it runs natively
+# on the building machine even when the image targets another platform
+# (deploy/build-images.sh, arm64 laptop → amd64 droplet).
+FROM --platform=$BUILDPLATFORM node:22-alpine AS build
 WORKDIR /app
 
 # `npm ci` ONLY — the previous `npm ci || npm install` fallback made the image
