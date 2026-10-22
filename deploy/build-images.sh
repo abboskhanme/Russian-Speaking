@@ -65,18 +65,18 @@ TAG="$(git rev-parse --short HEAD)"
 ENV_TMP="$(mktemp)"
 trap 'rm -f "$ENV_TMP"' EXIT
 # Placeholders for interpolation only. Nothing here is a secret and nothing here
-# is baked into an image.
-cat > "$ENV_TMP" <<EOF
-IMAGE_TAG=$TAG
-GOVORI_SERVER_NAME=build-only.invalid
-POSTGRES_USER=build-only
-POSTGRES_DB=build-only
-POSTGRES_PASSWORD=build-only
-MINIO_ROOT_USER=build-only
-MINIO_ROOT_PASSWORD=build-only
-SECRET_KEY=build-only
-GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID:-}
-EOF
+# is baked into an image. The list is read from the compose file rather than
+# written out, so a newly required `${X:?…}` there does not break this script.
+REQUIRED="$(grep -oE '\$\{[A-Za-z0-9_]+:\?' docker-compose.prod.yml | sed -E 's/^\$\{//; s/:\?$//' | sort -u)"
+[ -n "$REQUIRED" ] || die "found no required variables in docker-compose.prod.yml — the pattern no longer matches it"
+{
+  echo "IMAGE_TAG=$TAG"
+  echo "GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID:-}"
+  for var in $REQUIRED; do
+    case "$var" in IMAGE_TAG|GOOGLE_CLIENT_ID) continue ;; esac
+    echo "$var=build-only"
+  done
+} > "$ENV_TMP"
 
 [ -n "${GOOGLE_CLIENT_ID:-}" ] \
   || echo "note: GOOGLE_CLIENT_ID is empty — this bundle has no Google Sign-In (phone + Telegram OTP only)"
