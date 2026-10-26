@@ -511,6 +511,8 @@ services:
       # vars in a location path, and a hardcoded bucket name that drifts from the .env
       # is a 404 on every audio file while every page still renders fine.
       - ./deploy/nginx/govori-prod.conf.template:/etc/nginx/templates/default.conf.template:ro
+      # Real client address behind Cloudflare (realip, Cloudflare ranges only).
+      - ./deploy/nginx/cloudflare-realip.conf:/etc/nginx/conf.d/cloudflare-realip.conf:ro
       - ./nginx/certs:/etc/nginx/certs:ro
       - ./certbot/www:/var/www/certbot:ro
     environment:

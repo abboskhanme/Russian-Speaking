@@ -248,6 +248,9 @@ server {
         # wall: even a document that got in anyway renders in an opaque origin with no
         # scripts. It changes nothing for <audio>/<img>/<video>, which ignore a resource's
         # CSP. The server-level headers are repeated because add_header here drops them.
+        # Students' recordings: the browser may keep them, a shared cache (Cloudflare
+        # caches .webm/.mp3/.mp4 by extension) may not.
+        add_header Cache-Control             "private" always;
         add_header Content-Security-Policy   "sandbox; default-src 'none'" always;
         add_header Strict-Transport-Security "max-age=${GOVORI_HSTS_MAX_AGE}; includeSubDomains" always;
         add_header X-Content-Type-Options    "nosniff" always;
