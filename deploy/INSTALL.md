@@ -271,6 +271,32 @@ propagated does not just fail — it locks you out of retrying for an hour.
 Propagation is usually minutes and occasionally hours; it costs nothing to wait
 and an evening not to.
 
+### 3b. With Cloudflare in front (govorim.uz, from 2026-10-26)
+
+The records above are **Proxied** (orange cloud) instead, so `dig` prints
+Cloudflare's addresses, not the server's — that is expected. Check with
+`curl -sI http://govorim.uz/ | grep -i cf-ray` instead. In the Cloudflare panel:
+
+* **SSL/TLS → Overview: Full (strict).** Cloudflare then talks to this nginx over
+  HTTPS and checks the Let's Encrypt certificate step 7 installs. *Flexible* would
+  send every login over plain HTTP between Cloudflare and the server.
+* **Always Use HTTPS: off.** nginx already redirects, and leaves
+  `/.well-known/acme-challenge/` on HTTP. Cloudflare's redirect does not, and while
+  only the temporary self-signed certificate exists it breaks step 7.
+
+Nothing else changes: step 7 works through the proxy, and
+`deploy/nginx/cloudflare-realip.conf` (mounted by `docker-compose.prod.yml`) gives
+the API the visitor's address instead of Cloudflare's. **After step 8 passes**,
+close 80/443 to everyone but Cloudflare:
+
+```bash
+bash deploy/cloudflare-firewall.sh            # refuses unless the site answers through Cloudflare
+bash deploy/cloudflare-firewall.sh --status
+```
+
+It must be this script, not `ufw`: Docker forwards published ports past ufw's
+rules. `--off` undoes it.
+
 ---
 
 ## Step 4 — Build the images
