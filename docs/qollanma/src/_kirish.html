@@ -1,0 +1,78 @@
+<!-- Shared by all three manuals: signing in with the phone number + Telegram code.
+     Labels are the app's own (frontend/src/locales/uz/common.json) and the bot's
+     (Govori.Worker/TelegramBotPoller.cs). -->
+<section id="kirish">
+  <h2>Saytga kirish va Telegram kodi</h2>
+  <p class="lead">Govorim’da <b>parol yo‘q</b>. Har safar telefon raqamingiz va Telegram’ga keladigan <b>6 xonali kod</b> bilan kirasiz.</p>
+
+  <div class="tip">
+    <b>Oldindan tayyorlab qo‘ying</b>
+    Telefoningizda <b>Telegram</b> o‘rnatilgan bo‘lsin va u <b>aynan shu raqamga</b> ochilgan bo‘lsin. Kod faqat Telegram orqali keladi — SMS kelmaydi.
+  </div>
+
+  <div class="row">
+    <figure>
+      <div class="phone"><img src="img/login.jpg" alt="Kirish sahifasi: telefon raqam va Kodni olish tugmasi"></div>
+      <figcaption>Kirish sahifasi</figcaption>
+    </figure>
+    <ol class="steps">
+      <li>Telefon yoki kompyuterda brauzerni oching (Chrome, Safari) va manzil qatoriga <span class="url">govorim.uz</span> deb yozing. Ilova yuklab olish shart emas.</li>
+      <li>Yuqorida <span class="tab">Kirish</span> yorlig‘i tanlangan bo‘lsin.</li>
+      <li><span class="key">TELEFON RAQAM</span> qatoriga telefon raqamingizni yozing.</li>
+      <li><span class="btn">Kodni olish</span> tugmasini bosing.</li>
+    </ol>
+  </div>
+
+  <h3>Kodni Telegram’dan olish</h3>
+  <ol class="steps" style="counter-reset: step 4">
+    <li>«Kodni tasdiqlang» oynasi chiqadi. <span class="btn">Telegram’da oching</span> tugmasini bosing — Telegram’da Govorim boti ochiladi.</li>
+    <li>Botda pastdagi <span class="alt">START</span> tugmasini bosing (Telegram tiliga qarab «Начать» yoki «Boshlash» deb yozilgan bo‘lishi mumkin).</li>
+    <li><b>Faqat birinchi marta:</b> bot «Xavfsizlik uchun telefon raqamingizni tasdiqlang» deb yozadi. Pastdagi <span class="alt">Raqamni yuborish</span> tugmasini bosing, Telegram so‘rasa — ulashishni tasdiqlang.</li>
+    <li>Bot kodni yuboradi: «Tasdiqlash kodingiz: 482913». Kod <b>10 daqiqa</b> amal qiladi.</li>
+    <li>Saytga qayting, 6 ta raqamni kataklarga yozing va <span class="btn">Tasdiqlash</span> ni bosing. Tamom — siz tizimdasiz.</li>
+  </ol>
+
+  <div class="mocks">
+    <figure>
+      <div class="mock">
+        <div class="otp">
+          <h4>Kodni tasdiqlang</h4>
+          <div class="sub">Tasdiqlash kodi yuborildi:<br><b>+998 90 123 45 67</b></div>
+          <div class="hint">Telegramni oching va raqamingizni ulang — kod o‘sha yerga keladi.</div>
+          <div class="bigbtn"><span class="step">5</span> Telegram’da oching</div>
+          <div class="lbl">TASDIQLASH KODI</div>
+          <div class="cells"><span>4</span><span>8</span><span>2</span><span>9</span><span>1</span><span>3</span></div>
+          <div class="bigbtn"><span class="step">9</span> Tasdiqlash</div>
+          <div class="link">Kodni qayta yuborish</div>
+        </div>
+      </div>
+      <figcaption>Saytdagi kod oynasi (soddalashtirilgan)</figcaption>
+    </figure>
+    <figure>
+      <div class="mock tg">
+        <div class="bar">
+          <div class="ava"><svg viewBox="0 0 24 24" fill="none"><path d="M5 4h14a3 3 0 0 1 3 3v8a3 3 0 0 1-3 3h-7l-5 4v-4H5a3 3 0 0 1-3-3V7a3 3 0 0 1 3-3Z" fill="#fff"/><rect x="8" y="9" width="2" height="5" rx="1" fill="#eb6230"/><rect x="11" y="7.5" width="2" height="6.5" rx="1" fill="#eb6230"/><rect x="14" y="10" width="2" height="4" rx="1" fill="#eb6230"/></svg></div>
+          <div class="name">Govorim bot<small>bot</small></div>
+        </div>
+        <div class="chat">
+          <div class="out"><span class="step">6</span>/start</div>
+          <div class="in">Xavfsizlik uchun telefon raqamingizni tasdiqlang. Pastdagi tugmani bosing.</div>
+          <div class="out"><span class="step">7</span>Kontakt yuborildi</div>
+          <div class="in">Raqamingiz ulandi. Kirish kodlari shu yerga keladi.</div>
+          <div class="in"><b>Govori</b><br>Tasdiqlash kodingiz: <span class="code">482913</span><br>(10 daqiqa amal qiladi)</div>
+        </div>
+        <div class="kbd"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="7" y="2" width="10" height="20" rx="2"/><path d="M11 18h2"/></svg>Raqamni yuborish</div>
+      </div>
+      <figcaption>Telegram’dagi bot (birinchi marta)</figcaption>
+    </figure>
+  </div>
+
+  <div class="note">
+    <b>Keyingi safar osonroq</b>
+    Raqamingiz botga bir marta ulangach, kod to‘g‘ridan-to‘g‘ri botga keladi — raqamni qayta yuborish shart emas.
+  </div>
+  <div class="warn">
+    <b>Botga faqat o‘z raqamingizni yuboring</b>
+    Telegram’ingiz boshqa raqamga ochilgan bo‘lsa, bot kod yubormaydi va «Telegram raqamingiz ilovada kiritilgan raqamga mos kelmadi» deb yozadi. Bu sizni begonalardan himoya qiladi.
+  </div>
+</section>

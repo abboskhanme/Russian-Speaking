@@ -1,0 +1,247 @@
+<!doctype html>
+<html lang="uz">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Govorim — O‘qituvchi qo‘llanmasi</title>
+<!--@style-->
+</head>
+<body>
+<div class="page">
+  <header class="cover">
+    <div class="brand"><svg viewBox="0 0 24 24" fill="none"><path d="M5 4h14a3 3 0 0 1 3 3v8a3 3 0 0 1-3 3h-7l-5 4v-4H5a3 3 0 0 1-3-3V7a3 3 0 0 1 3-3Z" fill="#fff"/><rect x="8" y="9" width="2" height="5" rx="1" fill="#eb6230"/><rect x="11" y="7.5" width="2" height="6.5" rx="1" fill="#eb6230"/><rect x="14" y="10" width="2" height="4" rx="1" fill="#eb6230"/></svg>govorim</div>
+    <h1>O‘qituvchi uchun qo‘llanma</h1>
+    <span class="for">govorim.uz · guruh, o‘quvchilar, topshiriqlar</span>
+    <p>Admin sizni o‘qituvchi qilib qo‘shgan. Ro‘yxatdan o‘tish shart emas — <b>o‘z telefon raqamingiz</b> bilan kirasiz va tizim sizni o‘qituvchi paneliga olib boradi.</p>
+  </header>
+
+  <div class="wrap">
+    <nav class="toc">
+      <b>Mundarija</b>
+      <ol>
+        <li><a href="#kirish">Saytga kirish va Telegram kodi</a></li>
+        <li><a href="#menyu">O‘qituvchi paneli</a></li>
+        <li><a href="#guruh">Guruh ochish</a></li>
+        <li><a href="#taklif">O‘quvchilarni guruhga taklif qilish</a></li>
+        <li><a href="#sorov">So‘rovlarni tasdiqlash</a></li>
+        <li><a href="#topshiriq">Topshiriq berish</a></li>
+        <li><a href="#navbat">Javoblarni tekshirish (Navbat)</a></li>
+        <li><a href="#kontent">O‘z vazifangizni yaratish</a></li>
+        <li><a href="#premium">O‘quvchiga Premium berish</a></li>
+        <li><a href="#savollar">Savol-javoblar: agar … bo‘lsa?</a></li>
+      </ol>
+    </nav>
+
+<!--@include _kirish.html-->
+
+    <section id="menyu">
+      <h2>O‘qituvchi paneli</h2>
+      <p>Pastdagi (kompyuterda — yuqoridagi) menyu:</p>
+      <table>
+        <tr><th>Bo‘lim</th><th>Nima uchun</th></tr>
+        <tr><td><b>Bosh</b></td><td>Diqqat talab qiladigan ishlar: tekshirilmagan javoblar, yangi so‘rovlar, bahosi tushgan o‘quvchilar.</td></tr>
+        <tr><td><b>Klasslar</b></td><td>Guruhlaringiz, qo‘shilish so‘rovlari va o‘quvchilar ro‘yxati.</td></tr>
+        <tr><td><b>Navbat</b> (o‘rtadagi tugma)</td><td>AI baholagan, siz hali ko‘rmagan javoblar. Tugmadagi raqam — ularning soni.</td></tr>
+        <tr><td><b>Kontent</b></td><td>O‘zingiz yaratgan modul va vazifalar.</td></tr>
+        <tr><td><b>Analitika</b></td><td>Sinf natijalari, ko‘p uchraydigan xatolar, jurnal (Excel’ga yuklab olish).</td></tr>
+      </table>
+      <p>Profilingiz va <b>Chiqish</b> — yuqori o‘ng burchakdagi doiracha (avatar) orqali. Qo‘ng‘iroqcha belgisida yangi xabarlar (masalan, yangi so‘rov) ko‘rinadi.</p>
+    </section>
+
+    <section id="guruh">
+      <h2>Guruh ochish</h2>
+      <div class="row">
+        <figure>
+          <div class="phone"><img src="img/teacher-groups.jpg" alt="Klasslar: guruh kartasi va Yangi guruh tugmasi"></div>
+          <figcaption>Klasslar → Guruhlar</figcaption>
+        </figure>
+        <ol class="steps">
+          <li><span class="tab">Klasslar</span> → <span class="tab">Guruhlar</span> yorlig‘ini oching.</li>
+          <li><span class="alt">+ Yangi guruh</span> ni bosing.</li>
+          <li><span class="key">Guruh nomi</span> ni yozing (masalan: <i>Kechki-3</i>) va <span class="btn">Yaratish</span> ni bosing.</li>
+          <li>Guruh kartasi paydo bo‘ladi. Unda guruh kodi yozilgan: <b>«Kod: …»</b>.</li>
+        </ol>
+      </div>
+    </section>
+
+    <section id="taklif">
+      <h2>O‘quvchilarni guruhga taklif qilish</h2>
+      <p class="lead">O‘quvchilar <b>o‘zlari</b> ro‘yxatdan o‘tadi. Siz ularga faqat <b>havola</b> yoki <b>kod</b> berasiz. O‘quvchini telefon raqami bilan o‘zingiz qo‘sha olmaysiz.</p>
+      <div class="row">
+        <figure>
+          <div class="shot"><img src="img/teacher-invite.jpg" alt="Taklif sahifasi: qo‘shilish kodi va kutayotganlar"></div>
+          <figcaption>A‘zo qo‘shish sahifasi: kod va kutayotgan o‘quvchilar</figcaption>
+        </figure>
+        <ol class="steps">
+          <li>Guruh kartasida <span class="alt">Ochish</span> → <span class="alt">A‘zo qo‘shish</span> ni bosing.</li>
+          <li><span class="key">TAKLIF HAVOLASI</span> yonidagi <span class="btn">Nusxa</span> ni bosing va havolani o‘quvchilarga Telegram’da yuboring. Havola shunday ko‘rinadi: <span class="url">govorim.uz/j/ABC123</span></li>
+          <li>Yoki <span class="key">QO‘SHILISH KODI</span> ni ayting — o‘quvchi uni o‘z Bosh sahifasida yozadi.</li>
+          <li>Darsda: <span class="alt">Sinfga ko‘rsatish</span> — kod va <b>QR kod</b> butun ekranga chiqadi, o‘quvchilar telefon kamerasi bilan skanerlaydi.</li>
+        </ol>
+      </div>
+
+      <p><b>O‘quvchilarga yuborish uchun tayyor xabar</b> (havolani o‘zingiznikiga almashtiring):</p>
+      <div class="msg">
+        <small>Nusxa olib yuboring</small>
+        Assalomu alaykum! Govorim’dagi guruhimizga qo‘shiling:<br>
+        1) Shu havolani bosing: <b>govorim.uz/j/ABC123</b><br>
+        2) Ro‘yxatdan o‘ting — telefon raqamingiz va Telegram’ga keladigan kod bilan (parol kerak emas).<br>
+        3) Men so‘rovingizni tasdiqlashimni kuting.<br>
+        Telegram’ingiz qaysi raqamda bo‘lsa, aynan o‘sha raqamni yozing.
+      </div>
+      <div class="note">
+        <b>O‘quvchilarga ham qo‘llanma bering</b>
+        «O‘quvchi uchun qo‘llanma» faylini guruhingizga tashlab qo‘ying — unda ro‘yxatdan o‘tish va vazifa bajarish rasmlar bilan ko‘rsatilgan.
+      </div>
+    </section>
+
+    <section id="sorov">
+      <h2>So‘rovlarni tasdiqlash</h2>
+      <p>O‘quvchi havolani ochsa yoki kodni yozsa, sizga <b>so‘rov</b> keladi. Siz tasdiqlamaguningizcha u guruhga kirmaydi — begona odam havolani topib olsa ham, o‘zi qo‘shilib qola olmaydi.</p>
+      <ol class="steps">
+        <li><span class="tab">Klasslar</span> → <span class="tab">So‘rovlar</span> yorlig‘ini oching (Bosh sahifadagi «guruhga qo‘shilish so‘rovi» kartasi ham shu yerga olib boradi).</li>
+        <li>Ismga qarang: o‘zingizning o‘quvchingizmi?</li>
+        <li><span class="btn">Tasdiqlash</span> — guruhga qo‘shiladi. <span class="alt">Rad</span> — qo‘shilmaydi.</li>
+      </ol>
+      <p>Xuddi shuni guruhning «A‘zo qo‘shish» sahifasidagi <b>KUTAYOTGANLAR</b> ro‘yxatida ham qilish mumkin: <span class="btn">Guruhga qo‘shish</span> / <span class="alt">Rad etish</span>.</p>
+    </section>
+
+    <section id="topshiriq">
+      <h2>Topshiriq berish</h2>
+      <div class="row">
+        <figure>
+          <div class="phone"><img src="img/teacher-assign.jpg" alt="Topshiriq berish sahifasi"></div>
+          <figcaption>Topshiriq berish</figcaption>
+        </figure>
+        <ol class="steps">
+          <li><span class="tab">Klasslar</span> → guruh kartasidagi <span class="btn">Topshiriq berish</span>.</li>
+          <li><span class="key">VAZIFA</span> — «Vazifa yoki modul tanlang» ni bosing va tanlang.</li>
+          <li><span class="key">KIMGA</span> — guruhni belgilang.</li>
+          <li><span class="key">MUDDAT</span> — sana va vaqt. Bo‘sh qoldirsangiz — muddatsiz.</li>
+          <li><span class="key">URINISH</span> — necha marta javob bera oladi: Cheksiz, 1, 2, 3 yoki 5 ta.</li>
+          <li>Pastdagi «… o‘quvchiga topshirish» tugmasini bosing. Natija yoziladi, masalan: «4 ta o‘quvchiga berildi».</li>
+        </ol>
+      </div>
+      <div class="note">
+        <b>Ro‘yxatda vazifam yo‘q</b>
+        Faqat <b>nashr qilingan</b> modul ichidagi nashr qilingan vazifalar chiqadi. Avval vazifani modulga qo‘shib, modulni nashr qiling (8-bo‘lim).
+      </div>
+      <p>Muddatni o‘zgartirish yoki bekor qilish: guruh sahifasi → <b>Faol topshiriqlar</b> → qatordagi menyu → «Muddatni o‘zgartirish» yoki «Topshiriqni bekor qilish». Berilgan javoblar va baholar saqlanib qoladi.</p>
+    </section>
+
+    <section id="navbat">
+      <h2>Javoblarni tekshirish (Navbat)</h2>
+      <div class="row">
+        <figure>
+          <div class="phone"><img src="img/teacher-queue.jpg" alt="Navbat: javoblar ro‘yxati"></div>
+          <figcaption>Navbat: Audio · Tasdiqlash · Tahrir</figcaption>
+        </figure>
+        <div>
+          <p>O‘rtadagi katta tugma — <b>Navbat</b>. Bu yerda AI baholagan, lekin siz hali ko‘rmagan javoblar turadi. <b>Hech narsa avtomatik tasdiqlanmaydi.</b></p>
+          <ol class="steps">
+            <li><span class="alt">Audio</span> — o‘quvchi javobini tinglang.</li>
+            <li>AI bahosiga rozimisiz? <span class="btn">Tasdiqlash</span> — javob navbatdan chiqadi.</li>
+            <li>Rozi bo‘lmasangiz: <span class="alt">Tahrir</span> → transkript va AI baholarini ko‘ring → <span class="alt">Qo‘lda baholash</span> → <b>Umumiy ball</b>ni suring, <b>Izoh (o‘quvchiga)</b> yozing → <span class="btn">Saqlash</span>.</li>
+          </ol>
+          <p>Sizning bahoyingiz AI bahosi o‘rniga hamma joyda ishlatiladi. O‘quvchi «O‘qituvchi bahosi» va izohingizni ko‘radi. Filtr <b>Past ball</b> — 60 va undan past javoblarni ko‘rsatadi.</p>
+        </div>
+      </div>
+    </section>
+
+    <section id="kontent">
+      <h2>O‘z vazifangizni yaratish</h2>
+      <p>Sizning modullaringizni <b>faqat sizning guruhlaringiz</b> ko‘radi va ular o‘quvchilar uchun <b>to‘liq bepul</b>.</p>
+      <ol class="steps">
+        <li><span class="tab">Kontent</span> → <span class="tab">Modullar</span> → <span class="btn">+ Yaratish</span>. «Yangi modul» ochiladi.</li>
+        <li><b>Modul nomi</b>, <b>Tavsif</b> va <b>Daraja</b> (A1–C1) ni yozing → <span class="btn">Saqlash</span>.</li>
+        <li><span class="alt">+ Yangi vazifa</span> ni bosing. Asosiysi: <b>Sarlavha</b> va <b>Shart (ruscha)</b> — o‘quvchiga beriladigan savol. Xohlasangiz: ko‘rsatma, namuna javob, rasm yoki video.</li>
+        <li><b>Tayyorlanish vaqti</b> va <b>Javob vaqti</b> ni tanlang, saqlang.</li>
+        <li>Hammasi tayyor bo‘lsa — <span class="btn">Nashr qilish</span>. Shundan keyin o‘quvchilar ko‘radi va siz uni topshiriq qilib bera olasiz.</li>
+      </ol>
+      <p><b>Qoralama</b> — hech kim ko‘rmaydi. <b>Faol</b> — nashr qilingan. Yashirish uchun: «Qoralamaga qaytarish».</p>
+    </section>
+
+    <section id="premium">
+      <h2>O‘quvchiga Premium berish</h2>
+      <p>Umumiy (rasmiy) modullarning dastlabki 3 ta vazifasi bepul, qolganlari «Pro». Onlayn to‘lov hozircha yo‘q — Premiumni siz berasiz:</p>
+      <ol class="steps">
+        <li><span class="tab">Klasslar</span> → <span class="tab">O‘quvchilar</span> → o‘quvchini bosing.</li>
+        <li>Profilidagi <b>Premium</b> kalitini yoqing. Muddati yo‘q — o‘chirmaguningizcha amal qiladi.</li>
+      </ol>
+      <p>Faqat o‘z guruhingizdagi o‘quvchilarga bera olasiz.</p>
+    </section>
+
+    <section id="savollar" class="newpage">
+      <h2>Savol-javoblar: agar … bo‘lsa?</h2>
+
+      <div class="qgroup">Kirish</div>
+      <div class="qa">
+        <h4>Kod Telegram’ga kelmayapti</h4>
+        <ol>
+          <li>Saytdagi <span class="btn">Telegram’da oching</span> tugmasi orqali botga kiring (botni qidiruvdan topish ishlamaydi).</li>
+          <li>Botda <span class="alt">START</span> → so‘rasa <span class="alt">Raqamni yuborish</span>.</li>
+          <li>Telegram’ingiz admin sizni qo‘shgan raqamda ochilganmi? Boshqa raqamda bo‘lsa — adminga ayting.</li>
+        </ol>
+      </div>
+      <div class="qa">
+        <h4>Kirdim, lekin o‘qituvchi paneli emas, o‘quvchi sahifasi ochildi</h4>
+        <p>Siz boshqa raqam bilan kirgansiz yoki admin hali sizni o‘qituvchi qilmagan. Adminga qaysi raqam bilan kirayotganingizni ayting.</p>
+      </div>
+      <div class="qa">
+        <h4>Telefon raqamim o‘zgardi</h4>
+        <p>Avatar → Ma’lumot → <span class="alt">Telefon raqamni o‘zgartirish</span> → yangi raqam → kod yangi raqamning Telegram’iga keladi. Eski raqamga kira olmasangiz — adminga yozing.</p>
+      </div>
+
+      <div class="qgroup">O‘quvchilar va guruh</div>
+      <div class="qa">
+        <h4>O‘quvchi ro‘yxatdan o‘tdi, lekin guruhimda yo‘q</h4>
+        <ul>
+          <li><span class="tab">So‘rovlar</span> ni tekshiring — so‘rovi tasdiqlanmagan bo‘lishi mumkin.</li>
+          <li>So‘rov yo‘q bo‘lsa — o‘quvchi havolani ochmagan. Unga havola yoki kodni qayta yuboring.</li>
+        </ul>
+      </div>
+      <div class="qa">
+        <h4>O‘quvchini telefon raqami bilan o‘zim qo‘sha olamanmi?</h4>
+        <p>Yo‘q. Faqat havola yoki kod orqali — bu o‘quvchining roziligisiz hech kim guruhga qo‘shilmasligi uchun.</p>
+      </div>
+      <div class="qa">
+        <h4>Havola yoki kod begona joyga tarqalib ketdi</h4>
+        <p>Guruh sahifasi → <b>Sozlama</b> → <span class="alt">Qo‘shilish kodini yangilash</span>. Eski havola va kod darhol ishlamay qoladi, guruhdagilar joyida qoladi. O‘quvchilarga yangi havolani yuboring.</p>
+      </div>
+      <div class="qa">
+        <h4>Notanish odam so‘rov yubordi</h4>
+        <p><span class="alt">Rad</span> ni bosing. U guruhga kirmaydi.</p>
+      </div>
+      <div class="qa">
+        <h4>O‘quvchini guruhdan chiqarish kerak</h4>
+        <p>Guruh sahifasi → <b>Sozlama</b> → o‘quvchi yonidagi <span class="alt">Chiqarish</span>. Uning javoblari va baholari saqlanadi.</p>
+      </div>
+      <div class="qa">
+        <h4>Bitta o‘quvchi ikkita guruhimda bo‘la oladimi?</h4>
+        <p>Ha. O‘quvchi har bir guruhning havolasini ochadi, siz har birini alohida tasdiqlaysiz.</p>
+      </div>
+      <div class="qa">
+        <h4>Guruhni o‘chirsam nima bo‘ladi?</h4>
+        <p>A‘zoliklar va guruhning ochiq topshiriqlari o‘chadi, o‘quvchilarning javoblari va baholari qoladi. <b>Ortga qaytarib bo‘lmaydi</b> — tasdiqlash uchun guruh nomini yozasiz.</p>
+      </div>
+
+      <div class="qgroup">Topshiriq va baholash</div>
+      <div class="qa">
+        <h4>AI bahosi noto‘g‘ri</h4>
+        <p>Navbat → <span class="alt">Tahrir</span> → <span class="alt">Qo‘lda baholash</span>. Sizning bahoyingiz AI bahosi o‘rniga hamma joyda ishlatiladi.</p>
+      </div>
+      <div class="qa">
+        <h4>O‘quvchi «Pro» vazifani ocholmayapti</h4>
+        <p>Premium bering (9-bo‘lim) yoki o‘sha vazifani <b>topshiriq</b> qilib bering — sizga berilgan topshiriq Premiumsiz ham ochiladi. O‘zingiz yaratgan modullar har doim bepul.</p>
+      </div>
+      <div class="qa">
+        <h4>Audio ochilmayapti</h4>
+        <p>Javob audiolari 3 oydan keyin o‘chiriladi. Transkript va baholar qoladi.</p>
+      </div>
+    </section>
+
+    <footer>Texnik savol bo‘lsa — admin bilan bog‘laning. · govorim.uz</footer>
+  </div>
+</div>
+</body>
+</html>

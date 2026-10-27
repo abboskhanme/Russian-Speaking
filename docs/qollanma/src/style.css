@@ -1,0 +1,262 @@
+/* Govorim — user manuals (admin / o'qituvchi / o'quvchi). One stylesheet for the
+   screen version and the A4 PDF. build.sh inlines it, the Onest font and every
+   image, so each finished .html is a single file that can be sent over Telegram. */
+
+@font-face {
+  font-family: "Onest";
+  src: url("fonts/Onest-Variable.woff2") format("woff2");
+  font-weight: 100 900;
+  font-display: swap;
+}
+
+:root {
+  --brand: #eb6230;
+  --brand-ink: #b23f16;
+  --brand-soft: #fde9df;
+  --ink: #2a1e18;
+  --muted: #6e625b;
+  --line: #eadfd6;
+  --paper: #ffffff;
+  --cream: #fbf5f0;
+  --ok: #217a4b;
+  --ok-soft: #e7f4ec;
+  --warn: #a33a12;
+  --warn-soft: #fff0e6;
+  --tg: #3390ec;
+  --tg-bg: #e4ebf0;
+  --tg-out: #e9fbd9;
+}
+
+* { box-sizing: border-box; }
+
+html { -webkit-text-size-adjust: 100%; }
+
+body {
+  margin: 0;
+  background: var(--cream);
+  color: var(--ink);
+  font-family: "Onest", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  font-size: 18px;
+  line-height: 1.6;
+  counter-reset: sec;
+}
+
+.page {
+  max-width: 860px;
+  margin: 0 auto;
+  background: var(--paper);
+  padding: 0 0 48px;
+}
+
+.wrap { padding: 0 40px; }
+
+/* ── Cover ─────────────────────────────────────────────────────────────── */
+.cover {
+  background: var(--brand);
+  color: #fff;
+  padding: 36px 40px 40px;
+  border-radius: 0 0 28px 28px;
+  margin-bottom: 32px;
+}
+.brand { display: flex; align-items: center; gap: 12px; font-weight: 800; font-size: 26px; letter-spacing: -0.02em; }
+.brand svg { width: 42px; height: 42px; flex: none; }
+.cover h1 { font-size: 40px; line-height: 1.15; margin: 26px 0 10px; letter-spacing: -0.02em; }
+.cover .for { display: inline-block; background: rgba(255,255,255,.18); border-radius: 999px; padding: 4px 14px; font-weight: 600; font-size: 15px; }
+.cover p { margin: 14px 0 0; font-size: 19px; max-width: 620px; opacity: .95; }
+
+/* ── Table of contents ─────────────────────────────────────────────────── */
+.toc { background: var(--cream); border: 1px solid var(--line); border-radius: 18px; padding: 18px 24px; margin: 0 0 28px; }
+.toc b { display: block; font-size: 15px; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); margin-bottom: 6px; }
+.toc ol { margin: 0; padding-left: 26px; columns: 2; column-gap: 32px; }
+.toc li { break-inside: avoid; padding: 2px 0; }
+.toc a { color: var(--ink); text-decoration: none; border-bottom: 1px solid var(--line); }
+
+/* ── Headings ──────────────────────────────────────────────────────────── */
+section { margin-top: 40px; }
+h2 {
+  counter-increment: sec;
+  display: flex; align-items: center; gap: 14px;
+  font-size: 30px; line-height: 1.2; letter-spacing: -0.015em;
+  margin: 0 0 14px;
+  break-after: avoid;
+}
+h2::before {
+  content: counter(sec);
+  flex: none;
+  display: inline-grid; place-items: center;
+  width: 44px; height: 44px; border-radius: 14px;
+  background: var(--brand); color: #fff; font-size: 22px; font-weight: 800;
+}
+h3 { font-size: 22px; margin: 28px 0 10px; break-after: avoid; }
+.lead { font-size: 20px; margin: 0 0 16px; }
+p { margin: 0 0 12px; }
+
+/* ── Inline UI references ──────────────────────────────────────────────── */
+.btn, .alt, .tab, .url, .key {
+  display: inline-block; white-space: nowrap; line-height: 1.35;
+  font-weight: 700; font-size: .9em; border-radius: 999px; padding: 1px 11px;
+}
+.btn { background: var(--brand); color: #fff; }
+.alt { background: #fff; color: var(--ink); border: 1.5px solid #cdbfb5; }
+.tab { background: var(--brand-soft); color: var(--brand-ink); }
+.url { background: #eef3fb; color: #1f5fae; font-weight: 600; }
+.key { background: #f1ece8; color: var(--ink); font-weight: 700; letter-spacing: .04em; font-size: .82em; border-radius: 6px; }
+.mono { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: .92em; }
+
+/* ── Steps ─────────────────────────────────────────────────────────────── */
+ol.steps { list-style: none; padding: 0; margin: 0; counter-reset: step; }
+ol.steps > li {
+  counter-increment: step;
+  position: relative;
+  padding: 10px 0 10px 54px;
+  min-height: 52px;
+  border-bottom: 1px dashed var(--line);
+  break-inside: avoid;
+}
+ol.steps > li:last-child { border-bottom: 0; }
+ol.steps > li::before {
+  content: counter(step);
+  position: absolute; left: 0; top: 8px;
+  width: 38px; height: 38px; border-radius: 50%;
+  display: grid; place-items: center;
+  background: var(--brand-soft); color: var(--brand-ink);
+  font-weight: 800; font-size: 19px;
+}
+ol.steps.s5 { counter-reset: step 4; }
+
+ul.plain { margin: 0 0 12px; padding-left: 22px; }
+ul.plain li { margin: 4px 0; }
+
+/* ── Steps beside a phone screenshot ───────────────────────────────────── */
+/* The figure comes FIRST in the markup so print can float it (see @media print);
+   on screen the grid puts it in the right-hand column. */
+.row { display: grid; grid-template-columns: 1fr 250px; gap: 28px; align-items: start; }
+.row > figure { grid-column: 2; grid-row: 1; }
+.row > :not(figure) { grid-column: 1; grid-row: 1; }
+
+figure { margin: 0; break-inside: avoid; }
+.phone {
+  border: 7px solid var(--ink);
+  border-radius: 26px;
+  overflow: hidden;
+  background: #fff;
+  box-shadow: 0 10px 30px rgba(42,30,24,.12);
+}
+.phone img { display: block; width: 100%; height: auto; }
+.shot { border: 1px solid var(--line); border-radius: 16px; overflow: hidden; }
+.shot img { display: block; width: 100%; height: auto; }
+figcaption { font-size: 14px; color: var(--muted); text-align: center; margin-top: 8px; line-height: 1.35; }
+
+/* ── Callouts ──────────────────────────────────────────────────────────── */
+.note, .warn, .tip {
+  border-radius: 16px; padding: 14px 18px; margin: 18px 0;
+  break-inside: avoid;
+}
+.note { background: var(--cream); border-left: 6px solid var(--brand); }
+.warn { background: var(--warn-soft); border-left: 6px solid var(--warn); }
+.tip  { background: var(--ok-soft); border-left: 6px solid var(--ok); }
+.note > b:first-child, .warn > b:first-child, .tip > b:first-child { display: block; margin-bottom: 2px; }
+
+/* A message the reader can copy and send. */
+.msg {
+  background: var(--tg-out); border: 1px solid #cfe9b8; border-radius: 16px 16px 4px 16px;
+  padding: 14px 18px; margin: 12px 0 18px; font-size: 17px; break-inside: avoid;
+}
+.msg small { display: block; color: var(--muted); font-size: 13px; margin-bottom: 4px; text-transform: uppercase; letter-spacing: .05em; }
+
+/* ── Tables ────────────────────────────────────────────────────────────── */
+table { width: 100%; border-collapse: collapse; margin: 10px 0 18px; font-size: 16.5px; }
+tr { break-inside: avoid; }
+th, td { text-align: left; vertical-align: top; padding: 9px 12px; border-bottom: 1px solid var(--line); }
+th { background: var(--cream); font-size: 14px; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); }
+
+/* ── Who-adds-whom flow ────────────────────────────────────────────────── */
+.flow { display: grid; grid-template-columns: 1fr auto 1fr auto 1fr; gap: 10px; align-items: stretch; margin: 16px 0 22px; break-inside: avoid; }
+.flow .box { background: var(--cream); border: 1px solid var(--line); border-radius: 16px; padding: 14px; font-size: 15.5px; line-height: 1.45; }
+.flow .box .t { display: block; font-weight: 800; font-size: 17px; margin-bottom: 4px; color: var(--brand-ink); }
+.flow .arr { align-self: center; color: var(--brand); font-size: 26px; font-weight: 800; }
+
+/* ── Mock screens (code entry + Telegram) ──────────────────────────────── */
+.mocks { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin: 18px 0 8px; break-inside: avoid; }
+.mock { border: 7px solid var(--ink); border-radius: 26px; overflow: hidden; background: var(--cream); font-size: 14px; line-height: 1.4; }
+.otp { padding: 20px 18px 22px; }
+.otp h4 { margin: 0 0 4px; font-size: 20px; }
+.otp .sub { color: var(--muted); margin-bottom: 12px; }
+.otp .bigbtn { background: var(--brand); color: #fff; font-weight: 700; text-align: center; border-radius: 14px; padding: 11px; margin: 10px 0 14px; }
+.otp .bigbtn.dim { opacity: 1; }
+.otp .lbl { font-size: 11.5px; font-weight: 700; letter-spacing: .08em; color: var(--muted); margin-bottom: 6px; }
+.otp .cells { display: grid; grid-template-columns: repeat(6, 1fr); gap: 6px; }
+.otp .cells span { background: #fff; border: 1.5px solid #d9cbc0; border-radius: 10px; text-align: center; font-weight: 800; font-size: 18px; padding: 7px 0; }
+.otp .link { text-align: center; color: var(--brand-ink); font-weight: 600; margin-top: 4px; }
+.otp .hint { color: var(--muted); font-size: 13px; }
+
+.tg { background: var(--tg-bg); display: flex; flex-direction: column; min-height: 100%; }
+.tg .bar { background: #fff; padding: 10px 14px; display: flex; gap: 10px; align-items: center; border-bottom: 1px solid #d5dde3; }
+.tg .ava { width: 34px; height: 34px; border-radius: 50%; background: var(--brand); display: grid; place-items: center; flex: none; }
+.tg .ava svg { width: 20px; height: 20px; }
+.tg .name { font-weight: 700; font-size: 14.5px; }
+.tg .name small { display: block; font-weight: 400; color: var(--muted); font-size: 12px; }
+.tg .chat { padding: 12px 10px; display: flex; flex-direction: column; gap: 8px; flex: 1; }
+.tg .in, .tg .out { max-width: 86%; padding: 8px 11px; border-radius: 14px; background: #fff; box-shadow: 0 1px 1px rgba(0,0,0,.06); }
+.tg .in { align-self: flex-start; border-bottom-left-radius: 4px; }
+.tg .out { align-self: flex-end; background: var(--tg-out); border-bottom-right-radius: 4px; }
+.tg .code { font-weight: 800; letter-spacing: .08em; }
+.tg .kbd { margin: 0 10px 10px; background: #fff; color: var(--tg); font-weight: 700; text-align: center; border-radius: 10px; padding: 9px; display: flex; gap: 6px; justify-content: center; align-items: center; box-shadow: 0 1px 2px rgba(0,0,0,.08); }
+.tg .kbd svg { width: 16px; height: 16px; }
+.tg .step { font-size: 11px; font-weight: 700; color: #fff; background: var(--brand); border-radius: 999px; padding: 0 7px; margin-right: 4px; }
+
+/* ── Q & A ─────────────────────────────────────────────────────────────── */
+.qa { border: 1px solid var(--line); border-radius: 16px; padding: 14px 18px 6px; margin: 0 0 12px; break-inside: avoid; }
+.qa h4 { margin: 0 0 6px; font-size: 18.5px; display: flex; gap: 10px; }
+.qa h4::before { content: "?"; flex: none; width: 26px; height: 26px; border-radius: 50%; background: var(--brand); color: #fff; display: grid; place-items: center; font-size: 15px; font-weight: 800; margin-top: 1px; }
+.qa p, .qa ul, .qa ol { margin-left: 36px; }
+.qa ul, .qa ol { padding-left: 20px; margin-top: 0; margin-bottom: 10px; }
+.qa li { margin: 3px 0; }
+.qgroup { font-size: 15px; font-weight: 800; letter-spacing: .07em; text-transform: uppercase; color: var(--brand-ink); margin: 26px 0 10px; }
+
+footer { margin-top: 40px; padding-top: 18px; border-top: 1px solid var(--line); color: var(--muted); font-size: 15px; }
+
+/* ── Phone screens ─────────────────────────────────────────────────────── */
+@media (max-width: 720px) {
+  body { font-size: 17px; background: var(--paper); }
+  .wrap { padding: 0 16px; }
+  .cover { padding: 26px 16px 30px; border-radius: 0 0 22px 22px; }
+  .cover h1 { font-size: 30px; }
+  .toc ol { columns: 1; }
+  h2 { font-size: 24px; }
+  h2::before { width: 38px; height: 38px; font-size: 19px; }
+  .row { grid-template-columns: 1fr; }
+  .row > figure { grid-column: 1; grid-row: 2; width: 100%; max-width: 280px; margin: 8px auto 0; }
+  .row > :not(figure) { grid-column: 1; grid-row: 1; }
+  .mocks { grid-template-columns: 1fr; max-width: 320px; margin-left: auto; margin-right: auto; }
+  .flow { grid-template-columns: 1fr; }
+  .flow .arr { transform: rotate(90deg); justify-self: center; }
+  .qa p, .qa ul, .qa ol { margin-left: 0; }
+  table { font-size: 15.5px; }
+  th { letter-spacing: 0; font-size: 12px; }
+  th, td { padding: 8px; overflow-wrap: anywhere; }
+}
+
+/* ── A4 print / PDF ────────────────────────────────────────────────────── */
+@page { size: A4; margin: 14mm 13mm 16mm; }
+@media print {
+  body { background: #fff; font-size: 12pt; }
+  .page { max-width: none; padding: 0; }
+  .wrap { padding: 0; }
+  .cover { border-radius: 18px; margin-bottom: 20px; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  /* A grid row cannot split around a screenshot, so a tall one pushed the whole
+     row to the next page and left half a page blank. Floated, the steps keep
+     flowing on the current page and wrap around it. */
+  .row { display: block; }
+  .row::after { content: ""; display: block; clear: both; }
+  .row > figure { float: right; width: 50mm; margin: 2mm 0 5mm 8mm; }
+  .row ol.steps > li { border-bottom: 0; padding-top: 6px; padding-bottom: 6px; }
+  .row .phone img, .row .shot img { max-height: 88mm; object-fit: cover; object-position: top; }
+  .phone, .mock { border-width: 5px; border-radius: 20px; box-shadow: none; }
+  h2 { font-size: 22pt; }
+  section { margin-top: 24px; }
+  section.newpage { break-before: page; margin-top: 0; }
+  .toc a { border: 0; }
+  a { color: inherit; text-decoration: none; }
+}

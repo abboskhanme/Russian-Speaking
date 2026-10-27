@@ -1,0 +1,233 @@
+<!doctype html>
+<html lang="uz">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Govorim — Admin qo‘llanmasi</title>
+<!--@style-->
+</head>
+<body>
+<div class="page">
+  <header class="cover">
+    <div class="brand"><svg viewBox="0 0 24 24" fill="none"><path d="M5 4h14a3 3 0 0 1 3 3v8a3 3 0 0 1-3 3h-7l-5 4v-4H5a3 3 0 0 1-3-3V7a3 3 0 0 1 3-3Z" fill="#fff"/><rect x="8" y="9" width="2" height="5" rx="1" fill="#eb6230"/><rect x="11" y="7.5" width="2" height="6.5" rx="1" fill="#eb6230"/><rect x="14" y="10" width="2" height="4" rx="1" fill="#eb6230"/></svg>govorim</div>
+    <h1>Admin uchun qo‘llanma</h1>
+    <span class="for">govorim.uz · akkauntlar, kontent, sozlamalar</span>
+    <p>Admin — platforma egasi. Siz o‘qituvchilarni qo‘shasiz, umumiy (rasmiy) darslarni yaratasiz va hisoblarni boshqarasiz. Admin huquqi eng yuqori huquq — uni faqat ishonchli odamga bering.</p>
+  </header>
+
+  <div class="wrap">
+    <nav class="toc">
+      <b>Mundarija</b>
+      <ol>
+        <li><a href="#kirish">Saytga kirish va Telegram kodi</a></li>
+        <li><a href="#tizim">Kim kimni qo‘shadi</a></li>
+        <li><a href="#birinchi">Birinchi kun ro‘yxati</a></li>
+        <li><a href="#oqituvchi">O‘qituvchi qo‘shish</a></li>
+        <li><a href="#admin">Yangi admin qo‘shish</a></li>
+        <li><a href="#hisoblar">Hisoblarni boshqarish</a></li>
+        <li><a href="#kontent">Umumiy (rasmiy) dars yaratish</a></li>
+        <li><a href="#sozlamalar">Sozlamalar</a></li>
+        <li><a href="#savollar">Savol-javoblar: agar … bo‘lsa?</a></li>
+      </ol>
+    </nav>
+
+<!--@include _kirish.html-->
+
+    <section id="tizim">
+      <h2>Kim kimni qo‘shadi</h2>
+      <p>Akkauntlar uch xil yo‘l bilan paydo bo‘ladi. Hech kimga parol berilmaydi — hamma telefon raqami va Telegram kodi bilan kiradi.</p>
+      <div class="flow">
+        <div class="box"><span class="t">Admin</span>O‘qituvchini qo‘shadi: ism + telefon raqami. Yangi adminni ham admin tayinlaydi.</div>
+        <div class="arr">→</div>
+        <div class="box"><span class="t">O‘qituvchi</span>Guruh ochadi va o‘quvchilarga <b>havola</b> yoki <b>kod</b> yuboradi. So‘rovlarni tasdiqlaydi.</div>
+        <div class="arr">→</div>
+        <div class="box"><span class="t">O‘quvchi</span><b>O‘zi</b> ro‘yxatdan o‘tadi va havola orqali guruhga so‘rov yuboradi.</div>
+      </div>
+      <p>Admin menyusi: <b>Boshqaruv · O‘qituvchilar · O‘quvchilar · Kontent · Tariflar · Sozlamalar</b>. Telefonda ikkitasi qisqa yoziladi: «Bosh» va «Ustozlar». Profilingiz va <b>Chiqish</b> — yuqoridagi doiracha (avatar) orqali.</p>
+    </section>
+
+    <section id="birinchi">
+      <h2>Birinchi kun ro‘yxati</h2>
+      <p>Yangi platformada hech narsa yo‘q: dars ham, o‘qituvchi ham. Shu tartibda bajaring:</p>
+      <ol class="steps">
+        <li><b>Kiring</b> (1-bo‘lim).</li>
+        <li><b>Umumiy dars (modul) yarating</b> va nashr qiling (7-bo‘lim). Usiz o‘quvchi bo‘sh sahifa ko‘radi.</li>
+        <li><b>O‘qituvchilarni qo‘shing</b> (4-bo‘lim) va ularga «O‘qituvchi uchun qo‘llanma» faylini yuboring.</li>
+        <li><b>Aloqa havolalarini</b> to‘ldiring: Telegram yordam va kanal (8-bo‘lim). O‘quvchilar «Yordam markazi»da shularni ko‘radi.</li>
+        <li><b>Sinab ko‘ring:</b> boshqa telefon bilan o‘quvchi sifatida ro‘yxatdan o‘ting, bitta javob yuboring va baho kelishini kuting.</li>
+      </ol>
+    </section>
+
+    <section id="oqituvchi">
+      <h2>O‘qituvchi qo‘shish</h2>
+      <div class="row">
+        <figure>
+          <div class="phone"><img src="img/admin-teachers.jpg" alt="O‘qituvchilar bo‘limi va O‘qituvchi qo‘shish tugmasi"></div>
+          <figcaption>O‘qituvchilar → O‘qituvchi qo‘shish</figcaption>
+        </figure>
+        <ol class="steps">
+          <li><span class="tab">O‘qituvchilar</span> (telefonda — <span class="tab">Ustozlar</span>) bo‘limini oching.</li>
+          <li><span class="btn">O‘qituvchi qo‘shish</span> tugmasini bosing.</li>
+          <li><b>Ism va familiya</b> hamda <b>Telefon raqami</b> ni yozing. Raqam o‘qituvchining <b>Telegram ochilgan</b> raqami bo‘lsin.</li>
+          <li><span class="btn">Qo‘shish</span> ni bosing. O‘qituvchi ro‘yxatda paydo bo‘ladi.</li>
+          <li>O‘qituvchiga xabar yuboring (pastdagi tayyor matn) va «O‘qituvchi uchun qo‘llanma» faylini ilova qiling.</li>
+        </ol>
+      </div>
+      <div class="msg">
+        <small>O‘qituvchiga yuborish uchun tayyor xabar</small>
+        Assalomu alaykum! Siz Govorim’da o‘qituvchi sifatida qo‘shildingiz.<br>
+        Kirish: <b>govorim.uz</b> → Kirish → telefon raqamingiz → «Kodni olish» → «Telegram’da oching» → botga kelgan kodni kiriting. Parol kerak emas.<br>
+        Batafsil — ilovadagi qo‘llanmada.
+      </div>
+      <div class="note">
+        <b>Raqam allaqachon o‘quvchiga tegishli bo‘lsa</b>
+        Oyna so‘raydi: «Bu raqam o‘quvchi … ga tegishli — o‘qituvchiga aylantirilsinmi?». Tasdiqlasangiz, u o‘qituvchi bo‘ladi, javoblari va tarixi o‘chmaydi. Raqam allaqachon o‘qituvchi yoki adminniki bo‘lsa — qo‘shib bo‘lmaydi.
+      </div>
+    </section>
+
+    <section id="admin">
+      <h2>Yangi admin qo‘shish</h2>
+      <div class="row">
+        <figure>
+          <div class="phone"><img src="img/admin-admins.jpg" alt="Adminlar yorlig‘i"></div>
+          <figcaption>O‘qituvchilar → Adminlar</figcaption>
+        </figure>
+        <ol class="steps">
+          <li>Odamni avval <b>o‘qituvchi</b> qilib qo‘shing (4-bo‘lim). Agar u allaqachon o‘qituvchi bo‘lsa — bu qadam kerak emas.</li>
+          <li><span class="tab">O‘qituvchilar</span> ro‘yxatida uni toping va <span class="alt">Boshqarish</span> ni bosing.</li>
+          <li><span class="btn">Admin qilish</span> ni bosing va oynada oqibatini o‘qib, tasdiqlang.</li>
+          <li>U <span class="tab">Adminlar</span> yorlig‘ida paydo bo‘ladi. Keyingi kirishida admin paneliga tushadi.</li>
+        </ol>
+      </div>
+      <div class="warn">
+        <b>Admin hamma narsani ko‘radi va o‘zgartira oladi</b>
+        Barcha foydalanuvchilar, kontent, tariflar va sozlamalar. Adminni olib tashlash: <span class="tab">Adminlar</span> → <span class="alt">O‘qituvchiga tushirish</span>. Platformada kamida bitta admin qolishi shart, o‘z rolingizni esa faqat boshqa admin o‘zgartira oladi.
+      </div>
+    </section>
+
+    <section id="hisoblar">
+      <h2>Hisoblarni boshqarish</h2>
+      <p><b>O‘quvchilarni admin qo‘shmaydi</b> — ular o‘zlari ro‘yxatdan o‘tadi. Siz <span class="tab">O‘quvchilar</span> va <span class="tab">O‘qituvchilar</span> bo‘limlarida ism yoki telefon bo‘yicha qidirib, <span class="alt">Boshqarish</span> ni bosasiz:</p>
+      <table>
+        <tr><th>Tugma</th><th>Nima qiladi</th></tr>
+        <tr><td><b>Ismni saqlash</b></td><td>Ismni tuzatish.</td></tr>
+        <tr><td><b>Faol hisob</b> (kalit)</td><td>O‘chirsangiz, odam tizimga kira olmaydi. <b>Qaytarsa bo‘ladi</b> — qayta yoqsangiz, hammasi joyida.</td></tr>
+        <tr><td><b>Premium</b> (faqat o‘quvchida)</td><td>Barcha pullik vazifalarni ochadi yoki yopadi. To‘lov bilan bog‘liq emas.</td></tr>
+        <tr><td><b>O‘qituvchiga aylantirish</b></td><td>O‘quvchini o‘qituvchi qiladi.</td></tr>
+        <tr><td><b>O‘quvchiga aylantirish</b></td><td>O‘qituvchini o‘quvchi qiladi (guruhlari bo‘lsa — bo‘lmaydi).</td></tr>
+        <tr><td><b>Hisobni o‘chirish</b></td><td>Butunlay o‘chiradi. <b>Ortga qaytarib bo‘lmaydi.</b></td></tr>
+      </table>
+      <h3>Faolsizlantirish yoki o‘chirish?</h3>
+      <table>
+        <tr><th></th><th>Faolsizlantirish</th><th>O‘chirish</th></tr>
+        <tr><td>Qaytarsa bo‘ladimi</td><td>Ha</td><td><b>Yo‘q</b></td></tr>
+        <tr><td>Javoblar, baholar, XP</td><td>Saqlanadi</td><td>Butunlay o‘chadi</td></tr>
+        <tr><td>O‘qituvchining guruh va vazifalari</td><td>Saqlanadi</td><td>Butunlay o‘chadi</td></tr>
+      </table>
+      <div class="tip">
+        <b>Shubha bo‘lsa — faolsizlantiring</b>
+        O‘chirish uchun oynada odamning ismini aynan yozishingiz kerak — bu tasodifan o‘chirib yuborishdan himoya.
+      </div>
+    </section>
+
+    <section id="kontent">
+      <h2>Umumiy (rasmiy) dars yaratish</h2>
+      <p>Rasmiy modulni <b>har bir o‘quvchi</b> ko‘radi — guruhi bo‘lmasa ham. Har bir rasmiy modulning <b>dastlabki 3 ta vazifasi bepul</b>, qolganlari Premium.</p>
+      <div class="row">
+        <figure>
+          <div class="phone"><img src="img/admin-content.jpg" alt="Kontent bo‘limi va Yaratish tugmasi"></div>
+          <figcaption>Kontent → + Yaratish</figcaption>
+        </figure>
+        <ol class="steps">
+          <li><span class="tab">Kontent</span> → <span class="btn">+ Yaratish</span> (birinchi marta — «Birinchi modulni yaratish»).</li>
+          <li><b>Modul nomi</b>, <b>Tavsif</b>, <b>Daraja</b> (A1–C1) → <span class="btn">Saqlash</span>.</li>
+          <li><b>Ko‘rinish</b> da <b>Rasmiy (barcha o‘quvchilar)</b> tanlanganini tekshiring.</li>
+          <li><span class="alt">+ Yangi vazifa</span>: <b>Sarlavha</b>, <b>Shart (ruscha)</b> — o‘quvchiga beriladigan savol, vaqtlar, xohlasangiz rasm yoki video.</li>
+          <li><span class="btn">Nashr qilish</span> — modul va undagi vazifalar o‘quvchilarga ochiladi.</li>
+        </ol>
+      </div>
+      <p>Vazifalar tartibi muhim: birinchi 3 tasi bepul. Ichida nashr qilingan vazifasi yo‘q modulni o‘quvchilar ko‘rmaydi.</p>
+    </section>
+
+    <section id="sozlamalar">
+      <h2>Sozlamalar</h2>
+      <ul class="plain">
+        <li><b>Aloqa havolalari</b> — «Telegram — qo‘llab-quvvatlash» va «Telegram — kanal» (masalan <span class="mono">t.me/govorim_yordam</span> yoki <span class="mono">@nom</span>) → <span class="btn">Havolalarni saqlash</span>.</li>
+        <li><b>Funksiyalar</b> — har biri alohida yoqiladi: Xatolar ustida ishlash, AI Suhbat, Kunlik 5 daqiqa, Tovushlar mashqi va boshqalar → <span class="btn">Funksiyalarni saqlash</span>. AI Suhbat har bir gapda pul sarflaydi.</li>
+        <li><b>AI baholash</b> — sun’iy intellekt xizmatlari. Bo‘lim tepasidagi <b>«Hozir ishlayapti: …»</b> belgisi qaysi xizmat ishlayotganini ko‘rsatadi. «Hech biri tayyor emas» desa — javoblar baholanmaydi, texnik mutaxassisga ayting. <span class="alt">Tekshirish</span> tugmasi har bosilganda pul sarflaydi.</li>
+        <li><b>AI byudjeti</b> — kunlik va oylik xarajat chegarasi. Chegaraga yetsa, yangi baholash vaqtincha to‘xtaydi.</li>
+      </ul>
+      <p><b>Tariflar</b>: onlayn to‘lov hali ulanmagan — sahifada «Provayder: ulanmagan» deb yozilgan. Premiumni hozircha <span class="tab">O‘quvchilar</span> → <span class="alt">Boshqarish</span> → <b>Premium</b> orqali berasiz.</p>
+    </section>
+
+    <section id="savollar" class="newpage">
+      <h2>Savol-javoblar: agar … bo‘lsa?</h2>
+
+      <div class="qgroup">Kirish</div>
+      <div class="qa">
+        <h4>Menga kod kelmayapti</h4>
+        <ol>
+          <li><span class="btn">Telegram’da oching</span> tugmasi orqali botga kiring → <span class="alt">START</span> → <span class="alt">Raqamni yuborish</span>.</li>
+          <li>Telegram’ingiz admin hisobidagi raqamda ochilganmi? Raqamlar bir xil bo‘lishi shart.</li>
+          <li>Hech kimga kod kelmayotgan bo‘lsa (hammaga birdan) — bu serverdagi Telegram bot muammosi, texnik mutaxassisga ayting.</li>
+        </ol>
+      </div>
+      <div class="qa">
+        <h4>O‘qituvchi kira olmayapti</h4>
+        <ul>
+          <li>Ro‘yxatda uning raqamini tekshiring: u Telegram’i ochilgan raqam bilan aynan bir xil bo‘lishi kerak.</li>
+          <li>Raqam xato yozilgan bo‘lsa, o‘qituvchi o‘z raqami bilan kirganda tizim uni <b>yangi o‘quvchi</b> deb ro‘yxatdan o‘tkazadi — pastdagi savolga qarang. Xato raqamli hisobni esa o‘chiring.</li>
+          <li>«Hisob bloklangan» desa — <b>Faol hisob</b> kaliti o‘chiq, uni yoqing.</li>
+        </ul>
+      </div>
+      <div class="qa">
+        <h4>O‘qituvchi o‘quvchi sahifasiga tushib qoldi</h4>
+        <p>U siz qo‘shgan raqamdan boshqa raqam bilan kirgan va tizim uni yangi o‘quvchi deb ro‘yxatdan o‘tkazgan. O‘sha hisobni <span class="tab">O‘quvchilar</span> da toping → <span class="alt">Boshqarish</span> → <b>O‘qituvchiga aylantirish</b> (yoki ortiqcha hisobni o‘chiring).</p>
+      </div>
+
+      <div class="qgroup">Akkauntlar</div>
+      <div class="qa">
+        <h4>Xodim ishdan ketdi — kirishini yopish kerak</h4>
+        <p><span class="alt">Boshqarish</span> → <b>Faol hisob</b> kalitini o‘chiring. U kira olmaydi, guruh va vazifalari saqlanadi. Keyin qaytarsa ham bo‘ladi.</p>
+      </div>
+      <div class="qa">
+        <h4>O‘qituvchini o‘quvchiga aylantirib bo‘lmayapti</h4>
+        <p>«Bu o‘qituvchida N ta guruh bor» — guruhi bor o‘qituvchini o‘quvchiga aylantirib bo‘lmaydi. Kirishini to‘xtatmoqchi bo‘lsangiz — faolsizlantiring.</p>
+      </div>
+      <div class="qa">
+        <h4>«Bu oxirgi admin» / «O‘z rolingizni o‘zgartira olmaysiz»</h4>
+        <p>Platformada kamida bitta admin qolishi shart. O‘z rolingizni boshqa admin o‘zgartiradi.</p>
+      </div>
+      <div class="qa">
+        <h4>Ism xato yozilgan</h4>
+        <p><span class="alt">Boshqarish</span> → ismni tuzating → <b>Ismni saqlash</b>.</p>
+      </div>
+      <div class="qa">
+        <h4>O‘quvchi hisobini o‘chirishni so‘radi</h4>
+        <p><span class="tab">O‘quvchilar</span> → uni toping → <span class="alt">Boshqarish</span> → <b>Hisobni o‘chirish</b> → ismini yozib tasdiqlang. Barcha javoblari butunlay o‘chadi.</p>
+      </div>
+      <div class="qa">
+        <h4>O‘quvchi Premium so‘rayapti</h4>
+        <p><span class="tab">O‘quvchilar</span> → <span class="alt">Boshqarish</span> → <b>Premium</b> kalitini yoqing. O‘qituvchisi ham o‘z o‘quvchisiga bera oladi.</p>
+      </div>
+
+      <div class="qgroup">Kontent va baholash</div>
+      <div class="qa">
+        <h4>O‘quvchilar «Mashq bo‘limida hech narsa yo‘q» deyapti</h4>
+        <p>Nashr qilingan rasmiy modul yo‘q, yoki modul ichida nashr qilingan vazifa yo‘q. <span class="tab">Kontent</span> da modulni oching va <span class="btn">Nashr qilish</span> ni bosing.</p>
+      </div>
+      <div class="qa">
+        <h4>Javoblar baholanmayapti yoki ko‘pi «xato bilan tugadi»</h4>
+        <p><span class="tab">Sozlamalar</span> → AI baholash → «Hozir ishlayapti» belgisini tekshiring. Kunlik AI byudjeti tugagan bo‘lishi ham mumkin. Hal bo‘lmasa — texnik mutaxassisga ayting.</p>
+      </div>
+      <div class="qa">
+        <h4>Rasmiy modul va o‘qituvchi moduli farqi nima?</h4>
+        <p><b>Rasmiy</b> (siz yaratgan) — hamma o‘quvchiga ko‘rinadi, birinchi 3 vazifadan keyin Premium. <b>O‘qituvchi moduli</b> — faqat o‘sha o‘qituvchining guruhlariga, to‘liq bepul.</p>
+      </div>
+    </section>
+
+    <footer>Texnik muammo (sayt ochilmasa, hech kimga kod kelmasa) — serverni o‘rnatgan mutaxassisga murojaat qiling. · govorim.uz</footer>
+  </div>
+</div>
+</body>
+</html>
