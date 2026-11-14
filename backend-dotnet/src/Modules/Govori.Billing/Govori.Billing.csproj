@@ -18,6 +18,7 @@
          ClaimsPrincipal / Results / HttpRequest — the shared ASP.NET Core framework provides those
          types to a class library. Same modular-endpoint pattern as Govori.Identity / Govori.Catalog /
          Govori.Practice / Govori.Classroom / Govori.Engagement / Govori.Administration. -->
+    <PackageReference Include="Microsoft.EntityFrameworkCore" Version="9.0.23" />
     <FrameworkReference Include="Microsoft.AspNetCore.App" />
   </ItemGroup>
 

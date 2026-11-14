@@ -15,6 +15,7 @@
          ClaimsPrincipal / Results / IConfiguration / IMemoryCache-style types — the shared ASP.NET
          Core framework provides those to a class library. Same modular-endpoint pattern as
          Govori.Identity / Govori.Catalog / Govori.Practice / Govori.Classroom / Govori.Engagement. -->
+    <PackageReference Include="Microsoft.EntityFrameworkCore" Version="9.0.23" />
     <FrameworkReference Include="Microsoft.AspNetCore.App" />
   </ItemGroup>
 

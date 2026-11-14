@@ -15,6 +15,7 @@
     <!-- This module defines its own minimal-API endpoint group (MapDrillEndpoints) and uses
          ClaimsPrincipal / Results / rate-limiting extensions — the shared ASP.NET Core framework
          provides those types to a class library. Same modular-endpoint pattern as the other domains. -->
+    <PackageReference Include="Microsoft.EntityFrameworkCore" Version="9.0.23" />
     <FrameworkReference Include="Microsoft.AspNetCore.App" />
   </ItemGroup>
 

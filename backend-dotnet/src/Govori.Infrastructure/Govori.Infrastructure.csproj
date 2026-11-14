@@ -24,7 +24,8 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="9.0.4">
+    <PackageReference Include="Microsoft.EntityFrameworkCore" Version="9.0.23" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="9.0.23">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
@@ -32,7 +33,7 @@
     <!-- Pin Relational to 9.0.4: EFCore.NamingConventions 9.0.0 otherwise drags in
          Relational 9.0.1, a silent downgrade below the Npgsql provider's 9.0.4 that
          breaks the native-enum mapping convention. -->
-    <PackageReference Include="Microsoft.EntityFrameworkCore.Relational" Version="9.0.4" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Relational" Version="9.0.23" />
     <PackageReference Include="EFCore.NamingConventions" Version="9.0.0" />
   </ItemGroup>
 

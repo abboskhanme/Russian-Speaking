@@ -14,6 +14,7 @@
     <!-- This module defines its own minimal-API endpoint group (MapPracticeEndpoints) and uses
          ClaimsPrincipal / Results / IFormFile — the shared ASP.NET Core framework provides those
          types to a class library. Same modular-endpoint pattern as Govori.Identity / Govori.Catalog. -->
+    <PackageReference Include="Microsoft.EntityFrameworkCore" Version="9.0.23" />
     <FrameworkReference Include="Microsoft.AspNetCore.App" />
   </ItemGroup>
 
