@@ -11,8 +11,8 @@
     <PackageReference Include="StackExchange.Redis" Version="2.8.16" />
     <!-- The AI backends log by name when they fail, and reach vendors over pooled HttpClients
          (IHttpClientFactory) rather than one socket per grading run. -->
-    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="9.0.0" />
-    <PackageReference Include="Microsoft.Extensions.Http" Version="9.0.0" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="9.0.23" />
+    <PackageReference Include="Microsoft.Extensions.Http" Version="9.0.23" />
     <!-- Claude: the official SDK, not hand-rolled HTTP — it owns the structured-output and
          refusal semantics that would otherwise be ours to track. -->
     <PackageReference Include="Anthropic" Version="12.40.0" />
