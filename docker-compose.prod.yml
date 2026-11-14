@@ -556,7 +556,7 @@ services:
   # Let's Encrypt client. `profiles: [tools]` keeps it out of `up`; it is invoked
   # on demand by deploy/setup-domain.sh and by the renewal cron that script prints.
   certbot:
-    image: certbot/certbot:v5.0.0
+    image: certbot/certbot:v5.10.0
     profiles: ["tools"]
     volumes:
       - ./certbot/conf:/etc/letsencrypt
