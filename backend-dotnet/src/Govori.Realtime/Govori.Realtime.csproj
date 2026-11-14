@@ -23,7 +23,7 @@
 
   <ItemGroup>
     <!-- Durable background jobs + recurring schedules on Postgres storage (docs/07 §7.3). -->
-    <PackageReference Include="Hangfire.AspNetCore" Version="1.8.24" />
+    <PackageReference Include="Hangfire.AspNetCore" Version="1.8.25" />
     <PackageReference Include="Hangfire.PostgreSql" Version="1.21.1" />
     <!-- Hangfire.Core 1.8 floors Newtonsoft.Json at 11.0.1, which carries GHSA-5crp-9r3c-p9vr
          (high). Lifted here so CI's vulnerable-package gate holds; Hangfire runs on 13.x. -->

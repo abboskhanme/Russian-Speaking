@@ -20,7 +20,7 @@
     <!-- JWT bearer authentication (docs/07 §7.5). -->
     <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="9.0.4" />
     <PackageReference Include="FluentValidation.AspNetCore" Version="11.3.1" />
-    <PackageReference Include="Hangfire.AspNetCore" Version="1.8.24" />
+    <PackageReference Include="Hangfire.AspNetCore" Version="1.8.25" />
     <PackageReference Include="Hangfire.PostgreSql" Version="1.21.1" />
     <!-- Logging: Serilog structured JSON (docs/07 §7.3, §7.9) -->
     <PackageReference Include="Serilog.AspNetCore" Version="10.0.0" />
