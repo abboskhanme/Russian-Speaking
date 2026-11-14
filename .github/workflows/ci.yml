@@ -30,12 +30,12 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-dotnet@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-dotnet@v6
         with:
           dotnet-version: "9.0.x"
 
-      - uses: actions/cache@v4
+      - uses: actions/cache@v6
         with:
           path: ~/.nuget/packages
           key: nuget-${{ runner.os }}-${{ hashFiles('backend-dotnet/**/*.csproj') }}
@@ -98,7 +98,7 @@ jobs:
           done
           exit $rc
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: always()
         with:
           name: backend-test-results
@@ -134,8 +134,8 @@ jobs:
       vars.GOLDEN_GATE == 'enabled' &&
       (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-dotnet@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-dotnet@v6
         with:
           dotnet-version: "9.0.x"
 
@@ -189,8 +189,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
           node-version: "22"
           cache: npm
@@ -254,8 +254,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 40
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
           node-version: "22"
           cache: npm
@@ -344,7 +344,7 @@ jobs:
         if: failure()
         run: docker compose ps; docker compose logs --tail=200 api worker frontend
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: failure()
         with:
           name: playwright-artifacts
@@ -367,7 +367,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       # Only the backing services. Building api/worker/web would double the runtime to
       # test nothing this suite exercises.
@@ -419,7 +419,7 @@ jobs:
               bash /repo/.github/scripts/assert-trx.sh TestResults/Integration.trx 100 || rc=1
               exit $rc'
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: always()
         with:
           name: integration-test-results
@@ -457,7 +457,7 @@ jobs:
       S3_PUBLIC_URL: https://example.invalid
       SECRET_KEY: ci-only-not-a-real-secret-0123456789abcdef
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Build all three images
         run: docker compose -f docker-compose.prod.yml build
@@ -507,7 +507,7 @@ jobs:
       S3_PUBLIC_URL: https://example.invalid
       SECRET_KEY: ci-only-not-a-real-secret-0123456789abcdef
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: shellcheck
         run: |
