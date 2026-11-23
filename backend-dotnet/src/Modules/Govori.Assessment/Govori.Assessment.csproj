@@ -10,6 +10,9 @@
   <ItemGroup>
     <!-- Same shared-framework pattern as Govori.Identity: the module uses ILogger, DI
          (IServiceScopeFactory) and EF Core types the shared ASP.NET Core framework provides. -->
+    <PackageReference Include="Microsoft.EntityFrameworkCore" Version="9.0.23" />
+    <PackageReference Include="Microsoft.Extensions.Http" Version="9.0.23" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.15" />
     <FrameworkReference Include="Microsoft.AspNetCore.App" />
   </ItemGroup>
 

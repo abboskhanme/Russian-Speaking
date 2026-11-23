@@ -30,7 +30,7 @@
     <PackageReference Include="Newtonsoft.Json" Version="13.0.4" />
     <!-- SignalR Redis backplane (govori-redis) so a Worker-side publish reaches API-side clients.
          9.0.21, not 9.0.4: the older one pulls MessagePack 2.5.187 (two high advisories). -->
-    <PackageReference Include="Microsoft.AspNetCore.SignalR.StackExchangeRedis" Version="9.0.21" />
+    <PackageReference Include="Microsoft.AspNetCore.SignalR.StackExchangeRedis" Version="9.0.23" />
   </ItemGroup>
 
 </Project>
