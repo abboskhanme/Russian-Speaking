@@ -14,6 +14,9 @@
          ClaimsPrincipal / Results — the shared ASP.NET Core framework provides those types to a
          class library. Same modular-endpoint pattern as Govori.Identity / Govori.Catalog /
          Govori.Practice / Govori.Classroom. -->
+    <PackageReference Include="Microsoft.EntityFrameworkCore" Version="9.0.23" />
+    <PackageReference Include="Microsoft.Extensions.Http" Version="9.0.23" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.15" />
     <FrameworkReference Include="Microsoft.AspNetCore.App" />
   </ItemGroup>
 
