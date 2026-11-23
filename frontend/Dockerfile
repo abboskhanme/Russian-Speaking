@@ -55,7 +55,7 @@ ARG BUILD_NODE_ENV=production
 RUN NODE_ENV=$BUILD_NODE_ENV npm run build
 
 # ────────────────────────── runtime ──────────────────────────
-FROM nginx:1.27-alpine AS runtime
+FROM nginx:1.31-alpine AS runtime
 COPY --from=build /app/dist /usr/share/nginx/html
 
 # Minimal built-in server block so the image serves the SPA even standalone.
